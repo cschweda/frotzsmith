@@ -1,0 +1,29 @@
+Constant Story "FROTZSMITH DEMO";
+Constant Headline "^A tiny demo world for testing the Frotzsmith IDE.^";
+
+Include "Parser";
+Include "VerbLib";
+
+[ Initialise;
+    location = Cottage;
+    print "^Welcome to the Frotzsmith demo!^^";
+    print "Try: look, north, take lamp, examine lamp, inventory.^";
+];
+
+Object Cottage "Cottage"
+  with description
+        "A cosy one-room cottage. A sturdy door leads north into daylight.",
+       n_to Meadow,
+  has  light;
+
+Object -> lamp "brass lamp"
+  with name 'brass' 'lamp',
+       description "A small brass lamp, the kind every adventurer carries.";
+
+Object Meadow "Meadow"
+  with description
+        "A sunlit meadow dotted with wildflowers. The cottage lies to the south.",
+       s_to Cottage,
+  has  light;
+
+Include "Grammar";

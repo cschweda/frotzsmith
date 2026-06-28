@@ -1,0 +1,28 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+:root {
+  --frotz-amber: #f0a830;
+}
+
+/* Warm "frotz-glow" for the hero Compile action. */
+.frotz-glow {
+  box-shadow:
+    0 0 0 1px rgba(240, 168, 48, 0.35),
+    0 8px 30px -8px rgba(240, 168, 48, 0.6);
+}
+
+/* Subtle forge-dust grid, used behind empty states. */
+.frotz-grid {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    color-mix(in oklab, var(--frotz-amber) 14%, transparent) 1px,
+    transparent 0
+  );
+  background-size: 22px 22px;
+}
+
+/* CodeMirror fills its pane. */
+.cm-editor {
+  height: 100%;
+}
