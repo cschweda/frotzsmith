@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Frotzsmith — Play</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
+<script src="web/jquery.min.js"></script>
+<script src="web/ie.js" nomodule></script>
+<script>
+  // The compiled story is handed in as a (blob) URL via ?story=… so this one
+  // page can play any game. Falls back to the bundled demo when opened directly.
+  var __story = new URLSearchParams(location.search).get('story');
+  parchment_options = { default_story: [__story || '/play/demo.z5'], lib_path: 'web/' };
+</script>
+<script src="web/main.js" type="module"></script>
+<link rel="stylesheet" href="web/web.css">
+</head>
+<body>
+<div id="gameport"><div id="windowport"></div></div>
+</body>
+</html>
