@@ -72,6 +72,14 @@ export default defineNuxtConfig({
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
         { rel: 'canonical', href: `${SITE_URL}/` },
       ],
+      // Privacy-friendly analytics by Plausible (no cookies, no personal data).
+      script: [
+        { src: 'https://plausible.io/js/pa-2FCOIzY7AvsOrnssGbGde.js', async: true },
+        {
+          innerHTML:
+            'window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()',
+        },
+      ],
     },
   },
 })

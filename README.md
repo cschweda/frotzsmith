@@ -11,7 +11,7 @@
 [![WCAG 2.1 AA](https://img.shields.io/badge/a11y-WCAG%202.1%20AA-success.svg)](https://www.w3.org/WAI/WCAG21/quickref/)
 [![Status](https://img.shields.io/badge/status-alpha-orange.svg)](./docs/00-master-design.md)
 
-> **Status — alpha (first draft).** The core IDE works: write Inform 6, compile to a Z-machine story file entirely in the browser (Standard Library or PunyInform, auto-detected), and **play it inline** via Parchment + the pure-JS ZVM. Design & specification docs live in [`docs/`](./docs).
+> **Status — working alpha.** Write Inform 6, compile to a Z-machine story file entirely in the browser (Standard Library or PunyInform, auto-detected), **play it inline** via Parchment + the pure-JS ZVM, load 21 worked samples, and pull in your own extensions. See [ROADMAP.md](./ROADMAP.md) for what's next and [CHANGELOG.md](./CHANGELOG.md) for what's shipped; design docs live in [`docs/`](./docs).
 
 ## What it is
 
@@ -49,18 +49,18 @@ write I6  ──▶  compile (inform6.wasm, client-side)  ──▶  play inline
 | Accessibility | WCAG 2.1 AA, axe-core zero-violation gate, fully responsive |
 | Package manager | Yarn 1.22 |
 | Runtime | Node 22 |
-| Hosting | Netlify (static, `.output/public`) |
+| Analytics | Plausible (privacy-friendly, cookieless) |
+| Hosting | Netlify (static; publishes `dist`) |
 
 ## Roadmap
 
-| Phase | Deliverable |
-|-------|-------------|
-| 1 | Compiler core & two-pane editor shell — client-side compile, clickable errors, autosave |
-| 2 | Library profiles & auto-import — Standard Library + PunyInform |
-| 3 | Inline play via Parchment behind a `StoryEngine` seam |
-| 4 | Test scripts & headless replay → Transcript |
-| 5 | Export — raw story file + offline-playable HTML bundle |
-| later | Full branching Skein with blessed-output regression diffing |
+**Shipped (v1):** client-side compile (Standard Library + PunyInform, auto-detected; z3/z4/z5/z8 targets), clickable errors, crash-recovery autosave, **inline play** (Parchment + ZVM), 21 verified samples, extensions (drop-in `.h`/`.zip` + a select/deselect picker), Prettify, Open / Save As, a Technical Details page, and privacy-friendly analytics.
+
+**Next (v1):** test scripts & a transcript pane → a Skein-style regression-testing spine with blessed output.
+
+**Planned (v2):** ZIL/ZILF as a third source language, play-time auto-map, an online extensions registry, Glulx, and multi-`.inf` projects.
+
+See [ROADMAP.md](./ROADMAP.md) for detail, [CHANGELOG.md](./CHANGELOG.md) for what's shipped, and [`docs/13-v2-roadmap.md`](./docs/13-v2-roadmap.md) for v2 feasibility notes.
 
 ## Documentation
 
@@ -75,16 +75,14 @@ The complete design suite lives in [`docs/`](./docs):
 
 ## Development
 
-> Prerequisites once implementation begins: **Node 22** (see `.nvmrc`) and **Yarn 1.22**.
+> Prerequisites: **Node 22** (see `.nvmrc`) and **Yarn 1.22**.
 
 ```bash
 yarn install
 yarn dev        # local dev server
-yarn generate   # static build → .output/public
+yarn generate   # static build (Netlify publishes dist)
 yarn preview    # preview the static build
 ```
-
-These scripts will exist once Phase 1 lands; the repository is spec-only today.
 
 ## License & attribution
 
@@ -92,8 +90,12 @@ Frotzsmith is licensed under the [MIT License](./LICENSE) — © 2026 Christophe
 
 Bundled third-party components keep their own licenses:
 
-- **Inform 6 compiler** and **standard library** — Artistic License 2.0 ([DavidKinder/Inform6](https://github.com/DavidKinder/Inform6))
-- **PunyInform** — its own license
-- **Parchment** / **ZVM** — their own licenses
+- **Inform 6 compiler** and **Standard Library 6.12.8** — Artistic License 2.0 ([DavidKinder/Inform6](https://github.com/DavidKinder/Inform6))
+- **PunyInform 6.7** — see [johanberntsson/PunyInform](https://github.com/johanberntsson/PunyInform)
+- **Parchment** / **ZVM (ifvms)** — MIT ([curiousdannii/parchment](https://github.com/curiousdannii/parchment))
+
+**Inspiration:** [Borogove](https://borogove.app) — the multi-language, browser-based IF IDE that proved this could be done well in the browser. **No Borogove code is used here**; Frotzsmith is an independent, Inform 6-focused take, but Borogove was a definite inspiration (and the model for the extension picker).
+
+The **Haunted House** sample is reverse-engineered from Radio Shack's 1979 TRS-80 (Tandy Model I/III) text adventure and reimplemented in Inform 6.
 
 A personal, weekend project — unaffiliated with any employer or organization.

@@ -13,16 +13,22 @@ story file entirely client-side, and play it inline. See
   and footer stats (story size, dynamic memory / 64 KB, free)
 - **Inline play** via Parchment + the pure-JS ZVM — light/dark, edge-to-edge,
   fullscreen toggle
-- 14 verified samples (7 concepts × 2 libraries), prettified on load
-- Prettify, live lint, syntax highlighting, click-to-jump errors
-- Open `.inf` / Save As, New Project, crash-recovery autosave
-- Technical Details page (limits + resources), SEO/OG, accessible, responsive,
-  dark by default
-
-## In progress (v1)
-
+- 21 verified samples across both libraries — concept demos (rooms, light,
+  daemons, NPCs, puzzles, grammar, devices, randomness…) plus a Haunted House
+  port that targets `.z3` — prettified on load; a sample can grey out the
+  library it doesn't support
 - **Extensions** — bundled `.h` catalog + drop-your-own `.h` / `.zip`, with a
   Borogove-style select/deselect picker that mounts them into the compile
+- Prettify (collapses blank lines, indents custom classes), live lint, syntax
+  highlighting, click-to-jump errors
+- Open `.inf` / Save As, New Project, crash-recovery autosave
+- Technical Details page (limits + resources), privacy-friendly analytics
+  (Plausible), SEO/OG, accessible, responsive, dark by default
+
+## Next (v1)
+
+- **Test scripts & a transcript pane** — replay long command scripts headlessly,
+  growing into a Skein-style regression-testing spine with blessed output
 
 ## Planned (v2)
 
