@@ -98,11 +98,11 @@ export function useIde() {
     if (import.meta.client) localStorage.setItem(frotzsmith.storageKeys.target, mode)
   }
 
-  /** Load a built-in sample into the editor. */
+  /** Load a built-in sample into the editor, prettified for consistent formatting. */
   function loadSample(id: string) {
     const s = sampleById(id)
     if (!s) return
-    source.value = s.source
+    source.value = formatI6(s.source)
     result.value = null
     status.value = 'idle'
     activeTab.value = 'results'

@@ -17,24 +17,34 @@
 <script src="web/main.js" type="module"></script>
 <link rel="stylesheet" href="web/web.css">
 <style>
-  /* Frotzsmith: a soft parchment tint instead of pure white/black, theme-aware. */
+  /* Frotzsmith: parchment tint (not pure white/black), edge-to-edge, theme-aware. */
   :root {
     --glkote-buffer-bg: #f5f1e8; --glkote-buffer-fg: #2a2622;
     --glkote-grid-bg: #efe9da;   --glkote-grid-fg: #2a2622;
   }
-  body { background: #e7e2d6; }
+  html, body { height: 100%; background: #e7e2d6; }
+  /* Fill the right pane edge-to-edge (Parchment centres at 900px by default). */
+  #gameport { max-width: none !important; }
   html.frotz-dark {
     --glkote-buffer-bg: #1c1c21; --glkote-buffer-fg: #d7d3c9;
     --glkote-buffer-reverse-bg: #d7d3c9; --glkote-buffer-reverse-fg: #1c1c21;
     --glkote-grid-bg: #15151a;   --glkote-grid-fg: #d7d3c9;
     --glkote-grid-reverse-bg: #d7d3c9; --glkote-grid-reverse-fg: #15151a;
   }
-  html.frotz-dark body { background: #101014; }
-  /* Force the main reading surfaces — the interpreter sets some colours inline. */
+  html.frotz-dark, html.frotz-dark body { background: #101014; }
+  /* Force the reading surfaces — the interpreter sets some colours inline. */
   .WindowFrame, .BufferWindow { background-color: #f5f1e8 !important; }
   .BufferWindow { color: #2a2622 !important; }
   html.frotz-dark .WindowFrame, html.frotz-dark .BufferWindow { background-color: #1c1c21 !important; }
   html.frotz-dark .BufferWindow { color: #d7d3c9 !important; }
+  /* Typed input + echoed command stay visible on dark (web.css hard-codes #300000). */
+  html.frotz-dark .Input { color: #d7d3c9 !important; }
+  html.frotz-dark .Style_input { color: #fbbf24 !important; }
+  /* Dark scrollbars so no light gutter shows at the edge. */
+  html.frotz-dark { scrollbar-color: #3a3a42 #15151a; }
+  html.frotz-dark ::-webkit-scrollbar { width: 10px; height: 10px; }
+  html.frotz-dark ::-webkit-scrollbar-track { background: #15151a; }
+  html.frotz-dark ::-webkit-scrollbar-thumb { background: #3a3a42; border-radius: 5px; }
 </style>
 </head>
 <body>

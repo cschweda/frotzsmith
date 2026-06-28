@@ -2,8 +2,10 @@
 const { result, playNonce, canPlay } = useIde()
 const colorMode = useColorMode()
 
-// The compiled story plays in a sandboxed Parchment iframe (pure-JS ZVM). We
-// hand the in-memory story bytes to it as a same-origin blob URL via ?story=.
+// The compiled story plays in a Parchment iframe (pure-JS ZVM). We hand the
+// in-memory story bytes to it as a same-origin blob URL via ?story=.
+const container = ref<HTMLElement | null>(null)
+const isFullscreen = ref(false)
 const src = ref<string | null>(null)
 let blobUrl: string | null = null
 
@@ -30,23 +32,41 @@ function boot() {
   src.value = `/play/index.html?story=${encodeURIComponent(storyUrl)}&theme=${colorMode.value}&n=${playNonce.value}`
 }
 
-// Boot whenever Play is pressed (playNonce bumps), and on first mount if a game
-// is already queued.
+// Full-screen the play area (the whole game, not the IDE chrome).
+function toggleFullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen()
+  else container.value?.requestFullscreen?.()
+}
+function onFsChange() {
+  isFullscreen.value = document.fullscreenElement === container.value
+}
+
 watch(() => playNonce.value, boot)
 onMounted(() => {
+  document.addEventListener('fullscreenchange', onFsChange)
   if (playNonce.value > 0) boot()
 })
-onBeforeUnmount(revoke)
+onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange', onFsChange)
+  revoke()
+})
 </script>
 
 <template>
-  <div class="bg-default h-full w-full">
-    <iframe
-      v-if="src"
-      :src="src"
-      class="h-full w-full border-0"
-      title="Game — Parchment interpreter"
-    />
+  <div ref="container" class="bg-default relative h-full w-full">
+    <template v-if="src">
+      <UButton
+        class="absolute right-2 top-2 z-10 opacity-70 hover:opacity-100"
+        color="neutral"
+        variant="solid"
+        size="xs"
+        :icon="isFullscreen ? 'i-lucide-minimize' : 'i-lucide-maximize'"
+        :title="isFullscreen ? 'Exit full screen' : 'Play full screen'"
+        :aria-label="isFullscreen ? 'Exit full screen' : 'Play full screen'"
+        @click="toggleFullscreen"
+      />
+      <iframe :src="src" class="h-full w-full border-0" title="Game — Parchment interpreter" />
+    </template>
     <div
       v-else
       class="frotz-grid flex h-full flex-col items-center justify-center gap-3 p-6 text-center"
