@@ -1,0 +1,35 @@
+# Netlify configuration for Frotzsmith
+# Static Nuxt 4 build (ssr: false) → .output/public
+# Basic scaffold — headers/CSP can be tightened later (see docs/06-security.md §9).
+
+[build]
+  command = "yarn generate"
+  publish = ".output/public"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# SPA fallback for client-side routing (Frotzsmith is a single-page tool).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Basic security headers.
+# No COOP/COEP needed — the WASM build is single-threaded (no SharedArrayBuffer),
+# which preserves "deploy anywhere static".
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # WASM instantiation needs 'wasm-unsafe-eval'; compile/replay use Web Workers
+    # ('self' + blob:). Tighten before production per docs/06-security.md §9.
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
+
+# Long-cache content-hashed build assets (WASM, interpreter, JS/CSS).
+[[headers]]
+  for = "/_nuxt/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

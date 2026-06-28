@@ -1,0 +1,11 @@
+# Normalize line endings
+* text=auto eol=lf
+
+# Binary artifacts (never diff/normalize)
+*.wasm binary
+*.z3   binary
+*.z5   binary
+*.z8   binary
+*.ulx  binary
+*.png  binary
+*.gif  binary
