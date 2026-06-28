@@ -1,11 +1,6 @@
 import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { formatI6 } from '~/utils/format-i6'
-import {
-  PROFILES,
-  detectProfile,
-  buildSkeleton,
-  type ProfileId,
-} from '~/modules/inform6/profiles'
+import { PROFILES, detectProfile, type ProfileId } from '~/modules/inform6/profiles'
 import { sampleById } from '~/modules/inform6/samples'
 import { frotzsmith } from '~~/frotzsmith.config'
 
@@ -122,10 +117,10 @@ export function useIde() {
     activeTab.value = 'results'
   }
 
-  /** Clear the editor and start a fresh, titled project from a skeleton. */
-  function newProject(opts: { title: string; author: string; library: ProfileId }) {
-    source.value = buildSkeleton(opts.library, opts.title, opts.author)
-    setProfileMode(opts.library)
+  /** Start a fresh project: a blank editor with the chosen library forced. */
+  function newProject(library: ProfileId) {
+    source.value = ''
+    setProfileMode(library)
     result.value = null
     status.value = 'idle'
     activeTab.value = 'results'

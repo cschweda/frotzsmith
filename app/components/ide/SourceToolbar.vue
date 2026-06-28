@@ -1,32 +1,36 @@
 <script setup lang="ts">
-import { SAMPLES } from '~/modules/inform6/samples'
+import { SAMPLES, type Sample } from '~/modules/inform6/samples'
 import type { ProfileId } from '~/modules/inform6/profiles'
 
 const { source, loadSample, loadSource, newProject } = useIde()
 
-// Samples dropdown, split into labelled groups by library.
+// One entry per concept; choose the library in a submenu instead of listing every
+// concept twice (saves space).
 const sampleItems = computed(() => {
-  const group = (g: ProfileId, label: string) => [
-    { label, type: 'label' as const },
-    ...SAMPLES.filter(s => s.group === g).map(s => ({
-      label: s.name,
-      onSelect: () => loadSample(s.id),
+  const byName = new Map<string, Partial<Record<ProfileId, Sample>>>()
+  for (const s of SAMPLES) {
+    const entry = byName.get(s.name) ?? {}
+    entry[s.group] = s
+    byName.set(s.name, entry)
+  }
+  return [
+    [...byName.values()].map(v => ({
+      label: (v.std ?? v.puny)!.name,
+      children: [
+        v.std && { label: 'Inform 6 (full)', icon: 'i-lucide-book-marked', onSelect: () => loadSample(v.std!.id) },
+        v.puny && { label: 'PunyInform', icon: 'i-lucide-feather', onSelect: () => loadSample(v.puny!.id) },
+      ].filter(Boolean),
     })),
   ]
-  return [group('std', 'Inform 6 (full)'), group('puny', 'PunyInform')]
 })
 
 // New-project modal state.
 const open = ref(false)
-const title = ref('')
-const author = ref('')
 const library = ref<ProfileId>('std')
 
 function create() {
-  newProject({ title: title.value, author: author.value, library: library.value })
+  newProject(library.value)
   open.value = false
-  title.value = ''
-  author.value = ''
 }
 
 // Open a local .inf into the editor.
@@ -111,16 +115,10 @@ async function saveAs() {
       <ExtensionsModal />
     </div>
 
-    <UModal v-model:open="open" title="New project" description="Clear the editor and start fresh from a skeleton.">
+    <UModal v-model:open="open" title="New project" description="Start with a blank editor for the chosen library.">
       <template #body>
         <div class="space-y-4">
-          <UFormField label="Title">
-            <UInput v-model="title" placeholder="My Game" class="w-full" autofocus />
-          </UFormField>
-          <UFormField label="Author">
-            <UInput v-model="author" placeholder="Your name" class="w-full" />
-          </UFormField>
-          <UFormField label="Library">
+          <UFormField label="Library" hint="The editor starts blank; load a Skeleton from Samples for a starting structure.">
             <div class="flex gap-2">
               <UButton
                 :color="library === 'std' ? 'primary' : 'neutral'"

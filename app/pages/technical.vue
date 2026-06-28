@@ -52,6 +52,7 @@ const resources = [
   {
     group: 'Z-machine & play',
     items: [
+      { label: 'Awesome Z-machine (curated list)', href: 'https://github.com/cschweda/awesome-z-machine' },
       { label: 'Z-Machine Standards 1.1', href: 'https://inform-fiction.org/zmachine/standards/z1point1/index.html' },
       { label: 'Parchment', href: 'https://github.com/curiousdannii/parchment' },
       { label: 'ifvms / ZVM', href: 'https://github.com/curiousdannii/ifvms.js' },
