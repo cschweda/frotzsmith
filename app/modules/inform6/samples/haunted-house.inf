@@ -1,0 +1,603 @@
+
+
+Constant Story      "Haunted House";
+Constant Headline   "^A port of Radio Shack's Model I/III adventure (circa 1979) written in Inform 6^";
+Constant MAX_SCORE     = 4;
+Include "Parser";
+
+Object LibraryMessages
+    with before [;
+       
+        Buy:
+            "Petty commerce has rarely interested you.";
+        Pray:
+            "No prayers for the wicked.";
+        Sing:
+            "Please.";
+        Sleep:
+            "There's no sleeping here.";
+        Sorry:
+            "I knew you'd be.";
+        Miscellany:
+            if (lm_n == 39)
+                print_ret "What you see is what you get.";
+    ];
+
+
+Include "VerbLib";
+
+! ============================================================================ !
+! Classes
+! ============================================================================ !
+
+Class Room
+with before [;
+            
+         
+    ],
+    after [;],
+    has     light;
+
+Class Scenic
+    with before [;
+            Examine: return false;
+            default:
+                print_ret "You don't need to worry about ", (the) self, ".";
+    ],
+    has scenery;
+
+
+Class Furniture
+    with before [;
+        Take,Pull,Push,PushDir:
+            print_ret (The) self, " is too heavy for that.";
+    ],
+    has static supporter;
+
+! ============================================================================ !
+! Limbo
+! ============================================================================ !
+
+Object  limbo "Limbo"
+    with  description "How the hell did you get in here?";
+
+
+! ============================================================================ !
+! Initial inventory
+! ============================================================================ !
+
+Object nametag "name tag"
+    with description "A small tag with your name on it.",
+    before [;
+        Drop:
+            print_ret "You can't drop your name tag. No one will know who you are!";
+        Examine:
+            print_ret "It's a small tag with your name on it.";
+        default:
+            print_ret "You can't do that with your name tag.";
+    ],
+    name "name" "tag" "small";
+
+
+
+! ============================================================================ !
+! Outside the House
+! ============================================================================ !
+
+Room    outside_house  "Outside the house"
+    with    description "You are at the outside of the house. The front door is closed.", 
+     name    "house" "outside",
+     cant_go "A mysterious force keeps you planted in place.";
+    
+
+Object   crumpled_paper "crumpled piece of paper" outside_house
+    with    description,
+            before [;
+                Consult,Examine:
+                    if (parent(crumpled_paper)==player) {
+                        print_ret "It says, 'Magic word - PLUGH.'";
+                         }
+                    else {
+                        print_ret "You're not carrying it.";
+                    }     
+    ],
+    name    'paper' 'crumpled' 'piece'
+;
+
+Object front_door "front door" outside_house
+    with    description "The front door.",
+    
+     before [;
+                Consult,Examine:
+                        print_ret "It is closed.";
+                Open:
+                    print_ret "You give it a push. It's stuck.";
+                
+                    
+                
+                    
+    ],
+    name "door" "front",
+    has door locked static scenery;
+
+
+
+! ============================================================================ !
+! The Foyer
+! ============================================================================ !
+
+Room foyer "The Foyer"
+with description "You are in the foyer.",
+initial [;
+    if (self hasnt visited) {
+         "^** You feel a vibration all around. Your surroundings blur. Suddenly, you materialize inside the house. **";
+     } else {
+        rfalse;
+     }],
+name "foyer",
+s_to den,
+w_to east_end_of_hall,
+e_to living_room;
+
+! ============================================================================ !
+! The Living Room
+! ============================================================================ !
+
+Room living_room "The Living Room"
+with description "You are in the living room.",
+
+name "living",
+w_to foyer,
+e_to dining_room;
+
+Object knife "knife" living_room
+with description "A knife.",
+before [; 
+
+    Take:
+        if (parent(scroll)==player && parent(knife)==living_room) {
+            move self to player;
+             score = score + 1;
+            print_ret "You reach out and snatch the knife from the air.";
+           
+        } else {
+            print_ret "The knife moves just out of your reach.";
+        }
+
+    Drop:
+        if (player in living_room) {
+            move self to living_room;
+            score = score - 1;
+            print_ret "^You drop the knife. It shakes, quivers, then slowly levitates a few feet above the floor.";
+        }
+
+    default:
+        deadflag = 1;
+        "^Suddenly the knife swoops down and slits your throat.";
+    
+],
+describe [;
+            if (parent(knife)==living_room) "^A knife is levitating in the middle of the room.";
+            else "^There is a knife here.";
+        ],
+name "knife" "levitating";
+
+
+Object scroll "mysterious scroll" living_room
+with description,
+initial [; "^There is a mysterious scroll on the ground.";],
+before [;
+                 Take:
+                    if (parent(knife)==living_room) {
+                        move self to player;
+                        print_ret "Taken. ^^The levitating knife zooms down and moves within your reach.";
+                    }
+
+                Consult,Examine:
+                    if (parent(scroll)==player) {
+                        print_ret "It says, 'There is ESCAPE from the second floor!'";
+                    }
+                    else {
+                         print_ret "You're not carrying it.";
+                    }
+                       
+                
+    ],
+describe [;
+            "^There is a mysterious scroll on the ground.";
+        ],
+name "scroll" "mysterious";
+
+! ============================================================================ !
+! The Dining Room
+! ============================================================================ !
+
+Room dining_room "The Dining Room",
+with description "You are in the dining room.",
+name "dining",
+w_to living_room,
+s_to kitchen;
+
+! ============================================================================ !
+! Den
+! ============================================================================ !
+
+Room den "The Den",
+with description "You are in the den.",
+name "den",
+n_to foyer,
+e_to kitchen;
+
+! ============================================================================ !
+! Kitchen
+! ============================================================================ !
+
+Room kitchen "The Kitchen",
+with description "You are in the kitchen.",
+name "kitchen",
+n_to dining_room,
+w_to den,
+armor_fled 0,
+s_to [;
+    if (parent(knife)==player && self.armor_fled == 0) {
+        print "^ ** A suit of armor flees when it spots your knife! **";
+        self.armor_fled = 1;
+        return breakfast_room;
+    } else if (parent(knife)~=player) {
+        print_ret "^ ** An animated suit of armor blocks your way!  **";
+    } else {
+       return breakfast_room;
+    }
+    ];
+
+
+! Object bucket_of_water "bucket of water" kitchen
+!   with name "bucket" "water",
+!        description "It's a bucket of water.",
+!        before [; 
+           
+!            ThrowAt:
+!                 if (parent(bucket_of_water)==player && player in master_bedroom) {
+!                     move bucket_of_water to limbo;
+                    
+!                     print_ret "Thrown. ^The bucket and water disappear into the fire. ^Suddenly, you feel a mysterious force pull the empty bucket from your hands. It, too, disappears into the fire. ^But to no effect. The fire grows hotter.";
+!                 }
+!             Drink:
+!                 if (parent(bucket_of_water)==player) {
+!                      deadflag = 1;
+!                     print_ret "You feel sick. The water was poison!";
+                   
+!                 }
+
+!                 if (parent(bucket_of_water)==kitchen && player in kitchen) {
+!                     <Take bucket_of_water>;
+!                     deadflag = 1;
+!                     print_ret "^You feel sick. The water was poison!";
+                    
+!                 }
+!        ]
+!  ;
+
+Object bucket "bucket" kitchen
+  with name "bucket" "pail",
+  getBucketStatus [;
+           if (child(bucket) == water) return " of water";
+           return "";
+        ],
+  initial [;
+        "There is bucket", (string) self.getBucketStatus()," here.";],
+    description [;
+        "It's a bucket", (string) self.getBucketStatus(),".";],
+    has container open;
+
+
+Object water "water" bucket
+    with name "water" "liquid",
+    article "some",
+    description "Looks like water to me."
+    ;
+
+
+
+
+
+! ============================================================================ !
+! Breakfast Room
+! ============================================================================ !
+
+Room breakfast_room "The Breakfast Room",
+with description "You are in the breakfast room.",
+name "breakfast",
+
+n_to kitchen,
+w_to den,
+e_to servants_quarters_1;
+
+
+
+! ============================================================================ !
+! Servant's Quarters 1
+! ============================================================================ !
+
+Room servants_quarters_1 "The Servant's Quarters",
+with description "You are in the servant's quarters.",
+name "servants" "quarters" "serv1",
+w_to breakfast_room ,
+n_to servants_quarters_2;
+
+Furniture cabinet_empty "cabinet" servants_quarters_1
+  with name "cabinet" "cabinet1",
+       description "There is a cabinet on one wall."
+  has  container openable;
+
+
+! ============================================================================ !
+! Servant's Quarters 2
+! ============================================================================ !
+
+Room servants_quarters_2 "The Servant's Quarters",
+with description "You are in the servant's quarters.",
+name "servants" "quarters" "serv2",
+s_to servants_quarters_1;
+
+Object cabinet_with_key "cabinet" servants_quarters_2
+  with name "cabinet" "cabinet2",
+       description "There is a cabinet on one wall."
+  has  container openable;
+
+Object hall_door_key "small key" cabinet_with_key
+  with name "small" "key",
+       description "It's a small key."
+  ;
+
+
+! ============================================================================ !
+! East End of Hall
+! ============================================================================ !
+
+Room east_end_of_hall "East End of Hall",
+with description "You are at the east end of the hall.",
+name "east" "hall", 
+w_to west_end_of_hall,
+e_to foyer;
+
+! ============================================================================ !
+! West End of Hall
+! ============================================================================ !
+
+Room west_end_of_hall "West End of Hall",
+with description "You are at the west end of the hall.",
+name "west" "hall",
+s_to [; 
+    if (hall_door has locked) {
+        print_ret "You need to unlock the door first.";}
+    else if (hall_door hasnt open) {
+        print_ret "The door is closed.";
+    } else {
+        return master_bedroom;
+    }],
+e_to east_end_of_hall;
+
+Object  -> hall_door "hall door"
+  with  name "hall" "door",
+        description "It's a door.",
+        with_key hall_door_key,
+        door_dir [;
+            if (location == master_bedroom) return n_to;
+            return s_to;
+        ],
+        door_to [;
+            if (location == master_bedroom) return west_end_of_hall;
+            return master_bedroom;
+        ],
+        getDoorDirection [;
+           if (location == master_bedroom) return "north";
+           return "south";
+        ],
+        describe [;
+            if (self has open) "^A door to the ", (string) self.getDoorDirection(), " is open.";
+            if (self hasnt open && self hasnt locked) "^A door to the ", (string) self.getDoorDirection(), " is unlocked but shut.";
+            if (self has locked) "^A door to the ", (string) self.getDoorDirection(), " bars your way.";
+            
+        ],
+         after [;
+          Unlock:
+            give self open;
+         ],
+        found_in west_end_of_hall master_bedroom,
+  has   static door openable lockable locked;
+
+! ============================================================================ !
+! Master Bedroom
+! ============================================================================ !
+
+Room master_bedroom "Master Bedroom",
+with description "You are in the master bedroom.^^A raging fire blocks the door to the south.",
+name "master" "bedroom",
+before [;
+     Go:
+        if (noun == s_obj) {
+            print_ret "The fire rages. You're forced to step back.";
+        }],
+
+n_to [; 
+    if (hall_door has locked) {
+        print_ret "You need to unlock the door first.";}
+    else if (hall_door hasnt open) {
+        print_ret "The door is closed.";
+    } else {
+        return west_end_of_hall;
+    }],
+;
+
+Scenic fire "raging fire" master_bedroom
+with description "The fire is raging. Don't get too close!",
+name "fire" "raging"
+;
+
+
+
+! ============================================================================ !
+! Global functions
+! ============================================================================ !
+
+! [getDoorDirection loc;
+!     if (loc == master_bedroom) return "north";
+!     if (loc == west_end_of_hall) return "south";
+! ];
+
+! ============================================================================ !
+! Entry point routines
+! ============================================================================ !
+
+[ Initialise; 
+    move nametag to player;
+    lookmode = 2;
+    location = outside_house;
+    "^^Generations have passed since the McDaniel family mysteriously disappeared. It is said that a stranger came to visit on that cold, Autumn day many years ago, but no one knows for sure. Their house has been vacant for decades now.
+    ^^Its two story image is forlorn and looming, visible only from the narrow, winding road that has been distorted by vegetation from the surrounding forest. The stone wall that encompasses the house is discolored and broken from years of neglect, its iron gate rusty and worn by angry seasons. The windows are boarded and the house is quiet and contented, not accustomed to visitors. The wind is restless today, blowing fallen leaves in all directions.
+    ^^As you walk towards the entrance of the house, the wind grows distant and weak. 
+    ^^Suddenly, the calm and silence is broken by sounds from within the house!"; ];
+
+[ DeathMessage; print "You have died."; ];
+
+Include "Grammar";
+
+
+
+! ============================================================================ !
+! Verb Updates
+! ============================================================================ !
+
+! ------------------------------------------------------------------------------
+!   Show doors
+! ------------------------------------------------------------------------------
+
+[ DirsSub i j loc;
+ if (location == thedark)
+ {
+  if (real_location has visited) loc = real_location;
+  else "You can't see any exits as it is totally dark.";
+ }
+ else loc = location;
+ j = 0;
+ objectloop(i in Compass)
+  if(loc provides (i.door_dir) && metaclass(loc.(i.door_dir))~=nothing)
+   j++;
+ if (j == 0) "There are no obvious exits.";
+ print "You can go ";
+ objectloop(i in Compass)
+ {
+  if(loc provides (i.door_dir) && metaclass(loc.(i.door_dir))~=nothing)
+  {
+   LanguageDirection(i.door_dir);
+   #ifdef ShowRooms;
+    print " (to ", (the) DirTo(i, loc), ")";
+   #endif;
+   j--;
+   if (j == 1) print " or ";
+   else if (j == 0) ".";
+   else print ", ";
+  }
+ }
+];
+
+Verb meta 'dirs' 'directions'
+     *                                   -> Dirs;
+Verb meta 'list'
+     * 'exits'/'dirs'/'directions'       -> Dirs;
+Verb meta 'exits'
+      *                                  -> Dirs;
+
+
+! ------------------------------------------------------------------------------
+!   Exit
+! ------------------------------------------------------------------------------
+
+
+[ NewExitSub; if (player in outside_house) {
+                    "Before you can EXIT the haunted house, you'll need to find a way inside.";
+                } else {
+                    "Exactly! Your goal is to exit the haunted house.";
+                }    ];
+
+Extend 'exit' first
+    *              -> NewExit
+    * 'house'   -> NewExit;
+! ------------------------------------------------------------------------------
+!   Magic words
+! ------------------------------------------------------------------------------
+
+
+[ OldMagicSub; "Nice try."; ];
+[ PlughSub; 
+    if (player in outside_house) {
+         ClearScreen(WIN_MAIN);
+        score = score + 1;
+        <<Teleport foyer>>;
+      
+        
+    } else {
+        print_ret "Sorry, only one PLUGH per customer.";
+    }
+    ];
+
+
+Verb 'xyzzy'
+    *                       -> OldMagic;
+Verb 'plugh'
+    *                       -> Plugh;
+Verb 'sesame' 'shazam' 'hocus' 'abracadabra' 'foobar' 'open-sesame' 'frotz'
+    *                       -> OldMagic;
+
+Extend 'say' first
+    * 'xyzzy'               -> Plugh
+    * 'plugh'               -> Plugh
+    * 'sesame'/'shazam'/'hocus'/'abracadabra'/'foobar'/'open-sesame'/'frotz'
+                            -> OldMagic;
+
+
+! ------------------------------------------------------------------------------
+!   Teleport
+! ------------------------------------------------------------------------------
+
+[ TeleportScope
+    obj;
+    switch (scope_stage) {
+      1:    rfalse;
+      2:    objectloop (obj ofclass Room)
+                if (obj hasnt visited) PlaceInScope(obj);
+            rtrue;
+      3:    return L__M(##Go, 2);
+    }
+];
+
+[ ZapScope
+    obj;
+    switch (scope_stage) {
+      1:    rfalse;
+      2:    objectloop (obj ofclass Room)
+                if (obj hasnt visited || obj has visited) PlaceInScope(obj);
+            rtrue;
+      3:    return L__M(##Go, 2);
+    }
+];
+
+
+
+[ TeleportSub;
+    if (noun == location) "But you're already here!";
+    PlayerTo(noun);
+];
+
+Extend 'go'
+    * scope=TeleportScope       -> Teleport
+    * 'to' scope=TeleportScope  -> Teleport;
+
+! #Ifndef DEBUG;
+Verb 'zap'
+    * scope=ZapScope       -> Teleport;
+! #Endif;
+
+
+! ============================================================================ 
