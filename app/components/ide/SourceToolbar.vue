@@ -107,6 +107,8 @@ async function saveAs() {
       <UButton color="primary" variant="subtle" size="sm" icon="i-lucide-file-plus-2" @click="open = true">
         New Project
       </UButton>
+
+      <ExtensionsModal />
     </div>
 
     <UModal v-model:open="open" title="New project" description="Clear the editor and start fresh from a skeleton.">

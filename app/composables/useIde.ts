@@ -21,6 +21,7 @@ export type ProfileMode = 'auto' | ProfileId
 export function useIde() {
   const { source, savedAt, restore: restoreSource } = useSourceDocument()
   const { compile } = useCompiler()
+  const { enabledFiles, restore: restoreExtensions } = useExtensions()
 
   const status = useState<CompileStatus>('frotz:status', () => 'idle')
   const result = useState<CompileResult | null>('frotz:result', () => null)
@@ -58,6 +59,7 @@ export function useIde() {
       const t = localStorage.getItem(frotzsmith.storageKeys.target)
       if (t === 'auto' || t === 'z3' || t === 'z4' || t === 'z5' || t === 'z8') targetMode.value = t
     }
+    restoreExtensions()
     restoreSource()
   }
 
@@ -68,7 +70,11 @@ export function useIde() {
     const pid = effectiveProfile.value
     await new Promise(resolve => setTimeout(resolve, 0)) // let "Compiling…" paint
     try {
-      const r = await compile(source.value, { profileId: pid, ext: effectiveExt.value })
+      const r = await compile(source.value, {
+        profileId: pid,
+        ext: effectiveExt.value,
+        extensions: enabledFiles.value,
+      })
       result.value = r
       usedProfile.value = pid
       status.value = r.ok ? 'success' : 'error'
