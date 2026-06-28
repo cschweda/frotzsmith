@@ -1,4 +1,5 @@
 import type { ProfileId } from './profiles'
+import type { StoryExt } from './types'
 import stdSkeleton from './samples/std-skeleton.inf?raw'
 import stdTwoRooms from './samples/demo.inf?raw'
 import stdHermit from './samples/hermit.inf?raw'
@@ -22,6 +23,8 @@ export interface Sample {
   description: string
   /** Which library the sample is written for (also its dropdown group). */
   group: ProfileId
+  /** Preferred story-file version, auto-selected when the sample loads. */
+  target?: StoryExt
   source: string
 }
 
@@ -46,7 +49,7 @@ export const SAMPLES: Sample[] = [
   { id: 'puny-hermit', group: 'puny', name: 'The Hermit · NPC', description: 'A talking NPC (ask / tell / give)', source: punyHermit },
   { id: 'puny-chest', group: 'puny', name: 'The Locked Chest · puzzle', description: 'A lock-and-key container puzzle', source: punyChest },
   { id: 'puny-grammar', group: 'puny', name: 'Custom Grammar · verbs', description: 'Add your own verbs and grammar lines', source: punyGrammar },
-  { id: 'puny-haunted-house', group: 'puny', name: 'Haunted House · first floor', description: "The first floor of a port of Radio Shack's 1979 adventure", source: punyHaunted },
+  { id: 'puny-haunted-house', group: 'puny', name: 'Haunted House · first floor', description: "The first floor of a port of Radio Shack's 1979 adventure", target: 'z3', source: punyHaunted },
 ]
 
 export function sampleById(id: string): Sample | undefined {

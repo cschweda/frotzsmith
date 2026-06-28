@@ -104,6 +104,7 @@ export function useIde() {
     const s = sampleById(id)
     if (!s) return
     source.value = formatI6(s.source)
+    setTargetMode(s.target ?? 'auto')
     result.value = null
     status.value = 'idle'
     activeTab.value = 'results'

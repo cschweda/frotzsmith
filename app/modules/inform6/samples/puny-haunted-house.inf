@@ -479,7 +479,6 @@ Extend 'exit' first
 [ OldMagicSub; "Nice try."; ];
 [ PlughSub; 
     if (player in outside_house) {
-         ClearScreen(WIN_MAIN);
         score = score + 1;
         <<Teleport foyer>>;
       
