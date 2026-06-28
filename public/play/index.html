@@ -30,8 +30,18 @@
     --glkote-grid-reverse-bg: #d7d3c9; --glkote-grid-reverse-fg: #15151a;
   }
   html.frotz-dark body { background: #101014; }
+  /* Force the main reading surfaces — the interpreter sets some colours inline. */
+  .WindowFrame, .BufferWindow { background-color: #f5f1e8 !important; }
+  .BufferWindow { color: #2a2622 !important; }
+  html.frotz-dark .WindowFrame, html.frotz-dark .BufferWindow { background-color: #1c1c21 !important; }
+  html.frotz-dark .BufferWindow { color: #d7d3c9 !important; }
+</style>
 </head>
 <body>
-<div id="gameport"><div id="windowport"></div></div>
+<div id="gameport">
+  <div id="windowport"></div>
+  <div id="loadingpane" style="display:none;"><img src="web/waiting.gif" alt="Loading"><br><em>&nbsp;&nbsp;&nbsp;Loading…</em></div>
+  <div id="errorpane" style="display:none;"><div id="errorcontent">...</div></div>
+</div>
 </body>
 </html>

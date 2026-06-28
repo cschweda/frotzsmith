@@ -1,0 +1,41 @@
+! ============================================================================
+!  TIMED CANDLE  —  Frotzsmith sample (Inform 6 Standard Library)
+! ----------------------------------------------------------------------------
+!  A daemon counts down each turn: the lit candle burns lower and finally goes
+!  out. Daemons are how you run something "every turn" — fuses, NPCs, weather.
+!  Start one with StartDaemon(obj); stop it with StopDaemon(obj). The object
+!  needs a `daemon` property (the routine that runs each turn).
+!  Try:  wait, z, z, z, z   (and watch the candle)
+! ============================================================================
+
+Constant Story "TIMED CANDLE";
+Constant Headline "^A Frotzsmith sample: daemons & timed events.^";
+
+Include "Parser";
+Include "VerbLib";
+
+[ Initialise;
+    location = Study;
+    StartDaemon(candle);
+    print "^The candle is lit -- but it won't burn forever. Watch the turns.^^";
+];
+
+Object Study "Study"
+  with description "A book-lined study. You carry a single lit candle.",
+  has  light;
+
+Object -> candle "lit candle"
+  with name 'lit' 'candle' 'flame' 'wax',
+       description "A short candle, its flame wavering.",
+       daemon [;
+           self.life = self.life - 1;
+           if (self.life == 2) print "^The candle gutters, growing dim.^";
+           if (self.life == 0) {
+               print "^The candle sputters out. A wisp of smoke curls upward.^";
+               StopDaemon(self);
+           }
+       ],
+       life 5,
+  has  light;
+
+Include "Grammar";

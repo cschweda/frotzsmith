@@ -1,0 +1,43 @@
+! ============================================================================
+!  THE DARK CELLAR  —  Frotzsmith sample (Inform 6 Standard Library)
+! ----------------------------------------------------------------------------
+!  Darkness and light sources. A room without the `light` attribute is dark; the
+!  player can only see (and find objects) if they carry something that `has
+!  light`. The hall is lit; the cellar is not. Take the lantern down with you.
+!  Try:  down       (too dark)
+!        up, take lantern, down, take key, look
+! ============================================================================
+
+Constant Story "THE DARK CELLAR";
+Constant Headline "^A Frotzsmith sample: darkness & light.^";
+
+Include "Parser";
+Include "VerbLib";
+
+[ Initialise;
+    location = Hall;
+    print "^The cellar below is pitch black. You'll want a light.^^";
+];
+
+Object Hall "Hall"
+  with description "A plain hall. Wooden steps descend into a cellar.",
+       d_to Cellar,
+  has  light;
+
+Object -> lantern "brass lantern"
+  with name 'brass' 'lantern' 'lamp' 'light',
+       description "A brass lantern, glowing with a steady warm light.",
+  has  light;
+
+! The cellar has NO `light` attribute, so it is dark unless a light source is
+! brought into it. With the lantern, its description (and the key) appear.
+Object Cellar "Cellar"
+  with description
+        "A damp stone cellar, crates stacked in the corners. Steps lead up.",
+       u_to Hall;
+
+Object -> rusty_key "rusty key"
+  with name 'rusty' 'old' 'key',
+       description "A small, much-corroded iron key.";
+
+Include "Grammar";
