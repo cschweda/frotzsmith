@@ -56,6 +56,19 @@ const statusMeta = computed(() => {
             aria-hidden="true"
           />
         </button>
+
+        <!-- Map: planned (v2). Disabled now, with a "coming soon" tooltip.
+             aria-disabled (not the disabled attribute) so hover still fires the tooltip. -->
+        <UTooltip text="Auto-map — coming soon">
+          <button
+            type="button"
+            aria-disabled="true"
+            class="text-muted/50 flex cursor-not-allowed items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold"
+          >
+            <UIcon name="i-lucide-map" class="size-4" />
+            <span class="hidden sm:inline">Map</span>
+          </button>
+        </UTooltip>
       </div>
 
       <div class="ml-auto flex items-center gap-3">
