@@ -21,7 +21,11 @@ export function useCompiler() {
 
   async function compile(
     source: string,
-    opts: { profileId?: ProfileId; ext?: StoryExt } = {},
+    opts: {
+      profileId?: ProfileId
+      ext?: StoryExt
+      extensions?: { name: string; content: string }[]
+    } = {},
   ): Promise<CompileResult> {
     const profile = PROFILES[opts.profileId ?? 'std']
     const ext = opts.ext ?? profile.defaultExt
@@ -44,6 +48,10 @@ export function useCompiler() {
     mkdir('/lib')
     mkdir(profile.includePath)
     for (const file of profile.files) m.FS.writeFile(file.path, file.content)
+    // Mount enabled extensions so `Include "name";` resolves to name.h.
+    for (const ext of opts.extensions ?? []) {
+      m.FS.writeFile(`${profile.includePath}/${ext.name}.h`, ext.content)
+    }
 
     mkdir('/work')
     m.FS.writeFile('/work/story.inf', source)
