@@ -38,7 +38,7 @@ export const SAMPLES: Sample[] = [
   { id: 'std-hermit', group: 'std', name: 'The Hermit · NPC', description: 'A talking NPC (ask / tell / give)', source: stdHermit },
   { id: 'std-chest', group: 'std', name: 'The Locked Chest · puzzle', description: 'A lock-and-key container puzzle', source: stdChest },
   { id: 'std-grammar', group: 'std', name: 'Custom Grammar · verbs', description: 'Add your own verbs and grammar lines', source: stdGrammar },
-  { id: 'std-haunted-house', group: 'std', name: 'Haunted House · full game', description: "A fuller game — port of Radio Shack's 1979 adventure", source: stdHaunted },
+  { id: 'std-haunted-house', group: 'std', name: 'Haunted House · first floor', description: "The first floor of a port of Radio Shack's 1979 adventure", source: stdHaunted },
   { id: 'puny-skeleton', group: 'puny', name: 'Skeleton', description: 'Bare, compilable starting point', source: punySkeleton },
   { id: 'puny-two-rooms', group: 'puny', name: 'Two Rooms', description: 'Rooms, movement, a takeable object', source: punyTwoRooms },
   { id: 'puny-dark-cellar', group: 'puny', name: 'The Dark Cellar · light', description: 'Darkness and carrying a light source', source: punyCellar },
@@ -46,7 +46,7 @@ export const SAMPLES: Sample[] = [
   { id: 'puny-hermit', group: 'puny', name: 'The Hermit · NPC', description: 'A talking NPC (ask / tell / give)', source: punyHermit },
   { id: 'puny-chest', group: 'puny', name: 'The Locked Chest · puzzle', description: 'A lock-and-key container puzzle', source: punyChest },
   { id: 'puny-grammar', group: 'puny', name: 'Custom Grammar · verbs', description: 'Add your own verbs and grammar lines', source: punyGrammar },
-  { id: 'puny-haunted-house', group: 'puny', name: 'Haunted House · full game', description: "A fuller game — port of Radio Shack's 1979 adventure", source: punyHaunted },
+  { id: 'puny-haunted-house', group: 'puny', name: 'Haunted House · first floor', description: "The first floor of a port of Radio Shack's 1979 adventure", source: punyHaunted },
 ]
 
 export function sampleById(id: string): Sample | undefined {
