@@ -14,6 +14,16 @@ export interface Diagnostic {
   file?: string
 }
 
+/** Compiler statistics (from the `-s` switch), useful for gauging memory use. */
+export interface CompileStats {
+  /** Dynamic ("readable") memory used — the Z-machine's hard ~64 KB limit. */
+  readableMem?: number
+  readableMax?: number
+  /** Total Z-machine memory used / free. */
+  zUsed?: number
+  zFree?: number
+}
+
 /** The result of one compile run. */
 export interface CompileResult {
   /** True only when there were no errors and a story file was produced. */
@@ -26,4 +36,5 @@ export interface CompileResult {
   /** Wall-clock compile time in milliseconds. */
   ms: number
   byteLength: number
+  stats?: CompileStats
 }

@@ -7,6 +7,8 @@ import punySkeleton from './samples/puny-skeleton.inf?raw'
 import punyTwoRooms from './samples/puny-two-rooms.inf?raw'
 import punyHermit from './samples/puny-hermit.inf?raw'
 import punyChest from './samples/puny-locked-chest.inf?raw'
+import stdGrammar from './samples/grammar.inf?raw'
+import punyGrammar from './samples/puny-grammar.inf?raw'
 
 export interface Sample {
   id: string
@@ -27,10 +29,12 @@ export const SAMPLES: Sample[] = [
   { id: 'std-two-rooms', group: 'std', name: 'Two Rooms', description: 'Rooms, movement, a takeable object', source: stdTwoRooms },
   { id: 'std-hermit', group: 'std', name: 'The Hermit · NPC', description: 'A talking NPC (ask / tell / give)', source: stdHermit },
   { id: 'std-chest', group: 'std', name: 'The Locked Chest · puzzle', description: 'A lock-and-key container puzzle', source: stdChest },
+  { id: 'std-grammar', group: 'std', name: 'Custom Grammar · verbs', description: 'Add your own verbs and grammar lines', source: stdGrammar },
   { id: 'puny-skeleton', group: 'puny', name: 'Skeleton', description: 'Bare, compilable starting point', source: punySkeleton },
   { id: 'puny-two-rooms', group: 'puny', name: 'Two Rooms', description: 'Rooms, movement, a takeable object', source: punyTwoRooms },
   { id: 'puny-hermit', group: 'puny', name: 'The Hermit · NPC', description: 'A talking NPC (ask / tell / give)', source: punyHermit },
   { id: 'puny-chest', group: 'puny', name: 'The Locked Chest · puzzle', description: 'A lock-and-key container puzzle', source: punyChest },
+  { id: 'puny-grammar', group: 'puny', name: 'Custom Grammar · verbs', description: 'Add your own verbs and grammar lines', source: punyGrammar },
 ]
 
 export function sampleById(id: string): Sample | undefined {

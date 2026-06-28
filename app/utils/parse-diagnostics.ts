@@ -1,4 +1,4 @@
-import type { Diagnostic, Severity } from '~/modules/inform6/types'
+import type { Diagnostic, Severity, CompileStats } from '~/modules/inform6/types'
 
 // Inform 6.44: "line 6: Error:  Expected directive, '[' or class name but found x"
 const LINE_RE = /^line (\d+):\s*(Error|Warning|Fatal error):\s*(.*)$/
@@ -65,4 +65,23 @@ export function parseDiagnostics(raw: string): ParsedDiagnostics {
     summaryErrors ?? diagnostics.filter(d => d.severity !== 'warning').length
 
   return { diagnostics, errorCount }
+}
+
+const READABLE_RE = /(\d+)\s+bytes readable memory used \(maximum (\d+)\)/
+const ZMEM_RE = /(\d+)\s+bytes used in Z-machine\s+(\d+)\s+bytes free/
+
+/** Parses the compiler's `-s` statistics output into structured stats. */
+export function parseStats(raw: string): CompileStats {
+  const stats: CompileStats = {}
+  const r = READABLE_RE.exec(raw)
+  if (r) {
+    stats.readableMem = Number(r[1])
+    stats.readableMax = Number(r[2])
+  }
+  const z = ZMEM_RE.exec(raw)
+  if (z) {
+    stats.zUsed = Number(z[1])
+    stats.zFree = Number(z[2])
+  }
+  return stats
 }

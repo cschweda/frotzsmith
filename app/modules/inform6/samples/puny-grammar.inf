@@ -1,0 +1,48 @@
+!% -~S
+!% $OMIT_UNUSED_ROUTINES=1
+
+! ============================================================================
+!  CUSTOM GRAMMAR  —  Frotzsmith sample (PunyInform)
+! ----------------------------------------------------------------------------
+!  The PunyInform port of adding your own verbs. Write an action routine named
+!  <Action>Sub, then a `Verb` directive mapping words + a syntax line to it.
+!  Try:  xyzzy,  rub lamp,  polish lamp
+! ============================================================================
+
+Constant Story "CUSTOM GRAMMAR";
+Constant Headline "^A Frotzsmith sample: adding your own verbs (PunyInform).^";
+
+Constant INITIAL_LOCATION_VALUE = Chamber;
+
+Include "globals.h";
+Include "puny.h";
+
+Object Chamber "Magic Chamber"
+  with description "Runes cover the walls. A brass lamp rests on a plinth.",
+  has  light;
+
+Object -> lamp "brass lamp"
+  with name 'brass' 'lamp',
+       description "An ornate brass lamp.";
+
+! --- Action routines (named <Action>Sub) -------------------------------------
+[ XyzzySub;
+    "A hollow voice says, ~Fool!~";
+];
+
+[ IncantSub;
+    if (noun == lamp) "The lamp flares brightly at your incantation!";
+    "Nothing answers your incantation.";
+];
+
+! --- Grammar: map words and a syntax line to each action ---------------------
+!  ('rub', 'wave' etc. already exist in the library, so we use novel words.)
+Verb 'xyzzy' 'plugh'
+    *                                           -> Xyzzy;
+
+Verb 'incant' 'invoke'
+    * noun                                      -> Incant;
+
+[ Initialise;
+    print "^A faintly magical chamber. Perhaps a magic word would help?^";
+];

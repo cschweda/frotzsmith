@@ -1,8 +1,25 @@
 <script setup lang="ts">
 import type { ProfileMode } from '~/composables/useIde'
 
-const { format, profileMode, activeProfile, setProfileMode } = useIde()
+const { format, profileMode, activeProfile, setProfileMode, targetMode, effectiveExt, setTargetMode } =
+  useIde()
 const colorMode = useColorMode()
+
+const targetItems = computed(() => {
+  const item = (mode: 'auto' | 'z3' | 'z5' | 'z8', label: string) => ({
+    label,
+    trailingIcon: targetMode.value === mode ? 'i-lucide-check' : undefined,
+    onSelect: () => setTargetMode(mode),
+  })
+  return [
+    [
+      item('auto', 'Auto (profile default)'),
+      item('z3', 'Z-machine v3 · .z3'),
+      item('z5', 'Z-machine v5 · .z5'),
+      item('z8', 'Z-machine v8 · .z8'),
+    ],
+  ]
+})
 
 const profileLabel = computed(() =>
   profileMode.value === 'auto' ? `Auto · ${activeProfile.value.shortLabel}` : activeProfile.value.shortLabel,
@@ -71,6 +88,19 @@ function toggleTheme() {
           title="Library: auto-detected from your source, or force one"
         >
           <span class="hidden md:inline">{{ profileLabel }}</span>
+        </UButton>
+      </UDropdownMenu>
+
+      <UDropdownMenu :items="targetItems">
+        <UButton
+          color="neutral"
+          variant="subtle"
+          icon="i-lucide-cpu"
+          trailing-icon="i-lucide-chevron-down"
+          class="font-semibold"
+          title="Story-file version (compile target)"
+        >
+          <span class="hidden md:inline">{{ effectiveExt.toUpperCase() }}</span>
         </UButton>
       </UDropdownMenu>
 

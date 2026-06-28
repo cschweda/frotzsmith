@@ -1,6 +1,6 @@
 import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { PROFILES, type ProfileId } from '~/modules/inform6/profiles'
-import { parseDiagnostics } from '~/utils/parse-diagnostics'
+import { parseDiagnostics, parseStats } from '~/utils/parse-diagnostics'
 
 const VERSION_SWITCH: Record<StoryExt, string> = {
   z3: '-v3',
@@ -20,10 +20,10 @@ export function useCompiler() {
 
   async function compile(
     source: string,
-    opts: { profileId?: ProfileId } = {},
+    opts: { profileId?: ProfileId; ext?: StoryExt } = {},
   ): Promise<CompileResult> {
     const profile = PROFILES[opts.profileId ?? 'std']
-    const ext = profile.defaultExt
+    const ext = opts.ext ?? profile.defaultExt
     const started = performance.now()
     const out: string[] = []
 
@@ -50,7 +50,13 @@ export function useCompiler() {
 
     const outName = `story.${ext}`
     try {
-      m.callMain([`+include_path=${profile.includePath}`, VERSION_SWITCH[ext], 'story.inf', outName])
+      m.callMain([
+        `+include_path=${profile.includePath}`,
+        '-s', // emit statistics (story size, memory use) for the stats bar
+        VERSION_SWITCH[ext],
+        'story.inf',
+        outName,
+      ])
     } catch {
       // Emscripten throws on non-zero exit; diagnostics below carry the detail.
     }
@@ -73,6 +79,7 @@ export function useCompiler() {
       rawStderr: raw,
       ms: Math.round(performance.now() - started),
       byteLength: storyFile?.length ?? 0,
+      stats: parseStats(raw),
     }
   }
 

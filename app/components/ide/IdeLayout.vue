@@ -1,12 +1,21 @@
 <script setup lang="ts">
-const { restore, savedAt, activeProfile, profileMode } = useIde()
+const { restore, savedAt, activeProfile, profileMode, result, effectiveExt } = useIde()
 const mobileView = ref<'editor' | 'output'>('editor')
 
 onMounted(() => restore())
 
-const savedLabel = computed(() => {
-  if (!savedAt.value) return 'Not saved yet'
-  return 'Recovery saved'
+const savedLabel = computed(() => (savedAt.value ? 'Recovery saved' : 'Not saved yet'))
+
+function fmtBytes(n: number) {
+  return n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`
+}
+
+// Warn as dynamic ("readable") memory approaches the Z-machine's 64 KB ceiling.
+const memClass = computed(() => {
+  const s = result.value?.stats
+  if (!s?.readableMem || !s.readableMax) return ''
+  const pct = s.readableMem / s.readableMax
+  return pct > 0.9 ? 'text-error font-semibold' : pct > 0.75 ? 'text-warning' : ''
 })
 </script>
 
@@ -59,16 +68,32 @@ const savedLabel = computed(() => {
 
     <!-- Status bar -->
     <footer
-      class="text-muted flex shrink-0 items-center gap-3 border-t border-default px-4 py-1.5 text-xs"
+      class="text-muted flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-t border-default px-4 py-1.5 text-xs"
     >
       <span class="flex items-center gap-1.5">
         <UIcon name="i-lucide-save" class="size-3.5" />
         {{ savedLabel }}
       </span>
+
+      <template v-if="result">
+        <span class="flex items-center gap-1.5" title="Compiled story-file size">
+          <UIcon name="i-lucide-file-archive" class="size-3.5" />
+          {{ fmtBytes(result.byteLength) }}
+        </span>
+        <span
+          v-if="result.stats?.readableMem != null"
+          :class="['flex items-center gap-1.5', memClass]"
+          title="Dynamic (readable) memory used / Z-machine 64 KB ceiling"
+        >
+          <UIcon name="i-lucide-memory-stick" class="size-3.5" />
+          mem {{ fmtBytes(result.stats.readableMem) }} / {{ fmtBytes(result.stats.readableMax ?? 0) }}
+        </span>
+      </template>
+
       <span class="ml-auto flex items-center gap-1.5">
         <UIcon name="i-lucide-book-open" class="size-3.5" />
         {{ profileMode === 'auto' ? 'Auto' : 'Forced' }}: {{ activeProfile.shortLabel }} ·
-        {{ activeProfile.defaultExt.toUpperCase() }}
+        {{ effectiveExt.toUpperCase() }}
       </span>
     </footer>
   </div>

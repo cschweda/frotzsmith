@@ -1,4 +1,4 @@
-import type { CompileResult } from '~/modules/inform6/types'
+import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { formatI6 } from '~/utils/format-i6'
 import {
   PROFILES,
@@ -32,6 +32,13 @@ export function useIde() {
     profileMode.value === 'auto' ? detectedProfile.value : profileMode.value,
   )
   const activeProfile = computed(() => PROFILES[effectiveProfile.value])
+
+  // Story-file version: 'auto' uses the profile default, or force z3 / z5 / z8.
+  const targetMode = useState<'auto' | StoryExt>('frotz:target', () => 'auto')
+  const effectiveExt = computed<StoryExt>(() =>
+    targetMode.value === 'auto' ? activeProfile.value.defaultExt : targetMode.value,
+  )
+
   /** The profile the most recent compile actually used. */
   const usedProfile = useState<ProfileId | null>('frotz:used-profile', () => null)
 
@@ -43,6 +50,8 @@ export function useIde() {
     if (import.meta.client) {
       const saved = localStorage.getItem('frotzsmith:profile-mode')
       if (saved === 'auto' || saved === 'std' || saved === 'puny') profileMode.value = saved
+      const t = localStorage.getItem('frotzsmith:target')
+      if (t === 'auto' || t === 'z3' || t === 'z5' || t === 'z8') targetMode.value = t
     }
     restoreSource()
   }
@@ -54,7 +63,7 @@ export function useIde() {
     const pid = effectiveProfile.value
     await new Promise(resolve => setTimeout(resolve, 0)) // let "Compiling…" paint
     try {
-      const r = await compile(source.value, { profileId: pid })
+      const r = await compile(source.value, { profileId: pid, ext: effectiveExt.value })
       result.value = r
       usedProfile.value = pid
       status.value = r.ok ? 'success' : 'error'
@@ -77,6 +86,11 @@ export function useIde() {
   function setProfileMode(mode: ProfileMode) {
     profileMode.value = mode
     if (import.meta.client) localStorage.setItem('frotzsmith:profile-mode', mode)
+  }
+
+  function setTargetMode(mode: 'auto' | StoryExt) {
+    targetMode.value = mode
+    if (import.meta.client) localStorage.setItem('frotzsmith:target', mode)
   }
 
   /** Load a built-in sample into the editor. */
@@ -116,6 +130,8 @@ export function useIde() {
     detectedProfile,
     effectiveProfile,
     activeProfile,
+    targetMode,
+    effectiveExt,
     usedProfile,
     canPlay,
     playNonce,
@@ -123,6 +139,7 @@ export function useIde() {
     jumpTo,
     format,
     setProfileMode,
+    setTargetMode,
     loadSample,
     newProject,
     playStory,

@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import type { RightTab } from '~/composables/useIde'
 
-const { activeTab, status, result, runCompile, canPlay, playStory } = useIde()
+const { source, activeTab, status, result, runCompile, canPlay, playStory } = useIde()
+
+// Pull the game's title & headline from the source for the pane header.
+const meta = computed(() => {
+  const story = /Constant\s+Story\s+"([^"]*)"/i.exec(source.value)?.[1]?.trim()
+  const headline = (/Constant\s+Headline\s+"([^"]*)"/i.exec(source.value)?.[1] ?? '')
+    .replace(/\^/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return { story: story || 'Untitled', headline }
+})
 
 const tabs: { id: RightTab; label: string; icon: string }[] = [
   { id: 'results', label: 'Results', icon: 'i-lucide-clipboard-list' },
@@ -24,6 +34,12 @@ const statusMeta = computed(() => {
 
 <template>
   <div class="flex h-full flex-col">
+    <!-- Game title & headline, read live from the source -->
+    <div class="shrink-0 border-b border-default px-4 py-2.5">
+      <p class="truncate text-sm font-bold">{{ meta.story }}</p>
+      <p v-if="meta.headline" class="text-muted truncate text-xs">{{ meta.headline }}</p>
+    </div>
+
     <!-- Header: tabs (left) + status + Compile/Play (right) -->
     <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-default px-2 py-2">
       <div role="tablist" class="flex gap-1">

@@ -1,0 +1,47 @@
+! ============================================================================
+!  CUSTOM GRAMMAR  —  Frotzsmith sample (Inform 6 Standard Library)
+! ----------------------------------------------------------------------------
+!  How to add your own verbs. For each new verb you write an action routine
+!  named <Action>Sub, then a `Verb` directive mapping words + a syntax line to
+!  that action. `*` begins the syntax; `noun` matches an object.
+!  Try:  xyzzy,  rub lamp,  polish lamp
+! ============================================================================
+
+Constant Story "CUSTOM GRAMMAR";
+Constant Headline "^A Frotzsmith sample: adding your own verbs.^";
+
+Include "Parser";
+Include "VerbLib";
+
+[ Initialise;
+    location = Chamber;
+    "^A faintly magical chamber. Perhaps a magic word would help?^";
+];
+
+Object Chamber "Magic Chamber"
+  with description "Runes cover the walls. A brass lamp rests on a plinth.",
+  has  light;
+
+Object -> lamp "brass lamp"
+  with name 'brass' 'lamp',
+       description "An ornate brass lamp.";
+
+! --- Action routines (named <Action>Sub) -------------------------------------
+[ XyzzySub;
+    "A hollow voice says, ~Fool!~";
+];
+
+[ IncantSub;
+    if (noun == lamp) "The lamp flares brightly at your incantation!";
+    "Nothing answers your incantation.";
+];
+
+! --- Grammar: map words and a syntax line to each action ---------------------
+!  ('rub', 'wave' etc. already exist in the library, so we use novel words.)
+Verb 'xyzzy' 'plugh'
+    *                                           -> Xyzzy;
+
+Verb 'incant' 'invoke'
+    * noun                                      -> Incant;
+
+Include "Grammar";
