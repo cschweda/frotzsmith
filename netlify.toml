@@ -15,18 +15,22 @@
   to = "/index.html"
   status = 200
 
-# Basic security headers.
-# No COOP/COEP needed — the WASM build is single-threaded (no SharedArrayBuffer),
-# which preserves "deploy anywhere static".
+# Security headers, tuned so the in-browser toolchain actually works:
+#  - X-Frame-Options SAMEORIGIN: the IDE embeds the Parchment player in a
+#    same-origin <iframe> (DENY would block it).
+#  - 'wasm-unsafe-eval': inform6.wasm (the compiler).
+#  - 'unsafe-eval': the ZVM player is a JIT — it compiles z-code to JS at runtime.
+#  - 'unsafe-inline': the player page's inline init + styles.
+#  - blob:: the compiled story is handed to the player as a blob URL.
+# Loose by necessity for a client-side compiler+interpreter; tighten with
+# nonces/hashes per docs/06-security.md §9. No secrets or backend are at risk.
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
+    X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    # WASM instantiation needs 'wasm-unsafe-eval'; compile/replay use Web Workers
-    # ('self' + blob:). Tighten before production per docs/06-security.md §9.
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' blob: data:; worker-src 'self' blob:; frame-src 'self' blob:; child-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
 
 # Long-cache content-hashed build assets (WASM, interpreter, JS/CSS).
 [[headers]]

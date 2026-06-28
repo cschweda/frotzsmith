@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { frotzsmith } from '~~/frotzsmith.config'
+
 const { restore, savedAt, activeProfile, profileMode, result, effectiveExt } = useIde()
 const mobileView = ref<'editor' | 'output'>('editor')
 
@@ -109,6 +111,26 @@ const memClass = computed(() => {
         {{ profileMode === 'auto' ? 'Auto' : 'Forced' }}: {{ activeProfile.shortLabel }} ·
         {{ effectiveExt.toUpperCase() }}
       </span>
+
+      <a
+        :href="`${frotzsmith.repoUrl}/blob/main/CHANGELOG.md`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="hover:text-primary flex items-center gap-1.5"
+      >
+        <UIcon name="i-lucide-history" class="size-3.5" />
+        Changelog
+      </a>
+
+      <a
+        :href="`${frotzsmith.repoUrl}/blob/main/ROADMAP.md`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="hover:text-primary flex items-center gap-1.5"
+      >
+        <UIcon name="i-lucide-signpost" class="size-3.5" />
+        Roadmap
+      </a>
 
       <NuxtLink
         to="/technical"
