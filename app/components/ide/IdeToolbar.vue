@@ -5,6 +5,19 @@ import type { StoryExt } from '~/modules/inform6/types'
 const { format, profileMode, activeProfile, setProfileMode, targetMode, effectiveExt, setTargetMode } =
   useIde()
 const colorMode = useColorMode()
+const toast = useToast()
+
+// Prettify is instant and silent; a brief toast confirms the click registered.
+function onPrettify() {
+  format()
+  toast.add({
+    title: 'Prettified',
+    description: 'Re-indented and tidied the source.',
+    icon: 'i-lucide-wand-sparkles',
+    color: 'success',
+    duration: 2500,
+  })
+}
 
 const VERSION_LABEL: Record<string, string> = {
   z3: 'Z-machine v3 · .z3',
@@ -78,7 +91,7 @@ function toggleTheme() {
       variant="subtle"
       icon="i-lucide-wand-sparkles"
       title="Prettify: re-indent & tidy the source. Linting is automatic; this does not compile."
-      @click="format"
+      @click="onPrettify"
     >
       <span class="hidden sm:inline">Prettify</span>
     </UButton>

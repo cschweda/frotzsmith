@@ -104,6 +104,9 @@ export function useIde() {
     const s = sampleById(id)
     if (!s) return
     source.value = formatI6(s.source)
+    // Reset to auto so the sample compiles with its own library, not whatever
+    // profile happens to be forced (e.g. from a prior New Project).
+    setProfileMode('auto')
     setTargetMode(s.target ?? 'auto')
     result.value = null
     status.value = 'idle'

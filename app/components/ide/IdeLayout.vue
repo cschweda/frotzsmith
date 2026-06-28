@@ -8,6 +8,22 @@ onMounted(() => restore())
 
 const savedLabel = computed(() => (savedAt.value ? 'Recovery saved' : 'Not saved yet'))
 
+// Flash a green dot each time the recovery snapshot is autosaved.
+const justSaved = ref(false)
+let flashTimer: ReturnType<typeof setTimeout> | null = null
+watch(savedAt, () => {
+  justSaved.value = true
+  if (flashTimer) clearTimeout(flashTimer)
+  flashTimer = setTimeout(() => (justSaved.value = false), 900)
+})
+
+// Compiler + active library version, so authors know exactly what's running.
+const versionLabel = computed(() => {
+  const v = frotzsmith.versions
+  const lib = activeProfile.value.id === 'puny' ? `PunyInform ${v.punyinform}` : `Std Lib ${v.stdlib}`
+  return `Inform ${v.inform6} · ${lib}`
+})
+
 function fmtBytes(n: number) {
   return n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`
 }
@@ -73,14 +89,24 @@ const memClass = computed(() => {
     <footer
       class="text-muted flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-t border-default px-4 py-1.5 text-xs"
     >
-      <span class="flex items-center gap-1.5">
+      <span class="flex items-center gap-1.5" title="Source is autosaved for crash recovery (~1s after edits)">
         <UIcon name="i-lucide-save" class="size-3.5" />
         {{ savedLabel }}
+        <span
+          aria-hidden="true"
+          class="size-1.5 rounded-full transition-all duration-500"
+          :class="justSaved ? 'bg-success scale-150 shadow-[0_0_5px] shadow-success/70' : 'bg-success/20'"
+        />
       </span>
 
       <span class="flex items-center gap-1.5" title="Compile target (story-file version)">
         <UIcon name="i-lucide-cpu" class="size-3.5" />
         Target .{{ effectiveExt }}
+      </span>
+
+      <span class="flex items-center gap-1.5" title="Compiler & active library version">
+        <UIcon name="i-lucide-package" class="size-3.5" />
+        {{ versionLabel }}
       </span>
 
       <template v-if="result">
