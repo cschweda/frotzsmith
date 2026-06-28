@@ -1,10 +1,11 @@
 # Netlify configuration for Frotzsmith
-# Static Nuxt 4 build (ssr: false) → .output/public
-# Basic scaffold — headers/CSP can be tightened later (see docs/06-security.md §9).
+# Static Nuxt 4 build (ssr: false). On Netlify, Nitro's Netlify preset writes the
+# static site to `dist` (locally `dist` is a symlink to `.output/public`), so we
+# publish `dist`. Headers/CSP can be tightened later (see docs/06-security.md §9).
 
 [build]
   command = "yarn generate"
-  publish = ".output/public"
+  publish = "dist"
 
 [build.environment]
   NODE_VERSION = "22"

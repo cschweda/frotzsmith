@@ -11,8 +11,10 @@ export const frotzsmith = {
   tagline: 'A browser-based Inform 6 IDE',
   description:
     'A free, browser-based IDE for Inform 6 interactive fiction — write, compile to Z-machine, and play instantly, all client-side. Standard Library & PunyInform.',
-  /** Public site URL — used for absolute og:image / canonical links. */
-  siteUrl: 'https://frotzsmith.com',
+  /** Public site URL — used for absolute og:image / canonical links.
+   *  Currently the Netlify subdomain; switch to https://frotzsmith.com once the
+   *  custom domain is connected (this one constant drives all SEO/OG links). */
+  siteUrl: 'https://frotzsmith.netlify.app',
   repoUrl: 'https://github.com/cschweda/frotzsmith',
   author: 'cschweda',
 

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://frotzsmith.com/sitemap.xml
+Sitemap: https://frotzsmith.netlify.app/sitemap.xml
