@@ -1,4 +1,9 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+
+// Public site URL — used for absolute og:image / canonical links.
+// Change this to your production domain before deploying (e.g. app.frotzsmith.com).
+const SITE_URL = 'https://frotzsmith.com'
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-06-01',
 
@@ -28,8 +33,38 @@ export default defineNuxtConfig({
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         {
           name: 'description',
-          content: 'A browser-based IDE for Inform 6 — compile and play, client-side.',
+          content:
+            'A free, browser-based IDE for Inform 6 interactive fiction — write, compile to Z-machine, and play instantly, all client-side. Standard Library & PunyInform.',
         },
+        { name: 'theme-color', content: '#0b0b0e' },
+        { name: 'robots', content: 'index, follow' },
+        // Open Graph
+        { property: 'og:type', content: 'website' },
+        { property: 'og:site_name', content: 'Frotzsmith' },
+        { property: 'og:title', content: 'Frotzsmith — a browser-based Inform 6 IDE' },
+        {
+          property: 'og:description',
+          content: 'Write, compile, and play Inform 6 interactive fiction entirely in your browser.',
+        },
+        { property: 'og:url', content: `${SITE_URL}/` },
+        { property: 'og:image', content: `${SITE_URL}/og-image.png` },
+        { property: 'og:image:width', content: '1200' },
+        { property: 'og:image:height', content: '630' },
+        { property: 'og:image:alt', content: 'Frotzsmith — a browser-based Inform 6 IDE' },
+        // Twitter
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:title', content: 'Frotzsmith — a browser-based Inform 6 IDE' },
+        {
+          name: 'twitter:description',
+          content: 'Write, compile, and play Inform 6 interactive fiction entirely in your browser.',
+        },
+        { name: 'twitter:image', content: `${SITE_URL}/og-image.png` },
+      ],
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+        { rel: 'canonical', href: `${SITE_URL}/` },
       ],
     },
   },

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { result, playNonce, canPlay } = useIde()
+const colorMode = useColorMode()
 
 // The compiled story plays in a sandboxed Parchment iframe (pure-JS ZVM). We
 // hand the in-memory story bytes to it as a same-origin blob URL via ?story=.
@@ -26,7 +27,7 @@ function boot() {
   const ext = result.value?.storyExt ?? 'z5'
   const storyUrl = `${blobUrl}#game.${ext}`
   // ?n changes per play so the iframe reloads with the latest build.
-  src.value = `/play/index.html?story=${encodeURIComponent(storyUrl)}&n=${playNonce.value}`
+  src.value = `/play/index.html?story=${encodeURIComponent(storyUrl)}&theme=${colorMode.value}&n=${playNonce.value}`
 }
 
 // Boot whenever Play is pressed (playNonce bumps), and on first mount if a game

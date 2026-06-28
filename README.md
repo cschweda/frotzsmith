@@ -1,14 +1,17 @@
 # Frotzsmith
 
+![Frotzsmith — a browser-based Inform 6 IDE](./public/og-image.png)
+
 > A personal, browser-based IDE for **Inform 6** — write source, compile to a Z-machine story file entirely client-side, play it inline, and run long test scripts against it. No backend, no accounts, offline-capable.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82.svg)](https://nuxt.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6.svg)](https://www.typescriptlang.org)
+[![Inform 6](https://img.shields.io/badge/Inform%206-6.44-f59e0b.svg)](https://github.com/DavidKinder/Inform6)
 [![WCAG 2.1 AA](https://img.shields.io/badge/a11y-WCAG%202.1%20AA-success.svg)](https://www.w3.org/WAI/WCAG21/quickref/)
-[![Status](https://img.shields.io/badge/status-design%20stage-orange.svg)](./docs/00-master-design.md)
+[![Status](https://img.shields.io/badge/status-alpha-orange.svg)](./docs/00-master-design.md)
 
-> **Status — design stage.** This repository currently holds the design & specification suite in [`docs/`](./docs). Implementation has not started; nothing here runs yet. The docs are the source of truth for what Frotzsmith will be.
+> **Status — alpha (first draft).** The core IDE works: write Inform 6, compile to a Z-machine story file entirely in the browser (Standard Library or PunyInform, auto-detected), and **play it inline** via Parchment + the pure-JS ZVM. Design & specification docs live in [`docs/`](./docs).
 
 ## What it is
 
