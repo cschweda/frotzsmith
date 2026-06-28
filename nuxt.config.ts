@@ -25,6 +25,16 @@ export default defineNuxtConfig({
     preference: 'dark',
   },
 
+  // Bundle used icons into the client (scan the source) so none are fetched from
+  // api.iconify.design at runtime — works offline and under a strict CSP.
+  // Requires @iconify-json/lucide (installed).
+  icon: {
+    clientBundle: {
+      scan: true,
+      sizeLimitKb: 512,
+    },
+  },
+
   app: {
     head: {
       title: 'Frotzsmith — Inform 6 IDE',
