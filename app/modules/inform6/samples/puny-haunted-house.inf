@@ -1,11 +1,24 @@
-!% -~S
-!% $OMIT_UNUSED_ROUTINES=1
+!% -~S                      ! compiler option: economy mode (smaller output)
+!% $OMIT_UNUSED_ROUTINES=1   ! compiler setting: strip routines that are never called
 
+! ============================================================================
+!  HAUNTED HOUSE  —  Frotzsmith sample (PunyInform)
+! ----------------------------------------------------------------------------
+!  Based on Radio Shack's 1979 text adventure "Haunted House" for the TRS-80
+!  (Tandy Model I / III) — reverse-engineered from the original and reimplemented
+!  in Inform 6, then converted to PunyInform.
+!
+!  A *partial* conversion: the first floor of the mansion. Converting from the
+!  Standard Library to PunyInform meant dropping a few std-only constructs (the
+!  LibraryMessages object, the Compass-based exit lister, the z5+ ClearScreen),
+!  which is why this version is lean enough to target .z3 — PunyInform's reason
+!  for being. It compiles AND plays at z3 (255-object / 128 KB limits).
+! ============================================================================
 
 Constant Story      "Haunted House";
 Constant Headline   "^A port of Radio Shack's Model I/III adventure (circa 1979) written in Inform 6^";
-Constant MAX_SCORE     = 4;
-Include "globals.h";
+Constant MAX_SCORE     = 4;          ! highest score attainable (shown on the status line)
+Include "globals.h";                 ! PunyInform: global variables & config (before puny.h)
 
 
 

@@ -1,0 +1,134 @@
+! ============================================================================
+!  LIST EXITS  —  a std-only EXITS verb (Standard Library)
+! ----------------------------------------------------------------------------
+!  Shows: walking the Standard Library `Compass` and using `LanguageDirection`
+!  to name each available exit. PunyInform has no Compass direction objects, so
+!  this technique can't be ported as-is (hence no PunyInform version).
+!  Try:  EXITS  in each room.
+! ============================================================================
+
+! ---------------------------------------------------------------------------
+! STORY METADATA
+! ---------------------------------------------------------------------------
+Constant Story "LIST EXITS";
+Constant Headline "^A std-only EXITS verb using Compass + LanguageDirection.^";
+
+! ---------------------------------------------------------------------------
+! STANDARD LIBRARY INCLUDES
+! Parser + VerbLib in standard order; Grammar comes last after all objects
+! and the custom Verb declaration.
+! ---------------------------------------------------------------------------
+Include "Parser";
+Include "VerbLib";
+
+! ---------------------------------------------------------------------------
+! INITIALISE — start the player in the Hall
+! ---------------------------------------------------------------------------
+[ Initialise;
+    location = Hall;
+    "^Standard Library only. Try EXITS, then wander N / E / S.^";
+];
+
+! ---------------------------------------------------------------------------
+! THE ROOMS
+! A small map with multiple connections so the player can verify EXITS from
+! different vantage points.  Each room has the `light` attribute so it is
+! always lit.  Direction properties (n_to, s_to, e_to, w_to) define the map.
+! ---------------------------------------------------------------------------
+Object Hall "Great Hall"
+  with description "A vast stone hall. Passages lead off in several directions.",
+       n_to Library, e_to Kitchen, s_to Garden,
+  has  light;
+
+Object Library "Library" with description "Dusty shelves line the walls.", s_to Hall, has light;
+Object Kitchen "Kitchen" with description "A cold hearth and a long table.", w_to Hall, has light;
+Object Garden "Walled Garden" with description "Overgrown roses and a dry fountain.", n_to Hall, has light;
+
+! ---------------------------------------------------------------------------
+! ExitsSub — THE CUSTOM ACTION ROUTINE FOR THE EXITS VERB
+!
+! WHY THIS IS STANDARD-LIBRARY-ONLY
+!   The Standard Library creates a special object called `Compass`.  Inside
+!   Compass live 12 direction child objects (n_obj, s_obj, e_obj, w_obj,
+!   ne_obj, nw_obj, se_obj, sw_obj, u_obj, d_obj, in_obj, out_obj).
+!   Each child object has a `door_dir` property whose value is the
+!   corresponding direction property constant (n_to, s_to, e_to, …).
+!   This lets us enumerate every possible direction at runtime without
+!   hard-coding a long if/else chain.
+!
+!   PunyInform does NOT create the Compass object or any direction child
+!   objects — it omits them to keep the binary small.  That is why there
+!   is no puny-list-exits.inf counterpart for this sample.
+!
+! LOCAL VARIABLES
+!   i     — holds the current direction child object during the loop
+!   first — a Boolean flag: 0 until the first exit is printed, then 1.
+!            Used to decide whether to print a comma separator before
+!            each subsequent exit name.
+! ---------------------------------------------------------------------------
+! Walk the Compass — a Standard Library construct PunyInform doesn't provide —
+! and name every direction the current room actually leads somewhere.
+[ ExitsSub i first;
+    print "Obvious exits: ";
+
+    ! objectloop (i in Compass) — iterates over every direct child of the
+    ! `Compass` object.  Each child `i` is a direction object (n_obj, etc.).
+    ! The loop body runs once per direction, covering all 12 possibilities.
+    objectloop (i in Compass)
+
+        ! i.door_dir — reads the `door_dir` property of direction object i.
+        ! The value is a direction property constant such as n_to or s_to.
+        !
+        ! location provides i.door_dir
+        !   Checks whether the current room has that direction property at all.
+        !   Some rooms may have no w_to, for example, and this guard prevents
+        !   trying to read a property the object doesn't own.
+        !
+        ! metaclass(location.(i.door_dir)) ~= nothing
+        !   `location.(i.door_dir)` evaluates the direction property, yielding:
+        !     - an Object  → a destination room  (a straightforward exit)
+        !     - a Routine  → a conditional exit (e.g. a door that may be locked)
+        !     - nothing/0  → property is absent or explicitly set to 0 (no exit)
+        !   `metaclass()` returns the type of its argument as a class value:
+        !     Object, Routine, String, or nothing (the special zero object).
+        !   Testing ~= nothing (not equal to nothing) accepts both Object and
+        !   Routine exits while correctly skipping absent or zero properties.
+        if (location provides i.door_dir && metaclass(location.(i.door_dir)) ~= nothing) {
+            ! Print ", " before the second and subsequent exit names so the
+            ! output reads "north, east, south" rather than "north east south".
+            if (first) print ", ";
+
+            ! LanguageDirection(propval) — a Standard Library function that
+            ! converts a direction property constant (n_to, s_to, e_to, …)
+            ! into its human-readable English name ("north", "south", "east").
+            ! It prints directly; it does not return a string value.
+            ! Pass i.door_dir (the property constant), not `i` (the object).
+            LanguageDirection(i.door_dir);
+
+            ! Set the flag so subsequent exits get a comma prefix.
+            first = true;
+        }
+
+    ! After the loop: if `first` is still 0 (false), no exits were found.
+    ! `~~first` is logical NOT in I6: true when first equals 0.
+    if (~~first) print "none";
+
+    ! A bare "." string acts as `print_ret ".": prints a period, newline,
+    ! returns true — ending the action routine cleanly.
+    ".";
+];
+
+! ---------------------------------------------------------------------------
+! CUSTOM VERB — EXITS / DIRS / DIRECTIONS
+!
+! Three command synonyms all map to the same Exits action.
+! The grammar line `*  -> Exits` matches the command with NO noun — the
+! player just types EXITS (or DIRS or DIRECTIONS) with nothing after it.
+! ---------------------------------------------------------------------------
+Verb 'exits' 'dirs' 'directions'
+    *                       -> Exits;
+
+! ---------------------------------------------------------------------------
+! GRAMMAR — must be included last, after all Verb declarations
+! ---------------------------------------------------------------------------
+Include "Grammar";

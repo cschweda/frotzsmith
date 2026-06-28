@@ -7,34 +7,127 @@
 !  The PunyInform port of the lock-and-key puzzle. PunyInform provides the
 !  `container`, `openable`, `lockable`, `locked` and `with_key` machinery too.
 !  Try:  take key, unlock chest with key, open chest, take coin
+! ----------------------------------------------------------------------------
+!  KEY CONCEPTS IN THIS FILE
+!  --------------------------
+!  * !% lines           — Inform 6 COMPILER OPTIONS (not regular comments).
+!                         They MUST be the very first lines of the file.
+!                         -~S  suppresses the "Script mode" startup banner.
+!                         $OMIT_UNUSED_ROUTINES=1  strips unreachable code,
+!                         keeping the compiled story file as small as possible.
+!  * INITIAL_LOCATION_VALUE — PunyInform constant that sets the player's
+!                         starting room (replaces `location = Room;` in Initialise).
+!  * globals.h / puny.h — PunyInform's two-file library (see below).
+!  * container / openable / lockable / locked / static — container puzzle attrs
+!  * with_key           — names the key Object that fits this lock
+!
+!  HOW THE LOCK-AND-KEY PUZZLE WORKS (same in Standard Library and PunyInform)
+!  ---------------------------------------------------------------------------
+!  1. The chest has `has container openable lockable locked static;`
+!       container  — other objects can live inside it
+!       openable   — OPEN / CLOSE commands work on it
+!       lockable   — LOCK / UNLOCK commands work on it
+!       locked     — chest starts locked at game start
+!       static     — chest cannot be picked up
+!  2. `with_key brasskey` tells the library which object unlocks this chest.
+!     UNLOCK CHEST WITH KEY succeeds only if the player holds brasskey; the
+!     library then clears the `locked` attribute automatically.
+!  3. Once unlocked, OPEN CHEST succeeds and the coin inside is reachable.
+!  4. The coin begins inside the chest via the `-> ->` double-arrow notation.
+!
+!  STANDARD LIBRARY vs PUNYINFORM
+!  --------------------------------
+!  Standard Library                    PunyInform
+!  ----------------------------------  ----------------------------------------
+!  Include "Parser";                   !% -~S
+!  Include "VerbLib";                  !% $OMIT_UNUSED_ROUTINES=1
+!  Include "Grammar";  (last)          Include "globals.h";
+!                                      Include "puny.h";
+!  [ Initialise; location = Room; ]    Constant INITIAL_LOCATION_VALUE = Room;
+!  bare-string opening message         print "message"  inside Initialise
 ! ============================================================================
 
+! ---------------------------------------------------------------------------
+!  GAME METADATA
+!  Story and Headline are names PunyInform reads for the startup banner.
+! ---------------------------------------------------------------------------
 Constant Story "THE LOCKED CHEST";
 Constant Headline "^A Frotzsmith sample: a lock-and-key puzzle (PunyInform).^";
 
+! ---------------------------------------------------------------------------
+!  STARTING LOCATION (PunyInform style)
+!  PunyInform reads INITIAL_LOCATION_VALUE at startup to place the player.
+!  This must be defined BEFORE the library includes.
+! ---------------------------------------------------------------------------
 Constant INITIAL_LOCATION_VALUE = Study;
 
+! ---------------------------------------------------------------------------
+!  PUNYINFORM LIBRARY INCLUDES
+!  globals.h  — global variables (location, score, moves, etc.) and
+!               compile-time constants. Must come before puny.h.
+!  puny.h     — complete library: parser, verb handlers, and grammar tables.
+!               No separate "Grammar" include is needed.
+! ---------------------------------------------------------------------------
 Include "globals.h";
 Include "puny.h";
 
+! ---------------------------------------------------------------------------
+!  THE ROOM
+!  `has light` is required or the room is dark and the player can see nothing.
+! ---------------------------------------------------------------------------
 Object Study "Dusty Study"
   with description "A dusty study, bare but for a wooden chest and an old desk.",
-  has  light;
+  has  light;             ! `light` — room is lit; always required for rooms
 
+! ---------------------------------------------------------------------------
+!  THE KEY
+!  `->` places brasskey inside Study (most recently declared Object).
+!  A plain Object with no extra attributes is takeable by default.
+!  `with_key brasskey` on the chest below references this exact identifier.
+! ---------------------------------------------------------------------------
 Object -> brasskey "brass key"
-  with name 'brass' 'key',
+  with name 'brass' 'key',       ! parser vocabulary for this object
        description "A small brass key.";
 
+! ---------------------------------------------------------------------------
+!  THE LOCKED CONTAINER
+!  `->` places chest inside Study.
+!
+!  Attributes:
+!    container — other objects may be located inside this one (enables the
+!                coin to start inside and the player to LOOK IN CHEST)
+!    openable  — allows OPEN CHEST and CLOSE CHEST
+!    lockable  — allows LOCK/UNLOCK CHEST WITH KEY
+!    locked    — chest starts in the locked state; puzzle begins here
+!    static    — chest cannot be taken ("That's fixed in place.")
+!
+!  Property:
+!    with_key brasskey — the library checks that the player holds brasskey
+!                        before it will process UNLOCK. Any other object,
+!                        even one named 'key', will be rejected.
+! ---------------------------------------------------------------------------
 Object -> chest "wooden chest"
   with name 'wooden' 'chest',
        description "A sturdy chest with a brass lock.",
-       with_key brasskey,
+       with_key brasskey,         ! brasskey is the only valid key for this lock
   has  container openable lockable locked static;
 
+! ---------------------------------------------------------------------------
+!  THE TREASURE — two levels deep inside the chest
+!  `-> ->` means child of chest (which is itself a `->` child of Study).
+!  The library lists the coin when the player opens the chest and looks in.
+! ---------------------------------------------------------------------------
 Object -> -> coin "gold coin"
   with name 'gold' 'coin',
        description "A gleaming gold coin — treasure at last!";
 
+! ---------------------------------------------------------------------------
+!  INITIALISE ROUTINE
+!  PunyInform still calls Initialise() at startup. The starting room is set
+!  by INITIAL_LOCATION_VALUE, so here we only print the opening message.
+!  Use `print` (not a bare string) so the routine returns normally and lets
+!  PunyInform finish its own startup processing.
+! ---------------------------------------------------------------------------
 [ Initialise;
     print "^A locked chest sits in the corner, a brass key glinting on the desk.^";
 ];

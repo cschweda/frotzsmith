@@ -5,36 +5,156 @@
 !  named <Action>Sub, then a `Verb` directive mapping words + a syntax line to
 !  that action. `*` begins the syntax; `noun` matches an object.
 !  Try:  xyzzy,  rub lamp,  polish lamp
+! ----------------------------------------------------------------------------
+!  KEY CONCEPTS IN THIS FILE
+!  --------------------------
+!  * [ ActionSub; ]     — the action routine executed when the verb fires
+!  * Verb 'word' ...    — declares new parser vocabulary and grammar
+!  * * -> Action        — syntax line: no arguments needed, fire Action
+!  * * noun -> Action   — syntax line: one object required, fire Action
+!  * noun token         — parser matches any visible, in-scope object
+!
+!  HOW CUSTOM GRAMMAR WORKS
+!  ------------------------
+!  Adding a brand-new verb requires two things:
+!
+!  1. AN ACTION ROUTINE named <Action>Sub (the "Sub" suffix is mandatory):
+!       [ XyzzySub;   "A hollow voice says, ~Fool!~"; ];
+!     The library calls this routine when the verb is typed. A bare string
+!     inside prints it and returns true (action handled).
+!
+!  2. A VERB DIRECTIVE mapping one or more words to grammar syntax lines:
+!       Verb 'xyzzy' 'plugh'
+!           *                -> Xyzzy;
+!     - The quoted words ('xyzzy', 'plugh') are added to the dictionary.
+!     - `*` opens a syntax line. Everything after `*` up to `->` is a
+!       list of tokens describing what the player can type after the verb.
+!     - `-> Xyzzy` names the action (must match the Sub routine name without
+!       the "Sub" suffix, and with initial capital).
+!     - Multiple syntax lines can follow, one per `*`, giving the verb
+!       different argument patterns (e.g., with a noun, or without one).
+!
+!  TOKENS USED IN SYNTAX LINES
+!  ----------------------------
+!    (none)   — verb alone, no arguments: `*  -> Action`
+!    noun     — matches any in-scope object the player can see/reach
+!    held     — matches only objects the player is carrying
+!    'word'   — matches a literal word (preposition, etc.)
+!    creature — matches animate objects (NPCs)
+!
+!  WHY NOT JUST EXTEND AN EXISTING VERB?
+!  --------------------------------------
+!  The library already defines 'rub', 'wave', 'push', etc. If you want to
+!  add a synonym to an existing verb, use `Extend` instead of `Verb`:
+!    Extend 'examine' * 'closely' noun -> Examine;
+!  Using `Verb` for a word the library already knows will cause a conflict.
+!  (That's why this demo uses 'xyzzy'/'plugh' and 'incant'/'invoke' —
+!  none of those words appear in the Standard Library's built-in vocabulary.)
+!
+!  IMPORTANT ORDER RULE
+!  --------------------
+!  All `Verb` and `Extend` directives, AND all `[ ...Sub; ]` routines, must
+!  appear BEFORE `Include "Grammar";`. The Grammar include finalises the
+!  parse tables; anything after it is invisible to the parser.
+!
+!  STANDARD LIBRARY vs PUNYINFORM
+!  --------------------------------
+!  Standard Library                    PunyInform
+!  ----------------------------------  ----------------------------------------
+!  Include "Parser";                   !% compiler flags at top of file
+!  Include "VerbLib";                  Include "globals.h";
+!  Include "Grammar";  (last)          Include "puny.h";
+!  [ Initialise; location = Room; ]    Constant INITIAL_LOCATION_VALUE = Room;
+!  Verb / Extend before "Grammar"      Verb / Extend before Include "puny.h"
 ! ============================================================================
 
+! ---------------------------------------------------------------------------
+!  GAME METADATA
+! ---------------------------------------------------------------------------
 Constant Story "CUSTOM GRAMMAR";
 Constant Headline "^A Frotzsmith sample: adding your own verbs.^";
 
+! ---------------------------------------------------------------------------
+!  STANDARD LIBRARY INCLUDES
+! ---------------------------------------------------------------------------
 Include "Parser";
 Include "VerbLib";
 
+! ---------------------------------------------------------------------------
+!  INITIALISE — set starting room and print opening message
+! ---------------------------------------------------------------------------
 [ Initialise;
     location = Chamber;
     "^A faintly magical chamber. Perhaps a magic word would help?^";
 ];
 
+! ---------------------------------------------------------------------------
+!  THE ROOM
+! ---------------------------------------------------------------------------
 Object Chamber "Magic Chamber"
   with description "Runes cover the walls. A brass lamp rests on a plinth.",
-  has  light;
+  has  light;             ! `light` — room is lit
 
+! ---------------------------------------------------------------------------
+!  A TAKEABLE OBJECT — target for the incant verb
+!  No special attributes needed; a plain Object is takeable and examinable.
+! ---------------------------------------------------------------------------
 Object -> lamp "brass lamp"
   with name 'brass' 'lamp',
        description "An ornate brass lamp.";
 
+! ---------------------------------------------------------------------------
+!  ACTION ROUTINES
+!  The naming convention is rigid: the routine MUST be called <Action>Sub.
+!  The library calls it automatically when the matching grammar fires.
+!
+!  [ XyzzySub; ]
+!    No argument is needed — the verb "xyzzy" has no noun. The `action`
+!    global will be ##Xyzzy when this fires. A bare string prints and exits.
+!    `~` inside strings is the Inform 6 escape for a literal double-quote.
+!
+!  [ IncantSub; ]
+!    The verb "incant" takes a noun, so `noun` holds the matched object.
+!    We branch on whether noun is the lamp and respond differently.
+!    `if (noun == lamp) "...";`  prints and returns if true (no explicit
+!    return needed — the string statement exits the routine).
+!    The final bare string is the fallback for any other object.
+! ---------------------------------------------------------------------------
+
 ! --- Action routines (named <Action>Sub) -------------------------------------
 [ XyzzySub;
-    "A hollow voice says, ~Fool!~";
+    "A hollow voice says, ~Fool!~";     ! bare string: print + return true
 ];
 
 [ IncantSub;
     if (noun == lamp) "The lamp flares brightly at your incantation!";
-    "Nothing answers your incantation.";
+    "Nothing answers your incantation.";  ! fallback for any other object
 ];
+
+! ---------------------------------------------------------------------------
+!  VERB DIRECTIVES
+!  These must come BEFORE `Include "Grammar";`.
+!  Each directive adds words to the dictionary and defines one or more
+!  syntax lines (argument patterns) for the verb.
+!
+!  Verb 'xyzzy' 'plugh'
+!    Adds both 'xyzzy' and 'plugh' as synonyms for the same verb.
+!    `* -> Xyzzy` — syntax line: no arguments. Player types just the word.
+!    The `->` names the action; the library will look for XyzzySub().
+!
+!  Verb 'incant' 'invoke'
+!    Adds 'incant' and 'invoke' as synonyms.
+!    `* noun -> Incant` — syntax line: requires one object (noun token).
+!    `noun` matches any visible, in-scope object the parser can identify.
+!    The player types: INCANT LAMP  or  INVOKE LAMP, etc.
+!
+!  Why 'xyzzy'/'plugh'/'incant'/'invoke'?
+!    The Standard Library already defines 'rub', 'wave', 'polish', etc. as
+!    built-in verbs. Using `Verb` for an existing word would conflict. This
+!    sample deliberately uses words not in the library's vocabulary to avoid
+!    that clash. (In real games, `Extend` lets you add synonyms to existing
+!    verbs, or you can use `Verb` for genuinely novel words as shown here.)
+! ---------------------------------------------------------------------------
 
 ! --- Grammar: map words and a syntax line to each action ---------------------
 !  ('rub', 'wave' etc. already exist in the library, so we use novel words.)
@@ -44,4 +164,7 @@ Verb 'xyzzy' 'plugh'
 Verb 'incant' 'invoke'
     * noun                                      -> Incant;
 
+! ---------------------------------------------------------------------------
+!  GRAMMAR — must be the LAST include; finalises all parse tables
+! ---------------------------------------------------------------------------
 Include "Grammar";

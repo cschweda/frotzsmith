@@ -6,36 +6,167 @@
 !  Start one with StartDaemon(obj); stop it with StopDaemon(obj). The object
 !  needs a `daemon` property (the routine that runs each turn).
 !  Try:  wait, z, z, z, z   (and watch the candle)
+! ----------------------------------------------------------------------------
+!  KEY CONCEPTS IN THIS FILE:
+!
+!  Daemon mechanism
+!    A daemon is a background routine permanently attached to a game object.
+!    Once activated with StartDaemon(obj), the library calls obj.daemon() once
+!    per turn, AFTER the player's command has been fully processed. Daemons
+!    run indefinitely — there is no automatic stopping. You call StopDaemon(obj)
+!    when you want the daemon to cease. Any number of objects can have active
+!    daemons simultaneously.
+!
+!    Typical uses: burning fuses, NPC behaviour, weather changes, recurring
+!    room events, resource depletion (oxygen, battery, time limit).
+!
+!    StartDaemon(obj)  — register obj so obj.daemon() runs after every action.
+!    StopDaemon(obj)   — deregister obj; its daemon() is never called again
+!                        (unless StartDaemon is called again later).
+!
+!  `daemon` property
+!    An embedded routine on the object: `daemon [ ; …code… ],`
+!    The library calls it with `self` pointing to the owning object.
+!    Inside the routine you read/write the object's other properties via
+!    `self.propertyname` without hard-coding the object's identifier.
+!
+!  Custom properties
+!    Any identifier not already used by the library can be a property name
+!    storing integer data. `life 5` here declares a property named `life`
+!    with initial value 5. Access from code: `self.life` (inside the object),
+!    `candle.life` (from outside). The value is read/written like any variable.
+!
+!  `self` keyword
+!    Inside any property routine, `self` is automatically set to the object
+!    that owns the routine. It is equivalent to writing the object's name but
+!    more robust: if you rename the object, the inner code does not need changing.
+!    This also makes the pattern copy-pasteable to other objects.
+!
+!  Timers vs. Daemons  (choosing the right tool)
+!    Daemon  — runs every turn until stopped; your code tracks the countdown.
+!              Use when you need per-turn side effects (messages, property changes).
+!    Timer   — counts down n turns, then fires its `time_out` routine ONCE and
+!              stops automatically.
+!      StartTimer(obj, n)  — fires after n more turns.
+!      StopTimer(obj)      — cancel before it fires.
+!      `time_left` property — automatically decremented each turn.
+!      `time_out` property  — routine called when the counter reaches zero.
+!    Choose a timer when you only need a single deferred event with no
+!    per-turn messages; choose a daemon for ongoing changes each turn.
+!
+!  `give obj attr` / `give obj ~attr`
+!    Runtime attribute manipulation. `give candle ~light;` removes the light
+!    attribute from the candle at runtime, extinguishing it mechanically.
+!    If the room has no other light source, this plunges it into darkness.
+!    This is left as an exercise: add `give self ~light;` in the life==0 block.
 ! ============================================================================
 
+! --- Game metadata constants --------------------------------------------------
+! `Constant` declares a compile-time symbol. Story and Headline feed the
+! Standard Library's status bar and opening banner. `^` = newline in strings.
 Constant Story "TIMED CANDLE";
 Constant Headline "^A Frotzsmith sample: daemons & timed events.^";
 
+! --- Standard Library includes -----------------------------------------------
+! Mandatory order: Parser → VerbLib → [your code] → Grammar.
+! "Parser"  — reads, tokenises, and dispatches the player's commands.
+! "VerbLib" — built-in action routines and the Before/After hook framework.
 Include "Parser";
 Include "VerbLib";
 
+! --- Initialise : set location, start daemon, print opening ------------------
+! Called once by the Standard Library before the first turn. Three things:
+!
+!   1. `location = Study;`
+!      Sets the built-in global that tracks the player's current room.
+!      Without this the player has no starting location and the game breaks.
+!
+!   2. `StartDaemon(candle);`
+!      Registers the candle object in the daemon list. From this point on,
+!      after EVERY player action, the library calls candle.daemon() once.
+!      It does not matter where the candle is (room, inventory, a container);
+!      the daemon fires based on the object being registered, not its location.
+!
+!   3. The print statement is the player's opening message (scene-setting text).
+!      Two `^^` at the end produce a blank line before the first room description.
 [ Initialise;
     location = Study;
-    StartDaemon(candle);
+    StartDaemon(candle);          ! register candle.daemon() — fires every turn
     print "^The candle is lit -- but it won't burn forever. Watch the turns.^^";
 ];
 
+! --- Room: Study (always lit) -------------------------------------------------
+! A single-room game; the Study has `has light` so it is always visible
+! independent of the candle. In a more elaborate puzzle you would remove `has
+! light` from the Study and rely entirely on the candle — when it burns out,
+! `give candle ~light;` in the daemon would plunge the room into darkness.
 Object Study "Study"
   with description "A book-lined study. You carry a single lit candle.",
-  has  light;
+  has  light;                ! room is always lit; candle adds a second source
 
+! --- Object: lit candle (daemon host, light source, countdown) ---------------
+! `Object ->` places the candle inside Study (the most recently declared parent).
+!
+! PROPERTY: name
+!   Parser vocabulary for this object. The player may type "candle", "lit
+!   candle", "flame", or "wax" to refer to it.
+!
+! PROPERTY: description
+!   Printed by EXAMINE CANDLE.
+!
+! PROPERTY: daemon  [ ; … ]
+!   The embedded routine that the library calls once per turn after the
+!   player acts, for as long as the daemon is active (see StartDaemon above).
+!
+!   Breakdown of the routine body:
+!
+!   `self.life = self.life - 1;`
+!     Decrements the `life` property. `self` is set to the candle object by
+!     the library before each daemon call — you don't need to write `candle`.
+!     After 5 turns `life` reaches 0 and the extinguishing block fires.
+!
+!   `if (self.life == 2) print "…";`
+!     A threshold warning printed when two turns remain. Good UX practice:
+!     give the player advance notice before something significant happens.
+!     You can add checks at any life value (e.g., life == 4 for an early hint).
+!     With life starting at 5, the turn sequence is:
+!       Turn 1: life 5→4
+!       Turn 2: life 4→3
+!       Turn 3: life 3→2  → WARNING printed
+!       Turn 4: life 2→1
+!       Turn 5: life 1→0  → candle goes out
+!
+!   `if (self.life == 0) { … StopDaemon(self); }`
+!     The extinguishing block. Prints the final message and then calls
+!     StopDaemon(self) to deregister the daemon. This is ESSENTIAL: without
+!     StopDaemon the routine would keep firing every turn with life going
+!     negative, reprinting the "sputters out" message indefinitely.
+!     Extension idea: add `give self ~light;` before StopDaemon to remove the
+!     candle's light attribute, making the room dark if the Study also had
+!     its `light` attribute removed.
+!
+! PROPERTY: life   (initial value: 5)
+!   A custom integer property storing remaining burn turns. Property names may
+!   be any identifier not reserved by the library; `life` is unused by default.
+!   Initial value 5 is set at compile time; it is decremented at runtime.
+!
+! ATTRIBUTE: light
+!   The candle starts as a light source (`has light`). The room counts as lit
+!   because the candle is there, even if the room itself had no `has light`.
 Object -> candle "lit candle"
   with name 'lit' 'candle' 'flame' 'wax',
        description "A short candle, its flame wavering.",
        daemon [;
-           self.life = self.life - 1;
+           self.life = self.life - 1;       ! burn one turn of wax
            if (self.life == 2) print "^The candle gutters, growing dim.^";
            if (self.life == 0) {
                print "^The candle sputters out. A wisp of smoke curls upward.^";
-               StopDaemon(self);
+               StopDaemon(self);            ! deregister — daemon won't fire again
            }
        ],
-       life 5,
-  has  light;
+       life 5,                              ! candle lasts exactly 5 turns
+  has  light;                              ! starts as a live light source
 
+! --- Grammar (must be the final Include) -------------------------------------
+! Grammar.h defines all built-in verb/grammar tables. Always the last Include.
 Include "Grammar";

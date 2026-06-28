@@ -1,0 +1,161 @@
+! ============================================================================
+!  SWITCHABLE LAMP  —  a device you turn on and off (Standard Library)
+! ----------------------------------------------------------------------------
+!  Shows: the `switchable` attribute, a before [SwitchOn/SwitchOff] handler, and
+!  using a carried light source to reveal a dark room.
+!  Try:  TAKE LANTERN.  SWITCH ON LANTERN.  DOWN.
+! ============================================================================
+
+! ---------------------------------------------------------------------------
+! STORY METADATA
+! `Constant Story` sets the game title shown in the Z-machine status bar and
+! opening banner.  `Constant Headline` appears directly below it.
+! Both must be declared before any Include directives.
+! ---------------------------------------------------------------------------
+Constant Story "SWITCHABLE LAMP";
+Constant Headline "^A device you can switch on and off.^";
+
+! ---------------------------------------------------------------------------
+! STANDARD LIBRARY INCLUDES (order is mandatory)
+!   Parser   — tokenises player input and selects an action + noun(s)
+!   VerbLib  — supplies default action routines (Take, Go, SwitchOn, …)
+! Include "Grammar" goes LAST (below all objects and custom Verb declarations)
+! because it builds the final verb/grammar table that references them.
+! ---------------------------------------------------------------------------
+Include "Parser";
+Include "VerbLib";
+
+! ---------------------------------------------------------------------------
+! INITIALISE ROUTINE
+! The Standard Library calls Initialise (capital I) exactly once at startup.
+! Setting the global variable `location` places the player in that room.
+! A bare string literal at the end of a routine acts as `print_ret`:
+! it prints the text with a trailing newline and returns true — perfect for
+! showing an opening message before the first room description appears.
+! ---------------------------------------------------------------------------
+[ Initialise;
+    location = Workshop;
+    "^A brass lantern sits on the bench. Try TAKE LANTERN, SWITCH ON LANTERN, then go DOWN.^";
+];
+
+! ---------------------------------------------------------------------------
+! THE STARTING ROOM
+! The `light` attribute on a ROOM makes it permanently lit — no carried
+! light source is ever needed here.  The Cellar below lacks `light`, so it
+! is dark: the library will refuse to describe it unless the player carries
+! an object that itself has the `light` attribute.
+! ---------------------------------------------------------------------------
+Object Workshop "Workshop"
+  with description "A tidy workshop. A ladder leads down into darkness.",
+       d_to Cellar,
+  has  light;           ! `light` → room is always lit regardless of inventory
+
+! ---------------------------------------------------------------------------
+! THE SWITCHABLE LANTERN
+!
+! Object placement: the leading `->` makes this object a child of the most
+! recently defined top-level object (Workshop).  It starts in the room,
+! not in the player's inventory — the player must TAKE it first.
+!
+! `switchable` ATTRIBUTE
+!   The only thing required to make "SWITCH ON <obj>" and "SWITCH OFF <obj>"
+!   grammatically valid for this object.  Without it the parser rejects
+!   those commands with a stock refusal message.
+!   IMPORTANT: `switchable` does NOT automatically toggle the `light`
+!   attribute.  The library accepts the command but takes no further action.
+!   You must update `light` yourself inside a `before` handler (see below).
+!
+! `name` PROPERTY
+!   Single-quoted dictionary words the parser matches against the noun phrase.
+!   'lamp' is a synonym; this lets "SWITCH ON LAMP" work as well.
+! ---------------------------------------------------------------------------
+Object -> lantern "brass lantern"
+  with name 'brass' 'lantern' 'lamp',
+
+       ! -----------------------------------------------------------------------
+       ! DESCRIPTION AS A ROUTINE (instead of a fixed string)
+       ! A property can hold either a static string or an anonymous routine.
+       ! When it is a routine, the library calls it each time EXAMINE is used.
+       ! This lets us vary the description based on runtime state.
+       !
+       ! `self` — inside a property routine, `self` always refers to the
+       ! object that owns the property (the lantern here).  Using `self`
+       ! avoids hard-coding the object's identifier and works correctly even
+       ! if you rename the object later.
+       !
+       ! `self has light` — checks whether the `light` attribute is currently
+       ! set on the lantern object (true when it is switched on).
+       !
+       ! Bare string as a statement — inside a routine, writing just a string
+       ! is shorthand for `print_ret "…"`: it prints the string with a newline
+       ! and returns true, ending the routine.  Because the first `if` branch
+       ! returns on success, the second bare string only runs when the lamp
+       ! is dark.
+       ! -----------------------------------------------------------------------
+       description [;
+           if (self has light) "A brass lantern, glowing warmly.";
+           "A brass lantern, currently dark.";
+       ],
+
+       ! -----------------------------------------------------------------------
+       ! BEFORE HANDLER — intercepting SwitchOn and SwitchOff
+       !
+       ! `before` is checked by the library BEFORE it runs the default action
+       ! for any command targeting this object.  If the before handler prints
+       ! something (implicitly returning true), the default action is skipped.
+       !
+       ! Each label inside `before` (SwitchOn:, SwitchOff:) is an action
+       ! name — it matches the action the parser selected.  Only the matching
+       ! label's body runs; all others are skipped.  Any unlisted action falls
+       ! through to the library's default handling automatically.
+       !
+       ! Why intercept SwitchOn/SwitchOff instead of trusting the library?
+       ! The Standard Library's built-in SwitchOnSub only toggles the `on`
+       ! attribute (cosmetic).  It does NOT touch `light`, so dark rooms would
+       ! stay dark even after the player switches the lantern on.  We must
+       ! manage the `light` attribute ourselves to actually illuminate rooms.
+       ! -----------------------------------------------------------------------
+       before [;
+           SwitchOn:
+               ! Guard clause: if the lantern already carries the `light`
+               ! attribute it is already on.  Print a refusal and stop.
+               if (self has light) "It is already on.";
+
+               ! `give <object> <attribute>` sets an attribute on an object
+               ! at runtime.  After this line the lantern IS a light source:
+               ! the library will illuminate any dark room the player carries
+               ! it into.
+               give self light;       ! grant `light` attribute → lantern is ON
+
+               ! A bare string here returns true, cancelling the default action.
+               "You switch on the lantern. It glows warmly.";
+           SwitchOff:
+               ! Guard: `hasnt` is the Boolean negation of `has`.
+               if (self hasnt light) "It is already off.";
+
+               ! `give <object> ~<attribute>` — the tilde (~) CLEARS the named
+               ! attribute.  After this the lantern stops being a light source;
+               ! dark rooms become dark again immediately.
+               give self ~light;      ! clear `light` attribute → lantern is OFF
+               "You switch off the lantern.";
+       ],
+  has  switchable;      ! enables SWITCH ON / SWITCH OFF commands for this object
+
+! ---------------------------------------------------------------------------
+! THE DARK ROOM
+! The Cellar deliberately omits the `light` attribute.  When the player
+! enters with an unlit (or absent) lantern, the library responds with a
+! "It is pitch dark" message and blocks most actions.  Carrying the lit
+! lantern reveals the room normally.  This is the canonical Inform 6 pattern
+! for a dark area: simply omit `light` from the room's has-list.
+! ---------------------------------------------------------------------------
+Object Cellar "Cellar"
+  with description "A cramped cellar. Without a light it would be pitch black.",
+       u_to Workshop;   ! u_to connects back up to the Workshop
+
+! ---------------------------------------------------------------------------
+! GRAMMAR — must be included last
+! Builds the full verb/grammar table.  Must follow all Object definitions and
+! any custom Verb declarations so the table can reference them.
+! ---------------------------------------------------------------------------
+Include "Grammar";

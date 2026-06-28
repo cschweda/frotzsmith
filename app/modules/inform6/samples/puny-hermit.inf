@@ -7,49 +7,150 @@
 !  The PunyInform port of the talking-NPC demo. PunyInform supports `life`
 !  routines and ask/tell, just like the Standard Library.
 !  Try:  north, examine hermit, ask hermit about woods, give apple to hermit
+! ----------------------------------------------------------------------------
+!  KEY CONCEPTS IN THIS FILE
+!  --------------------------
+!  * !% lines           — Inform 6 COMPILER OPTIONS, not comments. They must
+!                         be the very first lines of the file. The `!% -~S`
+!                         flag suppresses the "Script mode on" banner; the
+!                         $OMIT_UNUSED_ROUTINES=1 setting strips dead code to
+!                         keep the story file small (important for z3 targets).
+!  * Constant INITIAL_LOCATION_VALUE
+!                       — PunyInform's way to set the player's starting room.
+!                         Replaces `location = Room;` inside Initialise.
+!  * Include "globals.h"— PunyInform global variables and system constants.
+!                         Must come before puny.h.
+!  * Include "puny.h"   — The full PunyInform library (parser + verbs +
+!                         grammar) in a single file. No separate Grammar
+!                         include is needed.
+!  * Object -> (arrow)  — places the object inside the most recently declared
+!                         parent Object.
+!  * has animate        — marks this object as a living character
+!  * life [ ]           — routine property handling conversation verbs on NPCs
+!
+!  STANDARD LIBRARY vs PUNYINFORM
+!  --------------------------------
+!  Standard Library                    PunyInform
+!  ----------------------------------  ----------------------------------------
+!  Include "Parser";                   !% -~S  (compiler flags at top)
+!  Include "VerbLib";                  !% $OMIT_UNUSED_ROUTINES=1
+!  Include "Grammar";                  Include "globals.h";
+!                                      Include "puny.h";
+!
+!  [ Initialise; location = Room; ]    Constant INITIAL_LOCATION_VALUE = Room;
+!  bare-string opening message         print "opening message"  in Initialise
 ! ============================================================================
 
+! ---------------------------------------------------------------------------
+!  GAME METADATA
+!  Constant sets a compile-time named value. Story and Headline are special
+!  names PunyInform uses for the banner printed at startup.
+! ---------------------------------------------------------------------------
 Constant Story "THE HERMIT";
 Constant Headline "^A Frotzsmith sample showing a talking NPC (PunyInform).^";
 
+! ---------------------------------------------------------------------------
+!  STARTING LOCATION (PunyInform style)
+!  Instead of writing `location = Clearing;` inside Initialise, PunyInform
+!  reads this constant at startup to place the player in the right room.
+!  The value must be the identifier of a room Object defined in this file.
+! ---------------------------------------------------------------------------
 Constant INITIAL_LOCATION_VALUE = Clearing;
 
+! ---------------------------------------------------------------------------
+!  PUNYINFORM LIBRARY INCLUDES
+!  globals.h  — declares global variables (score, moves, location, etc.)
+!               and constants that the rest of the library depends on.
+!               It must be included BEFORE puny.h.
+!  puny.h     — the complete PunyInform parser, verb handlers, and grammar
+!               tables in one file. Everything the Standard Library spreads
+!               across Parser/VerbLib/Grammar lives here.
+! ---------------------------------------------------------------------------
 Include "globals.h";
 Include "puny.h";
 
+! ---------------------------------------------------------------------------
+!  ROOMS
+!  Each room needs `has light;` so it isn't pitch dark.
+!  Direction properties (n_to, s_to, …) wire rooms together.
+! ---------------------------------------------------------------------------
 Object Clearing "Forest Clearing"
   with description
         "Sunlight filters through the pines. A path leads north to a hut.",
-       n_to Hut,
-  has  light;
+       n_to Hut,          ! going north moves the player into Hut
+  has  light;             ! `light` attribute — room is lit
 
+! ---------------------------------------------------------------------------
+!  A TAKEABLE OBJECT
+!  `->` places this object inside its parent — the most recently declared
+!  Object, which is Clearing. So the apple starts in the clearing.
+!  `name` holds dictionary words the parser accepts for this object.
+! ---------------------------------------------------------------------------
 Object -> apple "red apple"
   with name 'red' 'apple',
        description "A crisp red apple.";
+! Note: no `has edible` here — PunyInform supports it, but it was omitted
+! in this port for brevity. Add `has edible;` to let the player eat it.
 
+! ---------------------------------------------------------------------------
+!  SECOND ROOM
+!  Declared after Clearing, so a bare `->` here would place things in Hut.
+! ---------------------------------------------------------------------------
 Object Hut "Hermit's Hut"
   with description
         "A cramped hut, warm with woodsmoke. The clearing lies back south.",
-       s_to Clearing,
+       s_to Clearing,     ! going south returns the player to Clearing
   has  light;
 
+! ---------------------------------------------------------------------------
+!  THE NPC
+!  `->` places hermit inside Hut (the most recently declared Object).
+!
+!  `has animate`
+!    Required for the library to route conversation commands (ASK, TELL,
+!    GIVE, SHOW, ANSWER) to this object's `life` routine. Without it the
+!    parser will say "You can't talk to that."
+!
+!  `life [ ; ... ]`
+!    Called by the library when a conversation action targets this NPC.
+!    The current action is in the global `action`. Cases match built-in
+!    action constants by name:
+!
+!      Ask, Tell, Answer — ASK HERMIT ABOUT X / TELL HERMIT ABOUT X /
+!                          ANSWER X TO HERMIT. All share the same handler.
+!      Give              — GIVE <object> TO HERMIT. `noun` holds the object.
+!                          We check whether noun is the apple and react.
+!      default           — any other life action (SHOW, KISS, ORDER, etc.)
+!
+!    A bare string "..." prints that text and returns true, telling the
+!    library the action was fully handled (no default message needed).
+! ---------------------------------------------------------------------------
 Object -> hermit "old hermit"
   with name 'old' 'hermit' 'man',
        description "Weathered and serene, the hermit watches you calmly.",
        life [;
-           Ask, Tell, Answer:
+           Ask, Tell, Answer:     ! ASK/TELL/ANSWER targeting the hermit
                "~The woods know more than I ever shall,~ the hermit murmurs.";
-           Give:
+           Give:                  ! GIVE <noun> TO hermit
                if (noun == apple) {
-                   move apple to hermit;
+                   move apple to hermit;   ! physically moves apple to hermit's inventory
                    "The hermit accepts the apple with a grateful bow.";
                }
                "The hermit gently declines.";
-           default:
+           default:               ! fallback for SHOW, KISS, ORDER, etc.
                "The hermit only smiles.";
        ],
-  has  animate;
+  has  animate;                   ! `animate` — enables the `life` routine
 
+! ---------------------------------------------------------------------------
+!  INITIALISE ROUTINE
+!  PunyInform still calls Initialise() at startup for things like printing
+!  the opening message, awarding initial inventory, etc. But the starting
+!  room is set via INITIAL_LOCATION_VALUE, not here.
+!
+!  PunyInform difference: use `print` rather than a bare string. A bare
+!  string would return true and suppress further startup processing.
+! ---------------------------------------------------------------------------
 [ Initialise;
     print "^You set out to find the old hermit said to live deep in the woods.^";
 ];

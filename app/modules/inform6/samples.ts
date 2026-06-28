@@ -16,6 +16,11 @@ import stdCandle from './samples/timed-candle.inf?raw'
 import punyCandle from './samples/puny-timed-candle.inf?raw'
 import stdHaunted from './samples/haunted-house.inf?raw'
 import punyHaunted from './samples/puny-haunted-house.inf?raw'
+import stdLamp from './samples/switchable-lamp.inf?raw'
+import punyLamp from './samples/puny-switchable-lamp.inf?raw'
+import stdBall from './samples/magic-8-ball.inf?raw'
+import punyBall from './samples/puny-magic-8-ball.inf?raw'
+import stdExits from './samples/list-exits.inf?raw'
 
 export interface Sample {
   id: string
@@ -41,6 +46,9 @@ export const SAMPLES: Sample[] = [
   { id: 'std-hermit', group: 'std', name: 'The Hermit · NPC', description: 'A talking NPC (ask / tell / give)', source: stdHermit },
   { id: 'std-chest', group: 'std', name: 'The Locked Chest · puzzle', description: 'A lock-and-key container puzzle', source: stdChest },
   { id: 'std-grammar', group: 'std', name: 'Custom Grammar · verbs', description: 'Add your own verbs and grammar lines', source: stdGrammar },
+  { id: 'std-switchable-lamp', group: 'std', name: 'Switchable Lamp · device', description: 'A switchable device and a carried light source', source: stdLamp },
+  { id: 'std-magic-8-ball', group: 'std', name: 'Magic 8-Ball · random', description: 'A custom verb and random() for varied output', source: stdBall },
+  { id: 'std-list-exits', group: 'std', name: 'List Exits · compass', description: 'A std-only EXITS verb (Compass + LanguageDirection)', source: stdExits },
   { id: 'std-haunted-house', group: 'std', name: 'Haunted House · first floor', description: "The first floor of a port of Radio Shack's 1979 adventure", source: stdHaunted },
   { id: 'puny-skeleton', group: 'puny', name: 'Skeleton', description: 'Bare, compilable starting point', source: punySkeleton },
   { id: 'puny-two-rooms', group: 'puny', name: 'Two Rooms', description: 'Rooms, movement, a takeable object', source: punyTwoRooms },
@@ -49,6 +57,8 @@ export const SAMPLES: Sample[] = [
   { id: 'puny-hermit', group: 'puny', name: 'The Hermit · NPC', description: 'A talking NPC (ask / tell / give)', source: punyHermit },
   { id: 'puny-chest', group: 'puny', name: 'The Locked Chest · puzzle', description: 'A lock-and-key container puzzle', source: punyChest },
   { id: 'puny-grammar', group: 'puny', name: 'Custom Grammar · verbs', description: 'Add your own verbs and grammar lines', source: punyGrammar },
+  { id: 'puny-switchable-lamp', group: 'puny', name: 'Switchable Lamp · device', description: 'A switchable device and a carried light source', source: punyLamp },
+  { id: 'puny-magic-8-ball', group: 'puny', name: 'Magic 8-Ball · random', description: 'A custom verb and random() for varied output', source: punyBall },
   { id: 'puny-haunted-house', group: 'puny', name: 'Haunted House · first floor', description: "The first floor of a port of Radio Shack's 1979 adventure", target: 'z3', source: punyHaunted },
 ]
 

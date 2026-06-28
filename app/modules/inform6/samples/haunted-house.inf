@@ -1,9 +1,26 @@
 
 
+! ============================================================================
+!  HAUNTED HOUSE  —  Frotzsmith sample (Inform 6 Standard Library)
+! ----------------------------------------------------------------------------
+!  Based on Radio Shack's 1979 text adventure "Haunted House" for the TRS-80
+!  (Tandy Model I / III) — reverse-engineered from the original and reimplemented
+!  in Inform 6.
+!
+!  A *partial* conversion: the first floor of the mansion. Unlike the small
+!  concept samples, this is a fuller game and shows how the pieces fit together:
+!    - custom classes (Room, Scenic, Furniture) to share behaviour
+!    - a lockable, openable door (hall_door) shared between two rooms
+!    - a custom LibraryMessages object overriding default library responses
+!    - scoring (MAX_SCORE / score) and magic words (XYZZY, PLUGH, ...)
+!    - several custom verbs and Extend directives
+!  Compiles cleanly with the bundled Standard Library; targets z5 by default.
+! ============================================================================
+
 Constant Story      "Haunted House";
 Constant Headline   "^A port of Radio Shack's Model I/III adventure (circa 1979) written in Inform 6^";
-Constant MAX_SCORE     = 4;
-Include "Parser";
+Constant MAX_SCORE     = 4;          ! highest score attainable (used by the status line)
+Include "Parser";                    ! Standard Library: the command parser
 
 Object LibraryMessages
     with before [;

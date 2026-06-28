@@ -13,13 +13,23 @@ const sampleItems = computed(() => {
     entry[s.group] = s
     byName.set(s.name, entry)
   }
+  // Always show both libraries; grey out the one a concept doesn't provide
+  // (e.g. a Standard-Library-only sample has no PunyInform variant).
   return [
     [...byName.values()].map(v => ({
       label: (v.std ?? v.puny)!.name,
       children: [
-        v.std && { label: 'Inform 6 (full)', icon: 'i-lucide-book-marked', onSelect: () => loadSample(v.std!.id) },
-        v.puny && { label: 'PunyInform', icon: 'i-lucide-feather', onSelect: () => loadSample(v.puny!.id) },
-      ].filter(Boolean),
+        {
+          label: v.std ? 'Inform 6 (full)' : 'Inform 6 (full) · n/a',
+          icon: 'i-lucide-book-marked',
+          ...(v.std ? { onSelect: () => loadSample(v.std!.id) } : { disabled: true }),
+        },
+        {
+          label: v.puny ? 'PunyInform' : 'PunyInform · n/a',
+          icon: 'i-lucide-feather',
+          ...(v.puny ? { onSelect: () => loadSample(v.puny!.id) } : { disabled: true }),
+        },
+      ],
     })),
   ]
 })

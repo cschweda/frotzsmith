@@ -3,18 +3,72 @@
 ! ----------------------------------------------------------------------------
 !  A bare, compilable starting point. Replace the title and author, then build
 !  your world by adding rooms and objects between VerbLib and Grammar.
+! ----------------------------------------------------------------------------
+!  KEY CONCEPTS IN THIS FILE
+!  ─────────────────────────
+!  • Constant          — sets a named value at compile time
+!  • Include           — pastes another source file in-place (the library)
+!  • [ Initialise; ]   — a routine the library calls once at game start
+!  • Object            — the fundamental Inform 6 building block (rooms & things)
+!  • has light         — the attribute that lets the player see inside a room
+!
+!  STANDARD LIBRARY vs PUNYINFORM
+!  ────────────────────────────────
+!  The Standard Library (this file) is included via three explicit Includes:
+!    Include "Parser";    ← parses typed commands into actions
+!    Include "VerbLib";   ← defines the built-in verbs (take, drop, examine…)
+!    Include "Grammar";   ← must come LAST; wires verbs to grammar patterns
+!  PunyInform replaces all three with two files (globals.h / puny.h) and uses
+!  the constant INITIAL_LOCATION_VALUE instead of setting `location` by hand
+!  inside Initialise. See puny-skeleton.inf for the PunyInform equivalent.
 ! ============================================================================
+
+! --- Game identity constants -------------------------------------------------
+!  `Constant` declares a compile-time name/value pair. These two are special:
+!  the Standard Library reads `Story` for the game's title (shown on the status
+!  bar) and `Headline` for the subtitle (shown in the opening banner). The `^`
+!  character inside strings is a newline.
 
 Constant Story "MY GAME";
 Constant Headline "^An interactive fiction by Anonymous.^";
 
+! --- Standard Library includes ----------------------------------------------
+!  Include "Parser" must come before VerbLib. It pulls in the parser engine
+!  that turns raw input ("take lamp") into an action (Take, noun=lamp).
+
 Include "Parser";
+
+!  Include "VerbLib" adds the standard verb handlers: Take, Drop, Examine,
+!  Inventory, Go, Look, Put, etc. Place any new Object/Class definitions AFTER
+!  this include and BEFORE "Grammar".
+
 Include "VerbLib";
+
+! --- Initialise routine -----------------------------------------------------
+!  The library calls [ Initialise; ] exactly once, just before the first prompt.
+!  In the Standard Library you MUST set the global `location` here to tell the
+!  parser which room the player starts in.
+!
+!  A string literal used as a statement (the line starting with `"^Your..."`)
+!  acts as a `print` + newline + `rtrue` in Inform 6 shorthand — it prints the
+!  welcome message and returns true, ending the routine.
 
 [ Initialise;
     location = StartRoom;
     "^Your story begins here...^";
 ];
+
+! --- Rooms and objects -------------------------------------------------------
+!  Every room is an Object. The first string after the class name is the
+!  short name (shown in the status bar and on >LOOK).
+!
+!  `with description "…"` supplies the long description printed by >LOOK or
+!  when the player enters for the first time.
+!
+!  `has light` is an *attribute*. Without it the room is dark and the player
+!  cannot see anything inside it. Most outdoor locations and lit indoor rooms
+!  need `has light`. Give a carried light source (lamp) the `light` attribute
+!  instead to make the light portable.
 
 Object StartRoom "Starting Room"
   with description "An empty room, waiting for your imagination.",
@@ -22,6 +76,36 @@ Object StartRoom "Starting Room"
 
 ! ---------------------------------------------------------------------------
 !  Add your rooms and objects here.
+!
+!  ROOM-TO-ROOM CONNECTIONS
+!  Use directional properties on the room object, e.g.:
+!    n_to AnotherRoom,   ← typing NORTH moves the player to AnotherRoom
+!    s_to YetAnother,    ← SOUTH goes to YetAnother
+!  Available directions: n_to s_to e_to w_to ne_to nw_to se_to sw_to
+!                        u_to (UP) d_to (DOWN) in_to out_to
+!
+!  CHILD OBJECTS (things inside rooms)
+!  Use `Object -> ` (arrow notation) to place an object inside the preceding
+!  room or container at compile time:
+!    Object -> pebble "small pebble"
+!      with name 'small' 'pebble',
+!           description "Just a grey pebble.";
+!
+!  ATTRIBUTES QUICK REFERENCE
+!  has light      — room/object is lit (player can see)
+!  has static     — object can't be taken (prints "That's fixed in place.")
+!  has scenery    — static + suppressed from room description listing
+!  has container  — object can hold other objects; add `open` to start open
+!  has supporter  — object things can be placed ON (table, shelf)
+!  has openable   — player can OPEN/CLOSE it (use with container or door)
+!  has open       — object starts in the open state
+!  has concealed  — object is present but not listed in room descriptions
 ! ---------------------------------------------------------------------------
+
+! --- Grammar (must be last) -------------------------------------------------
+!  Include "Grammar" MUST be the final include. It defines the grammar tables
+!  that map verb words to actions. Any Extend/Verb directives for custom verbs
+!  must appear BEFORE this include. Including Grammar after your objects
+!  ensures all object names are known when the grammar tables are compiled.
 
 Include "Grammar";

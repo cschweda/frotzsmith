@@ -7,15 +7,88 @@
 !  A bare, compilable PunyInform starting point. The `!%` lines above are
 !  compiler options. Replace the title and author, then add your rooms and
 !  objects after puny.h.
+! ----------------------------------------------------------------------------
+!  THE `!%` COMPILER OPTION LINES (top of file — do not move or modify)
+!  ──────────────────────────────────────────────────────────────────────
+!  Lines that begin with `!%` are processed by the Inform 6 compiler itself
+!  BEFORE compilation starts. They are NOT ordinary comments; the compiler
+!  strips the `!%` prefix and treats the rest as a command-line switch.
+!
+!    !% -~S          turns off strict mode (saves Z-machine memory; PunyInform
+!                    requires this because it doesn't use the strict-mode stubs)
+!    !% $OMIT_UNUSED_ROUTINES=1
+!                    tells the compiler to strip routines that are never called,
+!                    keeping the output file as small as possible.
+!
+!  KEY CONCEPTS IN THIS FILE
+!  ─────────────────────────
+!  • Constant                  — compile-time name/value pair
+!  • INITIAL_LOCATION_VALUE    — PunyInform-specific constant; tells the
+!                                library where to place the player at startup
+!                                (replaces `location = …` in Initialise)
+!  • Include "globals.h"       — PunyInform global variables & configuration
+!  • Include "puny.h"          — the full PunyInform library (parser + verbs +
+!                                grammar all in one; no separate Grammar include)
+!  • Object … has light        — a room needs the `light` attribute so the
+!                                player can see inside it
+!  • [ Initialise; ]           — optional startup routine; in PunyInform the
+!                                player location is already set by the constant
+!                                above, so Initialise is used only for printing
+!                                a welcome banner or other setup tasks
+!
+!  PUNYINFORM vs STANDARD LIBRARY
+!  ────────────────────────────────
+!  Standard Library:           PunyInform equivalent:
+!    Include "Parser";   ──►   (bundled inside puny.h)
+!    Include "VerbLib";  ──►   (bundled inside puny.h)
+!    location = X in           INITIAL_LOCATION_VALUE = X  (constant)
+!      Initialise;
+!    Include "Grammar";  ──►   (bundled inside puny.h — no separate include)
+!
+!  PunyInform targets the Z3 story format by default (smaller, wider
+!  compatibility). The Standard Library targets Z5/Z8.
 ! ============================================================================
+
+! --- Game identity constants -------------------------------------------------
+!  `Story` appears in the status bar and opening banner.
+!  `Headline` is the subtitle shown in the banner on game start.
+!  The `^` escape character inside strings produces a newline when printed.
 
 Constant Story "MY GAME";
 Constant Headline "^An interactive fiction by Anonymous.^";
 
+! --- Starting location ------------------------------------------------------
+!  INITIAL_LOCATION_VALUE is a PunyInform convention. globals.h reads this
+!  constant and uses it to position the player at the start of the game.
+!  You do NOT need to set `location` manually inside [ Initialise; ] when
+!  using PunyInform — this constant handles it automatically.
+
 Constant INITIAL_LOCATION_VALUE = StartRoom;
 
+! --- PunyInform library includes --------------------------------------------
+!  Include "globals.h" first. It declares global variables (location, score,
+!  turns, etc.) and reads your configuration constants (like
+!  INITIAL_LOCATION_VALUE). It must come before puny.h.
+
 Include "globals.h";
+
+!  Include "puny.h" is the entire PunyInform library in one file. It contains
+!  the parser, all built-in verbs, and the grammar tables. Unlike the Standard
+!  Library there is no separate "Grammar" include at the end of the file.
+!  Place all your Object, Class, and Verb definitions BETWEEN these two
+!  includes and [ Initialise; ] — or after puny.h, before Initialise.
+
 Include "puny.h";
+
+! --- Rooms and objects -------------------------------------------------------
+!  Define your starting room. The string immediately after `Object` is the
+!  internal identifier; the quoted string is the short name shown to the player.
+!
+!  `with description "…"` provides the text printed when the player LOOKs.
+!
+!  `has light` marks the room as lit. A room without `light` is pitch-dark;
+!  the player will get "It is pitch dark, and you can't see a thing." until a
+!  carried light source (also given the `light` attribute) is present.
 
 Object StartRoom "Starting Room"
   with description "An empty room, waiting for your imagination.",
@@ -23,7 +96,41 @@ Object StartRoom "Starting Room"
 
 ! ---------------------------------------------------------------------------
 !  Add your rooms and objects here.
+!
+!  ROOM CONNECTIONS
+!  Attach directional properties to room objects to link them:
+!    n_to NextRoom,    ← NORTH leads to NextRoom
+!    s_to PrevRoom,    ← SOUTH leads to PrevRoom
+!  Full list: n_to s_to e_to w_to ne_to nw_to se_to sw_to u_to d_to
+!             in_to out_to
+!
+!  PLACING OBJECTS IN ROOMS (arrow / indent notation)
+!  An `Object ->` (one arrow) places the object inside the preceding room or
+!  container at compile time:
+!    Object -> key "brass key"
+!      with name 'brass' 'key',
+!           description "A small brass key.";
+!
+!  Two arrows `Object -> ->` nest the object inside the previous child object.
+!
+!  COMMON ATTRIBUTES
+!  has light      — room or portable lamp is lit
+!  has static     — cannot be taken ("That's fixed in place.")
+!  has scenery    — static and omitted from the room's object listing
+!  has container  — can hold objects; add `open` to start open
+!  has supporter  — objects can be placed ON it
+!  has openable   — player can OPEN/CLOSE it
+!  has open       — starts in the open/unlocked state
+!  has concealed  — present but not listed in room descriptions
 ! ---------------------------------------------------------------------------
+
+! --- Initialise routine -----------------------------------------------------
+!  In PunyInform, [ Initialise; ] is optional for setting location (the
+!  constant above handles that). Use it to print a welcome banner or run
+!  any other one-time setup code before the first prompt.
+!
+!  `print "…^"` prints the string followed by a newline (`^` = newline).
+!  `print "…^^"` prints the string then TWO newlines (a blank line gap).
 
 [ Initialise;
     print "^Your story begins here...^";

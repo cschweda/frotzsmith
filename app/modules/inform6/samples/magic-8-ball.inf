@@ -1,0 +1,146 @@
+! ============================================================================
+!  MAGIC 8-BALL  —  random responses with random() (Standard Library)
+! ----------------------------------------------------------------------------
+!  Shows: a custom verb (SHAKE), a before handler, and random() driving a
+!  switch for varied output.  Try:  SHAKE BALL  (repeatedly).
+! ============================================================================
+
+! ---------------------------------------------------------------------------
+! STORY METADATA
+! ---------------------------------------------------------------------------
+Constant Story "MAGIC 8-BALL";
+Constant Headline "^Random responses with the random() function.^";
+
+! ---------------------------------------------------------------------------
+! STANDARD LIBRARY INCLUDES (order is mandatory)
+!   Parser   — tokenises input, selects action and noun(s)
+!   VerbLib  — supplies default action routines (Take, Examine, Drop, …)
+! Include "Grammar" goes LAST so the grammar table sees all Verb declarations
+! including the custom `shake` verb defined below.
+! ---------------------------------------------------------------------------
+Include "Parser";
+Include "VerbLib";
+
+! ---------------------------------------------------------------------------
+! INITIALISE — place the player in the Fortune Booth
+! ---------------------------------------------------------------------------
+[ Initialise;
+    location = Booth;
+    "^A Magic 8-Ball rests on a table. Try SHAKE BALL.^";
+];
+
+! ---------------------------------------------------------------------------
+! THE ROOM — permanently lit via the `light` attribute
+! ---------------------------------------------------------------------------
+Object Booth "Fortune Booth"
+  with description "A velvet-draped booth. A Magic 8-Ball sits on a small table.",
+  has  light;           ! `light` → always lit; no lamp required
+
+! ---------------------------------------------------------------------------
+! THE MAGIC 8-BALL OBJECT
+!
+! Placed in Booth via `->` (direct child of the preceding top-level object).
+!
+! `name` PROPERTY — multiple dictionary synonyms let the parser accept many
+! natural phrasings: SHAKE BALL, SHAKE 8-BALL, SHAKE EIGHTBALL, ROLL BALL…
+! ---------------------------------------------------------------------------
+Object -> eightball "Magic 8-Ball"
+  with name 'magic' '8-ball' 'eight' 'ball' '8' 'eightball',
+       description "A glossy black sphere with a little window in the bottom.",
+
+       ! -----------------------------------------------------------------------
+       ! BEFORE HANDLER — Shake action
+       !
+       ! `before` is checked by the library BEFORE running the default action
+       ! for any command targeting this object.  If it prints something (and
+       ! thus implicitly returns true), the default is skipped entirely.
+       !
+       ! We handle only Shake here; all other actions (TAKE, EXAMINE, DROP …)
+       ! are not listed, so they fall through to the library's defaults.
+       !
+       ! Note on action name spelling: inside a `before` handler you use the
+       ! BASE action name (Shake:), NOT the Sub form (ShakeSub:).  The "Sub"
+       ! suffix is only for the standalone action routine defined below.
+       ! -----------------------------------------------------------------------
+       before [;
+           Shake:
+               ! `print` outputs text WITHOUT a trailing newline and WITHOUT
+               ! implicitly returning — execution continues into the switch.
+               print "You give the 8-Ball a shake. It reveals: ";
+
+               ! ---------------------------------------------------------------
+               ! random(N) — returns a uniformly distributed integer in [1..N].
+               ! random(6) gives one of six outcomes each time it is called.
+               ! Each call is independent, so repeated shakes feel random.
+               !
+               ! switch (expr) { N: body; … }
+               !   Evaluates expr once, then executes the body of the matching
+               !   integer label.  Works like a C switch with implicit breaks —
+               !   in I6, each case body ends at the next label or closing brace.
+               !   A bare string literal as a case body acts as `print_ret`:
+               !   it prints the string and returns true, ending the before
+               !   handler (and thus ending the turn).
+               !
+               ! TILDE (~) IN STRINGS
+               !   Inside an Inform 6 string literal, the tilde character (~)
+               !   is an escape sequence that produces a literal double-quote
+               !   in the output.  You cannot use \" in I6 strings.
+               !   So "~It is certain.~" prints as:  "It is certain."
+               !   (with the quotation marks visible to the player).
+               ! ---------------------------------------------------------------
+               switch (random(6)) {
+                   1: "~It is certain.~";
+                   2: "~Reply hazy, try again.~";
+                   3: "~Don't count on it.~";
+                   4: "~Yes, definitely.~";
+                   5: "~Better not tell you now.~";
+                   6: "~Outlook good.~";
+               }
+       ];
+
+! ---------------------------------------------------------------------------
+! ShakeSub — THE REQUIRED DEFAULT ROUTINE FOR A CUSTOM ACTION
+!
+! Every action name used in a Verb declaration (e.g. Shake) MUST have a
+! corresponding routine named <Action>Sub (here: ShakeSub).  The library
+! calls <Action>Sub when no object's `before` handler intercepts the action.
+!
+! Why is it needed if the 8-Ball's `before` always fires for that object?
+!   Because the player can try to shake OTHER objects — chairs, books, walls —
+!   that do NOT have a Shake handler.  Without ShakeSub the compiler raises
+!   an "unknown action" error because the grammar table references Shake but
+!   no ShakeSub routine exists to service it.
+!
+! The comment that was already here is preserved below:
+! Every custom verb needs its action routine; the 8-Ball's `before` intercepts
+! the interesting case, this is the fallback for shaking anything else.
+! ---------------------------------------------------------------------------
+[ ShakeSub; "You give it a shake, but nothing happens."; ];
+
+! ---------------------------------------------------------------------------
+! CUSTOM VERB DECLARATION
+!
+! Verb 'shake' 'roll'
+!   Registers two command words as synonyms triggering the same action.
+!   Players can type either SHAKE or ROLL and get identical results.
+!
+! * noun                  -> Shake
+!   Grammar token: `*` means "start of the object phrase", `noun` means
+!   "match one object from the scene".  `-> Shake` maps this grammar line
+!   to the Shake action.  The library then calls ShakeSub, unless a `before`
+!   handler on the matched noun intercepts first (as the 8-Ball does).
+!
+! You can add more grammar lines for the same verb — e.g.:
+!     *                   -> Shake;   (allow SHAKE with no object)
+! just add another `* … -> …` line before the semicolon.
+!
+! Verb declarations must appear BEFORE Include "Grammar" so they are
+! incorporated into the verb/grammar table when it is built.
+! ---------------------------------------------------------------------------
+Verb 'shake' 'roll'
+    * noun                  -> Shake;
+
+! ---------------------------------------------------------------------------
+! GRAMMAR — must be included last, after all Verb declarations
+! ---------------------------------------------------------------------------
+Include "Grammar";

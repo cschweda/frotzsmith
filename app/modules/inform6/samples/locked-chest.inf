@@ -4,38 +4,133 @@
 !  A small lock-and-key puzzle with a container. Shows the `lockable`, `locked`,
 !  `container` and `with_key` machinery the Standard Library provides for free.
 !  Try:  take key,  unlock chest with key,  open chest,  take coin
+! ----------------------------------------------------------------------------
+!  KEY CONCEPTS IN THIS FILE
+!  --------------------------
+!  * container   attribute  — object can hold other objects inside it
+!  * openable    attribute  — player can OPEN and CLOSE it
+!  * lockable    attribute  — player can LOCK and UNLOCK it (needs with_key)
+!  * locked      attribute  — starts in the locked state
+!  * static      attribute  — cannot be picked up ("That's fixed in place.")
+!  * with_key    property   — names the Object that acts as the matching key
+!
+!  HOW THE LOCK-AND-KEY PUZZLE WORKS
+!  ----------------------------------
+!  1. The chest has `has container openable lockable locked static;`
+!     - `container`  lets other objects live inside it
+!     - `openable`   allows OPEN/CLOSE commands
+!     - `lockable`   allows LOCK/UNLOCK commands
+!     - `locked`     initial state: the chest is locked at game start
+!     - `static`     the chest cannot be picked up or moved
+!  2. `with_key brasskey` tells the library which object unlocks it.
+!     UNLOCK CHEST WITH KEY checks that the player holds the named key
+!     object; if so, it clears the `locked` attribute automatically.
+!  3. Once `locked` is cleared, OPEN CHEST succeeds (because `openable`
+!     is set) and the coin inside becomes accessible.
+!  4. The coin is placed two levels deep (-> ->) so it starts inside the
+!     chest, which is itself inside the Study room (->).
+!
+!  STANDARD LIBRARY vs PUNYINFORM
+!  --------------------------------
+!  Standard Library                    PunyInform
+!  ----------------------------------  ----------------------------------------
+!  Include "Parser";                   !% compiler flags at top of file
+!  Include "VerbLib";                  Include "globals.h";
+!  Include "Grammar";  (last)          Include "puny.h";
+!  [ Initialise; location = Room; ]    Constant INITIAL_LOCATION_VALUE = Room;
 ! ============================================================================
 
+! ---------------------------------------------------------------------------
+!  GAME METADATA
+!  Constant creates a compile-time named value. Story and Headline are
+!  Standard Library magic names used to print the game banner at startup.
+! ---------------------------------------------------------------------------
 Constant Story "THE LOCKED CHEST";
 Constant Headline "^A Frotzsmith sample: a lock-and-key puzzle.^";
 
+! ---------------------------------------------------------------------------
+!  STANDARD LIBRARY INCLUDES (must appear in this order)
+!  "Parser"  — input tokeniser and object-matching engine
+!  "VerbLib" — action routines for all built-in verbs
+!  "Grammar" — grammar tables; always the LAST include
+! ---------------------------------------------------------------------------
 Include "Parser";
 Include "VerbLib";
 
+! ---------------------------------------------------------------------------
+!  INITIALISE ROUTINE
+!  Sets the player's starting room via the global `location` and prints an
+!  opening message. A bare string as the last statement prints and returns.
+! ---------------------------------------------------------------------------
 [ Initialise;
     location = Study;
     "^A locked chest sits in the corner, a brass key glinting on the desk.^";
 ];
 
+! ---------------------------------------------------------------------------
+!  THE ROOM
+!  `has light` is required or the room is pitch dark and the player sees
+!  nothing. There are no direction properties here — the puzzle lives in a
+!  single room so there is nowhere to go.
+! ---------------------------------------------------------------------------
 Object Study "Dusty Study"
   with description "A dusty study, bare but for a wooden chest and an old desk.",
-  has  light;
+  has  light;             ! `light` — room is lit; required for visibility
 
-! A takeable key. `with_key` on the chest below points back to this object.
+! ---------------------------------------------------------------------------
+!  THE KEY
+!  `->` places brasskey inside Study (the most recently declared Object).
+!  The player can TAKE it, and then use it with UNLOCK CHEST WITH KEY.
+!  The `name` property lists dictionary words the parser accepts.
+!  No special attributes are needed — a plain takeable object does the job.
+!
+!  Note: `with_key` on the chest below points to this exact object (brasskey).
+!  The library compares the object the player typed against with_key at
+!  unlock time, so the identifier must match.
+! ---------------------------------------------------------------------------
 Object -> brasskey "brass key"
-  with name 'brass' 'key',
+  with name 'brass' 'key',       ! words the parser recognises for this key
        description "A small brass key.";
 
-! A locked container. The library handles unlock/open/look-inside for us.
+! ---------------------------------------------------------------------------
+!  THE LOCKED CONTAINER
+!  `->` places chest inside Study.
+!
+!  Attribute breakdown:
+!    container — other objects may be located inside this one; required for
+!                LOOK IN / SEARCH to find the coin, and for the coin to
+!                start physically inside the chest
+!    openable  — enables OPEN CHEST and CLOSE CHEST commands
+!    lockable  — enables LOCK CHEST WITH KEY and UNLOCK CHEST WITH KEY
+!    locked    — sets the initial state to locked; without this the chest
+!                would start open and the puzzle is trivially solved
+!    static    — prevents TAKE CHEST ("That's fixed in place."); use this
+!                for furniture and heavy objects the player shouldn't carry
+!
+!  Property:
+!    with_key brasskey — the Object that fits this lock. The library checks
+!                        at unlock time that the player is holding brasskey.
+!                        Any other object (even one named 'key') will fail.
+! ---------------------------------------------------------------------------
 Object -> chest "wooden chest"
   with name 'wooden' 'chest',
        description "A sturdy chest with a brass lock.",
-       with_key brasskey,
+       with_key brasskey,         ! only brasskey can unlock this chest
   has  container openable lockable locked static;
 
-! The reward, nested one level deeper (-> ->) so it starts inside the chest.
+! ---------------------------------------------------------------------------
+!  THE TREASURE — nested two levels deep inside the chest
+!  `-> ->` means "child of the child of the most recently declared Object."
+!  Since chest is a `->` child of Study, `-> ->` makes coin a child of chest.
+!  The library will list it when the player opens the chest and LOOKs inside.
+!  No attributes are needed; a plain object is takeable by default.
+! ---------------------------------------------------------------------------
 Object -> -> coin "gold coin"
   with name 'gold' 'coin',
        description "A gleaming gold coin — treasure at last!";
 
+! ---------------------------------------------------------------------------
+!  GRAMMAR — must be the LAST include in every Standard Library game
+!  Sets up parser tables for all built-in verbs including LOCK and UNLOCK.
+! ---------------------------------------------------------------------------
 Include "Grammar";

@@ -1,48 +1,70 @@
-!% -~S
-!% $OMIT_UNUSED_ROUTINES=1
+!% -~S                      ! compiler option: disable strict mode (smaller output)
+!% $OMIT_UNUSED_ROUTINES=1   ! compiler option: strip routines that are never called
 
 ! ============================================================================
 !  CUSTOM GRAMMAR  —  Frotzsmith sample (PunyInform)
 ! ----------------------------------------------------------------------------
-!  The PunyInform port of adding your own verbs. Write an action routine named
-!  <Action>Sub, then a `Verb` directive mapping words + a syntax line to it.
-!  Try:  xyzzy,  rub lamp,  polish lamp
+!  How to add your own verbs: write an action routine named <Action>Sub, then a
+!  `Verb` directive that maps one or more command words + a syntax line to it.
+!  Try:  XYZZY   ·   INCANT LAMP   ·   INVOKE LAMP
+!
+!  KEY IDEAS
+!    * [ XyzzySub; ... ]  — the routine that runs when the Xyzzy action fires.
+!    * Verb 'xyzzy' ...   — adds the vocabulary + a grammar line for the action.
+!    * A bare string in a routine acts as print_ret: it prints and returns true.
+!    * `~` inside a string is the Inform 6 escape for a literal double-quote.
+!
+!  ORDER NOTE (PunyInform): the Inform 6 compiler collects every `Verb` directive
+!  in the file into one grammar table, so — unlike the Standard Library, where
+!  verbs must precede the final `Include "Grammar";` — the verbs and action
+!  routines here sit comfortably AFTER puny.h. (Objects that use a library
+!  attribute such as `light` must come after puny.h, so it is already declared.)
 ! ============================================================================
 
+! --- Story metadata: title + subtitle shown in the opening banner ------------
 Constant Story "CUSTOM GRAMMAR";
 Constant Headline "^A Frotzsmith sample: adding your own verbs (PunyInform).^";
 
+! PunyInform reads this constant to place the player at startup (no `location =`
+! needed). It may name an object defined further down — resolved at link time.
 Constant INITIAL_LOCATION_VALUE = Chamber;
 
+! --- PunyInform library: globals.h first, then puny.h (parser + grammar) -----
 Include "globals.h";
 Include "puny.h";
 
+! --- The world: a lit room and a takeable lamp -------------------------------
 Object Chamber "Magic Chamber"
   with description "Runes cover the walls. A brass lamp rests on a plinth.",
-  has  light;
+  has  light;             ! `light` → the room is lit (attribute declared by puny.h)
 
-Object -> lamp "brass lamp"
-  with name 'brass' 'lamp',
+Object -> lamp "brass lamp"   ! `->` makes the lamp start inside Chamber
+  with name 'brass' 'lamp',   ! dictionary words the parser matches for this object
        description "An ornate brass lamp.";
 
 ! --- Action routines (named <Action>Sub) -------------------------------------
+! The parser turns a verb word into an action (XYZZY -> Xyzzy) and then calls
+! the matching <Action>Sub routine.
 [ XyzzySub;
-    "A hollow voice says, ~Fool!~";
+    "A hollow voice says, ~Fool!~";   ! bare string = print + return true; ~ prints "
 ];
 
 [ IncantSub;
+    ! `noun` holds the object the player named, e.g. INCANT LAMP.
     if (noun == lamp) "The lamp flares brightly at your incantation!";
-    "Nothing answers your incantation.";
+    "Nothing answers your incantation.";   ! fallback for any other object
 ];
 
 ! --- Grammar: map words and a syntax line to each action ---------------------
-!  ('rub', 'wave' etc. already exist in the library, so we use novel words.)
-Verb 'xyzzy' 'plugh'
-    *                                           -> Xyzzy;
+!  ('rub', 'wave' etc. already exist in the library, so we use novel words to
+!   avoid clashing with built-in verbs; use `Extend` to add to an existing one.)
+Verb 'xyzzy' 'plugh'                             ! two synonyms, one verb
+    *                                           -> Xyzzy;    ! `*` alone = no object
 
 Verb 'incant' 'invoke'
-    * noun                                      -> Incant;
+    * noun                                      -> Incant;   ! requires one object
 
+! --- Startup message (the room itself is set by INITIAL_LOCATION_VALUE) -------
 [ Initialise;
     print "^A faintly magical chamber. Perhaps a magic word would help?^";
 ];

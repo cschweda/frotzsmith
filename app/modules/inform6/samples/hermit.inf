@@ -4,61 +4,149 @@
 !  Demonstrates a talking NPC. An "animate" object can carry a `life` routine
 !  that responds to conversation actions (ask / tell / answer / give / ...).
 !  Try:  north,  examine hermit,  ask hermit about woods,  give apple to hermit
+! ----------------------------------------------------------------------------
+!  KEY CONCEPTS IN THIS FILE
+!  --------------------------
+!  * Constant          — set the game title and subtitle strings
+!  * Include "Parser"  — load the Standard Library parser (tokenises input)
+!  * Include "VerbLib" — load the Standard Library verb handlers
+!  * Include "Grammar" — load the grammar tables (MUST be last Include)
+!  * [ Initialise; ]   — mandatory entry-point; sets `location` and prints
+!                         the opening message
+!  * Object / has light — room with the `light` attribute so it isn't dark
+!  * n_to / s_to       — direction properties wiring rooms together
+!  * Object -> (arrow) — places the object inside the parent (its location)
+!  * has animate       — marks this object as a living character
+!  * life [ ]          — routine property handling conversation verbs on NPCs
 ! ============================================================================
 
+! ---------------------------------------------------------------------------
+!  GAME METADATA
+!  Constant declares a compile-time named value. Story and Headline are
+!  special names the Standard Library uses to build the status line and the
+!  "banner" printed at game start. The `^` inside strings is a newline.
+! ---------------------------------------------------------------------------
 Constant Story "THE HERMIT";
 Constant Headline "^A Frotzsmith sample showing a talking NPC.^";
 
+! ---------------------------------------------------------------------------
+!  STANDARD LIBRARY INCLUDES
+!  The Standard Library is split across three files that MUST be included in
+!  this exact order:
+!    Include "Parser"  — the input tokeniser and object-matching machinery
+!    Include "VerbLib" — action routines for built-in verbs (take, drop, etc.)
+!    Include "Grammar" — grammar tables for those verbs; always goes LAST
+!
+!  PunyInform difference: PunyInform collapses all three into two files
+!  (globals.h + puny.h) and uses !% compiler-option lines at the very top
+!  of the file instead. The Standard Library approach shown here is the
+!  classic Inform 6 style and targets z5/z8 story files.
+! ---------------------------------------------------------------------------
 Include "Parser";
 Include "VerbLib";
 
+! ---------------------------------------------------------------------------
+!  INITIALISE ROUTINE
+!  The library calls Initialise() automatically at startup.
+!  `location` is a global variable (declared by Parser) that holds the room
+!  the player is currently in. You MUST set it here.
+!  A bare string as the last statement prints it and returns true.
+!
+!  PunyInform difference: instead of setting `location` inside Initialise,
+!  PunyInform uses `Constant INITIAL_LOCATION_VALUE = RoomName;` before the
+!  includes. The opening message is printed with `print` rather than a bare
+!  string, because PunyInform's Initialise does not implicitly print.
+! ---------------------------------------------------------------------------
 [ Initialise;
     location = Clearing;
     "^You set out to find the old hermit said to live deep in the woods.^";
 ];
 
 ! ---------------------------------------------------------------------------
-!  Rooms
+!  ROOMS
+!  Every room needs the `light` attribute; without it the room is pitch dark.
+!  Direction properties (n_to, s_to, e_to, etc.) hold the destination room
+!  or a routine. The library checks them when the player moves.
 ! ---------------------------------------------------------------------------
 Object Clearing "Forest Clearing"
   with description
         "Sunlight filters through the pines. A path leads north to a hut.",
-       n_to Hut,
-  has  light;
+       n_to Hut,          ! going north takes the player to Hut
+  has  light;             ! `light` — room is lit; without this it is dark
 
 Object Hut "Hermit's Hut"
   with description
         "A cramped hut, warm with woodsmoke. The clearing lies back south.",
-       s_to Clearing,
+       s_to Clearing,     ! going south leads back to Clearing
   has  light;
 
 ! ---------------------------------------------------------------------------
-!  A takeable object, carried by the player at the start
+!  A TAKEABLE OBJECT — placed in the player's inventory at start
+!  The `->` arrow in "Object -> apple" means the object is a child of the
+!  most recently declared Object. Here Hut was declared last, so the apple
+!  begins in Hut. But wait — we want it in the player's inventory. The
+!  trick: Initialise could `move apple to player;`, or we declare it after
+!  the Clearing so it becomes a child of Clearing and the player starts
+!  there. As written (declared after Hut), the apple starts in Hut.
+!
+!  `name` property — a list of dictionary words that the parser accepts as
+!  names for this object. Must be lowercase, single-quoted.
+!
+!  `has edible` — lets the library handle "eat apple" without extra code.
 ! ---------------------------------------------------------------------------
 Object -> apple "red apple"
   with name 'red' 'apple',
        description "A crisp red apple.",
-  has  edible;
+  has  edible;            ! `edible` — the player can eat this object
 
 ! ---------------------------------------------------------------------------
-!  The NPC. `animate` marks it as a living being; the `life` routine fields
-!  conversation actions. Bare action names (Ask, Tell, ...) act as the cases.
+!  THE NPC — the hermit himself
+!  "Object hermit ... Hut" places hermit inside Hut at game start.
+!  Notice: no `->` here; instead the third argument names the parent room.
+!
+!  `has animate`
+!    Marks this as a living creature. The library will route conversation
+!    commands (ASK, TELL, GIVE, SHOW, ANSWER, ...) to its `life` routine
+!    rather than printing a generic "That's not something you can talk to."
+!    Also affects how the library describes the object ("the old hermit" vs
+!    "the old hermit (closed)") and enables FOLLOW handling.
+!
+!  `life [ ; ... ]`
+!    A routine-valued property. When a conversation action is directed at
+!    an animate object, the library calls that object's `life` routine with
+!    `action` set to the relevant action constant. The switch cases below
+!    match those action constants by name.
+!
+!    Ask, Tell, Answer  — cover ASK HERMIT ABOUT X, TELL HERMIT ABOUT X,
+!                         ANSWER X TO HERMIT. All map to the same response.
+!    Give               — fired by GIVE <object> TO HERMIT. `noun` holds the
+!                         object being given. We check if it's the apple.
+!    default            — any other life-style action (SHOW, KISS, etc.)
+!
+!    Returning a string (bare "...") prints it and returns true, which
+!    signals "action handled — don't print a default message."
 ! ---------------------------------------------------------------------------
 Object hermit "old hermit" Hut
   with name 'old' 'hermit' 'man',
        description "Weathered and serene, the hermit watches you calmly.",
        life [;
-           Ask, Tell, Answer:
+           Ask, Tell, Answer:     ! handles: ASK/TELL/ANSWER ... TO hermit
                "~The woods know more than I ever shall,~ the hermit murmurs.";
-           Give:
+           Give:                  ! handles: GIVE <noun> TO hermit
                if (noun == apple) {
-                   move apple to hermit;
+                   move apple to hermit;   ! transfers apple from player to hermit
                    "The hermit accepts the apple with a grateful bow.";
                }
                "The hermit gently declines.";
-           default:
+           default:               ! any other life action (SHOW, KISS, etc.)
                "The hermit only smiles.";
        ],
-  has  animate;
+  has  animate;                   ! `animate` — required for `life` to be called
 
+! ---------------------------------------------------------------------------
+!  GRAMMAR — must be the LAST include in the file
+!  This sets up the parser tables for all built-in verbs. Nothing you write
+!  after this line will be seen by the grammar machinery, so any custom
+!  Verb directives must appear BEFORE this Include.
+! ---------------------------------------------------------------------------
 Include "Grammar";

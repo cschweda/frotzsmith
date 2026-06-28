@@ -1,0 +1,149 @@
+!% -~S
+!% $OMIT_UNUSED_ROUTINES=1
+
+! ============================================================================
+!  MAGIC 8-BALL  —  random responses with random() (PunyInform)
+! ----------------------------------------------------------------------------
+!  Shows: a custom verb (SHAKE), a before handler, and random() driving a
+!  switch for varied output.  Try:  SHAKE BALL  (repeatedly).
+! ============================================================================
+
+! ---------------------------------------------------------------------------
+! PunyInform COMPILER OPTIONS  (the !% lines that must be first in the file)
+!   !% -~S                     — disable strict mode; reduces output file size
+!   !% $OMIT_UNUSED_ROUTINES=1 — strip routines unreachable from the game
+! These are compiler directives, not ordinary comments.  They MUST be the
+! absolute first lines of the file; never move, reorder, or comment them out.
+! ---------------------------------------------------------------------------
+
+! ---------------------------------------------------------------------------
+! STORY METADATA
+! ---------------------------------------------------------------------------
+Constant Story "MAGIC 8-BALL";
+Constant Headline "^Random responses with the random() function.^";
+
+! ---------------------------------------------------------------------------
+! PunyInform STARTUP — initial location via constant (not in Initialise)
+! This constant must be defined BEFORE including globals.h so the library
+! can read it at compile time.  Omitting it causes a compile error.
+! ---------------------------------------------------------------------------
+Constant INITIAL_LOCATION_VALUE = Booth;
+
+! ---------------------------------------------------------------------------
+! PunyInform INCLUDES
+!   globals.h — global variables, constants, and compile-time configuration
+!   puny.h    — full library: parser, actions, AND grammar in one file
+! Unlike the Standard Library there is no separate Include "Grammar" at the
+! end; puny.h already contains the grammar table.
+! ---------------------------------------------------------------------------
+Include "globals.h";
+Include "puny.h";
+
+! ---------------------------------------------------------------------------
+! THE ROOM — permanently lit via `light`
+! ---------------------------------------------------------------------------
+Object Booth "Fortune Booth"
+  with description "A velvet-draped booth. A Magic 8-Ball sits on a small table.",
+  has  light;           ! `light` → always lit; no lamp required
+
+! ---------------------------------------------------------------------------
+! THE MAGIC 8-BALL OBJECT
+!
+! Placed in Booth via `->` (direct child of the preceding top-level object).
+!
+! `name` gives multiple synonyms so the parser accepts many natural phrasings:
+!   SHAKE BALL, SHAKE 8-BALL, SHAKE EIGHTBALL, ROLL BALL, etc.
+! ---------------------------------------------------------------------------
+Object -> eightball "Magic 8-Ball"
+  with name 'magic' '8-ball' 'eight' 'ball' '8' 'eightball',
+       description "A glossy black sphere with a little window in the bottom.",
+
+       ! -----------------------------------------------------------------------
+       ! BEFORE HANDLER — Shake action only
+       !
+       ! `before` is checked BEFORE the library runs the default action for
+       ! any command targeting this object.  Printing something (implicitly
+       ! returning true) cancels the default.
+       !
+       ! Only the Shake action is listed here; all other actions (TAKE,
+       ! EXAMINE, DROP, …) fall through to the library's default handling.
+       !
+       ! Inside `before`, use the BASE action name (Shake:), not ShakeSub:.
+       ! -----------------------------------------------------------------------
+       before [;
+           Shake:
+               ! `print` emits text without a trailing newline and without
+               ! returning — execution continues into the switch statement.
+               print "You give the 8-Ball a shake. It reveals: ";
+
+               ! ---------------------------------------------------------------
+               ! random(N) — returns an integer in [1..N] with uniform
+               ! probability.  Each call is independent, so repeated shakes
+               ! genuinely feel random to the player.
+               !
+               ! switch (expr) { N: body; … }
+               !   Evaluates expr once, then runs the body of the matching
+               !   integer label.  A bare string literal as a case body acts
+               !   as `print_ret`: it prints the string and returns true,
+               !   ending the before handler for that turn.
+               !
+               ! TILDE (~) IN STRINGS
+               !   In Inform 6 string literals, ~ is an escape for a literal
+               !   double-quote character.  "~Yes, definitely.~" prints as:
+               !      "Yes, definitely."
+               !   (the quotation marks are visible to the player).
+               !   Backslash-quote (\") is NOT valid in I6 strings.
+               ! ---------------------------------------------------------------
+               switch (random(6)) {
+                   1: "~It is certain.~";
+                   2: "~Reply hazy, try again.~";
+                   3: "~Don't count on it.~";
+                   4: "~Yes, definitely.~";
+                   5: "~Better not tell you now.~";
+                   6: "~Outlook good.~";
+               }
+       ];
+
+! ---------------------------------------------------------------------------
+! ShakeSub — REQUIRED DEFAULT ROUTINE FOR THE SHAKE ACTION
+!
+! Every action used in a Verb declaration (Shake) must have a corresponding
+! <Action>Sub routine (ShakeSub).  The library calls ShakeSub when the
+! player shakes something OTHER than the 8-Ball — i.e., when no object's
+! `before` handler intercepts the action.
+!
+! Without ShakeSub the compiler raises "unknown action Shake" because the
+! grammar table references the action but no handler routine exists.
+!
+! Every custom verb needs its action routine; the 8-Ball's `before` intercepts
+! the interesting case, this is the fallback for shaking anything else.
+! ---------------------------------------------------------------------------
+[ ShakeSub; "You give it a shake, but nothing happens."; ];
+
+! ---------------------------------------------------------------------------
+! CUSTOM VERB DECLARATION
+!
+! Verb 'shake' 'roll'
+!   Two synonymous command words that trigger the same action.
+!
+! * noun                  -> Shake
+!   Grammar pattern: one required noun.  `-> Shake` routes to the Shake
+!   action (calling ShakeSub, unless a `before` on the noun intercepts first,
+!   as the 8-Ball's before handler does).
+!
+! In PunyInform, Verb declarations can appear before or after puny.h.
+! The library's grammar is finalised internally; no separate Grammar include
+! is needed.
+! ---------------------------------------------------------------------------
+Verb 'shake' 'roll'
+    * noun                  -> Shake;
+
+! ---------------------------------------------------------------------------
+! INITIALISE ROUTINE (PunyInform)
+! Runs AFTER the library has placed the player at INITIAL_LOCATION_VALUE.
+! `print` is used rather than a bare string because the return value of
+! Initialise is not used by PunyInform.
+! ---------------------------------------------------------------------------
+[ Initialise;
+    print "^A Magic 8-Ball rests on a table. Try SHAKE BALL.^";
+];

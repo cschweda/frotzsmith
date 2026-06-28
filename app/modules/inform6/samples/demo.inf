@@ -1,8 +1,43 @@
+! ============================================================================
+!  FROTZSMITH DEMO  —  Standard Library two-room world
+! ----------------------------------------------------------------------------
+!  A minimal but complete Inform 6 game using the Standard Library. It shows:
+!    • Two connected rooms with a directional link (n_to / s_to)
+!    • A takeable object placed inside a room with arrow (→) notation
+!    • The Initialise routine setting a start location and printing a banner
+!    • The three Standard Library includes (Parser / VerbLib / Grammar)
+!  Try: look, north, take lamp, examine lamp, south, inventory
+! ============================================================================
+
+! --- Game identity constants -------------------------------------------------
+!  `Constant Story` sets the game title displayed in the status bar.
+!  `Constant Headline` sets the subtitle printed in the opening banner.
+!  `^` inside a string literal is a newline character.
+
 Constant Story "FROTZSMITH DEMO";
 Constant Headline "^A tiny demo world for testing the Frotzsmith IDE.^";
 
+! --- Standard Library includes (Parser must come first) ---------------------
+!  Include "Parser" pulls in the parsing engine. It reads the player's input
+!  line, tokenises it, and turns it into an action + noun(s).
+
 Include "Parser";
+
+!  Include "VerbLib" adds handlers for all built-in verbs: Take, Drop,
+!  Examine, Look, Go, Inventory, Put, Open, Close, etc. Your own rooms and
+!  objects should be defined AFTER VerbLib and BEFORE Grammar.
+
 Include "VerbLib";
+
+! --- Initialise routine -----------------------------------------------------
+!  The library calls [ Initialise; ] once before the first prompt.
+!  `location = Cottage` sets the player's starting room. In the Standard
+!  Library this global variable MUST be assigned here (or via a property);
+!  PunyInform uses INITIAL_LOCATION_VALUE instead.
+!
+!  `print "…^^"` prints the string; `^` is a newline so `^^` gives a blank
+!  line. Two separate print statements are used here so each message can be
+!  edited independently.
 
 [ Initialise;
     location = Cottage;
@@ -10,20 +45,67 @@ Include "VerbLib";
     print "Try: look, north, take lamp, examine lamp, inventory.^";
 ];
 
+! --- Room: Cottage ----------------------------------------------------------
+!  `Object Cottage "Cottage"` declares a room object. The identifier `Cottage`
+!  is used in code (e.g., `location = Cottage`; `n_to Cottage`). The quoted
+!  string "Cottage" is the short name shown to the player.
+!
+!  `with description "…"` — the long description printed on >LOOK or first
+!  entry. Any `^` characters inside produce newlines.
+!
+!  `n_to Meadow` — the n_to property tells the parser that going NORTH from
+!  this room moves the player to the Meadow object. Other direction properties:
+!  s_to, e_to, w_to, ne_to, nw_to, se_to, sw_to, u_to, d_to, in_to, out_to.
+!
+!  `has light` — marks the room as lit. Without this attribute the room is
+!  completely dark and the player cannot interact with anything inside it.
+
 Object Cottage "Cottage"
   with description
         "A cosy one-room cottage. A sturdy door leads north into daylight.",
        n_to Meadow,
   has  light;
 
+! --- Object: lamp (inside Cottage) ------------------------------------------
+!  `Object ->` (arrow notation) places this object inside the most recently
+!  defined room or container at compile time. One arrow = one level deep.
+!  So the lamp starts the game on the floor of the Cottage.
+!
+!  `with name 'brass' 'lamp'` — the `name` property lists the dictionary words
+!  the parser accepts when the player refers to this object. Words are in
+!  single quotes. The parser matches noun phrases against these words, so
+!  "take brass lamp", "get lamp", "take brass" all work.
+!
+!  `description "…"` — the text printed in response to >EXAMINE LAMP.
+!  Objects without a description property get a default "You see nothing
+!  special about …" message from the library.
+!
+!  Note: no `has` line is needed for a basic portable object. The library
+!  allows taking any object that doesn't have the `static` or `scenery`
+!  attribute. Adding `has light` to the lamp would make it a working light
+!  source that illuminates dark rooms when carried.
+
 Object -> lamp "brass lamp"
   with name 'brass' 'lamp',
        description "A small brass lamp, the kind every adventurer carries.";
+
+! --- Room: Meadow -----------------------------------------------------------
+!  A second room connected to the Cottage via s_to (going SOUTH returns the
+!  player to the Cottage). Note that Meadow also has `has light`; every room
+!  the player can reach should have a light source (the `light` attribute on
+!  the room itself, or a carried lamp) or it will be dark.
 
 Object Meadow "Meadow"
   with description
         "A sunlit meadow dotted with wildflowers. The cottage lies to the south.",
        s_to Cottage,
   has  light;
+
+! --- Grammar (must be the final include) ------------------------------------
+!  Include "Grammar" MUST come last. It builds the grammar tables that map
+!  verb words to actions using all the object names already defined. Placing
+!  it last ensures the compiler has seen every object's `name` property.
+!  Any custom Verb or Extend directives for new commands must appear BEFORE
+!  this include.
 
 Include "Grammar";

@@ -1,0 +1,161 @@
+!% -~S
+!% $OMIT_UNUSED_ROUTINES=1
+
+! ============================================================================
+!  SWITCHABLE LAMP  —  a device you turn on and off (PunyInform)
+! ----------------------------------------------------------------------------
+!  Shows: the `switchable` attribute, a before [SwitchOn/SwitchOff] handler, and
+!  using a carried light source to reveal a dark room.
+!  Try:  TAKE LANTERN.  SWITCH ON LANTERN.  DOWN.
+! ============================================================================
+
+! ---------------------------------------------------------------------------
+! PunyInform COMPILER OPTIONS  (the !% lines that must be first in the file)
+!   !% -~S                     — disable strict mode; reduces output file size
+!   !% $OMIT_UNUSED_ROUTINES=1 — strip routines not reachable from the game
+! These are directives to the Inform 6 compiler, not ordinary comments.
+! They MUST be the absolute first lines of the file; do not move or remove them.
+! The ordinary `! ...` comment block above is safe because it starts AFTER them.
+! ---------------------------------------------------------------------------
+
+! ---------------------------------------------------------------------------
+! STORY METADATA
+! Same as the Standard Library version — Constant Story sets the banner title,
+! Constant Headline sets the subtitle line below it.
+! ---------------------------------------------------------------------------
+Constant Story "SWITCHABLE LAMP";
+Constant Headline "^A device you can switch on and off.^";
+
+! ---------------------------------------------------------------------------
+! PunyInform STARTUP SHORTCUT
+! Instead of assigning `location` inside Initialise, PunyInform reads the
+! constant INITIAL_LOCATION_VALUE before the player's first turn.
+! You must define this constant BEFORE including globals.h so the library
+! can see it at compile time.  Omitting it causes a compile error.
+! ---------------------------------------------------------------------------
+Constant INITIAL_LOCATION_VALUE = Workshop;
+
+! ---------------------------------------------------------------------------
+! PunyInform INCLUDES
+!   globals.h — global variables, constants, and compile-time configuration
+!   puny.h    — the full PunyInform library: parser, actions, AND grammar
+! Unlike the Standard Library there is NO separate Include "Grammar" at the
+! end; puny.h already contains the grammar table.
+! Objects may be defined before or after these includes — unlike the Standard
+! Library, PunyInform does not require objects to precede the library.
+! ---------------------------------------------------------------------------
+Include "globals.h";
+Include "puny.h";
+
+! ---------------------------------------------------------------------------
+! THE STARTING ROOM
+! `light` on a room means it is permanently lit without any carried source.
+! The Cellar below lacks this attribute, so entering it without a lit
+! lantern results in darkness.
+! ---------------------------------------------------------------------------
+Object Workshop "Workshop"
+  with description "A tidy workshop. A ladder leads down into darkness.",
+       d_to Cellar,
+  has  light;           ! `light` → permanently lit; no carried source needed
+
+! ---------------------------------------------------------------------------
+! THE SWITCHABLE LANTERN
+!
+! `->` places the lantern as a direct child of Workshop (it starts in the
+! room, not in the player's hands — the player must TAKE it first).
+!
+! `switchable` ATTRIBUTE
+!   Grants SWITCH ON <obj> / SWITCH OFF <obj> grammar for this object.
+!   Without it, those commands are rejected by the parser.
+!   IMPORTANT: `switchable` does NOT automatically toggle `light` — that
+!   is the responsibility of the `before` handler below.
+!
+! `name` PROPERTY
+!   Dictionary words the parser accepts when matching this object.
+!   Multiple synonyms ('lamp') give the player natural phrasing options.
+! ---------------------------------------------------------------------------
+Object -> lantern "brass lantern"
+  with name 'brass' 'lantern' 'lamp',
+
+       ! -----------------------------------------------------------------------
+       ! DESCRIPTION AS A ROUTINE (not a fixed string)
+       ! When a property holds an anonymous routine [ ; … ] instead of a
+       ! string, the library calls the routine each time EXAMINE fires.
+       ! This lets the description change based on runtime state.
+       !
+       ! `self` — always refers to the object owning this property (lantern).
+       ! Using `self` instead of the object's identifier means the code stays
+       ! correct even if you rename the object.
+       !
+       ! `self has light` — true when the `light` attribute is currently set
+       ! on the lantern (i.e., it is switched on).
+       !
+       ! Bare string as statement — inside a routine, a lone string acts as
+       ! `print_ret`: it prints the text, appends a newline, and returns true,
+       ! ending the routine.  Only one branch ever executes per call.
+       ! -----------------------------------------------------------------------
+       description [;
+           if (self has light) "A brass lantern, glowing warmly.";
+           "A brass lantern, currently dark.";
+       ],
+
+       ! -----------------------------------------------------------------------
+       ! BEFORE HANDLER — SwitchOn and SwitchOff
+       !
+       ! `before` runs before the library's default action for any command
+       ! targeting this object.  Returning true (or printing a string, which
+       ! implicitly returns true) cancels the default completely.
+       !
+       ! Action labels (SwitchOn:, SwitchOff:) match the parser-selected
+       ! action.  Only the matching label executes; unlisted actions fall
+       ! through to the library defaults (TAKE, EXAMINE, DROP, etc.).
+       !
+       ! Why manually manage `light` here?
+       ! PunyInform's SwitchOnSub / SwitchOffSub handle only the `on` attribute
+       ! (cosmetic).  The `light` attribute — which the library actually uses
+       ! to illuminate rooms — must be set and cleared explicitly.
+       ! -----------------------------------------------------------------------
+       before [;
+           SwitchOn:
+               ! Already on?  `has light` is true when the attribute is set.
+               ! Print a refusal; the bare string returns true → action skipped.
+               if (self has light) "It is already on.";
+
+               ! `give <object> <attribute>` — sets the attribute at runtime.
+               ! After this line the lantern is a recognised light source.
+               give self light;       ! grant `light` attribute → lantern is ON
+
+               "You switch on the lantern. It glows warmly.";
+           SwitchOff:
+               ! `hasnt` is the Boolean negation of `has`.
+               if (self hasnt light) "It is already off.";
+
+               ! `give <object> ~<attribute>` — the tilde (~) CLEARS the
+               ! attribute.  The lantern stops illuminating rooms immediately.
+               give self ~light;      ! clear `light` attribute → lantern is OFF
+               "You switch off the lantern.";
+       ],
+  has  switchable;      ! enables SWITCH ON / SWITCH OFF commands for this object
+
+! ---------------------------------------------------------------------------
+! THE DARK ROOM
+! No `light` attribute — the library treats this room as pitch black.
+! Without a carried, lit lantern the player cannot see anything here.
+! This is the standard Inform 6 / PunyInform darkness pattern:
+! omit `light` from the room's has-list.
+! ---------------------------------------------------------------------------
+Object Cellar "Cellar"
+  with description "A cramped cellar. Without a light it would be pitch black.",
+       u_to Workshop;   ! u_to connects back up to the Workshop
+
+! ---------------------------------------------------------------------------
+! INITIALISE ROUTINE (PunyInform version)
+! In PunyInform, Initialise runs AFTER the library has already placed the
+! player at INITIAL_LOCATION_VALUE.  Use it for opening text or any other
+! setup needed before the first turn.
+! Note: `print` is used here rather than a bare string literal because the
+! return value of Initialise is not used by PunyInform.
+! ---------------------------------------------------------------------------
+[ Initialise;
+    print "^A brass lantern sits on the bench. Try TAKE LANTERN, SWITCH ON LANTERN, then go DOWN.^";
+];
