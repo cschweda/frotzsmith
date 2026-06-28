@@ -2,7 +2,7 @@
 import { SAMPLES } from '~/modules/inform6/samples'
 import type { ProfileId } from '~/modules/inform6/profiles'
 
-const { loadSample, newProject } = useIde()
+const { source, loadSample, loadSource, newProject } = useIde()
 
 // Samples dropdown, split into labelled groups by library.
 const sampleItems = computed(() => {
@@ -28,6 +28,58 @@ function create() {
   title.value = ''
   author.value = ''
 }
+
+// Open a local .inf into the editor.
+const fileInput = ref<HTMLInputElement | null>(null)
+function openFile() {
+  fileInput.value?.click()
+}
+function onFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) {
+    const reader = new FileReader()
+    reader.onload = () => loadSource(String(reader.result ?? ''))
+    reader.readAsText(file)
+  }
+  input.value = '' // allow re-opening the same file later
+}
+
+// Save As… — a real save dialog where supported (Chromium), else a download.
+function suggestedFilename() {
+  const story = /Constant\s+Story\s+"([^"]*)"/i.exec(source.value)?.[1]?.trim()
+  const slug = (story || 'story')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+  return `${slug || 'story'}.inf`
+}
+async function saveAs() {
+  const name = suggestedFilename()
+  const text = source.value
+  const picker = (window as unknown as { showSaveFilePicker?: (o: object) => Promise<unknown> }).showSaveFilePicker
+  if (picker) {
+    try {
+      const handle = (await picker({
+        suggestedName: name,
+        types: [{ description: 'Inform 6 source', accept: { 'text/plain': ['.inf'] } }],
+      })) as { createWritable: () => Promise<{ write: (d: string) => Promise<void>; close: () => Promise<void> }> }
+      const writable = await handle.createWritable()
+      await writable.write(text)
+      await writable.close()
+      return
+    } catch (err) {
+      if ((err as { name?: string })?.name === 'AbortError') return // user cancelled
+      // otherwise fall through to a plain download
+    }
+  }
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  a.click()
+  URL.revokeObjectURL(url)
+}
 </script>
 
 <template>
@@ -35,7 +87,17 @@ function create() {
     <UIcon name="i-lucide-file-code-2" class="text-muted size-4" />
     <span class="text-muted text-xs font-semibold uppercase tracking-wide">Source</span>
 
-    <div class="ml-auto flex items-center gap-2">
+    <input ref="fileInput" type="file" accept=".inf,.txt,.h" class="hidden" @change="onFileChange" />
+
+    <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
+      <UButton color="neutral" variant="subtle" size="sm" icon="i-lucide-folder-open" @click="openFile">
+        Open
+      </UButton>
+
+      <UButton color="neutral" variant="subtle" size="sm" icon="i-lucide-save" @click="saveAs">
+        Save As
+      </UButton>
+
       <UDropdownMenu :items="sampleItems">
         <UButton color="neutral" variant="subtle" size="sm" icon="i-lucide-book-open-text" trailing-icon="i-lucide-chevron-down">
           Samples

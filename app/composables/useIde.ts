@@ -108,6 +108,14 @@ export function useIde() {
     activeTab.value = 'results'
   }
 
+  /** Load arbitrary source text (e.g. an opened .inf file) into the editor. */
+  function loadSource(text: string) {
+    source.value = text
+    result.value = null
+    status.value = 'idle'
+    activeTab.value = 'results'
+  }
+
   /** Clear the editor and start a fresh, titled project from a skeleton. */
   function newProject(opts: { title: string; author: string; library: ProfileId }) {
     source.value = buildSkeleton(opts.library, opts.title, opts.author)
@@ -146,6 +154,7 @@ export function useIde() {
     setProfileMode,
     setTargetMode,
     loadSample,
+    loadSource,
     newProject,
     playStory,
   }
