@@ -1,0 +1,27 @@
+! ============================================================================
+!  INFORM 6 SKELETON  —  Frotzsmith starter (Standard Library)
+! ----------------------------------------------------------------------------
+!  A bare, compilable starting point. Replace the title and author, then build
+!  your world by adding rooms and objects between VerbLib and Grammar.
+! ============================================================================
+
+Constant Story "MY GAME";
+Constant Headline "^An interactive fiction by Anonymous.^";
+
+Include "Parser";
+Include "VerbLib";
+
+[ Initialise;
+    location = StartRoom;
+    "^Your story begins here...^";
+];
+
+Object StartRoom "Starting Room"
+  with description "An empty room, waiting for your imagination.",
+  has  light;
+
+! ---------------------------------------------------------------------------
+!  Add your rooms and objects here.
+! ---------------------------------------------------------------------------
+
+Include "Grammar";

@@ -9,25 +9,15 @@ const tabs: { id: RightTab; label: string; icon: string }[] = [
   { id: 'transcript', label: 'Transcript', icon: 'i-lucide-scroll-text' },
 ]
 
-const errorCount = computed(
-  () => result.value?.diagnostics.filter(d => d.severity !== 'warning').length ?? 0,
-)
-
+// "Ready" is red with an ✗ until a clean compile, then green with a ✓.
 const statusMeta = computed(() => {
   switch (status.value) {
     case 'compiling':
       return { label: 'Compiling…', icon: 'i-lucide-loader-circle', spin: true, cls: 'text-primary' }
     case 'success':
-      return { label: 'Ready', icon: 'i-lucide-circle-check', spin: false, cls: 'text-success' }
-    case 'error':
-      return {
-        label: `${errorCount.value} error${errorCount.value === 1 ? '' : 's'}`,
-        icon: 'i-lucide-circle-x',
-        spin: false,
-        cls: 'text-error',
-      }
-    default:
-      return { label: 'Idle', icon: 'i-lucide-circle-dot', spin: false, cls: 'text-muted' }
+      return { label: 'Ready', icon: 'i-lucide-circle-check-big', spin: false, cls: 'text-success' }
+    default: // idle or error → not ready
+      return { label: 'Not ready', icon: 'i-lucide-circle-x', spin: false, cls: 'text-error' }
   }
 })
 </script>
@@ -67,13 +57,14 @@ const statusMeta = computed(() => {
       </div>
 
       <div class="ml-auto flex items-center gap-3">
+        <!-- Fixed width so the label changing never shifts the buttons. -->
         <span
           role="status"
           aria-live="polite"
-          :class="['flex items-center gap-1.5 text-sm font-semibold', statusMeta.cls]"
+          :class="['flex w-28 items-center justify-end gap-1.5 text-sm font-semibold', statusMeta.cls]"
         >
-          <UIcon :name="statusMeta.icon" :class="['size-4', statusMeta.spin && 'animate-spin']" />
-          <span class="hidden md:inline">{{ statusMeta.label }}</span>
+          <UIcon :name="statusMeta.icon" :class="['size-4 shrink-0', statusMeta.spin && 'animate-spin']" />
+          <span>{{ statusMeta.label }}</span>
         </span>
 
         <UButton
@@ -90,13 +81,14 @@ const statusMeta = computed(() => {
           >
         </UButton>
 
+        <!-- Hidden (but space reserved → no layout shift) until a clean compile. -->
         <UButton
-          :color="canPlay ? 'success' : 'neutral'"
-          :variant="canPlay ? 'solid' : 'subtle'"
+          color="success"
           icon="i-lucide-play"
           class="font-bold"
+          :class="canPlay ? 'visible' : 'invisible'"
           :disabled="!canPlay"
-          :title="canPlay ? 'Play the compiled game' : 'Compile successfully to play'"
+          title="Play the compiled game"
           @click="playStory"
         >
           Play

@@ -1,19 +1,28 @@
 <script setup lang="ts">
-const { format, activeProfile, setProfile } = useIde()
+import type { ProfileMode } from '~/composables/useIde'
+
+const { format, profileMode, activeProfile, setProfileMode } = useIde()
 const colorMode = useColorMode()
+
+const profileLabel = computed(() =>
+  profileMode.value === 'auto' ? `Auto · ${activeProfile.value.shortLabel}` : activeProfile.value.shortLabel,
+)
+
+function modeItem(mode: ProfileMode, label: string, icon: string) {
+  return {
+    label,
+    icon,
+    // A trailing check shows the active mode.
+    trailingIcon: profileMode.value === mode ? 'i-lucide-check' : undefined,
+    onSelect: () => setProfileMode(mode),
+  }
+}
 
 const profileItems = computed(() => [
   [
-    {
-      label: 'Inform 6 Standard Library',
-      icon: 'i-lucide-book-marked',
-      onSelect: () => setProfile('std'),
-    },
-    {
-      label: 'PunyInform',
-      icon: 'i-lucide-feather',
-      onSelect: () => setProfile('puny'),
-    },
+    modeItem('auto', 'Auto-detect', 'i-lucide-wand-2'),
+    modeItem('std', 'Inform 6 Standard Library', 'i-lucide-book-marked'),
+    modeItem('puny', 'PunyInform', 'i-lucide-feather'),
   ],
 ])
 
@@ -39,11 +48,18 @@ function toggleTheme() {
       </div>
     </div>
 
-    <UButton size="lg" color="neutral" variant="subtle" icon="i-lucide-wand-sparkles" @click="format">
-      <span class="hidden sm:inline">Format</span>
+    <UButton
+      size="lg"
+      color="neutral"
+      variant="subtle"
+      icon="i-lucide-wand-sparkles"
+      title="Prettify: re-indent & tidy the source. Linting is automatic; this does not compile."
+      @click="format"
+    >
+      <span class="hidden sm:inline">Prettify</span>
     </UButton>
 
-    <!-- Profile + theme -->
+    <!-- Library (auto-detected by default) + theme -->
     <div class="ml-auto flex items-center gap-2">
       <UDropdownMenu :items="profileItems">
         <UButton
@@ -52,9 +68,9 @@ function toggleTheme() {
           icon="i-lucide-library-big"
           trailing-icon="i-lucide-chevron-down"
           class="font-semibold"
-          aria-label="Library profile"
+          title="Library: auto-detected from your source, or force one"
         >
-          <span class="hidden md:inline">{{ activeProfile.shortLabel }}</span>
+          <span class="hidden md:inline">{{ profileLabel }}</span>
         </UButton>
       </UDropdownMenu>
 

@@ -1,6 +1,6 @@
 import type { StoryExt } from './types'
-import stdStarter from './samples/demo.inf?raw'
-import punyStarter from './samples/puny-minimal.inf?raw'
+import stdStarter from './samples/std-skeleton.inf?raw'
+import punyStarter from './samples/puny-skeleton.inf?raw'
 
 /** A file to mount in the compiler's virtual filesystem. */
 export interface VirtualFile {
@@ -94,3 +94,25 @@ export const PROFILES: Record<ProfileId, LibraryProfile> = {
 }
 
 export const DEFAULT_PROFILE: ProfileId = 'std'
+
+/**
+ * Fuzzily detect which library a source targets so the compiler can choose the
+ * right approach automatically. PunyInform sources pull in puny.h / globals.h
+ * and use its config constants; Standard Library sources include Parser /
+ * VerbLib / Grammar. Defaults to the Standard Library when unsure.
+ */
+export function detectProfile(source: string): ProfileId {
+  if (/\bInclude\s+"(puny|globals)\.h"/i.test(source)) return 'puny'
+  if (/\$OMIT_UNUSED_ROUTINES|\$ZCODE_|\bINITIAL_LOCATION_VALUE\b|\bOPTIONAL_[A-Z]/.test(source)) return 'puny'
+  if (/\bInclude\s+"(Parser|VerbLib|Grammar)"/i.test(source)) return 'std'
+  return 'std'
+}
+
+/** Build a fresh skeleton for a new project, filling in the title and author. */
+export function buildSkeleton(profile: ProfileId, title: string, author: string): string {
+  const t = (title.trim() || 'My Game').replace(/"/g, '').toUpperCase()
+  const a = (author.trim() || 'Anonymous').replace(/"/g, '')
+  return PROFILES[profile].starter
+    .replace(/Constant Story\s+"[^"]*"/, `Constant Story "${t}"`)
+    .replace(/Constant Headline\s+"[^"]*"/, `Constant Headline "^An interactive fiction by ${a}.^"`)
+}

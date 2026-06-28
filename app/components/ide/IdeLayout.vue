@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { restore, savedAt, activeProfile } = useIde()
+const { restore, savedAt, activeProfile, profileMode } = useIde()
 const mobileView = ref<'editor' | 'output'>('editor')
 
 onMounted(() => restore())
@@ -41,10 +41,13 @@ const savedLabel = computed(() => {
     <!-- Two-pane shell -->
     <div class="min-h-0 flex-1 lg:grid lg:grid-cols-2 lg:divide-x lg:divide-default">
       <section
-        :class="['h-full min-h-0', mobileView === 'editor' ? 'block' : 'hidden', 'lg:block']"
+        :class="['h-full min-h-0 flex-col', mobileView === 'editor' ? 'flex' : 'hidden', 'lg:flex']"
         aria-label="Source"
       >
-        <SourcePane />
+        <SourceToolbar />
+        <div class="min-h-0 flex-1">
+          <SourcePane />
+        </div>
       </section>
       <section
         :class="['h-full min-h-0', mobileView === 'output' ? 'block' : 'hidden', 'lg:block']"
@@ -64,7 +67,8 @@ const savedLabel = computed(() => {
       </span>
       <span class="ml-auto flex items-center gap-1.5">
         <UIcon name="i-lucide-book-open" class="size-3.5" />
-        {{ activeProfile.shortLabel }} · {{ activeProfile.defaultExt.toUpperCase() }}
+        {{ profileMode === 'auto' ? 'Auto' : 'Forced' }}: {{ activeProfile.shortLabel }} ·
+        {{ activeProfile.defaultExt.toUpperCase() }}
       </span>
     </footer>
   </div>

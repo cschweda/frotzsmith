@@ -1,0 +1,40 @@
+!% -~S
+!% $OMIT_UNUSED_ROUTINES=1
+
+! ============================================================================
+!  THE LOCKED CHEST  —  Frotzsmith sample (PunyInform)
+! ----------------------------------------------------------------------------
+!  The PunyInform port of the lock-and-key puzzle. PunyInform provides the
+!  `container`, `openable`, `lockable`, `locked` and `with_key` machinery too.
+!  Try:  take key, unlock chest with key, open chest, take coin
+! ============================================================================
+
+Constant Story "THE LOCKED CHEST";
+Constant Headline "^A Frotzsmith sample: a lock-and-key puzzle (PunyInform).^";
+
+Constant INITIAL_LOCATION_VALUE = Study;
+
+Include "globals.h";
+Include "puny.h";
+
+Object Study "Dusty Study"
+  with description "A dusty study, bare but for a wooden chest and an old desk.",
+  has  light;
+
+Object -> brasskey "brass key"
+  with name 'brass' 'key',
+       description "A small brass key.";
+
+Object -> chest "wooden chest"
+  with name 'wooden' 'chest',
+       description "A sturdy chest with a brass lock.",
+       with_key brasskey,
+  has  container openable lockable locked static;
+
+Object -> -> coin "gold coin"
+  with name 'gold' 'coin',
+       description "A gleaming gold coin — treasure at last!";
+
+[ Initialise;
+    print "^A locked chest sits in the corner, a brass key glinting on the desk.^";
+];

@@ -1,0 +1,64 @@
+! ============================================================================
+!  THE HERMIT  —  Frotzsmith sample (Inform 6 Standard Library)
+! ----------------------------------------------------------------------------
+!  Demonstrates a talking NPC. An "animate" object can carry a `life` routine
+!  that responds to conversation actions (ask / tell / answer / give / ...).
+!  Try:  north,  examine hermit,  ask hermit about woods,  give apple to hermit
+! ============================================================================
+
+Constant Story "THE HERMIT";
+Constant Headline "^A Frotzsmith sample showing a talking NPC.^";
+
+Include "Parser";
+Include "VerbLib";
+
+[ Initialise;
+    location = Clearing;
+    "^You set out to find the old hermit said to live deep in the woods.^";
+];
+
+! ---------------------------------------------------------------------------
+!  Rooms
+! ---------------------------------------------------------------------------
+Object Clearing "Forest Clearing"
+  with description
+        "Sunlight filters through the pines. A path leads north to a hut.",
+       n_to Hut,
+  has  light;
+
+Object Hut "Hermit's Hut"
+  with description
+        "A cramped hut, warm with woodsmoke. The clearing lies back south.",
+       s_to Clearing,
+  has  light;
+
+! ---------------------------------------------------------------------------
+!  A takeable object, carried by the player at the start
+! ---------------------------------------------------------------------------
+Object -> apple "red apple"
+  with name 'red' 'apple',
+       description "A crisp red apple.",
+  has  edible;
+
+! ---------------------------------------------------------------------------
+!  The NPC. `animate` marks it as a living being; the `life` routine fields
+!  conversation actions. Bare action names (Ask, Tell, ...) act as the cases.
+! ---------------------------------------------------------------------------
+Object hermit "old hermit" Hut
+  with name 'old' 'hermit' 'man',
+       description "Weathered and serene, the hermit watches you calmly.",
+       life [;
+           Ask, Tell, Answer:
+               "~The woods know more than I ever shall,~ the hermit murmurs.";
+           Give:
+               if (noun == apple) {
+                   move apple to hermit;
+                   "The hermit accepts the apple with a grateful bow.";
+               }
+               "The hermit gently declines.";
+           default:
+               "The hermit only smiles.";
+       ],
+  has  animate;
+
+Include "Grammar";

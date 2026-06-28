@@ -1,13 +1,21 @@
 import type { CompileResult } from '~/modules/inform6/types'
 import { formatI6 } from '~/utils/format-i6'
-import { PROFILES, DEFAULT_PROFILE, type ProfileId } from '~/modules/inform6/profiles'
+import {
+  PROFILES,
+  detectProfile,
+  buildSkeleton,
+  type ProfileId,
+} from '~/modules/inform6/profiles'
+import { sampleById } from '~/modules/inform6/samples'
 
 export type CompileStatus = 'idle' | 'compiling' | 'success' | 'error'
 export type RightTab = 'results' | 'play' | 'transcript'
+export type ProfileMode = 'auto' | ProfileId
 
 /**
- * Central IDE state and actions. Backed by shared `useState`, so it can be called
- * from any component and stays in sync (composables, no Pinia — house style).
+ * Central IDE state and actions (composables, no Pinia). Library selection is
+ * fuzzily auto-detected from the source by default, so the compiler chooses
+ * Standard Library vs PunyInform automatically; the user can still force one.
  */
 export function useIde() {
   const { source, savedAt, restore: restoreSource } = useSourceDocument()
@@ -16,21 +24,25 @@ export function useIde() {
   const status = useState<CompileStatus>('frotz:status', () => 'idle')
   const result = useState<CompileResult | null>('frotz:result', () => null)
   const activeTab = useState<RightTab>('frotz:tab', () => 'results')
-  // A changing signal the editor watches to move the cursor to a line.
   const jumpSignal = useState<{ line: number; nonce: number } | null>('frotz:jump', () => null)
-  const profileId = useState<ProfileId>('frotz:profile', () => DEFAULT_PROFILE)
-  const activeProfile = computed(() => PROFILES[profileId.value])
 
-  /** A successful compile produced a story file → it can be played. */
+  const profileMode = useState<ProfileMode>('frotz:profile-mode', () => 'auto')
+  const detectedProfile = computed(() => detectProfile(source.value))
+  const effectiveProfile = computed<ProfileId>(() =>
+    profileMode.value === 'auto' ? detectedProfile.value : profileMode.value,
+  )
+  const activeProfile = computed(() => PROFILES[effectiveProfile.value])
+  /** The profile the most recent compile actually used. */
+  const usedProfile = useState<ProfileId | null>('frotz:used-profile', () => null)
+
   const canPlay = computed(() => status.value === 'success' && !!result.value?.storyFile)
-  /** Bumped each time the user asks to (re)boot the story in the Play tab. */
   const playNonce = useState<number>('frotz:play-nonce', () => 0)
 
-  /** Restore the persisted profile, then the source recovery snapshot. */
+  /** Restore the persisted profile mode, then the source recovery snapshot. */
   function restore() {
     if (import.meta.client) {
-      const saved = localStorage.getItem('frotzsmith:profile')
-      if (saved === 'std' || saved === 'puny') profileId.value = saved
+      const saved = localStorage.getItem('frotzsmith:profile-mode')
+      if (saved === 'auto' || saved === 'std' || saved === 'puny') profileMode.value = saved
     }
     restoreSource()
   }
@@ -39,43 +51,53 @@ export function useIde() {
     if (status.value === 'compiling') return
     status.value = 'compiling'
     activeTab.value = 'results'
-    // Yield once so the UI paints "Compiling…" before the synchronous WASM run.
-    await new Promise(resolve => setTimeout(resolve, 0))
+    const pid = effectiveProfile.value
+    await new Promise(resolve => setTimeout(resolve, 0)) // let "Compiling…" paint
     try {
-      const r = await compile(source.value, { profileId: profileId.value })
+      const r = await compile(source.value, { profileId: pid })
       result.value = r
+      usedProfile.value = pid
       status.value = r.ok ? 'success' : 'error'
     } catch {
       result.value = null
+      usedProfile.value = pid
       status.value = 'error'
     }
   }
 
-  /** Ask the editor to move the cursor to a 1-based line (e.g. from a results row). */
   function jumpTo(line: number) {
     jumpSignal.value = { line, nonce: (jumpSignal.value?.nonce ?? 0) + 1 }
   }
 
-  /** Re-indent and tidy the source ("prettify"). Undoable in the editor. */
+  /** Re-indent and tidy the source. Undoable in the editor. */
   function format() {
     source.value = formatI6(source.value)
   }
 
-  /**
-   * Switch library profile. Standard Library and PunyInform source are mutually
-   * incompatible, so this loads the chosen profile's starter template (undoable
-   * in the editor with Cmd/Ctrl+Z).
-   */
-  function setProfile(id: ProfileId) {
-    if (id === profileId.value) return
-    profileId.value = id
-    if (import.meta.client) localStorage.setItem('frotzsmith:profile', id)
-    source.value = PROFILES[id].starter
-    result.value = null
-    status.value = 'idle'
+  function setProfileMode(mode: ProfileMode) {
+    profileMode.value = mode
+    if (import.meta.client) localStorage.setItem('frotzsmith:profile-mode', mode)
   }
 
-  /** Boot the freshly compiled story in the Play tab (no-op until a clean compile). */
+  /** Load a built-in sample into the editor. */
+  function loadSample(id: string) {
+    const s = sampleById(id)
+    if (!s) return
+    source.value = s.source
+    result.value = null
+    status.value = 'idle'
+    activeTab.value = 'results'
+  }
+
+  /** Clear the editor and start a fresh, titled project from a skeleton. */
+  function newProject(opts: { title: string; author: string; library: ProfileId }) {
+    source.value = buildSkeleton(opts.library, opts.title, opts.author)
+    setProfileMode(opts.library)
+    result.value = null
+    status.value = 'idle'
+    activeTab.value = 'results'
+  }
+
   function playStory() {
     if (!canPlay.value) return
     activeTab.value = 'play'
@@ -90,14 +112,19 @@ export function useIde() {
     result,
     activeTab,
     jumpSignal,
-    profileId,
+    profileMode,
+    detectedProfile,
+    effectiveProfile,
     activeProfile,
+    usedProfile,
     canPlay,
     playNonce,
     runCompile,
     jumpTo,
     format,
-    setProfile,
+    setProfileMode,
+    loadSample,
+    newProject,
     playStory,
   }
 }

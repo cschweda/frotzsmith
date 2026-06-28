@@ -1,0 +1,30 @@
+!% -~S
+!% $OMIT_UNUSED_ROUTINES=1
+
+! ============================================================================
+!  PUNYINFORM SKELETON  —  Frotzsmith starter (PunyInform)
+! ----------------------------------------------------------------------------
+!  A bare, compilable PunyInform starting point. The `!%` lines above are
+!  compiler options. Replace the title and author, then add your rooms and
+!  objects after puny.h.
+! ============================================================================
+
+Constant Story "MY GAME";
+Constant Headline "^An interactive fiction by Anonymous.^";
+
+Constant INITIAL_LOCATION_VALUE = StartRoom;
+
+Include "globals.h";
+Include "puny.h";
+
+Object StartRoom "Starting Room"
+  with description "An empty room, waiting for your imagination.",
+  has  light;
+
+! ---------------------------------------------------------------------------
+!  Add your rooms and objects here.
+! ---------------------------------------------------------------------------
+
+[ Initialise;
+    print "^Your story begins here...^";
+];

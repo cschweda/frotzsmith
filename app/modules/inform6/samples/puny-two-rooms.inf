@@ -1,0 +1,40 @@
+!% -~S
+!% $OMIT_UNUSED_ROUTINES=1
+
+! ============================================================================
+!  TWO ROOMS  —  Frotzsmith sample (PunyInform)
+! ----------------------------------------------------------------------------
+!  The PunyInform port of the "Two Rooms" demo: two rooms, a takeable lamp,
+!  and movement. PunyInform is a compact replacement library aimed at small,
+!  fast Z-machine games. Compiler options are set on the `!%` lines above.
+!  Try:  look, north, take lamp, examine lamp, south, inventory
+! ============================================================================
+
+Constant Story "TWO ROOMS";
+Constant Headline "^A Frotzsmith sample (PunyInform edition).^";
+
+Constant INITIAL_LOCATION_VALUE = Cottage;
+
+Include "globals.h";
+Include "puny.h";
+
+Object Cottage "Cottage"
+  with description
+        "A cosy one-room cottage. A sturdy door leads north into daylight.",
+       n_to Meadow,
+  has  light;
+
+Object -> lamp "brass lamp"
+  with name 'brass' 'lamp',
+       description "A small brass lamp, the kind every adventurer carries.";
+
+Object Meadow "Meadow"
+  with description
+        "A sunlit meadow dotted with wildflowers. The cottage lies to the south.",
+       s_to Cottage,
+  has  light;
+
+[ Initialise;
+    print "^Welcome to the Frotzsmith demo (PunyInform edition)!^^";
+    print "Try: look, north, take lamp, examine lamp, inventory.^";
+];

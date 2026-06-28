@@ -1,0 +1,41 @@
+! ============================================================================
+!  THE LOCKED CHEST  —  Frotzsmith sample (Inform 6 Standard Library)
+! ----------------------------------------------------------------------------
+!  A small lock-and-key puzzle with a container. Shows the `lockable`, `locked`,
+!  `container` and `with_key` machinery the Standard Library provides for free.
+!  Try:  take key,  unlock chest with key,  open chest,  take coin
+! ============================================================================
+
+Constant Story "THE LOCKED CHEST";
+Constant Headline "^A Frotzsmith sample: a lock-and-key puzzle.^";
+
+Include "Parser";
+Include "VerbLib";
+
+[ Initialise;
+    location = Study;
+    "^A locked chest sits in the corner, a brass key glinting on the desk.^";
+];
+
+Object Study "Dusty Study"
+  with description "A dusty study, bare but for a wooden chest and an old desk.",
+  has  light;
+
+! A takeable key. `with_key` on the chest below points back to this object.
+Object -> brasskey "brass key"
+  with name 'brass' 'key',
+       description "A small brass key.";
+
+! A locked container. The library handles unlock/open/look-inside for us.
+Object -> chest "wooden chest"
+  with name 'wooden' 'chest',
+       description "A sturdy chest with a brass lock.",
+       with_key brasskey,
+  has  container openable lockable locked static;
+
+! The reward, nested one level deeper (-> ->) so it starts inside the chest.
+Object -> -> coin "gold coin"
+  with name 'gold' 'coin',
+       description "A gleaming gold coin — treasure at last!";
+
+Include "Grammar";
