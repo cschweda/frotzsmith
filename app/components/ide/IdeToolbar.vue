@@ -1,22 +1,29 @@
 <script setup lang="ts">
 import type { ProfileMode } from '~/composables/useIde'
+import type { StoryExt } from '~/modules/inform6/types'
 
 const { format, profileMode, activeProfile, setProfileMode, targetMode, effectiveExt, setTargetMode } =
   useIde()
 const colorMode = useColorMode()
 
+const VERSION_LABEL: Record<string, string> = {
+  z3: 'Z-machine v3 · .z3',
+  z4: 'Z-machine v4 · .z4',
+  z5: 'Z-machine v5 · .z5',
+  z8: 'Z-machine v8 · .z8',
+}
+// Target options depend on the active library: PunyInform can target the small
+// z3/z4; the full Standard Library is too large for those.
 const targetItems = computed(() => {
-  const item = (mode: 'auto' | 'z3' | 'z5' | 'z8', label: string) => ({
+  const item = (mode: 'auto' | StoryExt, label: string) => ({
     label,
     trailingIcon: targetMode.value === mode ? 'i-lucide-check' : undefined,
     onSelect: () => setTargetMode(mode),
   })
   return [
     [
-      item('auto', 'Auto (profile default)'),
-      item('z3', 'Z-machine v3 · .z3'),
-      item('z5', 'Z-machine v5 · .z5'),
-      item('z8', 'Z-machine v8 · .z8'),
+      item('auto', `Auto (default · .${activeProfile.value.defaultExt})`),
+      ...activeProfile.value.targets.map(t => item(t, VERSION_LABEL[t] ?? t)),
     ],
   ]
 })

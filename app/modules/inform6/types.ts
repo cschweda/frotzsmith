@@ -1,5 +1,5 @@
-/** Story-file targets Frotzsmith can emit. */
-export type StoryExt = 'z3' | 'z5' | 'z8' | 'ulx'
+/** Story-file targets (compile targets) Frotzsmith can emit. */
+export type StoryExt = 'z3' | 'z4' | 'z5' | 'z8' | 'ulx'
 
 /** Severity of a compiler diagnostic. */
 export type Severity = 'error' | 'warning' | 'fatal'

@@ -35,9 +35,13 @@ export function useIde() {
 
   // Story-file version: 'auto' uses the profile default, or force z3 / z5 / z8.
   const targetMode = useState<'auto' | StoryExt>('frotz:target', () => 'auto')
-  const effectiveExt = computed<StoryExt>(() =>
-    targetMode.value === 'auto' ? activeProfile.value.defaultExt : targetMode.value,
-  )
+  const effectiveExt = computed<StoryExt>(() => {
+    if (targetMode.value === 'auto') return activeProfile.value.defaultExt
+    // Fall back to the profile default if the forced target isn't valid for it.
+    return activeProfile.value.targets.includes(targetMode.value)
+      ? targetMode.value
+      : activeProfile.value.defaultExt
+  })
 
   /** The profile the most recent compile actually used. */
   const usedProfile = useState<ProfileId | null>('frotz:used-profile', () => null)
@@ -51,7 +55,7 @@ export function useIde() {
       const saved = localStorage.getItem('frotzsmith:profile-mode')
       if (saved === 'auto' || saved === 'std' || saved === 'puny') profileMode.value = saved
       const t = localStorage.getItem('frotzsmith:target')
-      if (t === 'auto' || t === 'z3' || t === 'z5' || t === 'z8') targetMode.value = t
+      if (t === 'auto' || t === 'z3' || t === 'z4' || t === 'z5' || t === 'z8') targetMode.value = t
     }
     restoreSource()
   }

@@ -24,6 +24,8 @@ export interface LibraryProfile {
   includePath: string
   /** Default story-file version for this profile. */
   defaultExt: StoryExt
+  /** Story-file versions (compile targets) that make sense for this library. */
+  targets: StoryExt[]
   /** A minimal game that compiles cleanly under this profile. */
   starter: string
   /** Library files (with any case aliases) ready to mount. */
@@ -72,7 +74,8 @@ export const PROFILES: Record<ProfileId, LibraryProfile> = {
     shortLabel: 'Standard Library',
     description: 'The classic Inform 6 library — Parser, VerbLib, Grammar.',
     includePath: '/lib/std',
-    defaultExt: 'z8',
+    defaultExt: 'z5',
+    targets: ['z5', 'z8'],
     starter: stdStarter,
     files: buildFiles(stdRaw, '/lib/std', {
       'Parser.h': 'parser.h',
@@ -88,6 +91,7 @@ export const PROFILES: Record<ProfileId, LibraryProfile> = {
     description: 'A fast, compact replacement library for small Z-machine games.',
     includePath: '/lib/puny',
     defaultExt: 'z5',
+    targets: ['z3', 'z4', 'z5', 'z8'],
     starter: punyStarter,
     files: buildFiles(punyRaw, '/lib/puny'),
   },

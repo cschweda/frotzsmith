@@ -53,6 +53,7 @@ const memClass = computed(() => {
         :class="['h-full min-h-0 flex-col', mobileView === 'editor' ? 'flex' : 'hidden', 'lg:flex']"
         aria-label="Source"
       >
+        <TitleStrip />
         <SourceToolbar />
         <div class="min-h-0 flex-1">
           <SourcePane />
@@ -75,6 +76,11 @@ const memClass = computed(() => {
         {{ savedLabel }}
       </span>
 
+      <span class="flex items-center gap-1.5" title="Compile target (story-file version)">
+        <UIcon name="i-lucide-cpu" class="size-3.5" />
+        Target .{{ effectiveExt }}
+      </span>
+
       <template v-if="result">
         <span class="flex items-center gap-1.5" title="Compiled story-file size">
           <UIcon name="i-lucide-file-archive" class="size-3.5" />
@@ -86,7 +92,15 @@ const memClass = computed(() => {
           title="Dynamic (readable) memory used / Z-machine 64 KB ceiling"
         >
           <UIcon name="i-lucide-memory-stick" class="size-3.5" />
-          mem {{ fmtBytes(result.stats.readableMem) }} / {{ fmtBytes(result.stats.readableMax ?? 0) }}
+          dyn {{ fmtBytes(result.stats.readableMem) }} / {{ fmtBytes(result.stats.readableMax ?? 0) }}
+        </span>
+        <span
+          v-if="result.stats?.zFree != null"
+          class="flex items-center gap-1.5"
+          title="Total Z-machine memory free"
+        >
+          <UIcon name="i-lucide-database" class="size-3.5" />
+          {{ fmtBytes(result.stats.zFree) }} free
         </span>
       </template>
 

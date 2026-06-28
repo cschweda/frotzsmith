@@ -4,6 +4,7 @@ import { parseDiagnostics, parseStats } from '~/utils/parse-diagnostics'
 
 const VERSION_SWITCH: Record<StoryExt, string> = {
   z3: '-v3',
+  z4: '-v4',
   z5: '-v5',
   z8: '-v8',
   ulx: '-G',
