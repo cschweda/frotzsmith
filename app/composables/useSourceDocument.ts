@@ -1,6 +1,7 @@
 import demoSource from '~/modules/inform6/samples/demo.inf?raw'
+import { frotzsmith } from '~~/frotzsmith.config'
 
-const RECOVERY_KEY = 'frotzsmith:recovery'
+const RECOVERY_KEY = frotzsmith.storageKeys.recovery
 
 // The autosave watcher must be registered only once, even though this composable
 // may be called from several components.

@@ -1,8 +1,8 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { frotzsmith } from './frotzsmith.config'
 
-// Public site URL — used for absolute og:image / canonical links.
-// Change this to your production domain before deploying (e.g. app.frotzsmith.com).
-const SITE_URL = 'https://frotzsmith.com'
+// All app-wide constants live in frotzsmith.config.ts (single source of truth).
+const SITE_URL = frotzsmith.siteUrl
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-06-01',
@@ -31,11 +31,7 @@ export default defineNuxtConfig({
       htmlAttrs: { lang: 'en' },
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        {
-          name: 'description',
-          content:
-            'A free, browser-based IDE for Inform 6 interactive fiction — write, compile to Z-machine, and play instantly, all client-side. Standard Library & PunyInform.',
-        },
+        { name: 'description', content: frotzsmith.description },
         { name: 'theme-color', content: '#0b0b0e' },
         { name: 'robots', content: 'index, follow' },
         // Open Graph

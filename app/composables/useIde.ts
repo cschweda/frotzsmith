@@ -7,6 +7,7 @@ import {
   type ProfileId,
 } from '~/modules/inform6/profiles'
 import { sampleById } from '~/modules/inform6/samples'
+import { frotzsmith } from '~~/frotzsmith.config'
 
 export type CompileStatus = 'idle' | 'compiling' | 'success' | 'error'
 export type RightTab = 'results' | 'play' | 'transcript'
@@ -52,9 +53,9 @@ export function useIde() {
   /** Restore the persisted profile mode, then the source recovery snapshot. */
   function restore() {
     if (import.meta.client) {
-      const saved = localStorage.getItem('frotzsmith:profile-mode')
+      const saved = localStorage.getItem(frotzsmith.storageKeys.profileMode)
       if (saved === 'auto' || saved === 'std' || saved === 'puny') profileMode.value = saved
-      const t = localStorage.getItem('frotzsmith:target')
+      const t = localStorage.getItem(frotzsmith.storageKeys.target)
       if (t === 'auto' || t === 'z3' || t === 'z4' || t === 'z5' || t === 'z8') targetMode.value = t
     }
     restoreSource()
@@ -89,12 +90,12 @@ export function useIde() {
 
   function setProfileMode(mode: ProfileMode) {
     profileMode.value = mode
-    if (import.meta.client) localStorage.setItem('frotzsmith:profile-mode', mode)
+    if (import.meta.client) localStorage.setItem(frotzsmith.storageKeys.profileMode, mode)
   }
 
   function setTargetMode(mode: 'auto' | StoryExt) {
     targetMode.value = mode
-    if (import.meta.client) localStorage.setItem('frotzsmith:target', mode)
+    if (import.meta.client) localStorage.setItem(frotzsmith.storageKeys.target, mode)
   }
 
   /** Load a built-in sample into the editor. */

@@ -109,6 +109,15 @@ const memClass = computed(() => {
         {{ profileMode === 'auto' ? 'Auto' : 'Forced' }}: {{ activeProfile.shortLabel }} ·
         {{ effectiveExt.toUpperCase() }}
       </span>
+
+      <NuxtLink
+        to="/technical"
+        class="hover:text-primary flex items-center gap-1.5 font-semibold"
+        title="Technical details, Z-machine limits & resources"
+      >
+        <UIcon name="i-lucide-info" class="size-3.5" />
+        Technical
+      </NuxtLink>
     </footer>
   </div>
 </template>
