@@ -100,15 +100,50 @@ export const PROFILES: Record<ProfileId, LibraryProfile> = {
 export const DEFAULT_PROFILE: ProfileId = 'std'
 
 /**
+ * Strip Inform 6 comments so detection runs on code only. Removes every
+ * !-initiated comment — full-line, `!%` option lines, and end-of-line — while
+ * honouring "string" and 'char' literals (so a ! inside quotes is left alone).
+ * Without this, a teaching comment that mentions the *other* library's includes
+ * (e.g. a "Standard Library vs PunyInform" note) would mis-trigger detection.
+ */
+function stripI6Comments(source: string): string {
+  let out = ''
+  for (const line of source.split('\n')) {
+    let inStr = false
+    let inChar = false
+    let cut = line.length
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i]
+      if (inStr) {
+        if (c === '"') inStr = false
+      } else if (inChar) {
+        if (c === "'") inChar = false
+      } else if (c === '"') {
+        inStr = true
+      } else if (c === "'") {
+        inChar = true
+      } else if (c === '!') {
+        cut = i
+        break
+      }
+    }
+    out += line.slice(0, cut) + '\n'
+  }
+  return out
+}
+
+/**
  * Fuzzily detect which library a source targets so the compiler can choose the
  * right approach automatically. PunyInform sources pull in puny.h / globals.h
  * and use its config constants; Standard Library sources include Parser /
- * VerbLib / Grammar. Defaults to the Standard Library when unsure.
+ * VerbLib / Grammar. Detection ignores comments (see stripI6Comments) so prose
+ * mentioning the other library can't skew it. Defaults to Standard Library.
  */
 export function detectProfile(source: string): ProfileId {
-  if (/\bInclude\s+"(puny|globals)\.h"/i.test(source)) return 'puny'
-  if (/\$OMIT_UNUSED_ROUTINES|\$ZCODE_|\bINITIAL_LOCATION_VALUE\b|\bOPTIONAL_[A-Z]/.test(source)) return 'puny'
-  if (/\bInclude\s+"(Parser|VerbLib|Grammar)"/i.test(source)) return 'std'
+  const code = stripI6Comments(source)
+  if (/\bInclude\s+"(puny|globals)\.h"/i.test(code)) return 'puny'
+  if (/\$OMIT_UNUSED_ROUTINES|\$ZCODE_|\bINITIAL_LOCATION_VALUE\b|\bOPTIONAL_[A-Z]/.test(code)) return 'puny'
+  if (/\bInclude\s+"(Parser|VerbLib|Grammar)"/i.test(code)) return 'std'
   return 'std'
 }
 
