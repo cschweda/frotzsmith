@@ -36,6 +36,27 @@ const memClass = computed(() => {
   const pct = s.readableMem / s.readableMax
   return pct > 0.9 ? 'text-error font-semibold' : pct > 0.75 ? 'text-warning' : ''
 })
+
+// The mobile drawer must never be modal on desktop: the inline explorer column
+// handles desktop, and a USlideover with open=true overlays the page even when
+// CSS-hidden. Gate its open state to mobile viewports (Tailwind `lg` = 1024px).
+const isDesktop = ref(import.meta.client ? window.matchMedia('(min-width: 1024px)').matches : true)
+let viewportMq: MediaQueryList | null = null
+function syncViewport() {
+  isDesktop.value = viewportMq?.matches ?? true
+}
+onMounted(() => {
+  viewportMq = window.matchMedia('(min-width: 1024px)')
+  syncViewport()
+  viewportMq.addEventListener('change', syncViewport)
+})
+onBeforeUnmount(() => viewportMq?.removeEventListener('change', syncViewport))
+
+// Drawer is open only on mobile; closing it (backdrop/Esc) writes back to panelOpen.
+const drawerOpen = computed({
+  get: () => panelOpen.value && !isDesktop.value,
+  set: (v: boolean) => { panelOpen.value = v },
+})
 </script>
 
 <template>
@@ -99,7 +120,7 @@ const memClass = computed(() => {
     </div>
 
     <!-- Mobile: explorer as a slide-over drawer -->
-    <USlideover v-model:open="panelOpen" side="left" title="Project files" class="lg:hidden">
+    <USlideover v-model:open="drawerOpen" side="left" title="Project files" class="lg:hidden">
       <template #body>
         <FileExplorer />
       </template>
