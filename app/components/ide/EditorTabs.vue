@@ -11,12 +11,14 @@ async function onKeydown(event: KeyboardEvent) {
   const next = event.key === 'ArrowRight' ? ids[i + 1] ?? ids[0] : ids[i - 1] ?? ids[ids.length - 1]
   if (!next) return // noUncheckedIndexedAccess: both sides of ?? can be undefined on empty list
   event.preventDefault()
+  // Capture the tablist NOW: event.currentTarget is reset to null once the event
+  // finishes dispatching, which happens before the awaited microtask resumes.
+  const tablist = event.currentTarget as HTMLElement
   openFile(next)
   // Wait for the roving tabindex to re-render, then move focus so the ARIA
   // tabs pattern (automatic activation) is satisfied: focus must follow selection.
   await nextTick()
-  const host = event.currentTarget as HTMLElement
-  host.querySelector<HTMLElement>(`[data-tab-id="${next}"]`)?.focus()
+  tablist.querySelector<HTMLElement>(`[data-tab-id="${next}"]`)?.focus()
 }
 </script>
 

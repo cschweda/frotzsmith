@@ -56,8 +56,10 @@ export function useIde() {
       if (t === 'auto' || t === 'z3' || t === 'z4' || t === 'z5' || t === 'z8') targetMode.value = t
     }
     restoreExtensions()
-    restoreProjectFiles()
+    // Restore source before project files so tab reconciliation runs against the
+    // restored source's library profile (not the demo's), keeping library tabs.
     restoreSource()
+    restoreProjectFiles()
   }
 
   async function runCompile() {

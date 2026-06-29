@@ -2,7 +2,7 @@
 import { frotzsmith } from '~~/frotzsmith.config'
 
 const { restore, savedAt, activeProfile, profileMode, result, effectiveExt } = useIde()
-const { panelOpen } = useProjectFiles()
+const { panelOpen, togglePanel } = useProjectFiles()
 const mobileView = ref<'editor' | 'output'>('editor')
 
 onMounted(() => restore())
@@ -52,10 +52,13 @@ onMounted(() => {
 })
 onBeforeUnmount(() => viewportMq?.removeEventListener('change', syncViewport))
 
-// Drawer is open only on mobile; closing it (backdrop/Esc) writes back to panelOpen.
+// Drawer is open only on mobile; closing it (backdrop/Esc) routes through
+// togglePanel so the closed state persists (not just an in-memory ref write).
 const drawerOpen = computed({
   get: () => panelOpen.value && !isDesktop.value,
-  set: (v: boolean) => { panelOpen.value = v },
+  set: (v: boolean) => {
+    if (v !== panelOpen.value) togglePanel()
+  },
 })
 </script>
 
