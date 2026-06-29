@@ -83,6 +83,11 @@ function showFile(id: string) {
 onMounted(() => {
   if (!host.value) return
   view = new EditorView({ parent: host.value, state: makeState(activeId.value) })
+  // Make the scroll region keyboard-focusable (WCAG 2.1.1 / axe
+  // scrollable-region-focusable). CodeMirror's contenteditable content does not
+  // satisfy the rule, so the scroller (view.scrollDOM === .cm-scroller) must be
+  // in the tab order itself. It persists across setState, so set it once here.
+  view.scrollDOM.setAttribute('tabindex', '0')
   states.set(activeId.value, view.state)
 })
 
