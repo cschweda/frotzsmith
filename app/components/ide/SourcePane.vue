@@ -66,13 +66,18 @@ function isEditable(id: string): boolean {
 
 function showFile(id: string) {
   if (!view) return
-  const cached = states.get(id)
+  let state = states.get(id)
   // Rebuild when missing or when the backing content changed externally
   // (load sample, open file, new project, library switch, re-upload).
-  if (!cached || cached.doc.toString() !== readFile(id)) {
-    states.set(id, makeState(id))
+  if (!state || state.doc.toString() !== readFile(id)) {
+    state = makeState(id)
+    states.set(id, state)
   }
-  view.setState(states.get(id)!)
+  view.setState(state)
+  // Re-apply the current theme: cached states carry the theme they were built
+  // with, so a dark/light toggle made while another file was active would
+  // otherwise render this swapped-in file with a stale theme.
+  view.dispatch({ effects: themeComp.reconfigure(i6Theme(isDark())) })
 }
 
 onMounted(() => {
@@ -88,6 +93,10 @@ watch(activeId, (id, prevId) => {
 })
 
 // External content change for the active file → replace the doc in place.
+// IMPORTANT: this watcher MUST stay registered AFTER the activeId watcher above.
+// The activeId watcher calls showFile which swaps the view state on file switch,
+// making the readFile watcher a no-op on switch. If the order were reversed the
+// readFile watcher would fire first on switch and corrupt the incoming state.
 watch(
   () => readFile(activeId.value),
   content => {
