@@ -46,7 +46,11 @@ export function useProjectFiles() {
   const validIds = computed(() => new Set(files.value.map(f => f.id)))
 
   const tabs = useState<TabState>('frotz:tabs', () => ({ activeId: 'source', openTabs: ['source'] }))
-  const panelOpen = useState<boolean>('frotz:panel-open', () => true)
+  // Default open on desktop, closed on mobile — the slide-over drawer shouldn't
+  // auto-open on a first mobile visit. Persisted state overrides this on restore().
+  const panelOpen = useState<boolean>('frotz:panel-open', () =>
+    import.meta.client ? window.matchMedia('(min-width: 1024px)').matches : true,
+  )
 
   const activeId = computed(() => tabs.value.activeId)
   const activeFile = computed<ProjectFileMeta>(

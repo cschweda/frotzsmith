@@ -14,7 +14,7 @@ import { inform6 } from '~/modules/inform6/editor/i6-language'
 import { i6Theme } from '~/modules/inform6/editor/i6-theme'
 import { i6Lint } from '~/modules/inform6/editor/i6-lint'
 
-const { activeId, activeFile, readFile, writeActive, openFile } = useProjectFiles()
+const { activeId, activeFile, readFile, writeActive, openFile, files } = useProjectFiles()
 const { jumpSignal, runCompile } = useIde()
 const colorMode = useColorMode()
 
@@ -28,7 +28,11 @@ const isDark = () => colorMode.value === 'dark'
 // Build a fresh state for a file: editable files get lint + write-back; read-only
 // files (library, bundled extensions) are locked and unlinted to avoid noise.
 function makeState(id: string): EditorState {
-  const editable = isEditable(id)
+  // Editability + display name come from the store's file list (single source of
+  // truth), so the editor never re-derives the rule the explorer already owns.
+  const meta = files.value.find(f => f.id === id)
+  const editable = meta?.editable ?? false
+  const name = meta?.name ?? 'file'
   const exts: Extension[] = [
     lineNumbers(),
     highlightActiveLine(),
@@ -40,7 +44,9 @@ function makeState(id: string): EditorState {
     EditorView.lineWrapping,
     inform6(),
     EditorState.readOnly.of(!editable),
-    EditorView.contentAttributes.of({ 'aria-label': 'Inform 6 source editor' }),
+    EditorView.contentAttributes.of({
+      'aria-label': `${name}${editable ? '' : ', read-only'} — Inform 6 editor`,
+    }),
     themeComp.of(i6Theme(isDark())),
     keymap.of([
       { key: 'Mod-b', preventDefault: true, run: () => (runCompile(), true) },
@@ -55,13 +61,6 @@ function makeState(id: string): EditorState {
     }),
   ]
   return EditorState.create({ doc: readFile(id), extensions: exts })
-}
-
-// Editability for a non-active file id (mirrors the file list rules).
-function isEditable(id: string): boolean {
-  if (id === 'source') return true
-  if (id.startsWith('lib:')) return false
-  return id.startsWith('uploaded:')
 }
 
 function showFile(id: string) {
@@ -141,8 +140,9 @@ onBeforeUnmount(() => {
 <template>
   <div
     ref="host"
+    id="editor-tabpanel"
     role="tabpanel"
-    :aria-label="`Editing ${activeFile.name}${activeFile.editable ? '' : ' (read-only)'}`"
+    :aria-labelledby="`tab-${activeFile.id}`"
     class="h-full w-full overflow-hidden"
   />
 </template>

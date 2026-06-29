@@ -33,7 +33,9 @@ async function onKeydown(event: KeyboardEvent) {
       v-for="tab in openTabs"
       :key="tab.id"
       role="tab"
+      :id="`tab-${tab.id}`"
       :data-tab-id="tab.id"
+      aria-controls="editor-tabpanel"
       :aria-selected="tab.id === activeId"
       :tabindex="tab.id === activeId ? 0 : -1"
       :class="[
