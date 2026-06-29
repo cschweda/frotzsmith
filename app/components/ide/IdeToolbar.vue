@@ -4,15 +4,25 @@ import type { StoryExt } from '~/modules/inform6/types'
 
 const { format, profileMode, activeProfile, setProfileMode, targetMode, effectiveExt, setTargetMode } =
   useIde()
+const { activeFile } = useProjectFiles()
 const colorMode = useColorMode()
 const toast = useToast()
 
-// Prettify is instant and silent; a brief toast confirms the click registered.
 function onPrettify() {
+  if (!activeFile.value.editable) {
+    toast.add({
+      title: 'Read-only file',
+      description: `${activeFile.value.name} can't be edited.`,
+      icon: 'i-lucide-file-lock-2',
+      color: 'warning',
+      duration: 2500,
+    })
+    return
+  }
   format()
   toast.add({
     title: 'Prettified',
-    description: 'Re-indented and tidied the source.',
+    description: `Re-indented and tidied ${activeFile.value.name}.`,
     icon: 'i-lucide-wand-sparkles',
     color: 'success',
     duration: 2500,

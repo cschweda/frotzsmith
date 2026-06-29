@@ -2,6 +2,7 @@
 import { frotzsmith } from '~~/frotzsmith.config'
 
 const { restore, savedAt, activeProfile, profileMode, result, effectiveExt } = useIde()
+const { panelOpen } = useProjectFiles()
 const mobileView = ref<'editor' | 'output'>('editor')
 
 onMounted(() => restore())
@@ -65,25 +66,44 @@ const memClass = computed(() => {
       </button>
     </div>
 
-    <!-- Two-pane shell -->
-    <div class="min-h-0 flex-1 lg:grid lg:grid-cols-2 lg:divide-x lg:divide-default">
-      <section
-        :class="['h-full min-h-0 flex-col', mobileView === 'editor' ? 'flex' : 'hidden', 'lg:flex']"
-        aria-label="Source"
+    <!-- Explorer + two-pane shell -->
+    <div class="flex min-h-0 flex-1">
+      <!-- Desktop: collapsible explorer column -->
+      <aside
+        v-if="panelOpen"
+        class="hidden w-60 shrink-0 border-r border-default lg:block"
+        aria-label="File explorer"
       >
-        <TitleStrip />
-        <SourceToolbar />
-        <div class="min-h-0 flex-1">
-          <SourcePane />
-        </div>
-      </section>
-      <section
-        :class="['h-full min-h-0', mobileView === 'output' ? 'block' : 'hidden', 'lg:block']"
-        aria-label="Output"
-      >
-        <RightPaneTabs />
-      </section>
+        <FileExplorer />
+      </aside>
+
+      <div class="min-h-0 flex-1 lg:grid lg:grid-cols-2 lg:divide-x lg:divide-default">
+        <section
+          :class="['h-full min-h-0 flex-col', mobileView === 'editor' ? 'flex' : 'hidden', 'lg:flex']"
+          aria-label="Source"
+        >
+          <TitleStrip />
+          <SourceToolbar />
+          <EditorTabs />
+          <div class="min-h-0 flex-1">
+            <SourcePane />
+          </div>
+        </section>
+        <section
+          :class="['h-full min-h-0', mobileView === 'output' ? 'block' : 'hidden', 'lg:block']"
+          aria-label="Output"
+        >
+          <RightPaneTabs />
+        </section>
+      </div>
     </div>
+
+    <!-- Mobile: explorer as a slide-over drawer -->
+    <USlideover v-model:open="panelOpen" side="left" title="Project files" class="lg:hidden">
+      <template #body>
+        <FileExplorer />
+      </template>
+    </USlideover>
 
     <!-- Status bar -->
     <footer

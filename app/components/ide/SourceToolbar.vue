@@ -3,6 +3,7 @@ import { SAMPLES, type Sample } from '~/modules/inform6/samples'
 import type { ProfileId } from '~/modules/inform6/profiles'
 
 const { source, loadSample, loadSource, newProject } = useIde()
+const { togglePanel, panelOpen } = useProjectFiles()
 
 // One entry per concept; choose the library in a submenu instead of listing every
 // concept twice (saves space).
@@ -98,6 +99,15 @@ async function saveAs() {
 
 <template>
   <div class="flex shrink-0 items-center gap-2 border-b border-default px-3 py-2">
+    <UButton
+      color="neutral"
+      variant="ghost"
+      size="sm"
+      icon="i-lucide-panel-left"
+      :aria-label="panelOpen ? 'Hide file explorer' : 'Show file explorer'"
+      :aria-pressed="panelOpen"
+      @click="togglePanel"
+    />
     <UIcon name="i-lucide-file-code-2" class="text-muted size-4" />
     <span class="text-muted text-xs font-semibold uppercase tracking-wide">Source</span>
 
