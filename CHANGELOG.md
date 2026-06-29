@@ -37,6 +37,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **New Project** (title / author / library → skeleton), **Open `.inf`**,
   **Save As**, and crash-recovery autosave.
 
+### Added — file explorer & multi-file editing
+- **File explorer** — a collapsible panel (left column on desktop, a slide-over
+  drawer on mobile) listing the project's **compilation bundle**: the `story.inf`
+  source, enabled extensions, and a read-only **Library** group of the active
+  library's `.h` files (the group switches with Standard Library / PunyInform).
+- **Tabbed multi-file editing** — open any listed file in its own editor tab
+  (one CodeMirror view with a per-file state, so undo history and cursor survive
+  tab switches). `story.inf` is always open and non-closable; uploaded extensions
+  are editable; library and bundled-extension files open read-only (still
+  selectable and keyboard-scrollable, just not editable).
+- Panel open/closed state and the set of open tabs persist; clicking a compile
+  error still jumps to the source. Toggle the panel from the source toolbar
+  (and the explorer's own close button).
+
 ### Added — site & infrastructure
 - **Technical Details** page (`/technical`): the compile→play pipeline, Z-machine
   limits with measured numbers, "why Inform 6 over Inform 7", and a resource list
@@ -52,6 +66,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   headers tuned so the WASM compiler and ZVM player work under CSP.
 - Repository scaffolding: `LICENSE` (MIT), `README.md`, `.gitignore`,
   `.nvmrc` (Node 22), and the design & specification suite in `docs/`.
+
+### Fixed
+- Brought the repository to a **clean `yarn typecheck`** (resolved 12 pre-existing
+  strict-null / TS-library errors) and **zero axe-core violations** — fixing the
+  output-pane tablist's non-tab child, giving the editor textbox an accessible
+  name, making the editor scroll region keyboard-focusable, and raising the
+  line-number gutter contrast to WCAG AA. The advertised axe-zero / WCAG 2.1 AA
+  gate now holds.
 
 ### In progress
 - **Extensions**: a bundled `.h` catalog plus drop-your-own `.h` / `.zip`, with a
