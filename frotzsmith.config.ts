@@ -51,6 +51,7 @@ export const frotzsmith = {
     profileMode: 'frotzsmith:profile-mode',
     target: 'frotzsmith:target',
     extensions: 'frotzsmith:extensions',
+    explorer: 'frotzsmith:explorer',
   },
 
   // ── Inline play (Parchment) ───────────────────────────────────────────────

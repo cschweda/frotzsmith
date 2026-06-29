@@ -17,6 +17,7 @@ export function useIde() {
   const { source, savedAt, restore: restoreSource } = useSourceDocument()
   const { compile } = useCompiler()
   const { enabledFiles, restore: restoreExtensions } = useExtensions()
+  const { activeFile, readFile, writeActive, restore: restoreProjectFiles } = useProjectFiles()
 
   const status = useState<CompileStatus>('frotz:status', () => 'idle')
   const result = useState<CompileResult | null>('frotz:result', () => null)
@@ -55,6 +56,7 @@ export function useIde() {
       if (t === 'auto' || t === 'z3' || t === 'z4' || t === 'z5' || t === 'z8') targetMode.value = t
     }
     restoreExtensions()
+    restoreProjectFiles()
     restoreSource()
   }
 
@@ -84,9 +86,10 @@ export function useIde() {
     jumpSignal.value = { line, nonce: (jumpSignal.value?.nonce ?? 0) + 1 }
   }
 
-  /** Re-indent and tidy the source. Undoable in the editor. */
+  /** Re-indent and tidy the active editable file (source or an uploaded ext). */
   function format() {
-    source.value = formatI6(source.value)
+    if (!activeFile.value.editable) return
+    writeActive(formatI6(readFile(activeFile.value.id)))
   }
 
   function setProfileMode(mode: ProfileMode) {

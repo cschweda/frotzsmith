@@ -80,6 +80,14 @@ export function useExtensions() {
     persist()
   }
 
+  /** Persist an edit to an uploaded extension's `.h` content (no-op if unknown). */
+  function updateUploaded(id: string, content: string) {
+    const idx = uploaded.value.findIndex(e => e.id === id)
+    if (idx === -1) return
+    uploaded.value = uploaded.value.map(e => (e.id === id ? { ...e, content } : e))
+    persist()
+  }
+
   /** The files to mount for a compile: each enabled extension as { name, content }. */
   const enabledFiles = computed(() =>
     all.value.filter(e => isEnabled(e.id)).map(e => ({ name: e.name, content: e.content })),
@@ -93,6 +101,7 @@ export function useExtensions() {
     toggle,
     addUploaded,
     removeUploaded,
+    updateUploaded,
     enabledFiles,
     enabledCount,
     restore,
