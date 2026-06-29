@@ -59,3 +59,31 @@ export function buildProjectFileList(input: {
   }))
   return [...project, ...library]
 }
+
+export interface TabState {
+  activeId: string
+  openTabs: string[]
+}
+
+const isValid = (id: string, validIds: Set<string>) => id === 'source' || validIds.has(id)
+
+/** Drop tabs/active that no longer resolve; `source` is always present. */
+export function reconcileOpen(current: TabState, validIds: Set<string>): TabState {
+  const openTabs = current.openTabs.filter(id => isValid(id, validIds))
+  if (!openTabs.includes('source')) openTabs.unshift('source')
+  const activeId = isValid(current.activeId, validIds) && openTabs.includes(current.activeId)
+    ? current.activeId
+    : 'source'
+  return { activeId, openTabs }
+}
+
+/** Close a tab (never `source`); re-select the left neighbor when needed. */
+export function closeTabState(current: TabState, id: string): TabState {
+  if (id === 'source') return current
+  const idx = current.openTabs.indexOf(id)
+  if (idx === -1) return current
+  const openTabs = current.openTabs.filter(t => t !== id)
+  let activeId = current.activeId
+  if (activeId === id) activeId = current.openTabs[idx - 1] ?? 'source'
+  return { activeId, openTabs }
+}
