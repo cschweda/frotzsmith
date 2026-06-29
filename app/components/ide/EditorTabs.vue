@@ -2,16 +2,21 @@
 const { openTabs, activeId, openFile, closeTab } = useProjectFiles()
 
 // Arrow-key navigation across the tablist (WCAG: tabs are keyboard-operable).
-function onKeydown(event: KeyboardEvent) {
+// async so we can await nextTick() before moving DOM focus to the new tab.
+async function onKeydown(event: KeyboardEvent) {
   if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
   const ids = openTabs.value.map(t => t.id)
   const i = ids.indexOf(activeId.value)
   if (i === -1) return
   const next = event.key === 'ArrowRight' ? ids[i + 1] ?? ids[0] : ids[i - 1] ?? ids[ids.length - 1]
-  if (next) {
-    event.preventDefault()
-    openFile(next)
-  }
+  if (!next) return // noUncheckedIndexedAccess: both sides of ?? can be undefined on empty list
+  event.preventDefault()
+  openFile(next)
+  // Wait for the roving tabindex to re-render, then move focus so the ARIA
+  // tabs pattern (automatic activation) is satisfied: focus must follow selection.
+  await nextTick()
+  const host = event.currentTarget as HTMLElement
+  host.querySelector<HTMLElement>(`[data-tab-id="${next}"]`)?.focus()
 }
 </script>
 
@@ -26,6 +31,7 @@ function onKeydown(event: KeyboardEvent) {
       v-for="tab in openTabs"
       :key="tab.id"
       role="tab"
+      :data-tab-id="tab.id"
       :aria-selected="tab.id === activeId"
       :tabindex="tab.id === activeId ? 0 : -1"
       :class="[
