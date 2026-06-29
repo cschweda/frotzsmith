@@ -40,7 +40,7 @@ function makeState(id: string): EditorState {
     EditorView.lineWrapping,
     inform6(),
     EditorState.readOnly.of(!editable),
-    EditorView.editable.of(editable),
+    EditorView.contentAttributes.of({ 'aria-label': 'Inform 6 source editor' }),
     themeComp.of(i6Theme(isDark())),
     keymap.of([
       { key: 'Mod-b', preventDefault: true, run: () => (runCompile(), true) },

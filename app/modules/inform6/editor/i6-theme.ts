@@ -40,7 +40,7 @@ function chrome(dark: boolean) {
       '.cm-gutters': {
         backgroundColor: 'transparent',
         border: 'none',
-        color: dark ? '#484f58' : '#8c959f',
+        color: dark ? '#8b949e' : '#5d646d',
       },
       '.cm-activeLine': {
         backgroundColor: dark ? 'rgba(240,168,48,0.07)' : 'rgba(240,168,48,0.12)',
