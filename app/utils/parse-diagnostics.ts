@@ -36,7 +36,7 @@ export function parseDiagnostics(raw: string): ParsedDiagnostics {
 
     const m = LINE_RE.exec(trimmed)
     if (m) {
-      diagnostics.push({ line: Number(m[1]), severity: toSeverity(m[2]), message: m[3] })
+      diagnostics.push({ line: Number(m[1]), severity: toSeverity(m[2] ?? ''), message: m[3] ?? '' })
       continue
     }
 
@@ -45,15 +45,15 @@ export function parseDiagnostics(raw: string): ParsedDiagnostics {
       diagnostics.push({
         file: fm[1],
         line: Number(fm[2]),
-        severity: toSeverity(fm[3]),
-        message: fm[4],
+        severity: toSeverity(fm[3] ?? ''),
+        message: fm[4] ?? '',
       })
       continue
     }
 
     const b = BARE_RE.exec(trimmed)
     if (b) {
-      diagnostics.push({ severity: toSeverity(b[1]), message: b[2] })
+      diagnostics.push({ severity: toSeverity(b[1] ?? ''), message: b[2] ?? '' })
       continue
     }
 

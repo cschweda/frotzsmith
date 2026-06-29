@@ -28,9 +28,15 @@ export interface Inform6Instance {
 export function useCompilerWasm() {
   async function getFactory() {
     if (!factoryPromise) {
-      factoryPromise = import('~/modules/inform6/wasm/inform6.mjs').then(m => m.default)
+      factoryPromise = import('~/modules/inform6/wasm/inform6.mjs').then(
+        m => m.default as (opts?: Record<string, unknown>) => Promise<Inform6Instance>,
+      )
     }
-    return factoryPromise
+    // factoryPromise is non-null here (set in the if block if it was null).
+    // Capture in a const and guard so TypeScript can narrow the type.
+    const f = factoryPromise
+    if (!f) throw new Error('invariant: factory promise must be initialized')
+    return f
   }
 
   async function createInstance(hooks: CaptureHooks): Promise<Inform6Instance> {

@@ -14,8 +14,8 @@ const kb = (bytes: number) => `${Math.round(bytes / 1024)} KB`
 const z = frotzsmith.zmachine
 const versionRows = (['z3', 'z4', 'z5', 'z8'] as const).map(v => ({
   v,
-  size: kb(z.sizeCaps[v]),
-  objects: z.objectCaps[v].toLocaleString('en-US'),
+  size: kb(z.sizeCaps[v] ?? 0),
+  objects: (z.objectCaps[v] ?? 0).toLocaleString('en-US'),
 }))
 const dynMaxKb = kb(z.dynamicMemoryMax)
 

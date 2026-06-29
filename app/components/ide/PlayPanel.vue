@@ -23,7 +23,7 @@ function boot() {
     return
   }
   revoke()
-  blobUrl = URL.createObjectURL(new Blob([story], { type: 'application/octet-stream' }))
+  blobUrl = URL.createObjectURL(new Blob([new Uint8Array(story)], { type: 'application/octet-stream' }))
   // Parchment chooses the interpreter from the URL's extension, so tag the blob
   // URL with the story version (the #fragment is ignored when fetching the blob).
   const ext = result.value?.storyExt ?? 'z5'

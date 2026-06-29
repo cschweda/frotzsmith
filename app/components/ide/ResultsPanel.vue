@@ -25,7 +25,7 @@ function severityClass(s: string) {
 function downloadStory() {
   const r = result.value
   if (!r?.storyFile) return
-  const blob = new Blob([r.storyFile], { type: 'application/octet-stream' })
+  const blob = new Blob([new Uint8Array(r.storyFile)], { type: 'application/octet-stream' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
