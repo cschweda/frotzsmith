@@ -1,39 +1,8 @@
 <script setup lang="ts">
-import { SAMPLES, type Sample } from '~/modules/inform6/samples'
 import type { ProfileId } from '~/modules/inform6/profiles'
 
-const { source, loadSample, loadSource, newProject } = useIde()
+const { source, loadSource, newProject } = useIde()
 const { togglePanel, panelOpen } = useProjectFiles()
-
-// One entry per concept; choose the library in a submenu instead of listing every
-// concept twice (saves space).
-const sampleItems = computed(() => {
-  const byName = new Map<string, Partial<Record<ProfileId, Sample>>>()
-  for (const s of SAMPLES) {
-    const entry = byName.get(s.name) ?? {}
-    entry[s.group] = s
-    byName.set(s.name, entry)
-  }
-  // Always show both libraries; grey out the one a concept doesn't provide
-  // (e.g. a Standard-Library-only sample has no PunyInform variant).
-  return [
-    [...byName.values()].map(v => ({
-      label: (v.std ?? v.puny)!.name,
-      children: [
-        {
-          label: v.std ? 'Inform 6 (full)' : 'Inform 6 (full) · n/a',
-          icon: 'i-lucide-book-marked',
-          ...(v.std ? { onSelect: () => loadSample(v.std!.id) } : { disabled: true }),
-        },
-        {
-          label: v.puny ? 'PunyInform' : 'PunyInform · n/a',
-          icon: 'i-lucide-feather',
-          ...(v.puny ? { onSelect: () => loadSample(v.puny!.id) } : { disabled: true }),
-        },
-      ],
-    })),
-  ]
-})
 
 // New-project modal state.
 const open = ref(false)
@@ -121,12 +90,6 @@ async function saveAs() {
       <UButton color="neutral" variant="subtle" size="sm" icon="i-lucide-save" @click="saveAs">
         Save As
       </UButton>
-
-      <UDropdownMenu :items="sampleItems">
-        <UButton color="neutral" variant="subtle" size="sm" icon="i-lucide-book-open-text" trailing-icon="i-lucide-chevron-down">
-          Samples
-        </UButton>
-      </UDropdownMenu>
 
       <UButton color="primary" variant="subtle" size="sm" icon="i-lucide-file-plus-2" @click="open = true">
         New Project
