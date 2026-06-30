@@ -46,7 +46,7 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      title: 'Frotzsmith — Inform 6 IDE',
+      title: 'Frotzsmith — Interactive Fiction IDE',
       htmlAttrs: { lang: 'en' },
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
@@ -56,22 +56,22 @@ export default defineNuxtConfig({
         // Open Graph
         { property: 'og:type', content: 'website' },
         { property: 'og:site_name', content: 'Frotzsmith' },
-        { property: 'og:title', content: 'Frotzsmith — a browser-based Inform 6 IDE' },
+        { property: 'og:title', content: 'Frotzsmith — a browser-based Interactive Fiction IDE' },
         {
           property: 'og:description',
-          content: 'Write, compile, and play Inform 6 interactive fiction entirely in your browser.',
+          content: 'Write, compile, and play interactive fiction entirely in your browser — Inform 6, with ZIL coming.',
         },
         { property: 'og:url', content: `${SITE_URL}/` },
         { property: 'og:image', content: `${SITE_URL}/og-image.png` },
         { property: 'og:image:width', content: '1200' },
         { property: 'og:image:height', content: '630' },
-        { property: 'og:image:alt', content: 'Frotzsmith — a browser-based Inform 6 IDE' },
+        { property: 'og:image:alt', content: 'Frotzsmith — a browser-based Interactive Fiction IDE' },
         // Twitter
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:title', content: 'Frotzsmith — a browser-based Inform 6 IDE' },
+        { name: 'twitter:title', content: 'Frotzsmith — a browser-based Interactive Fiction IDE' },
         {
           name: 'twitter:description',
-          content: 'Write, compile, and play Inform 6 interactive fiction entirely in your browser.',
+          content: 'Write, compile, and play interactive fiction entirely in your browser — Inform 6, with ZIL coming.',
         },
         { name: 'twitter:image', content: `${SITE_URL}/og-image.png` },
       ],

@@ -1,6 +1,6 @@
 # Frotzsmith Roadmap
 
-Frotzsmith is a browser-based **Inform 6** IDE: write, compile to a Z-machine
+Frotzsmith is a browser-based **Interactive Fiction** IDE (Inform 6 today; ZIL in progress): write, compile to a Z-machine
 story file entirely client-side, and play it inline. See
 [CHANGELOG.md](./CHANGELOG.md) for what's shipped, and
 [`docs/13-v2-roadmap.md`](./docs/13-v2-roadmap.md) for detailed feasibility notes.

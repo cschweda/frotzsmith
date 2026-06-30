@@ -1,8 +1,8 @@
 # Frotzsmith
 
-![Frotzsmith — a browser-based Inform 6 IDE](./public/og-image.png)
+![Frotzsmith — a browser-based Interactive Fiction IDE](./public/og-image.png)
 
-> A personal, browser-based IDE for **Inform 6** — write source, compile to a Z-machine story file entirely client-side, play it inline, and run long test scripts against it. No backend, no accounts, offline-capable.
+> A personal, browser-based **Interactive Fiction** IDE — write source, compile to a Z-machine story file entirely client-side, play it inline, and run long test scripts. **Inform 6 (+ PunyInform) today; ZIL in progress.** No backend, no accounts, offline-capable.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82.svg)](https://nuxt.com)
@@ -11,7 +11,7 @@
 [![WCAG 2.1 AA](https://img.shields.io/badge/a11y-WCAG%202.1%20AA-success.svg)](https://www.w3.org/WAI/WCAG21/quickref/)
 [![Status](https://img.shields.io/badge/status-alpha-orange.svg)](./docs/00-master-design.md)
 
-> **Status — working alpha.** Write Inform 6, compile to a Z-machine story file entirely in the browser (Standard Library or PunyInform, auto-detected), **play it inline** via Parchment + the pure-JS ZVM, **capture your playthrough and replay command scripts headlessly**, load 21 worked samples, and pull in your own extensions. See [ROADMAP.md](./ROADMAP.md) for what's next and [CHANGELOG.md](./CHANGELOG.md) for what's shipped; design docs live in [`docs/`](./docs).
+> **Status — Inform 6 beta · ZIL alpha (in progress).** Write Inform 6, compile to a Z-machine story file entirely in the browser (Standard Library or PunyInform, auto-detected), **play it inline** via Parchment + the pure-JS ZVM, **capture your playthrough and replay command scripts headlessly**, load 21 worked samples, and pull in your own extensions. See [ROADMAP.md](./ROADMAP.md) for what's next and [CHANGELOG.md](./CHANGELOG.md) for what's shipped; design docs live in [`docs/`](./docs).
 
 ## What it is
 
@@ -23,7 +23,7 @@ A power-user testing layer runs arbitrarily long command scripts (`n. examine ro
 
 Inform 6 is the author's favourite IF language, but browser tooling is fragmented: interpreters play *finished* story files, and the Inform 7 IDE is a desktop app tied to I7's natural-language layer. There is no clean, modern, browser-native place to **write I6, compile it, and immediately play it** with library auto-import and saved test scripts. Frotzsmith fills that gap — primarily for the author's own use, secondarily as a shareable open-source tool.
 
-[Borogove](https://borogove.app) is the nearest neighbour and is excellent; Frotzsmith is narrower by design — Inform 6 only, profile-driven, fully static/offline, account-free, with a closer Inform 7-IDE feel and a script→Skein testing spine.
+[Borogove](https://borogove.app) is the nearest neighbour and is excellent; Frotzsmith is narrower by design — Inform 6 today (ZIL in progress), profile-driven, fully static/offline, account-free, with a closer Inform 7-IDE feel and a script→Skein testing spine.
 
 ## The loop
 

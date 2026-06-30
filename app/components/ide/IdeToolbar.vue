@@ -123,7 +123,7 @@ function toggleTheme() {
       </span>
       <div class="leading-none">
         <p class="text-lg font-extrabold tracking-tight">Frotzsmith</p>
-        <p class="text-muted text-[10px] font-semibold uppercase tracking-widest">Inform 6 IDE</p>
+        <p class="text-muted text-[10px] font-semibold uppercase tracking-widest">Interactive Fiction IDE</p>
       </div>
     </div>
 
