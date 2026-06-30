@@ -21,7 +21,7 @@ export function useTranscript() {
     const story = result.value?.storyFile
     if (!story) return
 
-    activeTab.value = 'transcript' // stateful right pane focuses the run
+    activeTab.value = 'testscript' // stateful right pane focuses the run
     running.value = true
     error.value = null
     turns.value = []
