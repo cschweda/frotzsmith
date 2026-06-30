@@ -6,6 +6,7 @@ const colorMode = useColorMode()
 // The compiled story plays in a Parchment iframe (pure-JS ZVM). We hand the
 // in-memory story bytes to it as a same-origin blob URL via ?story=.
 const container = ref<HTMLElement | null>(null)
+const playFrame = ref<HTMLIFrameElement | null>(null)
 const isFullscreen = ref(false)
 const src = ref<string | null>(null)
 let blobUrl: string | null = null
@@ -51,6 +52,7 @@ interface PlayMessage {
 // boundary). The value is data — appended to a list, never executed.
 function onMessage(e: MessageEvent) {
   if (e.origin !== window.location.origin) return
+  if (e.source !== playFrame.value?.contentWindow) return
   const data = e.data as PlayMessage | null
   if (!data || data.source !== 'frotzsmith-play') return
   if (data.type === 'command' && typeof data.value === 'string') record(data.value)
@@ -83,7 +85,7 @@ onBeforeUnmount(() => {
         :aria-label="isFullscreen ? 'Exit full screen' : 'Play full screen'"
         @click="toggleFullscreen"
       />
-      <iframe :src="src" class="h-full w-full border-0" title="Game — Parchment interpreter" />
+      <iframe ref="playFrame" :src="src" class="h-full w-full border-0" title="Game — Parchment interpreter" />
     </template>
     <div
       v-else

@@ -12,7 +12,12 @@
   var __params = new URLSearchParams(location.search);
   // Match the IDE's light/dark theme (passed in via ?theme=).
   if (__params.get('theme') === 'dark') document.documentElement.classList.add('frotz-dark');
-  parchment_options = { default_story: [__params.get('story') || '/play/demo.z5'], lib_path: 'web/' };
+  // Security (audit 2026-06-30): only accept a same-origin blob: story URL — the
+  // IDE's own compiled output. Reject data:/http(s)/external URLs so a crafted link
+  // can't deliver an attacker-controlled Z-machine binary into the player/JIT.
+  var __story = __params.get('story');
+  if (!__story || __story.slice(0, 5) !== 'blob:') __story = '/play/demo.z5';
+  parchment_options = { default_story: [__story], lib_path: 'web/' };
 </script>
 <script src="web/main.js" type="module"></script>
 <link rel="stylesheet" href="web/web.css">
