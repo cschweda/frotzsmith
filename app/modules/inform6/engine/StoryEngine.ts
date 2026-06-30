@@ -1,3 +1,6 @@
+import { ZmachineEngine } from './ZmachineEngine'
+import { GlulxEngine } from './GlulxEngine'
+
 export type EngineTarget = 'zmachine' | 'glulx'
 
 export interface TurnRecord {
@@ -33,4 +36,9 @@ export interface StoryEngine {
   reset(): Promise<string>
 }
 
-// createEngine() is added in Task 4 once GlulxEngine exists.
+/** The interpreter is chosen by the compiled target; nothing downstream branches
+ *  on VM type (ADR-002). `.z3/.z5/.z8 → zmachine`; `.ulx → glulx` (throws). */
+export function createEngine(target: EngineTarget): StoryEngine {
+  if (target === 'glulx') return new GlulxEngine()
+  return new ZmachineEngine()
+}
