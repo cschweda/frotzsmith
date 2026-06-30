@@ -78,7 +78,7 @@
   })()
 
   // --- Auto-map capture: post the room (status line) + this turn's new buffer text ---
-  var __frotzPrevBufferLen = 0
+  var __frotzPrevLineCount = 0
   var __frotzLastRoom = ''
   function __frotzReadRoom() {
     if (window.__frotzScriptRunning) return
@@ -89,17 +89,13 @@
     var name = line0.split(/\s{2,}/)[0].trim()
     if (!name) return
     var buffer = document.querySelector('.BufferWindow')
-    var full = ''
-    if (buffer) { // join the line divs, skipping the window's <style> child
-      var blines = buffer.querySelectorAll('.BufferLine')
-      for (var bi = 0; bi < blines.length; bi++) full += (blines[bi].textContent || '') + String.fromCharCode(10)
-    }
-    // Buffer accumulates; the suffix added since last read is this turn's output.
-    if (full.length < __frotzPrevBufferLen) __frotzPrevBufferLen = 0 // a screen clear
-    var text = full.slice(__frotzPrevBufferLen)
+    var blines = buffer ? buffer.querySelectorAll('.BufferLine') : []
+    if (blines.length < __frotzPrevLineCount) __frotzPrevLineCount = 0 // screen clear
+    var text = ''
+    for (var bi = __frotzPrevLineCount; bi < blines.length; bi++) text += (blines[bi].textContent || '') + String.fromCharCode(10)
     // Only post when the room or the buffer changed (coalesce observer bursts).
     if (name === __frotzLastRoom && text.length === 0) return
-    __frotzPrevBufferLen = full.length
+    __frotzPrevLineCount = blines.length
     __frotzLastRoom = name
     parent.postMessage({ source: 'frotzsmith-play', type: 'room', name: name, text: text }, location.origin)
   }
@@ -118,10 +114,10 @@
   }
   // Start once GlkOte has built the windows. If the command hook already waits for
   // GlkOte readiness, start there; otherwise poll briefly:
-  ;(function waitForWindows() {
+  ;(function waitForWindows(n) {
     if (document.querySelector('.GridWindow')) __frotzStartMapObserver()
-    else setTimeout(waitForWindows, 120)
-  })()
+    else if (n > 0) setTimeout(function() { waitForWindows(n - 1) }, 120)
+  })(30)
 </script>
 </body>
 </html>

@@ -9,7 +9,7 @@ let mapWatchRegistered = false
 
 export function useMap() {
   // Read the active story key directly (do NOT call useIde() — avoid re-entrancy).
-  const activeStoryKey = useState<string>('frotz:story-key', () => '')
+  const activeStoryKey = useState<string>('frotz:story-key', () => 'untitled')
   const graph = useState<MapGraph>('frotz:map-graph', emptyGraph)
   const currentRoom = useState<string | null>('frotz:map-current', () => null)
   const roomText = useState<Record<string, string>>('frotz:map-roomtext', () => ({}))
@@ -31,7 +31,8 @@ export function useMap() {
 
   function recordRoom(name: string, text: string) {
     if (!name) return
-    if (text) roomText.value = { ...roomText.value, [name]: text }
+    const entered = name !== currentRoom.value
+    if (text && entered) roomText.value = { ...roomText.value, [name]: text }
     graph.value = addStep(graph.value, prevRoom.value, lastDir.value, name)
     currentRoom.value = name
     lastDir.value = null // a later redraw without a fresh command must not draw an edge
