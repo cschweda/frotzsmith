@@ -67,6 +67,10 @@ export function useIde() {
   async function runCompile() {
     if (status.value === 'compiling') return
     status.value = 'compiling'
+    // Fresh build → blank the captured play transcript and the last script-run output.
+    // Saved scripts are kept; nothing is auto-run (scripts run only via the Run button).
+    usePlayTranscript().reset()
+    useTranscript().reset()
     activeTab.value = 'results'
     const pid = effectiveProfile.value
     await new Promise(resolve => setTimeout(resolve, 0)) // let "Compiling…" paint

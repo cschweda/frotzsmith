@@ -51,5 +51,12 @@ export function useTranscript() {
     cancelFn?.()
   }
 
-  return { turns, running, progress, ms, error, run, cancel }
+  function reset() {
+    turns.value = []
+    ms.value = null
+    error.value = null
+    progress.value = null
+  }
+
+  return { turns, running, progress, ms, error, run, cancel, reset }
 }

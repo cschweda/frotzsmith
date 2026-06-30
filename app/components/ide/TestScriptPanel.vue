@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { parseScript } from '~/modules/inform6/engine/parseScript'
 
-const { scripts, activeId, activeScript, add, rename, remove, select, restore } = useTestScripts()
+const { scripts, activeId, activeScript, add, addFromText, rename, remove, updateText, select, restore } = useTestScripts()
 const { turns, running, progress, ms, error, run, cancel } = useTranscript()
 const { canPlay } = useIde()
 
@@ -19,10 +19,7 @@ const scriptItems = computed(() => [
     {
       label: 'Rename…',
       icon: 'i-lucide-pencil',
-      onSelect: () => {
-        const name = activeScript.value && window.prompt('Script name', activeScript.value.name)
-        if (name && activeScript.value) rename(activeScript.value.id, name)
-      },
+      onSelect: () => openRename(),
     },
     {
       label: 'Delete',
@@ -42,6 +39,22 @@ const liveStatus = computed(() => {
 function onRun() {
   run(parseScript(activeScript.value?.text ?? ''))
 }
+
+// ── Rename modal ──────────────────────────────────────────────────────────────
+const renaming = ref(false)
+const renameValue = ref('')
+
+function openRename() {
+  if (!activeScript.value) return
+  renameValue.value = activeScript.value.name
+  renaming.value = true
+}
+
+function confirmRename() {
+  const name = renameValue.value.trim()
+  if (name && activeScript.value) rename(activeScript.value.id, name)
+  renaming.value = false
+}
 </script>
 
 <template>
@@ -55,6 +68,12 @@ function onRun() {
       </UDropdownMenu>
 
       <UButton
+        color="neutral" variant="subtle" size="sm" icon="i-lucide-pencil"
+        :disabled="!activeScript" title="Rename this script" aria-label="Rename script"
+        @click="openRename"
+      />
+
+      <UButton
         v-if="!running"
         color="primary"
         size="sm"
@@ -66,6 +85,15 @@ function onRun() {
         Run
       </UButton>
       <UButton v-else color="error" size="sm" icon="i-lucide-square" @click="cancel">Cancel</UButton>
+
+      <UButton
+        color="neutral" variant="subtle" size="sm" icon="i-lucide-eraser"
+        :disabled="!activeScript || !activeScript.text"
+        title="Clear this script's commands" aria-label="Clear script"
+        @click="activeScript && updateText(activeScript.id, '')"
+      >
+        Clear
+      </UButton>
 
       <span role="status" aria-live="polite" class="text-muted ml-auto text-sm">{{ liveStatus }}</span>
     </div>
@@ -92,4 +120,26 @@ function onRun() {
       </div>
     </div>
   </div>
+
+  <!-- Rename modal -->
+  <UModal
+    v-model:open="renaming"
+    title="Rename Script"
+    description="Enter a new name for this test script."
+  >
+    <template #body>
+      <UInput
+        v-model="renameValue"
+        autofocus
+        placeholder="Script name"
+        @keydown.enter="confirmRename"
+      />
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton color="neutral" variant="ghost" @click="renaming = false">Cancel</UButton>
+        <UButton color="primary" :disabled="!renameValue.trim()" @click="confirmRename">Save</UButton>
+      </div>
+    </template>
+  </UModal>
 </template>

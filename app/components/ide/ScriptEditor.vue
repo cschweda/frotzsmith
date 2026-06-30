@@ -72,6 +72,17 @@ watch(activeId, () => {
   if (view) view.setState(makeState(activeScript.value?.text ?? ''))
 })
 
+// Reflect external text changes (e.g. the Clear button) without fighting user typing:
+// only reload when the store text actually differs from the editor's current doc.
+watch(
+  () => activeScript.value?.text,
+  newText => {
+    if (view && newText !== undefined && newText !== view.state.doc.toString()) {
+      view.setState(makeState(newText))
+    }
+  },
+)
+
 // Dark/light swap without tearing down the editor.
 watch(
   () => colorMode.value,
