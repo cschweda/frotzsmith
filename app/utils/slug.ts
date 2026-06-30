@@ -4,7 +4,7 @@ export function slugify(s: string): string {
     .toLowerCase()
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')   // strip diacritics
-    .replace(/['']/g, '')          // drop apostrophes (hermit's → hermits)
+    .replace(/['’]/g, '')     // drop straight + curly apostrophes (hermit's → hermits)
     .replace(/[^a-z0-9]+/g, '-')        // other non-alphanumerics → hyphen
     .replace(/^-+|-+$/g, '')            // trim leading/trailing hyphens
 }

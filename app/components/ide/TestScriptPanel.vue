@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { parseScript } from '~/modules/inform6/engine/parseScript'
 
-const { scripts, activeId, activeScript, add, addFromText, rename, remove, updateText, select, restore } = useTestScripts()
+const { scripts, activeId, activeScript, add, rename, remove, updateText, select, restore } = useTestScripts()
 const { turns, running, progress, ms, error, run, cancel } = useTranscript()
 const { canPlay } = useIde()
 
@@ -52,7 +52,8 @@ function openRename() {
 
 function confirmRename() {
   const name = renameValue.value.trim()
-  if (name && activeScript.value) rename(activeScript.value.id, name)
+  if (!name) return // ignore an empty/whitespace-only name (e.g. Enter); keep the modal open
+  if (activeScript.value) rename(activeScript.value.id, name)
   renaming.value = false
 }
 </script>

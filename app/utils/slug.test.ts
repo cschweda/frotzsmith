@@ -6,8 +6,9 @@ describe('slugify', () => {
     expect(slugify('Haunted House')).toBe('haunted-house')
     expect(slugify('FROTZSMITH DEMO')).toBe('frotzsmith-demo')
   })
-  it('drops apostrophes and collapses punctuation', () => {
+  it('drops straight and curly apostrophes, collapses punctuation', () => {
     expect(slugify("The Hermit's Tale!")).toBe('the-hermits-tale')
+    expect(slugify('The Hermit’s Tale!')).toBe('the-hermits-tale')
   })
   it('trims leading/trailing separators', () => {
     expect(slugify('  --Cave--  ')).toBe('cave')
