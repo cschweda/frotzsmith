@@ -211,6 +211,8 @@ const dirWord: Record<Dir, string> = {
 
 /** Name of the room currently under the cursor or keyboard focus. */
 const hovered = ref<string | null>(null)
+/** Name of the room that has keyboard focus (drives the visible focus ring). */
+const focused = ref<string | null>(null)
 
 /** Exits, objects, and one-line description for the hovered room. */
 const hoveredDetails = computed(() => hovered.value ? details(hovered.value) : null)
@@ -279,9 +281,20 @@ const hoveredDetails = computed(() => hovered.value ? details(hovered.value) : n
           class="outline-none"
           @mouseenter="hovered = r.name"
           @mouseleave="hovered = null"
-          @focus="hovered = r.name"
-          @blur="hovered = null"
+          @focus="hovered = r.name; focused = r.name"
+          @blur="hovered = null; focused = null"
         >
+          <!-- Focus ring: visible primary-colour halo, distinct from the amber current-room stroke -->
+          <rect
+            v-if="r.name === focused"
+            :x="-ROOM_W / 2 - 3" :y="-ROOM_H / 2 - 3"
+            :width="ROOM_W + 6" :height="ROOM_H + 6"
+            rx="10"
+            fill="none"
+            class="stroke-primary"
+            stroke-width="2.5"
+            pointer-events="none"
+          />
           <rect
             :x="-ROOM_W / 2" :y="-ROOM_H / 2"
             :width="ROOM_W" :height="ROOM_H"
@@ -298,7 +311,6 @@ const hoveredDetails = computed(() => hovered.value ? details(hovered.value) : n
       <div
         v-if="hovered && hoveredDetails"
         class="absolute bottom-2 left-2 z-10 w-56 rounded-lg border bg-elevated/95 p-3 shadow-lg backdrop-blur-sm"
-        role="tooltip"
         aria-live="polite"
       >
         <p class="mb-1.5 text-sm font-semibold leading-tight">{{ hovered }}</p>

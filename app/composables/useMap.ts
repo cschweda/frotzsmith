@@ -4,10 +4,6 @@ import {
   type Dir, type MapGraph,
 } from './map-graph'
 
-function firstLine(t: string): string {
-  return t.split('\n').map(l => l.trim()).find(Boolean) ?? ''
-}
-
 // Register the cross-game reset watcher exactly once (see the note in useMap).
 let mapWatchRegistered = false
 
@@ -43,7 +39,9 @@ export function useMap() {
 
   function details(room: string) {
     const t = roomText.value[room] ?? ''
-    return { exits: exitsOf(graph.value, room), objects: parseObjects(t), description: firstLine(t) }
+    const lines = t.split('\n').map(l => l.trim())
+    const description = lines.find(l => Boolean(l) && !l.startsWith('>') && l !== room) ?? ''
+    return { exits: exitsOf(graph.value, room), objects: parseObjects(t), description }
   }
 
   const layout = computed(() => computeLayout(graph.value))
