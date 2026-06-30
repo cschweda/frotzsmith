@@ -18,6 +18,7 @@ export function useIde() {
   const { compile } = useCompiler()
   const { enabledFiles, restore: restoreExtensions } = useExtensions()
   const { activeFile, readFile, writeActive, restore: restoreProjectFiles } = useProjectFiles()
+  const { restore: restoreScripts } = useTestScripts()
 
   const status = useState<CompileStatus>('frotz:status', () => 'idle')
   const result = useState<CompileResult | null>('frotz:result', () => null)
@@ -60,6 +61,7 @@ export function useIde() {
     // restored source's library profile (not the demo's), keeping library tabs.
     restoreSource()
     restoreProjectFiles()
+    restoreScripts()
   }
 
   async function runCompile() {
