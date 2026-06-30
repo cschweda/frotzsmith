@@ -7,8 +7,13 @@
  * useTestScripts reads `useState('frotz:story-key')` directly (to avoid circular
  * import with useIde). We control activeStoryKey by getting the same ref.
  */
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { nextTick } from 'vue'
+
+// Provide useLanguage as a global so useTestScripts can resolve it as an
+// auto-import (free variable) in the happy-dom test environment.
+import { useLanguage } from './useLanguage'
+vi.stubGlobal('useLanguage', useLanguage)
 
 // Dynamic imports ensure stubs from nuxt-setup.ts are in place first.
 const { useTestScripts } = await import('./useTestScripts')
@@ -179,8 +184,8 @@ describe('useTestScripts — localStorage persistence round-trip', () => {
     add('Saved Script')
     expect(initialScripts.value.some(s => s.name === 'Saved Script')).toBe(true)
 
-    // Verify localStorage was written
-    const raw = localStorage.getItem('frotzsmith:scripts')
+    // Verify localStorage was written under the namespaced key
+    const raw = localStorage.getItem('frotzsmith:i6:scripts')
     expect(raw).toBeTruthy()
     const parsed = JSON.parse(raw!)
     expect(parsed.v).toBe(2)
@@ -200,7 +205,7 @@ describe('useTestScripts — localStorage persistence round-trip', () => {
   })
 
   it('restore with no localStorage data seeds the default Script 1', () => {
-    expect(localStorage.getItem('frotzsmith:scripts')).toBeNull()
+    expect(localStorage.getItem('frotzsmith:i6:scripts')).toBeNull()
     const { restore, scripts } = useTestScripts()
     restore()
     // ensureBucket seeds a default script when the bucket is empty

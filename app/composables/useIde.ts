@@ -2,7 +2,8 @@ import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { formatI6 } from '~/utils/format-i6'
 import { PROFILES, detectProfile, type ProfileId } from '~/modules/inform6/profiles'
 import { sampleById } from '~/modules/inform6/samples'
-import { frotzsmith } from '~~/frotzsmith.config'
+import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
+import { migrateStorageKeys } from './useStorageMigration'
 
 export type CompileStatus = 'idle' | 'compiling' | 'success' | 'error'
 export type RightTab = 'results' | 'play' | 'transcript' | 'testscript' | 'map'
@@ -69,9 +70,13 @@ export function useIde() {
   /** Restore the persisted profile mode, then the source recovery snapshot. */
   function restore() {
     if (import.meta.client) {
-      const saved = localStorage.getItem(frotzsmith.storageKeys.profileMode)
+      // One-time migration of un-prefixed keys → per-language namespace (Task 4).
+      migrateStorageKeys(profile.value.stateKey)
+      const profileModeKey = buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.profileMode)
+      const targetKey = buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.target)
+      const saved = localStorage.getItem(profileModeKey)
       if (saved === 'auto' || saved === 'std' || saved === 'puny') profileMode.value = saved
-      const t = localStorage.getItem(frotzsmith.storageKeys.target)
+      const t = localStorage.getItem(targetKey)
       if (t !== null && (t === 'auto' || (profile.value.versionTargets as string[]).includes(t)))
         targetMode.value = t as 'auto' | StoryExt
     }
@@ -128,12 +133,14 @@ export function useIde() {
 
   function setProfileMode(mode: ProfileMode) {
     profileMode.value = mode
-    if (import.meta.client) localStorage.setItem(frotzsmith.storageKeys.profileMode, mode)
+    if (import.meta.client)
+      localStorage.setItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.profileMode), mode)
   }
 
   function setTargetMode(mode: 'auto' | StoryExt) {
     targetMode.value = mode
-    if (import.meta.client) localStorage.setItem(frotzsmith.storageKeys.target, mode)
+    if (import.meta.client)
+      localStorage.setItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.target), mode)
   }
 
   /** Load a built-in sample into the editor, prettified for consistent formatting. */

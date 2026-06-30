@@ -8,7 +8,7 @@ import {
 } from '~/composables/project-files'
 import type { ProfileMode } from '~/composables/useIde'
 import { PROFILES, detectProfile } from '~/modules/inform6/profiles'
-import { frotzsmith } from '~~/frotzsmith.config'
+import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 
 /**
  * Reactive model behind the file explorer + editor tabs. The file list mirrors
@@ -20,6 +20,11 @@ export function useProjectFiles() {
   const { all, isEnabled, updateUploaded } = useExtensions()
   const { profile } = useLanguage()
   const sourceName = computed(() => `story.${profile.value.fileExt}`)
+
+  /** Namespaced localStorage key for the active language (e.g. frotzsmith:i6:explorer). */
+  function getKey(): string {
+    return buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.explorer)
+  }
 
   // Active library: same derivation as useIde (auto-detect vs forced), read from
   // the shared `profileMode` state so we don't depend on (and cycle through) useIde.
@@ -66,7 +71,7 @@ export function useProjectFiles() {
     if (!import.meta.client) return
     try {
       localStorage.setItem(
-        frotzsmith.storageKeys.explorer,
+        getKey(),
         JSON.stringify({ open: panelOpen.value, ...tabs.value }),
       )
     } catch {
@@ -112,7 +117,7 @@ export function useProjectFiles() {
   function restore() {
     if (!import.meta.client) return
     try {
-      const raw = localStorage.getItem(frotzsmith.storageKeys.explorer)
+      const raw = localStorage.getItem(getKey())
       if (raw) {
         const data = JSON.parse(raw) as { open?: boolean; activeId?: string; openTabs?: string[] }
         if (typeof data.open === 'boolean') panelOpen.value = data.open

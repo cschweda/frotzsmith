@@ -1,6 +1,6 @@
 import type { Extension } from '~/modules/inform6/extensions'
 import { BUNDLED_EXTENSIONS } from '~/modules/inform6/extensions'
-import { frotzsmith } from '~~/frotzsmith.config'
+import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 
 /**
  * Manages Inform 6 extensions: the bundled catalog plus the author's uploaded
@@ -11,6 +11,12 @@ import { frotzsmith } from '~~/frotzsmith.config'
 export function useExtensions() {
   const uploaded = useState<Extension[]>('frotz:ext-uploaded', () => [])
   const enabledIds = useState<string[]>('frotz:ext-enabled', () => [])
+  const { profile } = useLanguage()
+
+  /** Namespaced localStorage key for the active language (e.g. frotzsmith:i6:extensions). */
+  function getKey(): string {
+    return buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.extensions)
+  }
 
   function persist() {
     if (!import.meta.client) return
@@ -19,7 +25,7 @@ export function useExtensions() {
       enabled: enabledIds.value,
     }
     try {
-      localStorage.setItem(frotzsmith.storageKeys.extensions, JSON.stringify(data))
+      localStorage.setItem(getKey(), JSON.stringify(data))
     } catch {
       // QuotaExceededError — keep working in memory
     }
@@ -28,7 +34,7 @@ export function useExtensions() {
   function restore() {
     if (!import.meta.client) return
     try {
-      const raw = localStorage.getItem(frotzsmith.storageKeys.extensions)
+      const raw = localStorage.getItem(getKey())
       if (!raw) return
       const data = JSON.parse(raw) as { uploaded?: Extension[]; enabled?: string[] }
       if (Array.isArray(data.uploaded)) {

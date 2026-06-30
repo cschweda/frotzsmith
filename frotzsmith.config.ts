@@ -63,3 +63,14 @@ export const frotzsmith = {
 } as const
 
 export type FrotzsmithConfig = typeof frotzsmith
+
+/**
+ * Build a namespaced localStorage key for a given language state key.
+ * Inserts `stateKey` between the `frotzsmith:` prefix and the rest of the base key.
+ *
+ * Example: buildStorageKey('i6', 'frotzsmith:scripts') → 'frotzsmith:i6:scripts'
+ */
+export function buildStorageKey(stateKey: string, baseKey: string): string {
+  const short = baseKey.slice('frotzsmith:'.length)
+  return `frotzsmith:${stateKey}:${short}`
+}

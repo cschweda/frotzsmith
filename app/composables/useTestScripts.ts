@@ -1,4 +1,4 @@
-import { frotzsmith } from '~~/frotzsmith.config'
+import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 import {
   type TestScript,
   type PersistedV2,
@@ -9,8 +9,6 @@ import {
   nextActiveId,
   migrateScriptStore,
 } from './test-scripts'
-
-const KEY = frotzsmith.storageKeys.scripts
 
 interface Bucket {
   scripts: TestScript[]
@@ -34,6 +32,12 @@ export function useTestScripts() {
   // Read the shared state directly to avoid the circular call:
   // useIde() calls useTestScripts(), so calling useIde() here would recurse.
   const activeStoryKey = useState<string>('frotz:story-key', () => 'untitled')
+  const { profile } = useLanguage()
+
+  /** Namespaced localStorage key for the active language (e.g. frotzsmith:i6:scripts). */
+  function getKey(): string {
+    return buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.scripts)
+  }
 
   const buckets = useState<Record<string, Bucket>>('frotz:script-buckets', () => ({}))
 
@@ -49,7 +53,7 @@ export function useTestScripts() {
     if (!import.meta.client) return
     try {
       const data: PersistedV2 = { v: 2, buckets: buckets.value }
-      localStorage.setItem(KEY, JSON.stringify(data))
+      localStorage.setItem(getKey(), JSON.stringify(data))
     } catch {
       // QuotaExceededError — keep working in memory
     }
@@ -85,7 +89,7 @@ export function useTestScripts() {
   function restore() {
     if (!import.meta.client) return
     try {
-      const raw = localStorage.getItem(KEY)
+      const raw = localStorage.getItem(getKey())
       if (raw) {
         const parsed = JSON.parse(raw) as unknown
         const migrated = migrateScriptStore(parsed, activeStoryKey.value)
