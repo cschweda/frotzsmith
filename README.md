@@ -99,6 +99,27 @@ yarn preview    # preview the static build
 
 Frotzsmith is fully client-side with no backend, no accounts, and no user data leaving the browser. The design-level threat model lives in [`docs/06-security.md`](./docs/06-security.md); periodic red/blue audits are logged under **Security audits** below.
 
+## Security audits
+
+Periodic adversarial (red-team) + defensive (blue-team) reviews of the client-side attack surface. Newest first; as audits accumulate, older entries are collapsed under a `<details>` toggle. Each finding is paired with its specific mitigation — applied or recommended.
+
+### 2026-06-30 — Red/blue audit (play-transcript release)
+
+**Scope:** CSP & headers, the `eval`-loaded Glk layer, the `postMessage` capture boundary, the Parchment play `<iframe>` + vendored ZVM JIT, the WebAssembly compiler, user/source/game-text rendering, extension (`.zip`) handling, `localStorage`, supply chain, and analytics.
+**Method:** independent red-team (exploitation) and blue-team (controls) passes, synthesized and verified.
+**Overall posture: strong** — no backend, no accounts; **no `v-html`/`innerHTML` anywhere** (every untrusted text stream renders through escaped interpolation); namespaced, quota-guarded `localStorage`; a fresh-per-run replay worker with a hard wall-clock timeout; a fully vendored interpreter (no runtime CDN code).
+
+| Severity | Finding | Mitigation |
+|----------|---------|-----------|
+| **High** | **Remote story delivery + ZVM JIT injection.** The play page accepted *any* `?story=` URL and CSP allowed `data:`, so a crafted link could load an attacker-controlled Z-machine binary. The vendored ZVM compiles z-code to JS via `new Function()`; red-team analysis identified a *potential* JIT-injection path via a malicious Unicode table (not independently PoC-proven) that `'unsafe-eval'` would execute in-origin. | **Fixed** (`084aafa`): the play page now accepts **same-origin `blob:` story URLs only** (the IDE's own compiled output) and falls back to the demo otherwise; `data:` removed from CSP `connect-src`. This closes the external delivery vector, so no attacker-supplied story can reach the interpreter regardless of the JIT path. *Recommended:* track upstream `ifvms` for a codegen-layer patch. |
+| **Medium** | **Zip decompression bomb.** Extension `.zip` import (`ExtensionsModal.vue`) runs `unzipSync()` with no size/entry cap; a crafted archive can crash the tab (self-upload DoS). | *Recommended:* bound decompression — cap total uncompressed size + entry count and reject over-limit archives before expanding. (Tracked.) |
+| **Medium** | **Compile runs on the main thread.** `inform6.wasm` compiles synchronously with no timeout, so a pathological source can freeze the tab (`docs/06-security.md` overstated Worker isolation here). | *Recommended:* move compilation into a Web Worker with a wall-clock timeout, mirroring the replay engine. (Tracked.) |
+| **Medium** | **Analytics script lacks SRI.** `nuxt.config.ts` loads the remote Plausible script without `integrity=`. | *Recommended:* self-host the script or pin an SRI hash (noting CDN auto-updates can invalidate a static hash). |
+| **Low** | **`postMessage` source not pinned.** The play-command capture listener verified `origin` + a message tag but not the sender window. | **Fixed** (`084aafa`): added an `e.source === iframe.contentWindow` guard. The captured value was already inert data (appended to a list, never executed). |
+| **Low** | **Header/CSP hardening.** Dead `api.iconify.design` in CSP `connect-src` (icons are bundled at build time); no `Permissions-Policy`; silent `localStorage` quota failures. | **Partly fixed** (`084aafa`): removed the dead `connect-src` entry and added `Permissions-Policy` (camera/mic/geolocation/payment denied). *Recommended:* a non-blocking "storage full" cue; a `sandbox` attribute on the play iframe as defense-in-depth. |
+
+**Verified controls (no change needed):** the `eval` in `engine/glk.ts` runs a **build-time static** asset (not user input); the WASM compiler runs in its own sandbox with output treated as data; the compiler stderr, captured game commands, and replay output all render via escaped `{{ }}` only.
+
 ## License & attribution
 
 Frotzsmith is licensed under the [MIT License](./LICENSE) — © 2026 Christopher Schweda.
