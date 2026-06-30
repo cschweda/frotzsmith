@@ -1,0 +1,7 @@
+# ZILF source clone (gitignored; build.sh clones + pins rev 5262550)
+zilf/
+
+# .NET build artefacts
+bin/
+obj/
+publish/

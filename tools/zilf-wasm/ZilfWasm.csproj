@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <!-- Allow referencing OutputType=Exe projects (Zilf/Zapf are Exe) -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+    <!-- Trimming is handled in Task 6; disabled here to avoid ZILF reflection breaks -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <!-- Suppress analyzers that require Roslyn (not available in WASM build) -->
+    <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+    <RunAnalyzersDuringLiveAnalysis>false</RunAnalyzersDuringLiveAnalysis>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+    <!-- Stable asset names (no content-hash suffix) so Nuxt/Vite can import
+         /zilf/_framework/dotnet.js directly, without a .NET-generated importmap -->
+    <WasmFingerprintAssets>false</WasmFingerprintAssets>
+    <CompressionEnabled>false</CompressionEnabled>
+  </PropertyGroup>
+
+  <!-- Exclude the ZILF source clone from the host project's compile glob.
+       The ProjectReference items below pull in only what is needed. -->
+  <ItemGroup>
+    <Compile Remove="zilf/**/*.cs" />
+    <EmbeddedResource Remove="zilf/**" />
+    <Content Remove="zilf/**" />
+    <None Remove="zilf/**" />
+  </ItemGroup>
+
+  <!-- Embed zillib .zil and .mud files as assembly resources with a flat prefix
+       so ZilfExports.cs can load them by name ("zillib_<filename>") -->
+  <ItemGroup>
+    <EmbeddedResource Include="zilf/zillib/*.zil">
+      <LogicalName>zillib_%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="zilf/zillib/*.mud">
+      <LogicalName>zillib_%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- Reference Zilf and Zapf; suppress AOT/trim/self-contained propagation -->
+  <ItemGroup>
+    <ProjectReference Include="zilf/src/Zilf/Zilf.csproj">
+      <GlobalPropertiesToRemove>PublishAot;SelfContained;PublishTrimmed</GlobalPropertiesToRemove>
+      <AdditionalProperties>PortableTarget=true</AdditionalProperties>
+    </ProjectReference>
+    <ProjectReference Include="zilf/src/Zapf/Zapf.csproj">
+      <GlobalPropertiesToRemove>PublishAot;SelfContained;PublishTrimmed</GlobalPropertiesToRemove>
+      <AdditionalProperties>PortableTarget=true</AdditionalProperties>
+    </ProjectReference>
+  </ItemGroup>
+</Project>

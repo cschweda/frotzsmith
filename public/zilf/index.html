@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!--  Licensed to the .NET Foundation under one or more agreements. -->
+<!-- The .NET Foundation licenses this file to you under the MIT license. -->
+<html>
+
+<head>
+  <title>zilf-wasm-spike</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="_framework/dotnet.js" rel="preload" as="script" fetchpriority="high" crossorigin="anonymous" integrity="sha256-/NmXZFjZPlV2h5WzJDhrTX3IQcsHxA6wjCQDl25V28Q=" />
+  <script type="importmap">{
+  "imports": {},
+  "scopes": {},
+  "integrity": {}
+}</script>
+  <script type='module' src="main.js"></script>
+</head>
+
+<body>
+  <h1>Stopwatch</h1>
+  <p>
+    Time elapsed in .NET is <span id="time"><i>loading...</i></span>
+  </p>
+  <p>
+    <button id="pause">Pause</button>
+    <button id="reset">Reset</button>
+  </p>
+</body>
+
+</html>
