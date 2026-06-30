@@ -5,9 +5,15 @@ describe('appendCommand', () => {
   it('appends a trimmed command', () => {
     expect(appendCommand(['look'], '  north ')).toEqual(['look', 'north'])
   })
+  it('appends to an empty list', () => {
+    expect(appendCommand([], 'x')).toEqual(['x'])
+  })
   it('ignores blank / whitespace-only commands', () => {
     expect(appendCommand(['look'], '   ')).toEqual(['look'])
     expect(appendCommand(['look'], '')).toEqual(['look'])
+  })
+  it('ignores blank command on an empty list (returns same empty array)', () => {
+    expect(appendCommand([], '   ')).toEqual([])
   })
   it('does not mutate the input array', () => {
     const orig = ['look']

@@ -8,6 +8,18 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['app/**/*.{test,spec}.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      include: ['app/**/*.ts'],
+      exclude: [
+        'app/**/*.test.ts',
+        'app/**/*.vue',
+        'app/**/use*.ts',
+        '**/*.d.ts',
+        'app/app.config.ts',
+      ],
+    },
   },
   resolve: {
     alias: {

@@ -15,6 +15,7 @@
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -35,6 +36,7 @@
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.114",
     "@types/node": "22.20.0",
+    "@vitest/coverage-v8": "2.1.9",
     "typescript": "^5.7.3",
     "vitest": "^2.1.8",
     "vue-tsc": "^2.2.0"
