@@ -8,8 +8,10 @@ import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
  * Only copies when the new key is absent AND the old key exists.
  * Idempotent — running twice is a no-op.
  *
- * Call on first client load (inside useIde.restore()) with the active
- * profile's stateKey ('i6' for existing I6 projects).
+ * Called once on first client load from the `00.migrate-storage.client.ts`
+ * plugin (before any component mounts, so reads see migrated keys). The old
+ * un-prefixed keys are pre-namespacing Inform 6 data, so the caller passes
+ * 'i6' — never the active profile's stateKey.
  */
 export function migrateStorageKeys(stateKey: string): void {
   if (!import.meta.client) return
