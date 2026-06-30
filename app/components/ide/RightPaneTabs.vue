@@ -6,6 +6,7 @@ const { activeTab, status, result, runCompile, canPlay, playStory } = useIde()
 const tabs: { id: RightTab; label: string; icon: string }[] = [
   { id: 'results', label: 'Results', icon: 'i-lucide-clipboard-list' },
   { id: 'play', label: 'Play', icon: 'i-lucide-gamepad-2' },
+  { id: 'transcript', label: 'Transcript', icon: 'i-lucide-history' },
   { id: 'testscript', label: 'Test Script', icon: 'i-lucide-scroll-text' },
 ]
 
@@ -116,6 +117,7 @@ const statusMeta = computed(() => {
     <div class="min-h-0 flex-1">
       <ResultsPanel v-if="activeTab === 'results'" />
       <PlayPanel v-else-if="activeTab === 'play'" />
+      <TranscriptPanel v-else-if="activeTab === 'transcript'" />
       <TestScriptPanel v-else-if="activeTab === 'testscript'" />
     </div>
   </div>
