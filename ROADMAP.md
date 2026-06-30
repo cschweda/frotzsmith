@@ -24,11 +24,10 @@ story file entirely client-side, and play it inline. See
 - Open `.inf` / Save As, New Project, crash-recovery autosave
 - Technical Details page (limits + resources), privacy-friendly analytics
   (Plausible), SEO/OG, accessible, responsive, dark by default
-
-## Next (v1)
-
-- **Test scripts & a transcript pane** — replay long command scripts headlessly,
-  growing into a Skein-style regression-testing spine with blessed output
+- **Test scripts & transcript pane** — named scripts (CodeMirror editor,
+  localStorage persistence) replayed headlessly via the `StoryEngine`/`replay()`
+  Web Worker seam, with live progress + cancel; blessed-output diffing (the Skein)
+  is still ahead
 
 ## Planned (v2)
 

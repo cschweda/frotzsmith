@@ -37,6 +37,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **New Project** (title / author / library → skeleton), **Open `.inf`**,
   **Save As**, and crash-recovery autosave.
 
+### Added — transcript & replay
+
+- Headless **StoryEngine seam** (`app/modules/inform6/engine/`): a `createEngine`
+  factory returns a `ZmachineEngine` (the `ifvms` ZVM wired to a headless GlkOte,
+  with `normalizeTurnOutput` stripping trailing prompts and Glk input echoes) or a
+  `GlulxEngine` stub; Glulx is behind the same factory but not yet implemented
+  (ADR-002). Covered by golden, normalize, createEngine, and parseScript unit tests.
+- **`replay()` Web Worker primitive** (`replay.worker.ts` + `useReplay` composable):
+  runs a command script against the engine fully off-thread; supports cancellation
+  and a configurable timeout. `glkapi.js` (Zarf's classic-mode script) is loaded
+  via `?raw` + indirect `eval` so it executes inside the strict-ESM worker context.
+  The worker chunk is emitted by `nuxt generate` (`replay.worker-*.js`).
+- **Transcript tab** in the IDE right pane: a **CodeMirror** script editor
+  (`ScriptEditor.vue`) + `TranscriptPanel.vue` with named-script CRUD, a Run /
+  Cancel button pair, a live `role="status"` progress region, and the rendered
+  turn-by-turn transcript. Named scripts persist to localStorage under the
+  `frotzsmith:scripts` key. Run is gated on a clean compile.
+
 ### Added — file explorer & multi-file editing
 - **File explorer** — a collapsible panel (left column on desktop, a slide-over
   drawer on mobile) listing the project's **compilation bundle**: the `story.inf`
