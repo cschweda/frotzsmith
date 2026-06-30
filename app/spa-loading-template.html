@@ -1,0 +1,37 @@
+<!--
+  Frotzsmith SPA loading splash (ssr: false). Shown from first paint until the
+  Vue app hydrates. Self-contained: it renders BEFORE the app CSS / Tailwind /
+  icon fonts load, so it inlines all styles and hard-codes the dark theme
+  (body #0f172a = slate-900) + brand amber (#f0a830) to avoid any flash.
+-->
+<div class="frotz-spa" role="status" aria-label="Loading Frotzsmith">
+  <div class="frotz-spa__brand">
+    <svg class="frotz-spa__hammer" xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#f0a830" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="m15 12-8.373 8.373a1 1 0 1 1-3-3L12 9"/>
+      <path d="m18 15 4-4"/>
+      <path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5"/>
+    </svg>
+    <span class="frotz-spa__word">Frotzsmith</span>
+  </div>
+  <span class="frotz-spa__sub">INFORM 6 IDE</span>
+  <div class="frotz-spa__spinner" aria-hidden="true"></div>
+</div>
+<style>
+  html, body { margin: 0; background: #0f172a; }
+  .frotz-spa {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; background: #0f172a; color: #e2e8f0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .frotz-spa__brand { display: flex; align-items: center; gap: 10px; }
+  .frotz-spa__word { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; color: #f8fafc; }
+  .frotz-spa__sub { font-size: 11px; font-weight: 600; letter-spacing: 0.18em; color: #64748b; }
+  .frotz-spa__spinner {
+    margin-top: 10px; width: 34px; height: 34px; border-radius: 50%;
+    border: 3px solid rgba(240, 168, 48, 0.2); border-top-color: #f0a830;
+    animation: frotz-spa-spin 0.7s linear infinite;
+  }
+  @keyframes frotz-spa-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .frotz-spa__spinner { animation-duration: 2.2s; } }
+</style>
