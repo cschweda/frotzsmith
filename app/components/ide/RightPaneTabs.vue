@@ -116,16 +116,7 @@ const statusMeta = computed(() => {
     <div class="min-h-0 flex-1">
       <ResultsPanel v-if="activeTab === 'results'" />
       <PlayPanel v-else-if="activeTab === 'play'" />
-      <div
-        v-else
-        class="frotz-grid flex h-full flex-col items-center justify-center gap-3 p-6 text-center"
-      >
-        <UIcon name="i-lucide-scroll-text" class="size-10 text-primary" />
-        <p class="text-lg font-semibold">Test transcripts are coming next</p>
-        <p class="text-muted max-w-sm text-sm">
-          Run long command scripts and read the playthrough here (Phase 4).
-        </p>
-      </div>
+      <TranscriptPanel v-else-if="activeTab === 'transcript'" />
     </div>
   </div>
 </template>
