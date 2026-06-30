@@ -70,6 +70,14 @@ export function useTestScripts() {
     persist()
   }
 
+  /** Create a script from ready-made text (e.g. a captured playthrough). */
+  function addFromText(name: string, text: string) {
+    const script: TestScript = { id: newId(), name, text }
+    scripts.value = upsertScript(scripts.value, script)
+    activeId.value = script.id
+    persist()
+  }
+
   function rename(id: string, name: string) {
     scripts.value = renameScript(scripts.value, id, name)
     persist()
@@ -96,7 +104,7 @@ export function useTestScripts() {
     watch([scripts, activeId], persist, { deep: true })
   }
 
-  return { scripts, activeId, activeScript, add, rename, remove, updateText, select, restore }
+  return { scripts, activeId, activeScript, add, addFromText, rename, remove, updateText, select, restore }
 }
 
 function newId(): string {
