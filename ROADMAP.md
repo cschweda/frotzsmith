@@ -24,17 +24,25 @@ story file entirely client-side, and play it inline. See
 - Open `.inf` / Save As, New Project, crash-recovery autosave
 - Technical Details page (limits + resources), privacy-friendly analytics
   (Plausible), SEO/OG, accessible, responsive, dark by default
-- **Test scripts & transcript pane** — named scripts (CodeMirror editor,
-  localStorage persistence) replayed headlessly via the `StoryEngine`/`replay()`
+- **Test scripts** — named scripts (CodeMirror editor, localStorage persistence,
+  first-class rename, Clear) replayed headlessly via the `StoryEngine`/`replay()`
   Web Worker seam, with live progress + cancel; blessed-output diffing (the Skein)
   is still ahead
+- **Play transcript** — interactive Play records the commands you type into a
+  read-only **Transcript** tab; one-click **Copy to Test Script** turns a playthrough
+  into a reusable script (captured via a verified same-origin `postMessage` from the player)
+- Title-bar **Compile / Play**, a branded **SPA loading splash**, **slugified** Save-As /
+  Download filenames (`-puny` for PunyInform), and a recorded **red/blue security audit**
+  (see the README's Security audits log)
 
 ## Planned (v2)
 
 See [`docs/13-v2-roadmap.md`](./docs/13-v2-roadmap.md) for the full assessments.
 
 - **ZIL / ZILF** as a third source language — Zorkie + Pyodide (client-side) or a
-  complete ZILF backend. The play side is free: ZIL compiles to the same z-code.
+  complete ZILF backend, ideally surfaced as a third option in the library/compiler
+  selection dropdown alongside Standard Library and PunyInform. The play side is free:
+  ZIL compiles to the same z-code.
 - **Auto-map** — a play-time map of revealed rooms (the Map tab is stubbed).
 - **Extensions registry** — a searchable online catalog.
 - **Glulx** — larger games (the `StoryEngine` seam allows it).

@@ -49,11 +49,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and a configurable timeout. `glkapi.js` (Zarf's classic-mode script) is loaded
   via `?raw` + indirect `eval` so it executes inside the strict-ESM worker context.
   The worker chunk is emitted by `nuxt generate` (`replay.worker-*.js`).
-- **Transcript tab** in the IDE right pane: a **CodeMirror** script editor
-  (`ScriptEditor.vue`) + `TranscriptPanel.vue` with named-script CRUD, a Run /
+- **Test Script tab** in the IDE right pane: a **CodeMirror** script editor
+  (`ScriptEditor.vue`) + `TestScriptPanel.vue` with named-script CRUD, a Run /
   Cancel button pair, a live `role="status"` progress region, and the rendered
   turn-by-turn transcript. Named scripts persist to localStorage under the
   `frotzsmith:scripts` key. Run is gated on a clean compile.
+
+### Added — play transcript & test-script UX
+
+- **Play Transcript** — interactive Play now records every command you type into a
+  read-only **Transcript** tab (`TranscriptPanel.vue`); **Copy to Test Script** turns a
+  captured playthrough into a reusable, named Test Script in one click. Capture is a
+  same-origin `postMessage` from the player iframe, verified by origin, a source tag,
+  and `e.source`; the captured value is inert data (appended to a list, never executed).
+- The original script-runner tab was **renamed Transcript → Test Script**
+  (`TranscriptPanel.vue` → `TestScriptPanel.vue`), freeing "Transcript" for the capture.
+- **Test Script UX** — first-class rename (a modal text input, replacing the browser
+  prompt), a **Clear** button (empties the active script), and a fresh compile blanks the
+  play transcript + the last run output (saved scripts are kept, and scripts never
+  auto-run — only the Run button executes them).
+- **Compile / Play moved into the title bar** (right-aligned; de-duplicated via an
+  opt-in `actions` prop on `TitleStrip`). The tab row now holds only tabs; the redundant
+  "Ready" status text was dropped (the Results tab's red/green dot signals readiness);
+  and the Play iframe stays mounted (`v-show`) so switching tabs no longer restarts the game.
+- **Slugified filenames** — Save-As and Download default to a slug of the story's
+  `Constant Story` title (fallback `story`), with `-puny` for PunyInform — e.g.
+  `haunted-house.inf` / `haunted-house.z5`, `haunted-house-puny.z3`.
+
+### Added — loading & polish
+
+- **SPA loading splash** (`app/spa-loading-template.html`) — a branded dark splash
+  (amber spinner + wordmark) shown during the client-only initial load (Nuxt
+  auto-detects the template when `ssr: false`), replacing the blank screen.
+
+### Security
+
+- **2026-06-30 red/blue audit** — findings + mitigations recorded in the
+  [Security audits](./README.md#security-audits) README log. **Fixed:** the player accepts
+  **same-origin `blob:` story URLs only** (closing a `?story=data:` remote delivery vector
+  into the ZVM JIT); CSP `connect-src` tightened (dropped `data:` and a dead endpoint) and a
+  `Permissions-Policy` header added; the play-command `postMessage` listener pins `e.source`.
+  **Tracked (recommended):** zip-bomb decompression caps, worker-isolated compile, analytics SRI.
 
 ### Added — file explorer & multi-file editing
 - **File explorer** — a collapsible panel (left column on desktop, a slide-over
