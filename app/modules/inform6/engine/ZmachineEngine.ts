@@ -17,7 +17,7 @@ export class ZmachineEngine implements StoryEngine {
     this.story = story
     this.glkote = new HeadlessGlkOte()
     // Fresh Glk per boot — glkapi is a singleton; see glk.ts.
-    const Glk = createGlk()
+    const Glk = await createGlk()
     const vm = new ZVM() as { prepare(data: Uint8Array, opts: unknown): void }
     const options = { vm, Dialog: new HeadlessDialog(), Glk, GlkOte: this.glkote }
     vm.prepare(story, options)

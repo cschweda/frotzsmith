@@ -12,6 +12,15 @@ export default defineNuxtConfig({
 
   modules: ['@nuxt/ui'],
 
+  // The replay engine runs in a module Worker (`{ type: 'module' }`, see
+  // useReplay) whose import chain code-splits (e.g. the lazily-loaded glkapi).
+  // Code-splitting needs an ESM worker bundle; Vite's default 'iife' can't do it.
+  vite: {
+    worker: {
+      format: 'es',
+    },
+  },
+
   // Name components by filename (e.g. <SourcePane>), not directory-prefixed.
   components: [{ path: '~/components', pathPrefix: false }],
 
