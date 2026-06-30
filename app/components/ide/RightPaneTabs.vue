@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { RightTab } from '~/composables/useIde'
 
-const { activeTab, status, result, runCompile, canPlay, playStory } = useIde()
+const { activeTab, status } = useIde()
 
 const tabs: { id: RightTab; label: string; icon: string }[] = [
   { id: 'results', label: 'Results', icon: 'i-lucide-clipboard-list' },
@@ -9,18 +9,6 @@ const tabs: { id: RightTab; label: string; icon: string }[] = [
   { id: 'transcript', label: 'Transcript', icon: 'i-lucide-history' },
   { id: 'testscript', label: 'Test Script', icon: 'i-lucide-scroll-text' },
 ]
-
-// "Ready" is red with an ✗ until a clean compile, then green with a ✓.
-const statusMeta = computed(() => {
-  switch (status.value) {
-    case 'compiling':
-      return { label: 'Compiling…', icon: 'i-lucide-loader-circle', spin: true, cls: 'text-primary' }
-    case 'success':
-      return { label: 'Ready', icon: 'i-lucide-circle-check-big', spin: false, cls: 'text-success' }
-    default: // idle or error → not ready
-      return { label: 'Not ready', icon: 'i-lucide-circle-x', spin: false, cls: 'text-error' }
-  }
-})
 </script>
 
 <template>
@@ -74,49 +62,11 @@ const statusMeta = computed(() => {
         </UTooltip>
       </div>
 
-      <div class="ml-auto flex items-center gap-3">
-        <!-- Fixed width so the label changing never shifts the buttons. -->
-        <span
-          role="status"
-          aria-live="polite"
-          :class="['flex w-28 items-center justify-end gap-1.5 text-sm font-semibold', statusMeta.cls]"
-        >
-          <UIcon :name="statusMeta.icon" :class="['size-4 shrink-0', statusMeta.spin && 'animate-spin']" />
-          <span>{{ statusMeta.label }}</span>
-        </span>
-
-        <UButton
-          color="primary"
-          icon="i-lucide-hammer"
-          class="frotz-glow font-bold"
-          :loading="status === 'compiling'"
-          @click="runCompile"
-        >
-          Compile
-          <kbd
-            class="ml-1 hidden rounded bg-black/20 px-1.5 py-0.5 text-[10px] font-semibold sm:inline"
-            >⌘B</kbd
-          >
-        </UButton>
-
-        <!-- Hidden (but space reserved → no layout shift) until a clean compile. -->
-        <UButton
-          color="success"
-          icon="i-lucide-play"
-          class="font-bold"
-          :class="canPlay ? 'visible' : 'invisible'"
-          :disabled="!canPlay"
-          title="Play the compiled game"
-          @click="playStory"
-        >
-          Play
-        </UButton>
-      </div>
     </div>
 
     <div class="min-h-0 flex-1">
+      <PlayPanel v-show="activeTab === 'play'" />
       <ResultsPanel v-if="activeTab === 'results'" />
-      <PlayPanel v-else-if="activeTab === 'play'" />
       <TranscriptPanel v-else-if="activeTab === 'transcript'" />
       <TestScriptPanel v-else-if="activeTab === 'testscript'" />
     </div>
