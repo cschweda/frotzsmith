@@ -83,3 +83,32 @@ Record: build OK? z3 + z5 bytes valid? plays? **bundle size** (`_framework/` tot
 ## The throwaway rule
 
 Delete `zilf-wasm-spike` + the scratch test surface afterward. The durable outputs are: **the findings** (update this doc with the answers) and **the validated build recipe**. The production feature re-does the integration properly (Worker, lazy-load, the page).
+
+---
+
+## Findings — Phases 1–2 (2026-06-30): **GREEN**
+
+**Checkpoint 1 (build to WASM): PASS.** `dotnet publish -c Release` produced a complete WASM bundle. csproj fixes: `ValidateExecutableReferencesMatchSelfContained=false` (Zilf/Zapf are `OutputType=Exe`); `<AdditionalProperties>PortableTarget=true</AdditionalProperties>` on the Zilf/Zapf `ProjectReference`s (suppresses their `PublishAot`); `PublishTrimmed=false` (spike). `zillib` (14 files) embedded as resources with a flat `LogicalName`.
+
+**Checkpoint 2 (Node compile): PASS.** z5 → 26,108 B (`bytes[0]==5`); z3 → 26,088 B (`bytes[0]==3`); a broken `.zil` surfaces `ZIL0122 unrecognized routine`. Both targets validate; errors surface.
+
+**Validated API recipe** (Phase 3 reuses verbatim):
+```csharp
+var fs = new InMemoryFileSystem();
+fs.SetText("/game.zil", $"<VERSION {version}>\n{source}");
+// embedded zillib -> /zillib/*.zil
+var fe = new FrontEnd { FileSystem = fs, Logger = logger };
+fe.IncludePaths.Add("/zillib");
+fe.Compile("/game.zil", "/_build/game.zap", false);
+new ZapfAssembler { FileSystem = fs }.Assemble("/_build/game.zap", "/_build/game.z#");
+var storyBytes = fs.GetBytes(fs.Paths.First(p => Regex.IsMatch(p, @"\.z\d$")));
+```
+
+**Size:** 24.7 MB raw / **9.3 MB gzipped** (untrimmed, 182 wasm files; ZILF+ZAPF ≈2.3 MB, the rest is the .NET BCL → **trimming is the headline Phase-3 optimization**). **Compile:** ~6 s first / ~5 s subsequent → **a Web Worker hides it**.
+
+**Phase 3 (browser load + play in Frotzsmith) — NOT YET RUN.** The Node green strongly implies it (same runtime; the `wasmbrowser` template *is* a browser app) and the play is free (Z-code → existing player). The only remaining unknown is Vite serving `_framework/` + the dotnet bootstrap path resolution.
+
+## Toggle badges (for the `/zil/` design)
+The `/` ↔ `/zil/` toggle shows per-language maturity badges: **Inform 6 — beta**, **ZIL — alpha**.
+
+## Verdict: **GREEN — proceed.** Client-side ZIL is real and the recipe is proven. Trim + Worker + lazy-load are the known production tasks.
