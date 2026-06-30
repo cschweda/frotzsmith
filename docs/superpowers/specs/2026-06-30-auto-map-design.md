@@ -1,4 +1,4 @@
-# Frotzsmith — Auto-Map (live, Trizbort-style grid)
+  # Frotzsmith — Auto-Map (live, Trizbort-style grid)
 
 **Date:** 2026-06-30
 **Status:** Design approved; implementation pending plan
@@ -20,7 +20,7 @@ We can't read the Z-machine's internal room model (it isn't exposed), so the map
 
 ### 3.1 Live data — `public/play/index.html`
 
-The capture script already posts `{ source:'frotzsmith-play', type:'command', value }`. Add a `MutationObserver` on the GlkOte **`.GridWindow`** (the status line). On each change, read its text, parse the **room name**, and post `{ source:'frotzsmith-play', type:'room', name }` to the parent. The observer also fires on the initial render → the **start room** is reported before any command. Skip capture (room + command) while `window.__frotzScriptRunning` is set (consistent with Send-to-Play suppression).
+The capture script already posts `{ source:'frotzsmith-play', type:'command', value }`. Add a `MutationObserver` on the GlkOte **`.GridWindow`** (the status line). On each change, read its text, parse the **room name**, and also read the **buffer window** (main story text) to capture this turn's new output (track the previous buffer length; `text` = the suffix added since the last turn — the room's description, used for the hover details §3.5). Post `{ source:'frotzsmith-play', type:'room', name, text }` to the parent. The observer also fires on the initial render → the **start room** is reported before any command. Skip capture (room + command) while `window.__frotzScriptRunning` is set (consistent with Send-to-Play suppression).
 
 Room-name parse (heuristic, default status lines): take the grid's first line, split on runs of 2+ spaces, take the first chunk trimmed — the left-aligned room name, before the right-aligned `Score:`/`Moves:`/`n/m`. Empty/whitespace → `''` (treated as "no room", ignored).
 
@@ -39,6 +39,11 @@ export function parseRoomName(statusLine: string): string
 /** Record a turn: always ensures `newRoom` exists; adds an edge prev→new when
  *  `dir` is set and the room actually changed (failed moves add nothing). */
 export function addStep(g: MapGraph, prevRoom: string | null, dir: Dir | null, newRoom: string): MapGraph
+
+/** Directions of edges leading out of `room`, canonical order (n,ne,e,se,s,sw,w,nw,u,d,in,out). */
+export function exitsOf(g: MapGraph, room: string): Dir[]
+/** Best-effort object names from a room's captured text ("You can see X (and Y) here."). */
+export function parseObjects(roomText: string): string[]
 
 export interface PlacedRoom { name: string; col: number; row: number }
 export interface Connector { from: string; to: string; dir: Dir; grid: boolean }
@@ -59,16 +64,26 @@ Determinism: process rooms/edges in insertion order. `bounds` spans all placed r
 
 ### 3.3 Store — `app/composables/useMap.ts`
 
-`useState`-backed, scoped by `useIde().activeStoryKey` (reset on game change, like `usePlayTranscript`). Holds `graph`, `currentRoom`, and the `lastCommand`'s parsed `dir`. Surface: `{ graph, currentRoom, layout (computed), recordCommand(cmd), recordRoom(name), reset() }`.
+`useState`-backed, scoped by `useIde().activeStoryKey` (reset on game change, like `usePlayTranscript`). Holds `graph`, `currentRoom`, the `lastCommand`'s parsed `dir`, and `roomText: Record<string,string>` (latest description per room). Surface: `{ graph, currentRoom, layout (computed), recordCommand(cmd), recordRoom(name, text), details(room), reset() }`.
 - `recordCommand(cmd)` stores `lastDir = parseDirection(cmd)` and remembers the room *before* the move (`prevRoom = currentRoom`).
-- `recordRoom(name)` (on a `room` message): `graph = addStep(graph, prevRoom, lastDir, name)`; `currentRoom = name`; clear `lastDir` (so a stray room update without a fresh command doesn't draw a phantom edge).
+- `recordRoom(name, text)` (on a `room` message): if `text` is non-empty, store `roomText[name] = text`; `graph = addStep(graph, prevRoom, lastDir, name)`; `currentRoom = name`; clear `lastDir` (so a stray room update without a fresh command doesn't draw a phantom edge).
+- `details(room)` → `{ exits: exitsOf(graph, room), objects: parseObjects(roomText[room] ?? ''), description: <first non-empty line of roomText[room]> }` — backs the hover popover (§3.5).
 Not persisted; `reset()` on `activeStoryKey` change and on compile (wire into the existing compile clean-slate in `useIde.runCompile`).
 
 ### 3.4 UI — `app/components/ide/MapPanel.vue` + `PlayPanel.vue` + `RightPaneTabs.vue`
 
-- **`PlayPanel.vue`** `onMessage`: on `type:'command'` → also `useMap().recordCommand(value)`; on `type:'room'` → `useMap().recordRoom(name)`. (Keeps the existing transcript `record`.)
-- **`MapPanel.vue`** renders `layout` as **SVG**: each `PlacedRoom` a rounded `<rect>` + name at `(col*CELL_W, row*CELL_H)`; the **current room** gets an amber border; grid `Connector`s are straight lines between adjacent boxes; `u/d/in/out` stubs are small labelled marks on the room; non-grid connectors are free lines. Drag-to-pan + wheel-zoom (an SVG `viewBox` transform), with a "fit" reset. Empty state: "Play to map the world." A note when the current status line yields no room name ("This game's status line has no room name — can't auto-map").
+- **`PlayPanel.vue`** `onMessage`: on `type:'command'` → also `useMap().recordCommand(value)`; on `type:'room'` → `useMap().recordRoom(name, text)`. (Keeps the existing transcript `record`.)
+- **`MapPanel.vue`** renders `layout` as **SVG**: each `PlacedRoom` a rounded `<rect>` + name at `(col*CELL_W, row*CELL_H)`; the **current room** gets an amber border; grid `Connector`s are straight lines between adjacent boxes; `u/d/in/out` stubs are small labelled marks on the room; non-grid connectors are free lines. **Zoom & pan so large maps fit one view:** on-screen **Zoom in / Zoom out / Fit** buttons (keyboard-operable) plus drag-to-pan and wheel-zoom, all driven by an SVG `viewBox` transform. **Fit** scales the layout `bounds` (+ a margin) to fill the viewport so the *entire* map is visible at once; zoom in/out step the scale about the centre; a small zoom-% readout sits by the buttons. The view keeps the **current room on-screen** as the map grows (auto-pan to it when it would fall outside the viewport). Empty state: "Play to map the world." A note when the current status line yields no room name ("This game's status line has no room name — can't auto-map").
 - **`RightPaneTabs.vue`** — replace the disabled Map tooltip/stub with an enabled `{ id:'map', … }` tab + `<MapPanel v-else-if="activeTab==='map'" />`; add `'map'` to `RightTab`.
+
+### 3.5 Room details on hover
+
+Hovering — or keyboard-focusing — a room box opens a small **popover** with the room's *essential* characteristics, not a full dump:
+- **Exits** — `exitsOf(graph, room)` as words (north, east, down); these are the *discovered* exits (directions actually traversed), not necessarily all exits.
+- **Objects** — `parseObjects(roomText)`: names from the library's "You can see X (and Y) here." listing (Standard Library / PunyInform). Best-effort; "—" when none parsed.
+- **Description** — the first line of the room text, as a one-line snippet for context.
+
+`MapPanel` renders the card (a Nuxt UI `UPopover` anchored to the room `<rect>`, or an SVG `<foreignObject>`), shown on `mouseenter`/`focus`, hidden on leave/blur — keyboard-accessible. All text is escaped (objects/description are inert game prose, never HTML). Source: `useMap().details(room)`.
 
 ## 4. Data flow
 
@@ -80,12 +95,13 @@ Play boots → GridWindow renders → `room`(start) → `useMap` sets start. Pla
 - **Custom/absent status line** — no room name → the Map shows the can't-map note; nothing is drawn.
 - **`u/d/in/out`** — drawn as stubs, not grid-placed.
 - **Non-Euclidean geometry** — edges that don't fit the grid draw as free connectors.
+- **Hover objects** — best-effort, parsed from the default library's "you can see … here" listing; custom messages, scenery, and prose-only objects aren't caught. The popover's **exits** are *discovered* (traversed) only — untried exits are unknown.
 - **Failed moves / parser errors** — room unchanged → no edge (correct).
 - Untrusted iframe messages still gated by origin + `e.source` + the `frotzsmith-play` tag (unchanged); the room name is inert text rendered via SVG `<text>` (escaped), never HTML.
 
 ## 6. Testing (vitest, node)
 
-- **`map-graph.ts`** — `parseDirection` (n/north/'go north'/ne/up/in/out/non-movement→null); `parseRoomName` (room before score/moves, empty); `addStep` (adds node, adds edge on change, no edge on failed move / non-movement, revisit confirms edge); **`layout`** (linear chain places by deltas; a square loop returns to grid; a conflict places at a free cell with `grid:false`; `u/d` → stub; deterministic output for a fixed input). Pure, exhaustive.
+- **`map-graph.ts`** — `parseDirection` (n/north/'go north'/ne/up/in/out/non-movement→null); `parseRoomName` (room before score/moves, empty); `addStep` (adds node, adds edge on change, no edge on failed move / non-movement, revisit confirms edge); **`layout`** (linear chain places by deltas; a square loop returns to grid; a conflict places at a free cell with `grid:false`; `u/d` → stub; deterministic output for a fixed input); **`exitsOf`** (edges out in canonical order; no edges → `[]`); **`parseObjects`** ("You can see a lamp here." → `['lamp']`; "a brass lamp and a silver key" → `['brass lamp','silver key']`; articles stripped; no match → `[]`). Pure, exhaustive.
 - `useMap` / `MapPanel` / the iframe observer = composable-state + live browser checks (matches the repo convention).
 
 ## 7. Accessibility
@@ -94,7 +110,7 @@ The Map is a labelled `role="img"`/`region` with an `aria-label` summarising the
 
 ## 8. Out of scope (v1)
 
-**Mapping script runs** — both headless replay and live Send-to-Play runs are suppressed in v1 (the `__frotzScriptRunning` flag gates the room/command posts), so **only manual play maps**; a shared future add. Also out of scope: manual room drag/rename; persisting the map; export (PNG/Trizbort file); door/object annotations; multi-level (z-axis) layout for `u/d`. v1 is the live, auto-laid-out grid from hand-play.
+**Mapping script runs** — both headless replay and live Send-to-Play runs are suppressed in v1 (the `__frotzScriptRunning` flag gates the room/command posts), so **only manual play maps**; a shared future add. Also out of scope: manual room drag/rename; persisting the map; export (PNG/Trizbort file); door annotations; multi-level (z-axis) layout for `u/d`. The hover popover (§3.5) shows **essentials only** (exits + objects + a one-line snippet), never the full room transcript. v1 is the live, auto-laid-out grid from hand-play.
 
 ## 9. Risks
 
@@ -104,4 +120,4 @@ The Map is a labelled `role="img"`/`region` with an `aria-label` summarising the
 
 ## 10. Done =
 
-Play a Standard Library game; as you move (`n`, `e`, `enter booth`…), the **Map** tab draws rooms in a Trizbort grid with the current room highlighted and exits connecting them; failed moves add nothing; `up`/`down` show as stubs; recompiling / a new game clears the map; switching games shows that game's map. The graph builder + layout are unit-tested.
+Play a Standard Library game; as you move (`n`, `e`, `enter booth`…), the **Map** tab draws rooms in a Trizbort grid with the current room highlighted and exits connecting them; failed moves add nothing; `up`/`down` show as stubs; recompiling / a new game clears the map; switching games shows that game's map. **Hovering a room** shows its discovered exits + parsed objects; **Zoom in / out / Fit** keeps a large map viewable in a single view. The graph builder + layout are unit-tested.
