@@ -66,6 +66,7 @@
   (function () {
     var TARGET = location.origin
     window.addEventListener('keydown', function (e) {
+      if (window.__frotzScriptRunning) return
       if (e.key !== 'Enter') return
       var el = e.target
       if (!el || el.tagName !== 'INPUT' || !el.classList.contains('LineInput')) return

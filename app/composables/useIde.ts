@@ -62,6 +62,9 @@ export function useIde() {
   const canPlay = computed(() => status.value === 'success' && !!result.value?.storyFile)
   const playNonce = useState<number>('frotz:play-nonce', () => 0)
 
+  // Send-to-Play: a parsed script queued to feed into the live Parchment game.
+  const pendingScript = useState<string[] | null>('frotz:pending-script', () => null)
+
   /** Restore the persisted profile mode, then the source recovery snapshot. */
   function restore() {
     if (import.meta.client) {
@@ -170,6 +173,21 @@ export function useIde() {
     playNonce.value += 1
   }
 
+  /** Run a script in the live game: clear the autosave so it plays from the start,
+   *  queue the commands, and (re)boot Play. PlayPanel feeds them once the game is ready. */
+  function sendToPlay(commands: string[]) {
+    if (!canPlay.value || !commands.length) return
+    if (import.meta.client) {
+      // Parchment autosaves to localStorage as `autosave:<story-hash>` (same-origin
+      // store); clearing it forces a fresh game so the script plays from turn 1.
+      try {
+        for (const k of Object.keys(localStorage)) if (k.startsWith('autosave:')) localStorage.removeItem(k)
+      } catch { /* ignore */ }
+    }
+    pendingScript.value = commands.slice()
+    playStory() // activeTab = 'play' + playNonce++ → fresh iframe boot
+  }
+
   return {
     source,
     savedAt,
@@ -191,6 +209,7 @@ export function useIde() {
     activeStoryKey,
     canPlay,
     playNonce,
+    pendingScript,
     runCompile,
     jumpTo,
     format,
@@ -200,5 +219,6 @@ export function useIde() {
     loadSource,
     newProject,
     playStory,
+    sendToPlay,
   }
 }

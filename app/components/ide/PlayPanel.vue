@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { result, playNonce, canPlay } = useIde()
+const { result, playNonce, canPlay, pendingScript } = useIde()
 const { record, reset } = usePlayTranscript()
 const colorMode = useColorMode()
 
@@ -43,6 +43,48 @@ function onFsChange() {
   isFullscreen.value = document.fullscreenElement === container.value
 }
 
+const delay = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
+
+// Wait until the game is ready for a typed line. If a [MORE]/char prompt is up
+// (no LineInput), press a key to advance, then keep waiting.
+async function waitForLineInput(doc: Document, win: Window, timeoutMs = 5000): Promise<HTMLInputElement | null> {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    const input = doc.querySelector('input.LineInput') as HTMLInputElement | null
+    if (input) return input
+    const ev = new (win as unknown as { KeyboardEvent: typeof KeyboardEvent }).KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true, cancelable: true })
+    Object.defineProperty(ev, 'keyCode', { get: () => 32 })
+    Object.defineProperty(ev, 'which', { get: () => 32 })
+    doc.dispatchEvent(ev)
+    await delay(140)
+  }
+  return null
+}
+
+// Feed a parsed script into the live GlkOte game, one command at a watchable pace.
+async function feedScript(commands: string[]) {
+  const ifr = playFrame.value
+  const win = ifr?.contentWindow as (Window & { __frotzScriptRunning?: boolean }) | null
+  const doc = ifr?.contentDocument
+  if (!ifr || !win || !doc) return
+  win.__frotzScriptRunning = true
+  try {
+    for (const cmd of commands) {
+      const input = await waitForLineInput(doc, win)
+      if (!input) break
+      input.focus()
+      input.value = cmd
+      const ev = new (win as unknown as { KeyboardEvent: typeof KeyboardEvent }).KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true })
+      Object.defineProperty(ev, 'keyCode', { get: () => 13 })
+      Object.defineProperty(ev, 'which', { get: () => 13 })
+      input.dispatchEvent(ev)
+      await delay(420)
+    }
+  } finally {
+    win.__frotzScriptRunning = false
+  }
+}
+
 interface PlayMessage {
   source?: string
   type?: string
@@ -56,7 +98,14 @@ function onMessage(e: MessageEvent) {
   const data = e.data as PlayMessage | null
   if (!data || data.source !== 'frotzsmith-play') return
   if (data.type === 'command' && typeof data.value === 'string') record(data.value)
-  else if (data.type === 'session-start') reset()
+  else if (data.type === 'session-start') {
+    reset()
+    const cmds = pendingScript.value
+    if (cmds && cmds.length) {
+      pendingScript.value = null
+      void feedScript(cmds)
+    }
+  }
 }
 
 watch(() => playNonce.value, boot)

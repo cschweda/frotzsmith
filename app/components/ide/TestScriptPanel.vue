@@ -3,7 +3,7 @@ import { parseScript } from '~/modules/inform6/engine/parseScript'
 
 const { scripts, activeId, activeScript, add, rename, remove, updateText, select, restore } = useTestScripts()
 const { turns, running, progress, ms, error, run, cancel } = useTranscript()
-const { canPlay } = useIde()
+const { canPlay, sendToPlay } = useIde()
 
 // First client mount: hydrate scripts (idempotent; useIde.restore also calls it).
 onMounted(restore)
@@ -37,7 +37,7 @@ const liveStatus = computed(() => {
 })
 
 function onRun() {
-  run(parseScript(activeScript.value?.text ?? ''))
+  sendToPlay(parseScript(activeScript.value?.text ?? ''))
 }
 
 // ── Rename modal ──────────────────────────────────────────────────────────────
