@@ -87,10 +87,13 @@ export function useIde() {
   async function runCompile() {
     if (status.value === 'compiling') return
     status.value = 'compiling'
-    // Fresh build → blank the captured play transcript and the last script-run output.
-    // Saved scripts are kept; nothing is auto-run (scripts run only via the Run button).
+    // Fresh build → blank the captured play transcript, the last script-run output,
+    // the active test script selection, and the Parchment autosave (first room on next Play).
+    // Saved scripts are kept and re-selectable; nothing is auto-run.
     usePlayTranscript().reset()
     useTranscript().reset()
+    useTestScripts().select('')
+    clearPlayAutosave()
     activeTab.value = 'results'
     const pid = effectiveProfile.value
     await new Promise(resolve => setTimeout(resolve, 0)) // let "Compiling…" paint
@@ -167,6 +170,15 @@ export function useIde() {
     activeTab.value = 'results'
   }
 
+  /** Clear all Parchment autosave entries from localStorage so the next Play boots
+   *  from the first room. Parchment writes `autosave:<story-hash>` (same-origin). */
+  function clearPlayAutosave() {
+    if (!import.meta.client) return
+    try {
+      for (const k of Object.keys(localStorage)) if (k.startsWith('autosave:')) localStorage.removeItem(k)
+    } catch { /* ignore */ }
+  }
+
   function playStory() {
     if (!canPlay.value) return
     activeTab.value = 'play'
@@ -177,13 +189,7 @@ export function useIde() {
    *  queue the commands, and (re)boot Play. PlayPanel feeds them once the game is ready. */
   function sendToPlay(commands: string[]) {
     if (!canPlay.value || !commands.length) return
-    if (import.meta.client) {
-      // Parchment autosaves to localStorage as `autosave:<story-hash>` (same-origin
-      // store); clearing it forces a fresh game so the script plays from turn 1.
-      try {
-        for (const k of Object.keys(localStorage)) if (k.startsWith('autosave:')) localStorage.removeItem(k)
-      } catch { /* ignore */ }
-    }
+    clearPlayAutosave()
     pendingScript.value = commands.slice()
     playStory() // activeTab = 'play' + playNonce++ → fresh iframe boot
   }

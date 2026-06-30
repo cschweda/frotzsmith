@@ -64,7 +64,7 @@ function confirmRename() {
     <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-default px-3 py-2">
       <UDropdownMenu :items="scriptItems">
         <UButton color="neutral" variant="subtle" size="sm" icon="i-lucide-scroll-text" trailing-icon="i-lucide-chevron-down">
-          {{ activeScript?.name ?? 'No scripts' }}
+          {{ activeScript?.name ?? (scripts.length ? 'Select a script' : 'No scripts') }}
         </UButton>
       </UDropdownMenu>
 
