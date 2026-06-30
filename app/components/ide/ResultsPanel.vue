@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { result, status, jumpTo, playStory } = useIde()
+const { result, status, storyBase, jumpTo, playStory } = useIde()
 
 const errorCount = computed(
   () => result.value?.diagnostics.filter(d => d.severity !== 'warning').length ?? 0,
@@ -29,7 +29,7 @@ function downloadStory() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `story.${r.storyExt}`
+  a.download = `${storyBase.value}.${r.storyExt}`
   a.click()
   URL.revokeObjectURL(url)
 }

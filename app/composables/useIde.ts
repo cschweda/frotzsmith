@@ -42,6 +42,11 @@ export function useIde() {
       : activeProfile.value.defaultExt
   })
 
+  /** The `Constant Story "…"` title from the source, if any. */
+  const storyTitle = computed(() => /Constant\s+Story\s+"([^"]*)"/i.exec(source.value)?.[1]?.trim())
+  /** Filename stem for Save-As / Download: slug of the title (or 'story'), '-puny' for PunyInform. */
+  const storyBase = computed(() => storyBaseName(storyTitle.value, effectiveProfile.value === 'puny'))
+
   /** The profile the most recent compile actually used. */
   const usedProfile = useState<ProfileId | null>('frotz:used-profile', () => null)
 
@@ -162,6 +167,8 @@ export function useIde() {
     targetMode,
     effectiveExt,
     usedProfile,
+    storyTitle,
+    storyBase,
     canPlay,
     playNonce,
     runCompile,

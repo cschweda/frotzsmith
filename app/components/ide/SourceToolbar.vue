@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ProfileId } from '~/modules/inform6/profiles'
 
-const { source, loadSource, newProject } = useIde()
+const { source, storyBase, loadSource, newProject } = useIde()
 const { togglePanel, panelOpen } = useProjectFiles()
 
 // New-project modal state.
@@ -31,12 +31,7 @@ function onFileChange(event: Event) {
 
 // Save As… — a real save dialog where supported (Chromium), else a download.
 function suggestedFilename() {
-  const story = /Constant\s+Story\s+"([^"]*)"/i.exec(source.value)?.[1]?.trim()
-  const slug = (story || 'story')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-  return `${slug || 'story'}.inf`
+  return `${storyBase.value}.inf`
 }
 async function saveAs() {
   const name = suggestedFilename()
