@@ -84,11 +84,16 @@
     if (window.__frotzScriptRunning) return
     var grid = document.querySelector('.GridWindow')
     if (!grid) return
-    var line0 = (grid.textContent || '').split('\n')[0] || ''
+    var gline = grid.querySelector('.GridLine') // status-line div; skip the window's <style> child
+    var line0 = gline ? (gline.textContent || '') : ''
     var name = line0.split(/\s{2,}/)[0].trim()
     if (!name) return
     var buffer = document.querySelector('.BufferWindow')
-    var full = buffer ? (buffer.textContent || '') : ''
+    var full = ''
+    if (buffer) { // join the line divs, skipping the window's <style> child
+      var blines = buffer.querySelectorAll('.BufferLine')
+      for (var bi = 0; bi < blines.length; bi++) full += (blines[bi].textContent || '') + String.fromCharCode(10)
+    }
     // Buffer accumulates; the suffix added since last read is this turn's output.
     if (full.length < __frotzPrevBufferLen) __frotzPrevBufferLen = 0 // a screen clear
     var text = full.slice(__frotzPrevBufferLen)
@@ -98,10 +103,13 @@
     __frotzLastRoom = name
     parent.postMessage({ source: 'frotzsmith-play', type: 'room', name: name, text: text }, location.origin)
   }
-  var __frotzRaf = 0
+  var __frotzTimer = 0
   function __frotzScheduleRead() {
-    if (__frotzRaf) return
-    __frotzRaf = requestAnimationFrame(function () { __frotzRaf = 0; __frotzReadRoom() })
+    // setTimeout, not rAF: rAF is paused while the Play iframe is hidden (e.g. on
+    // the Map tab), so the map would miss moves; setTimeout fires regardless and
+    // still coalesces a turn's mutation burst into one read.
+    if (__frotzTimer) return
+    __frotzTimer = setTimeout(function () { __frotzTimer = 0; __frotzReadRoom() }, 60)
   }
   function __frotzStartMapObserver() {
     var root = document.getElementById('windowport') || document.body
