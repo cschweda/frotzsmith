@@ -3,7 +3,6 @@ import { formatI6 } from '~/utils/format-i6'
 import { PROFILES, detectProfile, type ProfileId } from '~/modules/inform6/profiles'
 import { sampleById } from '~/modules/inform6/samples'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
-import { migrateStorageKeys } from './useStorageMigration'
 
 export type CompileStatus = 'idle' | 'compiling' | 'success' | 'error'
 export type RightTab = 'results' | 'play' | 'transcript' | 'testscript' | 'map'
@@ -70,8 +69,6 @@ export function useIde() {
   /** Restore the persisted profile mode, then the source recovery snapshot. */
   function restore() {
     if (import.meta.client) {
-      // One-time migration of un-prefixed keys → per-language namespace (Task 4).
-      migrateStorageKeys(profile.value.stateKey)
       const profileModeKey = buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.profileMode)
       const targetKey = buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.target)
       const saved = localStorage.getItem(profileModeKey)

@@ -284,7 +284,7 @@ Object -> lamp "brass lamp"
         </ul>
         <p class="text-muted text-sm">
           The <code class="frotz-code">.inf</code> is the canonical artifact; localStorage holds only a
-          crash-recovery snapshot (<code class="frotz-code">{{ frotzsmith.storageKeys.recovery }}</code>) and never
+          crash-recovery snapshot (<code class="frotz-code">frotzsmith:&lt;lang&gt;:recovery</code>, e.g. <code class="frotz-code">frotzsmith:i6:recovery</code>) and never
           replaces the file you export.
         </p>
       </section>
