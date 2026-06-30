@@ -3,6 +3,7 @@ import type { ProfileId } from '~/modules/inform6/profiles'
 
 const { source, storyBase, loadSource, newProject } = useIde()
 const { togglePanel, panelOpen } = useProjectFiles()
+const { profile } = useLanguage()
 
 // New-project modal state.
 const open = ref(false)
@@ -31,7 +32,7 @@ function onFileChange(event: Event) {
 
 // Save As… — a real save dialog where supported (Chromium), else a download.
 function suggestedFilename() {
-  return `${storyBase.value}.inf`
+  return `${storyBase.value}.${profile.value.fileExt}`
 }
 async function saveAs() {
   const name = suggestedFilename()
@@ -41,7 +42,7 @@ async function saveAs() {
     try {
       const handle = (await picker({
         suggestedName: name,
-        types: [{ description: 'Inform 6 source', accept: { 'text/plain': ['.inf'] } }],
+        types: [{ description: 'Inform 6 source', accept: { 'text/plain': [`.${profile.value.fileExt}`] } }],
       })) as { createWritable: () => Promise<{ write: (d: string) => Promise<void>; close: () => Promise<void> }> }
       const writable = await handle.createWritable()
       await writable.write(text)
@@ -75,7 +76,7 @@ async function saveAs() {
     <UIcon name="i-lucide-file-code-2" class="text-muted size-4" />
     <span class="text-muted text-xs font-semibold uppercase tracking-wide">Source</span>
 
-    <input ref="fileInput" type="file" accept=".inf,.txt,.h" class="hidden" @change="onFileChange" />
+    <input ref="fileInput" type="file" :accept="`.${profile.fileExt},.txt,.h`" class="hidden" @change="onFileChange" />
 
     <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
       <UButton color="neutral" variant="subtle" size="sm" icon="i-lucide-folder-open" @click="openFile">

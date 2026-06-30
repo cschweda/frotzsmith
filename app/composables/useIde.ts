@@ -16,6 +16,7 @@ export type ProfileMode = 'auto' | ProfileId
 export function useIde() {
   const { source, savedAt, restore: restoreSource } = useSourceDocument()
   const { compile } = useCompiler()
+  const { profile } = useLanguage()
   const { enabledFiles, restore: restoreExtensions } = useExtensions()
   const { activeFile, readFile, writeActive, restore: restoreProjectFiles } = useProjectFiles()
   const { restore: restoreScripts } = useTestScripts()
@@ -71,7 +72,8 @@ export function useIde() {
       const saved = localStorage.getItem(frotzsmith.storageKeys.profileMode)
       if (saved === 'auto' || saved === 'std' || saved === 'puny') profileMode.value = saved
       const t = localStorage.getItem(frotzsmith.storageKeys.target)
-      if (t === 'auto' || t === 'z3' || t === 'z4' || t === 'z5' || t === 'z8') targetMode.value = t
+      if (t !== null && (t === 'auto' || (profile.value.versionTargets as string[]).includes(t)))
+        targetMode.value = t as 'auto' | StoryExt
     }
     restoreExtensions()
     // Restore source before project files so tab reconciliation runs against the

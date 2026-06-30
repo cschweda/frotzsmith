@@ -10,8 +10,6 @@ import type { ProfileMode } from '~/composables/useIde'
 import { PROFILES, detectProfile } from '~/modules/inform6/profiles'
 import { frotzsmith } from '~~/frotzsmith.config'
 
-const SOURCE_NAME = 'story.inf'
-
 /**
  * Reactive model behind the file explorer + editor tabs. The file list mirrors
  * the compilation bundle (source, enabled extensions, the active library's
@@ -20,6 +18,8 @@ const SOURCE_NAME = 'story.inf'
 export function useProjectFiles() {
   const { source } = useSourceDocument()
   const { all, isEnabled, updateUploaded } = useExtensions()
+  const { profile } = useLanguage()
+  const sourceName = computed(() => `story.${profile.value.fileExt}`)
 
   // Active library: same derivation as useIde (auto-detect vs forced), read from
   // the shared `profileMode` state so we don't depend on (and cycle through) useIde.
@@ -34,7 +34,7 @@ export function useProjectFiles() {
 
   const files = computed<ProjectFileMeta[]>(() =>
     buildProjectFileList({
-      sourceName: SOURCE_NAME,
+      sourceName: sourceName.value,
       enabledExtensions: enabledExtensions.value.map(e => ({
         id: e.id,
         name: e.name,

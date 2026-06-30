@@ -26,6 +26,7 @@ import { useExtensions } from './useExtensions'
 import { useProjectFiles } from './useProjectFiles'
 import { useTestScripts } from './useTestScripts'
 import { usePlayTranscript } from './usePlayTranscript'
+import { useLanguage } from './useLanguage'
 
 // Stub usePlayTranscript global — usePlayTranscript calls useIde() inside
 // if (import.meta.client), which would recurse into the composable tree when
@@ -45,6 +46,7 @@ vi.stubGlobal('useSourceDocument', useSourceDocument)
 vi.stubGlobal('useExtensions', useExtensions)
 vi.stubGlobal('useProjectFiles', useProjectFiles)
 vi.stubGlobal('useTestScripts', useTestScripts)
+vi.stubGlobal('useLanguage', useLanguage)
 
 // Mock useCompiler to avoid WASM.
 const _compileMock = vi.fn()
