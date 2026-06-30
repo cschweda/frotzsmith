@@ -4,7 +4,7 @@
 
 > A personal, browser-based **Interactive Fiction** IDE — write source, compile to a Z-machine story file entirely client-side, play it inline, and run long test scripts. **Inform 6 (+ PunyInform) today; ZIL in progress.** No backend, no accounts, offline-capable.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
 [![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82.svg)](https://nuxt.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6.svg)](https://www.typescriptlang.org)
 [![Inform 6](https://img.shields.io/badge/Inform%206-6.44-f59e0b.svg)](https://github.com/DavidKinder/Inform6)
@@ -122,7 +122,7 @@ Periodic adversarial (red-team) + defensive (blue-team) reviews of the client-si
 
 ## License & attribution
 
-Frotzsmith is licensed under the [MIT License](./LICENSE) — © 2026 Christopher Schweda.
+Frotzsmith is licensed under the [GNU General Public License v3.0](./LICENSE) — © 2026 Christopher Schweda. (GPLv3 to support the in-progress ZIL backend, which bundles the GPLv3 [ZILF](https://foss.heptapod.net/zilf/zilf/) compiler; MIT until then.)
 
 Bundled third-party components keep their own licenses:
 
