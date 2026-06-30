@@ -34,6 +34,10 @@ story file entirely client-side, and play it inline. See
 - Title-bar **Compile / Play**, a branded **SPA loading splash**, **slugified** Save-As /
   Download filenames (`-puny` for PunyInform), and a recorded **red/blue security audit**
   (see the README's Security audits log)
+- **Auto-map** — a live Trizbort-style map of the rooms you've revealed, built as you
+  play (room names from the status line, exits from your movement); zoom / pan / Fit, a
+  graph-paper backdrop, and a per-room hover popover (exits + objects). Per-game, resets
+  on compile
 
 ## Planned (v2)
 
@@ -43,7 +47,6 @@ See [`docs/13-v2-roadmap.md`](./docs/13-v2-roadmap.md) for the full assessments.
   complete ZILF backend, ideally surfaced as a third option in the library/compiler
   selection dropdown alongside Standard Library and PunyInform. The play side is free:
   ZIL compiles to the same z-code.
-- **Auto-map** — a play-time map of revealed rooms (the Map tab is stubbed).
 - **Extensions registry** — a searchable online catalog.
 - **Glulx** — larger games (the `StoryEngine` seam allows it).
 - **Multi-`.inf` projects**, and an `app.frotzsmith.com` + landing-page split.

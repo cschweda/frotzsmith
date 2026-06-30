@@ -27,6 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Player is light/dark-aware (follows the IDE), edge-to-edge, with a fullscreen
   toggle.
 
+### Added — auto-map
+- **Live Trizbort-style map** — as you play, the **Map** tab draws the rooms you've
+  discovered and their connections: room names read from the status line, exits
+  inferred from your movement commands, placed on a direction grid over a graph-paper
+  backdrop. The current room is highlighted; **zoom / pan / Fit** keep a large map in
+  one view. Hovering (or keyboard-focusing) a room shows its essentials — discovered
+  exits, objects, and a one-line description. Per-game, reset on compile. Built live
+  from hand-play: the room structure is reliable; objects/description are best-effort
+  from the game's prose.
+
 ### Added — editor & authoring
 - CodeMirror 6 with Inform 6 syntax highlighting, live linting, click-to-jump
   compile errors, and ⌘/Ctrl+B to compile.
