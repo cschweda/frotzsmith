@@ -8,6 +8,7 @@ const tabs: { id: RightTab; label: string; icon: string }[] = [
   { id: 'play', label: 'Play', icon: 'i-lucide-gamepad-2' },
   { id: 'transcript', label: 'Transcript', icon: 'i-lucide-history' },
   { id: 'testscript', label: 'Test Script', icon: 'i-lucide-scroll-text' },
+  { id: 'map', label: 'Map', icon: 'i-lucide-map' },
 ]
 </script>
 
@@ -48,18 +49,6 @@ const tabs: { id: RightTab; label: string; icon: string }[] = [
           </button>
         </div>
 
-        <!-- Map: planned (v2). Disabled now, with a "coming soon" tooltip.
-             aria-disabled (not the disabled attribute) so hover still fires the tooltip. -->
-        <UTooltip text="Auto-map — coming soon">
-          <button
-            type="button"
-            aria-disabled="true"
-            class="text-muted/50 flex cursor-not-allowed items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold"
-          >
-            <UIcon name="i-lucide-map" class="size-4" />
-            <span class="hidden sm:inline">Map</span>
-          </button>
-        </UTooltip>
       </div>
 
     </div>
@@ -69,6 +58,7 @@ const tabs: { id: RightTab; label: string; icon: string }[] = [
       <ResultsPanel v-if="activeTab === 'results'" />
       <TranscriptPanel v-else-if="activeTab === 'transcript'" />
       <TestScriptPanel v-else-if="activeTab === 'testscript'" />
+      <MapPanel v-else-if="activeTab === 'map'" />
     </div>
   </div>
 </template>

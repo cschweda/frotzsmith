@@ -5,7 +5,7 @@ import { sampleById } from '~/modules/inform6/samples'
 import { frotzsmith } from '~~/frotzsmith.config'
 
 export type CompileStatus = 'idle' | 'compiling' | 'success' | 'error'
-export type RightTab = 'results' | 'play' | 'transcript' | 'testscript'
+export type RightTab = 'results' | 'play' | 'transcript' | 'testscript' | 'map'
 export type ProfileMode = 'auto' | ProfileId
 
 /**
