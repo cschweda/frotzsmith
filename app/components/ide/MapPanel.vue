@@ -210,6 +210,16 @@ const dirLabel: Record<Dir, string> = {
   u: '↑', d: '↓', in: 'in', out: 'out',
 }
 
+/**
+ * Truncate a room name so it stays inside the ROOM_W-wide box.
+ * Estimate: at text-sm (~14u font) the average glyph advance is ~7u, so ROOM_W
+ * (96u) less a little padding fits ~12 chars. Longer names get an ellipsis; the
+ * `<title>` element and the hover popover both still expose the full name.
+ */
+const LABEL_MAX = 12
+const fitLabel = (name: string): string =>
+  name.length > LABEL_MAX ? name.slice(0, LABEL_MAX - 1).trimEnd() + '…' : name
+
 // ─── u/d/in/out stub rendering ─────────────────────────────────────────────
 /**
  * Directions whose connectors render as a short stub + glyph on the room edge
@@ -375,6 +385,8 @@ const hoveredDetails = computed(() => hovered.value ? details(hovered.value) : n
           @focus="hovered = r.name; focused = r.name"
           @blur="hovered = null; focused = null"
         >
+          <!-- Full name on native hover (label below may be truncated to fit the box) -->
+          <title>{{ r.name }}</title>
           <!-- Focus ring: visible primary-colour halo, distinct from the amber current-room stroke -->
           <rect
             v-if="r.name === focused"
@@ -394,7 +406,7 @@ const hoveredDetails = computed(() => hovered.value ? details(hovered.value) : n
             :class="r.name === currentRoom ? 'stroke-amber-500' : 'stroke-default'"
             :stroke-width="r.name === currentRoom ? 3 : 1.5"
           />
-          <text text-anchor="middle" dominant-baseline="middle" fill="currentColor" class="text-highlighted text-sm">{{ r.name }}</text>
+          <text text-anchor="middle" dominant-baseline="middle" fill="currentColor" class="text-highlighted text-sm">{{ fitLabel(r.name) }}</text>
         </g>
       </svg>
 
