@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { emptyGraph, parseDirection, parseRoomName, addStep, layout } from './map-graph'
+import { emptyGraph, parseDirection, parseRoomName, addStep, layout, exitsOf, parseObjects } from './map-graph'
 
 describe('parseDirection', () => {
   it('maps abbreviations, full words, and "go X" to a Dir', () => {
@@ -106,5 +106,34 @@ describe('layout', () => {
 
   it('returns empty bounds for an empty graph', () => {
     expect(layout(emptyGraph())).toEqual({ rooms: [], connectors: [], bounds: { minCol: 0, maxCol: 0, minRow: 0, maxRow: 0 } })
+  })
+})
+
+describe('exitsOf', () => {
+  it('returns out-edges in canonical order', () => {
+    const g = build([[null, null, 'A'], ['A', 'e', 'B'], ['A', 'n', 'C'], ['A', 'd', 'D']])
+    expect(exitsOf(g, 'A')).toEqual(['n', 'e', 'd']) // canonical: n,ne,e,se,s,sw,w,nw,u,d,in,out
+  })
+  it('returns [] for a room with no out-edges', () => {
+    const g = build([[null, null, 'A'], ['A', 'n', 'B']])
+    expect(exitsOf(g, 'B')).toEqual([])
+  })
+})
+
+describe('parseObjects', () => {
+  it('extracts a single listed object, article stripped', () => {
+    expect(parseObjects('A cosy cottage.\n\nYou can see a brass lamp here.')).toEqual(['brass lamp'])
+  })
+  it('splits "and"/commas into multiple objects', () => {
+    expect(parseObjects('You can see a lamp and a silver key here.')).toEqual(['lamp', 'silver key'])
+    expect(parseObjects('You can see a rock, a stick and a coin here.')).toEqual(['rock', 'stick', 'coin'])
+  })
+  it('handles "there is X here" and "you can also see"', () => {
+    expect(parseObjects('There is a rusty sword here.')).toEqual(['rusty sword'])
+    expect(parseObjects('You can also see a map here.')).toEqual(['map'])
+  })
+  it('returns [] when nothing matches', () => {
+    expect(parseObjects('A featureless room.')).toEqual([])
+    expect(parseObjects('')).toEqual([])
   })
 })

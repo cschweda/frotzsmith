@@ -109,3 +109,31 @@ export function layout(g: MapGraph): MapLayout {
   const rooms: PlacedRoom[] = g.rooms.map(name => ({ name, col: pos.get(name)![0], row: pos.get(name)![1] }))
   return { rooms, connectors, bounds }
 }
+
+const DIR_ORDER: Dir[] = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw', 'u', 'd', 'in', 'out']
+
+/** Directions of edges leading out of `room`, in canonical compass order. */
+export function exitsOf(g: MapGraph, room: string): Dir[] {
+  const dirs = new Set<Dir>()
+  for (const e of g.edges) if (e.from === room) dirs.add(e.dir)
+  return DIR_ORDER.filter(d => dirs.has(d))
+}
+
+function splitObjects(s: string): string[] {
+  return s
+    .split(/\s*,\s*|\s+and\s+/i)
+    .map(x => x.replace(/^\s*(?:a|an|the|some)\s+/i, '').trim())
+    .filter(Boolean)
+}
+
+/** Best-effort object names from a room's captured text (Std/Puny "X here" listing). */
+export function parseObjects(roomText: string): string[] {
+  const out: string[] = []
+  for (const line of roomText.split('\n')) {
+    const see = /you can (?:also )?see (.+?) here\b/i.exec(line)
+    if (see) out.push(...splitObjects(see[1]!))
+    const there = /there (?:is|are) (.+?) here\b/i.exec(line)
+    if (there) out.push(...splitObjects(there[1]!))
+  }
+  return out
+}
