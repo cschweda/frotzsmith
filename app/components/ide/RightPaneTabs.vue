@@ -13,9 +13,9 @@ const tabs: { id: RightTab; label: string; icon: string }[] = [
 
 <template>
   <div class="flex h-full flex-col">
-    <TitleStrip />
+    <TitleStrip actions />
 
-    <!-- Header: tabs (left) + status + Compile/Play (right) -->
+    <!-- Header: tabs only — Compile/Play live in the title bar (TitleStrip). -->
     <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-default px-2 py-2">
       <div class="flex items-center gap-1">
         <div role="tablist" class="flex gap-1">

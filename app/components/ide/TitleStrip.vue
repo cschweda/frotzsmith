@@ -1,6 +1,8 @@
 <script setup lang="ts">
 const { source, status, canPlay, runCompile, playStory } = useIde()
 
+defineProps<{ actions?: boolean }>()
+
 // The game's title & headline, read live from the source.
 const meta = computed(() => {
   const story = /Constant\s+Story\s+"([^"]*)"/i.exec(source.value)?.[1]?.trim()
@@ -19,8 +21,8 @@ const meta = computed(() => {
       <p v-if="meta.headline" class="text-muted truncate text-xs">{{ meta.headline }}</p>
     </div>
 
-    <!-- Primary actions — moved up from the tab row; right-aligned, vertically centred. -->
-    <div class="flex shrink-0 items-center gap-3">
+    <!-- Primary actions — only on the pane that opts in (the output pane). -->
+    <div v-if="actions" class="flex shrink-0 items-center gap-3">
       <UButton
         color="primary"
         icon="i-lucide-hammer"
