@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const { result, playNonce, canPlay, pendingScript } = useIde()
 const { record, reset } = usePlayTranscript()
+const { recordCommand, recordRoom } = useMap()
 const colorMode = useColorMode()
 
 // The compiled story plays in a Parchment iframe (pure-JS ZVM). We hand the
@@ -95,6 +96,8 @@ interface PlayMessage {
   source?: string
   type?: string
   value?: unknown
+  name?: unknown
+  text?: unknown
 }
 // Only trust same-origin messages tagged by our play page (instruction-source
 // boundary). The value is data — appended to a list, never executed.
@@ -103,8 +106,12 @@ function onMessage(e: MessageEvent) {
   if (e.source !== playFrame.value?.contentWindow) return
   const data = e.data as PlayMessage | null
   if (!data || data.source !== 'frotzsmith-play') return
-  if (data.type === 'command' && typeof data.value === 'string') record(data.value)
-  else if (data.type === 'session-start') {
+  if (data.type === 'command' && typeof data.value === 'string') {
+    record(data.value)
+    recordCommand(data.value)
+  } else if (data.type === 'room' && typeof data.name === 'string') {
+    recordRoom(data.name, typeof data.text === 'string' ? data.text : '')
+  } else if (data.type === 'session-start') {
     reset()
     const cmds = pendingScript.value
     if (cmds && cmds.length) {

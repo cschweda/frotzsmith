@@ -63,6 +63,10 @@ vi.stubGlobal('useTranscript', () => ({
   error: ref(null),
 }))
 
+// Stub useMap so runCompile can call useMap().reset() without a real graph.
+const _mapReset = vi.fn()
+vi.stubGlobal('useMap', () => ({ reset: _mapReset }))
+
 // Import AFTER globals are set up.
 const { useIde } = await import('./useIde')
 

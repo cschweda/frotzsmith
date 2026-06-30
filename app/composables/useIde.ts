@@ -93,6 +93,7 @@ export function useIde() {
     usePlayTranscript().reset()
     useTranscript().reset()
     useTestScripts().select('')
+    useMap().reset()
     clearPlayAutosave()
     activeTab.value = 'results'
     const pid = effectiveProfile.value
