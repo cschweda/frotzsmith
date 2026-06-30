@@ -47,6 +47,15 @@ export function useIde() {
   /** Filename stem for Save-As / Download: slug of the title (or 'story'), '-puny' for PunyInform. */
   const storyBase = computed(() => storyBaseName(storyTitle.value, effectiveProfile.value === 'puny'))
 
+  /** Slug of the current story title, or 'untitled' when there is none.
+   *  Recomputes live as the source changes, but only used as the SEED for activeStoryKey. */
+  const storyKey = computed(() => slugify(storyTitle.value || '') || 'untitled')
+
+  /** Stable per-game identity for scoping test scripts and transcript.
+   *  Updated only on discrete load events (restore / loadSample / loadSource / newProject),
+   *  NOT on every title keystroke, so bucket switches are intentional. */
+  const activeStoryKey = useState<string>('frotz:story-key', () => 'untitled')
+
   /** The profile the most recent compile actually used. */
   const usedProfile = useState<ProfileId | null>('frotz:used-profile', () => null)
 
@@ -66,6 +75,9 @@ export function useIde() {
     // restored source's library profile (not the demo's), keeping library tabs.
     restoreSource()
     restoreProjectFiles()
+    // Set the stable story key AFTER source is restored so scripts restore under
+    // the right per-game bucket.
+    activeStoryKey.value = storyKey.value
     restoreScripts()
   }
 
@@ -120,6 +132,8 @@ export function useIde() {
     const s = sampleById(id)
     if (!s) return
     source.value = formatI6(s.source)
+    // Commit the new game's bucket key AFTER source is set so storyKey reflects the sample.
+    activeStoryKey.value = storyKey.value
     // Reset to auto so the sample compiles with its own library, not whatever
     // profile happens to be forced (e.g. from a prior New Project).
     setProfileMode('auto')
@@ -132,6 +146,8 @@ export function useIde() {
   /** Load arbitrary source text (e.g. an opened .inf file) into the editor. */
   function loadSource(text: string) {
     source.value = text
+    // Commit the new game's bucket key AFTER source is set so storyKey reflects the loaded file.
+    activeStoryKey.value = storyKey.value
     result.value = null
     status.value = 'idle'
     activeTab.value = 'results'
@@ -140,6 +156,8 @@ export function useIde() {
   /** Start a fresh project: a blank editor with the chosen library forced. */
   function newProject(library: ProfileId) {
     source.value = ''
+    // Blank source → storyKey is 'untitled'.
+    activeStoryKey.value = storyKey.value
     setProfileMode(library)
     result.value = null
     status.value = 'idle'
@@ -169,6 +187,8 @@ export function useIde() {
     usedProfile,
     storyTitle,
     storyBase,
+    storyKey,
+    activeStoryKey,
     canPlay,
     playNonce,
     runCompile,

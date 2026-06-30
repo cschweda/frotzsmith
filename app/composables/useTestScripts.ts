@@ -1,16 +1,18 @@
 import { frotzsmith } from '~~/frotzsmith.config'
 import {
   type TestScript,
+  type PersistedV2,
   upsertScript,
   renameScript,
   deleteScript,
   setScriptText,
   nextActiveId,
+  migrateScriptStore,
 } from './test-scripts'
 
 const KEY = frotzsmith.storageKeys.scripts
 
-interface Persisted {
+interface Bucket {
   scripts: TestScript[]
   activeId: string
 }
@@ -18,39 +20,39 @@ interface Persisted {
 let watching = false
 
 /**
- * Named test scripts for the working project. localStorage is the working store
- * (ADR-010); the `.inf` is canonical, scripts are working state. Single project
- * for now — multi-project namespacing is future work.
+ * Named test scripts scoped per-game via `activeStoryKey`.
+ *
+ * Persisted shape (v2): `{ v: 2, buckets: { [storyKey]: { scripts, activeId } } }`.
+ * Old flat (v1) shape is migrated on first load and preserved under the
+ * currently-loaded game's key so no existing work is lost.
+ *
+ * `activeStoryKey` is the shared `useState('frotz:story-key')` written by
+ * `useIde` at discrete load events. It is read directly here (instead of via
+ * `useIde()`) to avoid a circular call chain: useIde → useTestScripts → useIde.
  */
 export function useTestScripts() {
-  const scripts = useState<TestScript[]>('frotz:scripts', () => [])
-  const activeId = useState<string>('frotz:script-active', () => '')
+  // Read the shared state directly to avoid the circular call:
+  // useIde() calls useTestScripts(), so calling useIde() here would recurse.
+  const activeStoryKey = useState<string>('frotz:story-key', () => 'untitled')
+
+  const buckets = useState<Record<string, Bucket>>('frotz:script-buckets', () => ({}))
+
+  const scripts = computed<TestScript[]>(() => buckets.value[activeStoryKey.value]?.scripts ?? [])
+  const activeId = computed<string>(() => buckets.value[activeStoryKey.value]?.activeId ?? '')
   const activeScript = computed(() => scripts.value.find(s => s.id === activeId.value))
+
+  function setBucket(key: string, bucket: Bucket) {
+    buckets.value = { ...buckets.value, [key]: bucket }
+  }
 
   function persist() {
     if (!import.meta.client) return
     try {
-      const data: Persisted = { scripts: scripts.value, activeId: activeId.value }
+      const data: PersistedV2 = { v: 2, buckets: buckets.value }
       localStorage.setItem(KEY, JSON.stringify(data))
     } catch {
       // QuotaExceededError — keep working in memory
     }
-  }
-
-  function restore() {
-    if (!import.meta.client) return
-    try {
-      const raw = localStorage.getItem(KEY)
-      if (raw) {
-        const data = JSON.parse(raw) as Persisted
-        if (Array.isArray(data.scripts)) scripts.value = data.scripts
-        if (typeof data.activeId === 'string') activeId.value = data.activeId
-      }
-    } catch {
-      // corrupt — ignore, start empty
-    }
-    if (!activeScript.value && scripts.value.length === 0) seedFirst()
-    activeId.value = nextActiveId(scripts.value, activeId.value)
   }
 
   function seedFirst() {
@@ -59,49 +61,96 @@ export function useTestScripts() {
       name: 'Script 1',
       text: '! One command per line, or separate with periods.\nlook\n',
     }
-    scripts.value = [first]
-    activeId.value = first.id
+    setBucket(activeStoryKey.value, { scripts: [first], activeId: first.id })
+  }
+
+  /** Ensure the given key has a non-empty bucket; reconcile a stale activeId. */
+  function ensureBucket(key: string) {
+    const bucket = buckets.value[key]
+    if (!bucket || bucket.scripts.length === 0) {
+      const first: TestScript = {
+        id: newId(),
+        name: 'Script 1',
+        text: '! One command per line, or separate with periods.\nlook\n',
+      }
+      setBucket(key, { scripts: [first], activeId: first.id })
+    } else {
+      const reconciled = nextActiveId(bucket.scripts, bucket.activeId)
+      if (reconciled !== bucket.activeId) {
+        setBucket(key, { ...bucket, activeId: reconciled })
+      }
+    }
+  }
+
+  function restore() {
+    if (!import.meta.client) return
+    try {
+      const raw = localStorage.getItem(KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw) as unknown
+        const migrated = migrateScriptStore(parsed, activeStoryKey.value)
+        buckets.value = migrated.buckets as Record<string, Bucket>
+      }
+    } catch {
+      // corrupt — ignore, start empty
+      buckets.value = {}
+    }
+    ensureBucket(activeStoryKey.value)
   }
 
   function add(name?: string) {
-    const script: TestScript = { id: newId(), name: name || `Script ${scripts.value.length + 1}`, text: '' }
-    scripts.value = upsertScript(scripts.value, script)
-    activeId.value = script.id
+    const key = activeStoryKey.value
+    const bucket = buckets.value[key] ?? { scripts: [], activeId: '' }
+    const script: TestScript = { id: newId(), name: name || `Script ${bucket.scripts.length + 1}`, text: '' }
+    setBucket(key, { scripts: upsertScript(bucket.scripts, script), activeId: script.id })
     persist()
   }
 
   /** Create a script from ready-made text (e.g. a captured playthrough). */
   function addFromText(name: string, text: string) {
+    const key = activeStoryKey.value
+    const bucket = buckets.value[key] ?? { scripts: [], activeId: '' }
     const script: TestScript = { id: newId(), name, text }
-    scripts.value = upsertScript(scripts.value, script)
-    activeId.value = script.id
+    setBucket(key, { scripts: upsertScript(bucket.scripts, script), activeId: script.id })
     persist()
   }
 
   function rename(id: string, name: string) {
-    scripts.value = renameScript(scripts.value, id, name)
+    const key = activeStoryKey.value
+    const bucket = buckets.value[key] ?? { scripts: [], activeId: '' }
+    setBucket(key, { ...bucket, scripts: renameScript(bucket.scripts, id, name) })
     persist()
   }
 
   function remove(id: string) {
-    scripts.value = deleteScript(scripts.value, id)
-    activeId.value = nextActiveId(scripts.value, activeId.value)
+    const key = activeStoryKey.value
+    const bucket = buckets.value[key] ?? { scripts: [], activeId: '' }
+    const newScripts = deleteScript(bucket.scripts, id)
+    const newActiveId = nextActiveId(newScripts, bucket.activeId)
+    setBucket(key, { scripts: newScripts, activeId: newActiveId })
     persist()
   }
 
   function updateText(id: string, text: string) {
-    scripts.value = setScriptText(scripts.value, id, text)
+    const key = activeStoryKey.value
+    const bucket = buckets.value[key] ?? { scripts: [], activeId: '' }
+    setBucket(key, { ...bucket, scripts: setScriptText(bucket.scripts, id, text) })
     persist()
   }
 
   function select(id: string) {
-    activeId.value = id
+    const key = activeStoryKey.value
+    const bucket = buckets.value[key] ?? { scripts: [], activeId: '' }
+    setBucket(key, { ...bucket, activeId: id })
     persist()
   }
 
   if (import.meta.client && !watching) {
     watching = true
-    watch([scripts, activeId], persist, { deep: true })
+    watch(buckets, persist, { deep: true })
+    watch(activeStoryKey, newKey => {
+      ensureBucket(newKey)
+    })
   }
 
   return { scripts, activeId, activeScript, add, addFromText, rename, remove, updateText, select, restore }

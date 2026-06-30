@@ -8,6 +8,54 @@ export interface TestScript {
   text: string
 }
 
+export interface PersistedV2 {
+  v: 2
+  buckets: Record<string, { scripts: TestScript[]; activeId: string }>
+}
+
+/**
+ * Migrate a raw parsed localStorage value to the v2 bucketed shape.
+ *  - v2 passthrough: returned as-is.
+ *  - Old flat v1 shape (data.scripts is an array, data.v absent): converted to v2
+ *    under `currentKey` so existing scripts are preserved for the current game.
+ *  - Corrupt / unrecognised input: returns an empty v2 store.
+ */
+export function migrateScriptStore(raw: unknown, currentKey: string): PersistedV2 {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { v: 2, buckets: {} }
+  }
+  const data = raw as Record<string, unknown>
+
+  // Already v2
+  if (
+    data.v === 2 &&
+    data.buckets !== null &&
+    typeof data.buckets === 'object' &&
+    !Array.isArray(data.buckets)
+  ) {
+    return {
+      v: 2,
+      buckets: data.buckets as Record<string, { scripts: TestScript[]; activeId: string }>,
+    }
+  }
+
+  // Old flat v1 shape (data.scripts is an array and data.v is absent)
+  if (Array.isArray(data.scripts)) {
+    return {
+      v: 2,
+      buckets: {
+        [currentKey]: {
+          scripts: data.scripts as TestScript[],
+          activeId: typeof data.activeId === 'string' ? data.activeId : '',
+        },
+      },
+    }
+  }
+
+  // Corrupt / unrecognised
+  return { v: 2, buckets: {} }
+}
+
 export function upsertScript(list: TestScript[], script: TestScript): TestScript[] {
   const i = list.findIndex(s => s.id === script.id)
   if (i === -1) return [...list, script]
