@@ -50,9 +50,17 @@ export async function createGlk(): Promise<Glk> {
     return nodeRequire(GLKAPI_PATH) as Glk
   }
   if (!browserGlk) {
-    // @ts-expect-error — glkote-term ships no types.
-    const mod = await import('glkote-term/src/glkapi.js')
-    browserGlk = ((mod as { default?: Glk }).default ?? (mod as unknown)) as Glk
+    // glkapi.js is Zarf's classic, SLOPPY-MODE GlkAPI script: it publishes its API
+    // via an implicit global `Glk` (`Glk = function(){…}()`) and relies on
+    // undeclared locals (e.g. `split` in gli_window_rearrange). A strict-mode ESM
+    // worker rejects both ("… is not defined"). So load the RAW source and run it
+    // in sloppy mode via indirect eval — exactly as a classic <script> would — so
+    // `Glk` lands on globalThis, where glkapi's callbacks and the VM's bare `Glk.*`
+    // references resolve it. CSP already permits 'unsafe-eval' (the ZVM is a JIT;
+    // see netlify.toml).
+    const src = (await import('glkote-term/src/glkapi.js?raw')).default
+    ;(0, eval)(src)
+    browserGlk = (globalThis as Record<string, unknown>).Glk as Glk
   }
   return browserGlk
 }
