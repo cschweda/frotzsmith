@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Dir } from '~/composables/map-graph'
-const { layout, currentRoom } = useMap()
+const { layout, currentRoom, details } = useMap()
 
 const CELL = 120, ROOM_W = 96, ROOM_H = 48, PAD = 60
 /** Clamp limits for the viewBox width (SVG user-space units). */
@@ -200,6 +200,20 @@ const dirLabel: Record<Dir, string> = {
   ne: 'NE', nw: 'NW', se: 'SE', sw: 'SW',
   u: '↑', d: '↓', in: 'in', out: 'out',
 }
+
+// ─── Hover / focus popover ─────────────────────────────────────────────────
+/** Full-word direction names shown in the popover. */
+const dirWord: Record<Dir, string> = {
+  n: 'north', s: 'south', e: 'east', w: 'west',
+  ne: 'northeast', nw: 'northwest', se: 'southeast', sw: 'southwest',
+  u: 'up', d: 'down', in: 'in', out: 'out',
+}
+
+/** Name of the room currently under the cursor or keyboard focus. */
+const hovered = ref<string | null>(null)
+
+/** Exits, objects, and one-line description for the hovered room. */
+const hoveredDetails = computed(() => hovered.value ? details(hovered.value) : null)
 </script>
 
 <template>
@@ -254,8 +268,20 @@ const dirLabel: Record<Dir, string> = {
           />
         </g>
 
-        <!-- rooms -->
-        <g v-for="r in layout.rooms" :key="r.name" :transform="`translate(${r.col * CELL},${r.row * CELL})`">
+        <!-- rooms — focusable for a11y; hover/focus → popover -->
+        <g
+          v-for="r in layout.rooms"
+          :key="r.name"
+          :transform="`translate(${r.col * CELL},${r.row * CELL})`"
+          tabindex="0"
+          role="button"
+          :aria-label="`Room ${r.name}`"
+          class="outline-none"
+          @mouseenter="hovered = r.name"
+          @mouseleave="hovered = null"
+          @focus="hovered = r.name"
+          @blur="hovered = null"
+        >
           <rect
             :x="-ROOM_W / 2" :y="-ROOM_H / 2"
             :width="ROOM_W" :height="ROOM_H"
@@ -267,6 +293,25 @@ const dirLabel: Record<Dir, string> = {
           <text text-anchor="middle" dominant-baseline="middle" class="fill-default text-sm">{{ r.name }}</text>
         </g>
       </svg>
+
+      <!-- Room detail popover — bottom-left corner, shown on hover or keyboard focus -->
+      <div
+        v-if="hovered && hoveredDetails"
+        class="absolute bottom-2 left-2 z-10 w-56 rounded-lg border bg-elevated/95 p-3 shadow-lg backdrop-blur-sm"
+        role="tooltip"
+        aria-live="polite"
+      >
+        <p class="mb-1.5 text-sm font-semibold leading-tight">{{ hovered }}</p>
+        <p class="text-muted text-xs">
+          <span class="font-medium">Exits:</span>
+          {{ hoveredDetails.exits.map(d => dirWord[d]).join(', ') || '—' }}
+        </p>
+        <p class="text-muted text-xs">
+          <span class="font-medium">Objects:</span>
+          {{ hoveredDetails.objects.join(', ') || '—' }}
+        </p>
+        <p v-if="hoveredDetails.description" class="text-muted mt-1.5 text-xs italic">{{ hoveredDetails.description }}</p>
+      </div>
 
       <!-- Zoom / pan control overlay — top-right, keyboard-operable -->
       <div class="absolute right-2 top-2 flex items-center gap-1 rounded-lg bg-elevated/80 px-2 py-1 backdrop-blur-sm">
