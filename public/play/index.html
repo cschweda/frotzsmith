@@ -80,6 +80,7 @@
   // --- Auto-map capture: post the room (status line) + this turn's new buffer text ---
   var __frotzPrevLineCount = 0
   var __frotzLastRoom = ''
+  var __frotzNoRoomPosted = false
   function __frotzReadRoom() {
     if (window.__frotzScriptRunning) return
     var grid = document.querySelector('.GridWindow')
@@ -87,7 +88,13 @@
     var gline = grid.querySelector('.GridLine') // status-line div; skip the window's <style> child
     var line0 = gline ? (gline.textContent || '') : ''
     var name = line0.split(/\s{2,}/)[0].trim()
-    if (!name) return
+    if (!name) {
+      if (!__frotzNoRoomPosted) {
+        __frotzNoRoomPosted = true
+        parent.postMessage({ source: 'frotzsmith-play', type: 'no-room' }, location.origin)
+      }
+      return
+    }
     var buffer = document.querySelector('.BufferWindow')
     var blines = buffer ? buffer.querySelectorAll('.BufferLine') : []
     if (blines.length < __frotzPrevLineCount) __frotzPrevLineCount = 0 // screen clear

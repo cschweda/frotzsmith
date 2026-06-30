@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const { result, playNonce, canPlay, pendingScript } = useIde()
 const { record, reset } = usePlayTranscript()
-const { recordCommand, recordRoom } = useMap()
+const { recordCommand, recordRoom, markNoRoom } = useMap()
 const colorMode = useColorMode()
 
 // The compiled story plays in a Parchment iframe (pure-JS ZVM). We hand the
@@ -111,6 +111,8 @@ function onMessage(e: MessageEvent) {
     recordCommand(data.value)
   } else if (data.type === 'room' && typeof data.name === 'string') {
     recordRoom(data.name, typeof data.text === 'string' ? data.text : '')
+  } else if (data.type === 'no-room') {
+    markNoRoom()
   } else if (data.type === 'session-start') {
     reset()
     const cmds = pendingScript.value

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Dir } from '~/composables/map-graph'
-const { layout, currentRoom, details } = useMap()
+const { layout, currentRoom, details, graph, noRoomName } = useMap()
 
 const CELL = 120, ROOM_W = 96, ROOM_H = 48, PAD = 60
 /** Clamp limits for the viewBox width (SVG user-space units). */
@@ -8,7 +8,8 @@ const MIN_W = CELL       // most zoomed-in: one cell wide
 const MAX_W = CELL * 60  // most zoomed-out: 60 cells wide
 
 const hasRooms = computed(() => layout.value.rooms.length > 0)
-const noMap = computed(() => false) // Task 8/later may surface a "no room name" note
+/** True once the play frame confirms the status line has no room name and no rooms have been recorded. */
+const noMap = computed(() => noRoomName.value && layout.value.rooms.length === 0)
 
 // ─── Reactive viewBox state ────────────────────────────────────────────────
 /**
@@ -191,23 +192,88 @@ onMounted(() => {
 })
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
-const pos = (name: string) => {
-  const r = layout.value.rooms.find(x => x.name === name)!
-  return { x: r.col * CELL, y: r.row * CELL }
-}
+
+/**
+ * Memoized name→pixel lookup built once per layout (not on every render frame).
+ * Each connector/room reads from this Map rather than doing a linear .find.
+ */
+const posMap = computed<Map<string, { x: number; y: number }>>(() => {
+  const m = new Map<string, { x: number; y: number }>()
+  for (const r of layout.value.rooms) m.set(r.name, { x: r.col * CELL, y: r.row * CELL })
+  return m
+})
+const pos = (name: string): { x: number; y: number } => posMap.value.get(name) ?? { x: 0, y: 0 }
+
 const dirLabel: Record<Dir, string> = {
   n: 'N', s: 'S', e: 'E', w: 'W',
   ne: 'NE', nw: 'NW', se: 'SE', sw: 'SW',
   u: '↑', d: '↓', in: 'in', out: 'out',
 }
 
+// ─── u/d/in/out stub rendering ─────────────────────────────────────────────
+/**
+ * Directions whose connectors render as a short stub + glyph on the room edge
+ * rather than a long dashed cross-map line (spec §3.4/§10).
+ */
+type StubDir = 'u' | 'd' | 'in' | 'out'
+const STUB_DIRS: ReadonlySet<Dir> = new Set<Dir>(['u', 'd', 'in', 'out'])
+
+/**
+ * Geometry offsets from the from-room centre for each stub direction.
+ * ax/ay: anchor on the room box edge; ex/ey: outer tick-mark endpoint.
+ */
+const STUB_OFFSETS: Record<StubDir, { ax: number; ay: number; ex: number; ey: number }> = {
+  u:   { ax: 0,           ay: -ROOM_H / 2,      ex: 0,               ey: -ROOM_H / 2 - 14 },
+  d:   { ax: 0,           ay:  ROOM_H / 2,       ex: 0,               ey:  ROOM_H / 2 + 14 },
+  in:  { ax: ROOM_W / 2,  ay: -ROOM_H / 4,       ex: ROOM_W / 2 + 14, ey: -ROOM_H / 4      },
+  out: { ax: ROOM_W / 2,  ay:  ROOM_H / 4,       ex: ROOM_W / 2 + 14, ey:  ROOM_H / 4      },
+}
+
+/** Pre-computed stub geometry used in the template. */
+const stubConnectors = computed(() =>
+  layout.value.connectors
+    .filter(c => STUB_DIRS.has(c.dir))
+    .map(c => {
+      const p = pos(c.from)
+      const o = STUB_OFFSETS[c.dir as StubDir]
+      const isUD = c.dir === 'u' || c.dir === 'd'
+      return {
+        key: `${c.from}-${c.dir}`,
+        x1: p.x + o.ax, y1: p.y + o.ay,
+        x2: p.x + o.ex, y2: p.y + o.ey,
+        lx: p.x + o.ex + (isUD ? 0 : 8),
+        ly: p.y + o.ey + (c.dir === 'u' ? -7 : c.dir === 'd' ? 7 : 0),
+        label: dirLabel[c.dir],
+        anchor: isUD ? ('middle' as const) : ('start' as const),
+      }
+    }),
+)
+
+/** Regular (cardinal/diagonal) connectors — stubs are rendered separately. */
+const regularConnectors = computed(() => layout.value.connectors.filter(c => !STUB_DIRS.has(c.dir)))
+
 // ─── Hover / focus popover ─────────────────────────────────────────────────
-/** Full-word direction names shown in the popover. */
+/** Full-word direction names shown in the popover and the SR room list. */
 const dirWord: Record<Dir, string> = {
   n: 'north', s: 'south', e: 'east', w: 'west',
   ne: 'northeast', nw: 'northwest', se: 'southeast', sw: 'southwest',
   u: 'up', d: 'down', in: 'in', out: 'out',
 }
+
+// ─── Screen-reader room list ────────────────────────────────────────────────
+/**
+ * Textual room+exit descriptions for the visually-hidden SR fallback (spec §7).
+ * Derives targets from graph edges so we can say "north to Library" not just "north".
+ */
+const srRoomList = computed(() =>
+  layout.value.rooms.map(r => {
+    const exits = graph.value.edges.filter(e => e.from === r.name)
+    const exitText = exits.length
+      ? exits.map(e => `${dirWord[e.dir]} to ${e.to}`).join(', ')
+      : 'no exits'
+    return { name: r.name, exitText }
+  }),
+)
 
 /** Name of the room currently under the cursor or keyboard focus. */
 const hovered = ref<string | null>(null)
@@ -222,9 +288,16 @@ const hoveredDetails = computed(() => hovered.value ? details(hovered.value) : n
   <div class="bg-default relative h-full w-full overflow-hidden">
     <!-- Empty state -->
     <div v-if="!hasRooms" class="frotz-grid flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-      <UIcon name="i-lucide-map" class="size-10 text-primary" />
-      <p class="text-lg font-semibold">Play to map the world</p>
-      <p class="text-muted max-w-sm text-sm">Move around in the Play tab and rooms appear here.</p>
+      <template v-if="noMap">
+        <UIcon name="i-lucide-map-off" class="size-10 text-muted" />
+        <p class="text-lg font-semibold">Can't auto-map</p>
+        <p class="text-muted max-w-sm text-sm">This game's status line has no room name — the map can't track rooms.</p>
+      </template>
+      <template v-else>
+        <UIcon name="i-lucide-map" class="size-10 text-primary" />
+        <p class="text-lg font-semibold">Play to map the world</p>
+        <p class="text-muted max-w-sm text-sm">Move around in the Play tab and rooms appear here.</p>
+      </template>
     </div>
 
     <template v-else>
@@ -258,16 +331,34 @@ const hoveredDetails = computed(() => hovered.value ? details(hovered.value) : n
         </defs>
         <rect x="-100000" y="-100000" width="200000" height="200000" fill="url(#gp-major)" />
 
-        <!-- connectors -->
+        <!-- regular connectors (cardinal/diagonal) -->
         <g stroke="currentColor" class="text-muted">
           <line
-            v-for="(c, i) in layout.connectors"
+            v-for="(c, i) in regularConnectors"
             :key="i"
             :x1="pos(c.from).x" :y1="pos(c.from).y"
             :x2="pos(c.to).x"   :y2="pos(c.to).y"
             :stroke-dasharray="c.grid ? '0' : '6 5'"
             stroke-width="2"
           />
+        </g>
+
+        <!-- u/d/in/out stubs: short tick + dirLabel glyph on the from-room edge (spec §3.4/§10) -->
+        <g>
+          <template v-for="s in stubConnectors" :key="s.key">
+            <line
+              :x1="s.x1" :y1="s.y1" :x2="s.x2" :y2="s.y2"
+              stroke="currentColor" stroke-width="2" fill="none" class="text-muted"
+            />
+            <text
+              :x="s.lx" :y="s.ly"
+              :text-anchor="s.anchor"
+              dominant-baseline="middle"
+              fill="currentColor"
+              stroke="none"
+              class="text-xs text-muted"
+            >{{ s.label }}</text>
+          </template>
         </g>
 
         <!-- rooms — focusable for a11y; hover/focus → popover -->
@@ -303,9 +394,16 @@ const hoveredDetails = computed(() => hovered.value ? details(hovered.value) : n
             :class="r.name === currentRoom ? 'stroke-amber-500' : 'stroke-default'"
             :stroke-width="r.name === currentRoom ? 3 : 1.5"
           />
-          <text text-anchor="middle" dominant-baseline="middle" class="fill-default text-sm">{{ r.name }}</text>
+          <text text-anchor="middle" dominant-baseline="middle" fill="currentColor" class="text-highlighted text-sm">{{ r.name }}</text>
         </g>
       </svg>
+
+      <!-- Visually-hidden room list for screen readers (spec §7).
+           Enumerates each room with full-word direction targets so AT users
+           can navigate the map without the SVG graphics. -->
+      <ul class="sr-only" aria-label="Room list">
+        <li v-for="item in srRoomList" :key="item.name">{{ item.name }} — {{ item.exitText }}</li>
+      </ul>
 
       <!-- Room detail popover — bottom-left corner, shown on hover or keyboard focus -->
       <div

@@ -15,6 +15,8 @@ export function useMap() {
   const roomText = useState<Record<string, string>>('frotz:map-roomtext', () => ({}))
   const lastDir = useState<Dir | null>('frotz:map-lastdir', () => null)
   const prevRoom = useState<string | null>('frotz:map-prevroom', () => null)
+  /** True when the play frame confirmed the status line carries no room name. */
+  const noRoomName = useState<boolean>('frotz:map-no-room', () => false)
 
   function reset() {
     graph.value = emptyGraph()
@@ -22,6 +24,11 @@ export function useMap() {
     roomText.value = {}
     lastDir.value = null
     prevRoom.value = null
+    noRoomName.value = false
+  }
+
+  function markNoRoom() {
+    noRoomName.value = true
   }
 
   function recordCommand(cmd: string) {
@@ -31,6 +38,7 @@ export function useMap() {
 
   function recordRoom(name: string, text: string) {
     if (!name) return
+    noRoomName.value = false
     const entered = name !== currentRoom.value
     if (text && entered) roomText.value = { ...roomText.value, [name]: text }
     graph.value = addStep(graph.value, prevRoom.value, lastDir.value, name)
@@ -57,5 +65,5 @@ export function useMap() {
     watch(activeStoryKey, reset)
   }
 
-  return { graph, currentRoom, roomText, layout, recordCommand, recordRoom, details, reset }
+  return { graph, currentRoom, roomText, layout, recordCommand, recordRoom, details, reset, noRoomName, markNoRoom }
 }
