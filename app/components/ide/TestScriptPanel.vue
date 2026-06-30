@@ -80,7 +80,7 @@ function confirmRename() {
         size="sm"
         icon="i-lucide-play"
         :disabled="!canPlay || !activeScript"
-        :title="canPlay ? 'Run this script headlessly' : 'Compile a clean build first'"
+        :title="canPlay ? 'Play this script in the live game' : 'Compile a clean build first'"
         @click="onRun"
       >
         Run
@@ -112,7 +112,7 @@ function confirmRename() {
       >
         <UIcon name="i-lucide-scroll-text" class="size-10 text-primary" />
         <p class="text-lg font-semibold">{{ canPlay ? 'Write a script and press Run' : 'Compile to run scripts' }}</p>
-        <p class="text-muted max-w-sm text-sm">Commands run headlessly; the playthrough appears here.</p>
+        <p class="text-muted max-w-sm text-sm">Run plays the script in the live game (the Play tab).</p>
       </div>
 
       <div v-for="(t, i) in turns" :key="i" class="mb-3">

@@ -45,6 +45,18 @@ function onFsChange() {
 
 const delay = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
 
+// Dispatch a full key sequence (keydown → keypress → keyup) using the IFRAME's
+// KeyboardEvent realm, with keyCode/which set. GlkOte's line input only submits
+// on the keypress (not keydown alone), so all three are required — validated live.
+function fireKey(target: EventTarget, win: Window, key: string, code: string, keyCode: number) {
+  for (const type of ['keydown', 'keypress', 'keyup']) {
+    const ev = new (win as unknown as { KeyboardEvent: typeof KeyboardEvent }).KeyboardEvent(type, { key, code, bubbles: true, cancelable: true })
+    Object.defineProperty(ev, 'keyCode', { get: () => keyCode })
+    Object.defineProperty(ev, 'which', { get: () => keyCode })
+    target.dispatchEvent(ev)
+  }
+}
+
 // Wait until the game is ready for a typed line. If a [MORE]/char prompt is up
 // (no LineInput), press a key to advance, then keep waiting.
 async function waitForLineInput(doc: Document, win: Window, timeoutMs = 5000): Promise<HTMLInputElement | null> {
@@ -52,10 +64,7 @@ async function waitForLineInput(doc: Document, win: Window, timeoutMs = 5000): P
   while (Date.now() - start < timeoutMs) {
     const input = doc.querySelector('input.LineInput') as HTMLInputElement | null
     if (input) return input
-    const ev = new (win as unknown as { KeyboardEvent: typeof KeyboardEvent }).KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true, cancelable: true })
-    Object.defineProperty(ev, 'keyCode', { get: () => 32 })
-    Object.defineProperty(ev, 'which', { get: () => 32 })
-    doc.dispatchEvent(ev)
+    fireKey(doc, win, ' ', 'Space', 32) // advance a [MORE]/char prompt
     await delay(140)
   }
   return null
@@ -74,10 +83,7 @@ async function feedScript(commands: string[]) {
       if (!input) break
       input.focus()
       input.value = cmd
-      const ev = new (win as unknown as { KeyboardEvent: typeof KeyboardEvent }).KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true })
-      Object.defineProperty(ev, 'keyCode', { get: () => 13 })
-      Object.defineProperty(ev, 'which', { get: () => 13 })
-      input.dispatchEvent(ev)
+      fireKey(input, win, 'Enter', 'Enter', 13)
       await delay(420)
     }
   } finally {
