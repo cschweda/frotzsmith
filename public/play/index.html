@@ -81,6 +81,7 @@
   var __frotzPrevLineCount = 0
   var __frotzLastRoom = ''
   var __frotzNoRoomPosted = false
+  var __frotzEmptyReads = 0
   function __frotzReadRoom() {
     if (window.__frotzScriptRunning) return
     var grid = document.querySelector('.GridWindow')
@@ -89,12 +90,17 @@
     var line0 = gline ? (gline.textContent || '') : ''
     var name = line0.split(/\s{2,}/)[0].trim()
     if (!name) {
-      if (!__frotzNoRoomPosted) {
+      // Debounce: a game's grid container can render a frame before its first
+      // status-line text (one transient empty read on boot). Only conclude "no
+      // status line" after several consecutive empties, so games that DO map
+      // don't flash the can't-map note.
+      if (++__frotzEmptyReads >= 3 && !__frotzNoRoomPosted) {
         __frotzNoRoomPosted = true
         parent.postMessage({ source: 'frotzsmith-play', type: 'no-room' }, location.origin)
       }
       return
     }
+    __frotzEmptyReads = 0
     var buffer = document.querySelector('.BufferWindow')
     var blines = buffer ? buffer.querySelectorAll('.BufferLine') : []
     if (blines.length < __frotzPrevLineCount) __frotzPrevLineCount = 0 // screen clear
