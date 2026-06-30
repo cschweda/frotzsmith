@@ -20,7 +20,7 @@ export async function runReplay(
   const banner = await engine.boot(story)
   turns.push({ command: '', output: banner })
 
-  for (let i = 0; i < commands.length; i++) {
+  for (let i = 0; i < commands.length && engine.awaitingLine; i++) {
     turns.push(await engine.send(commands[i]!))
     onProgress?.(i + 1, commands.length)
   }

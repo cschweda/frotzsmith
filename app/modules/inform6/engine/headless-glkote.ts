@@ -65,6 +65,7 @@ export class HeadlessGlkOte {
   }
 
   update(arg: {
+    type?: string
     gen: number
     content?: Array<{ id: number; text?: Array<{ content?: unknown[] }>; lines?: Array<{ content?: unknown[] }> }>
     input?: Array<{ id: number; type: string; gen: number }>
@@ -72,6 +73,15 @@ export class HeadlessGlkOte {
   }) {
     this.gen = arg.gen
     if (arg.content) this.absorbContent(arg.content)
+
+    // VM exit: glkapi signals exit via update({type:'exit'}) rather than
+    // calling GlkOte.exit() directly — absorb any final content first, then
+    // resolve so nextTurn() returns instead of hanging.
+    if (arg.type === 'exit') {
+      this.exited = true
+      this.resolveTurn(false)
+      return
+    }
 
     // A fileref prompt (save / restore / script) — answer "cancelled".
     if (arg.specialinput) {
@@ -83,7 +93,12 @@ export class HeadlessGlkOte {
     if (line) {
       this.lineWindow = line.id
       this.resolveTurn(true)
+      return
     }
+    // Char input (key prompts): we don't drive it in v1 — resolve so the run
+    // stops gracefully here instead of hanging.
+    const char = arg.input?.find(i => i.type === 'char')
+    if (char) this.resolveTurn(false)
   }
 
   warning() {}

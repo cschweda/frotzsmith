@@ -28,12 +28,12 @@ export function useTranscript() {
     ms.value = null
     progress.value = { done: 0, total: commands.length }
 
-    const ctrl = replay(new Uint8Array(story), 'zmachine', commands, {
-      onProgress: (done, total) => (progress.value = { done, total }),
-      timeoutMs: REPLAY_TIMEOUT_MS,
-    })
-    cancelFn = ctrl.cancel
     try {
+      const ctrl = replay(new Uint8Array(story), 'zmachine', commands, {
+        onProgress: (done, total) => (progress.value = { done, total }),
+        timeoutMs: REPLAY_TIMEOUT_MS,
+      })
+      cancelFn = ctrl.cancel
       const res = await ctrl.promise
       turns.value = res.turns
       ms.value = res.ms

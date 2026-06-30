@@ -30,4 +30,19 @@ describe('runReplay (headless ZVM, demo.z5)', () => {
     expect(turns[2]!.command).toBe('south')
     expect(turns[2]!.output).toContain('Cottage')
   })
+
+  it('resolves with a partial transcript when the VM exits mid-script', async () => {
+    // quit + yes exits the Standard Library VM; the trailing look commands must
+    // never be sent (old code threw "No line input pending" and rejected).
+    const commands = ['quit', 'yes', 'look', 'look']
+    const result = await runReplay(demo, 'zmachine', commands)
+    // Must RESOLVE (not reject) — the await above would throw on old code.
+    // Stopped early: fewer turns than commands.length + 1 (boot + all commands).
+    expect(result.turns.length).toBeLessThan(commands.length + 1)
+    // Boot turn is always present.
+    expect(result.turns[0]!.command).toBe('')
+    // The quit command was processed (turn 1 exists).
+    expect(result.turns.length).toBeGreaterThanOrEqual(2)
+    expect(result.turns[1]!.command).toBe('quit')
+  })
 })

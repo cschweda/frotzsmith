@@ -12,6 +12,9 @@ export class ZmachineEngine implements StoryEngine {
   readonly target: EngineTarget = 'zmachine'
   private story!: Uint8Array
   private glkote!: HeadlessGlkOte
+  private _awaitingLine = false
+
+  get awaitingLine(): boolean { return this._awaitingLine }
 
   async boot(story: Uint8Array): Promise<string> {
     this.story = story
@@ -23,12 +26,14 @@ export class ZmachineEngine implements StoryEngine {
     vm.prepare(story, options)
     Glk.init(options)
     const turn = await this.glkote.nextTurn()
+    this._awaitingLine = turn.wantsLine
     return normalizeTurnOutput(turn.buffer, this.target)
   }
 
   async send(command: string): Promise<TurnRecord> {
     this.glkote.sendLine(command)
     const turn = await this.glkote.nextTurn()
+    this._awaitingLine = turn.wantsLine
     const out = normalizeTurnOutput(turn.buffer, this.target)
     // glkapi echoes the accepted input line into the buffer; drop a leading echo
     // of the command (the UI already shows it as the `>` prompt header).
