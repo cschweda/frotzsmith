@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { result, playNonce, canPlay } = useIde()
+const { record, reset } = usePlayTranscript()
 const colorMode = useColorMode()
 
 // The compiled story plays in a Parchment iframe (pure-JS ZVM). We hand the
@@ -41,13 +42,30 @@ function onFsChange() {
   isFullscreen.value = document.fullscreenElement === container.value
 }
 
+interface PlayMessage {
+  source?: string
+  type?: string
+  value?: unknown
+}
+// Only trust same-origin messages tagged by our play page (instruction-source
+// boundary). The value is data — appended to a list, never executed.
+function onMessage(e: MessageEvent) {
+  if (e.origin !== window.location.origin) return
+  const data = e.data as PlayMessage | null
+  if (!data || data.source !== 'frotzsmith-play') return
+  if (data.type === 'command' && typeof data.value === 'string') record(data.value)
+  else if (data.type === 'session-start') reset()
+}
+
 watch(() => playNonce.value, boot)
 onMounted(() => {
   document.addEventListener('fullscreenchange', onFsChange)
+  window.addEventListener('message', onMessage)
   if (playNonce.value > 0) boot()
 })
 onBeforeUnmount(() => {
   document.removeEventListener('fullscreenchange', onFsChange)
+  window.removeEventListener('message', onMessage)
   revoke()
 })
 </script>

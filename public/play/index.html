@@ -53,5 +53,23 @@
   <div id="loadingpane" style="display:none;"><img src="web/waiting.gif" alt="Loading"><br><em>&nbsp;&nbsp;&nbsp;Loading…</em></div>
   <div id="errorpane" style="display:none;"><div id="errorcontent">...</div></div>
 </div>
+<script>
+  // Frotzsmith: report the player's typed commands up to the IDE shell so the
+  // Transcript tab can show them. GlkOte line input is <input class="… LineInput">;
+  // char-input key prompts ("press a key", [MORE]) are class "CharInput" and are
+  // intentionally ignored. Same-origin parent, so postMessage targets our origin.
+  (function () {
+    var TARGET = location.origin
+    window.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter') return
+      var el = e.target
+      if (!el || el.tagName !== 'INPUT' || !el.classList.contains('LineInput')) return
+      var v = (el.value || '').trim()
+      if (v) parent.postMessage({ source: 'frotzsmith-play', type: 'command', value: v }, TARGET)
+    }, true) // capture phase: read the value before GlkOte clears the field
+    // Fresh game booted → ask the shell to start a new transcript.
+    parent.postMessage({ source: 'frotzsmith-play', type: 'session-start' }, TARGET)
+  })()
+</script>
 </body>
 </html>
