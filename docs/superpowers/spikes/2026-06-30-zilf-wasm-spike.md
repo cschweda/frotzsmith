@@ -106,7 +106,14 @@ var storyBytes = fs.GetBytes(fs.Paths.First(p => Regex.IsMatch(p, @"\.z\d$")));
 
 **Size:** 24.7 MB raw / **9.3 MB gzipped** (untrimmed, 182 wasm files; ZILF+ZAPF ≈2.3 MB, the rest is the .NET BCL → **trimming is the headline Phase-3 optimization**). **Compile:** ~6 s first / ~5 s subsequent → **a Web Worker hides it**.
 
-**Phase 3 (browser load + play in Frotzsmith) — NOT YET RUN.** The Node green strongly implies it (same runtime; the `wasmbrowser` template *is* a browser app) and the play is free (Z-code → existing player). The only remaining unknown is Vite serving `_framework/` + the dotnet bootstrap path resolution.
+**Phase 3 (browser load + compile + play in Frotzsmith): PASS — confirmed live.** At `/zil-spike`: `dotnet.create()` runtime up in **196 ms**; `ZilfExports.Compile` returned a valid **z5 (26,164 B, header[0]=5)** in **4.6 s**; the compiled ZIL story **booted + played in Parchment** ("West of House…"). Nuxt serves `public/zilf-spike/_framework/*` statically with correct MIME (`text/javascript`, `application/wasm`) — no config change.
+
+**Browser-integration recipe (for the build):**
+- Load: `import(/* @vite-ignore */ '/<base>/_framework/dotnet.js')` → `await dotnet.create()` → `getAssemblyExports(getConfig().mainAssemblyName)` → call the `[JSExport]` (here `ZilfExports.Compile(src, version)`, returns a JSON `{success, storyBase64, diagnostics}`).
+- Publish with **`WasmFingerprintAssets=false`** → a stable `dotnet.js` with the boot config inlined (no importmap/index.html needed; works outside .NET's own host).
+- Wrap the bytes in `new Uint8Array(bytes)` for the `Blob` (lib.dom typing), then the existing `blob:…#game.z5` → `/play/index.html?story=…` play path.
+- **Caveat:** Nuxt's SPA fallback returns `index.html` (200, `text/html`) for a *missing* `_framework/*` path — so a failed boot looks like a 200; check the Network tab for `_framework/*` responses with `content-type: text/html` to spot a genuinely absent asset.
+- First load ~28 MB raw (→ lazy-load on `/zil/` only); the ~4.6 s is the *compile* (runtime boot is ~200 ms) → **Worker** hides it.
 
 ## Toggle badges (for the `/zil/` design)
 The `/` ↔ `/zil/` toggle shows per-language maturity badges: **Inform 6 — beta**, **ZIL — alpha**.
