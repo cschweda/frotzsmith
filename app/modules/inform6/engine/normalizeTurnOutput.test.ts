@@ -21,4 +21,12 @@ describe('normalizeTurnOutput (zmachine)', () => {
   it('returns empty string for prompt-only output', () => {
     expect(normalizeTurnOutput('\n>', 'zmachine')).toBe('')
   })
+
+  it('strips trailing prompt when followed by blank lines (real VM shape)', () => {
+    expect(normalizeTurnOutput('Cottage\nA room.\n\n>', 'zmachine')).toBe('Cottage\nA room.')
+  })
+
+  it('strips trailing prompt preceded and followed by blank lines', () => {
+    expect(normalizeTurnOutput('Cottage\n\n>\n\n', 'zmachine')).toBe('Cottage')
+  })
 })

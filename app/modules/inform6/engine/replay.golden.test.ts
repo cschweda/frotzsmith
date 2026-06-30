@@ -25,6 +25,8 @@ describe('runReplay (headless ZVM, demo.z5)', () => {
     expect(turns).toHaveLength(3) // boot + 2 commands
     expect(turns[1]!.command).toBe('north')
     expect(turns[1]!.output).toContain('Meadow')
+    expect(turns[1]!.output).not.toMatch(/^north/)
+    expect(turns[1]!.output.trimEnd().endsWith('>')).toBe(false)
     expect(turns[2]!.command).toBe('south')
     expect(turns[2]!.output).toContain('Cottage')
   })

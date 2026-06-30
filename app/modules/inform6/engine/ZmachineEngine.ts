@@ -29,11 +29,13 @@ export class ZmachineEngine implements StoryEngine {
   async send(command: string): Promise<TurnRecord> {
     this.glkote.sendLine(command)
     const turn = await this.glkote.nextTurn()
-    return {
-      command,
-      output: normalizeTurnOutput(turn.buffer, this.target),
-      status: turn.grid || undefined,
-    }
+    const out = normalizeTurnOutput(turn.buffer, this.target)
+    // glkapi echoes the accepted input line into the buffer; drop a leading echo
+    // of the command (the UI already shows it as the `>` prompt header).
+    const nl = out.indexOf('\n')
+    const firstLine = (nl === -1 ? out : out.slice(0, nl)).trim()
+    const output = firstLine === command.trim() ? out.slice(nl === -1 ? out.length : nl + 1).replace(/^\n+/, '') : out
+    return { command, output, status: turn.grid || undefined }
   }
 
   snapshot(): EngineState {

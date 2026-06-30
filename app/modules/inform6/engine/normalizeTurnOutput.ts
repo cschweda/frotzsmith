@@ -8,8 +8,9 @@ import type { EngineTarget } from './StoryEngine'
  */
 export function normalizeTurnOutput(raw: string, _target: EngineTarget): string {
   return raw
-    .replace(/[ \t]+$/gm, '') // trailing whitespace per line
-    .replace(/\n{3,}/g, '\n\n') // 3+ blank lines → one
-    .replace(/\n*>[ \t]*$/, '') // a trailing prompt ('>' or '> ') and the blank lines before it
+    .replace(/[ \t]+$/gm, '')     // trailing whitespace per line
+    .replace(/\n{3,}/g, '\n\n')   // collapse runs of blank lines
+    .trim()                       // drop leading/trailing blank lines FIRST
+    .replace(/\n*>[ \t]*$/, '')   // now the trailing prompt is at the end
     .trim()
 }
