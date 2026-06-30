@@ -59,7 +59,7 @@ export const ZIL_PROFILE: LanguageProfile  // ZILF backend
 ### 3.4 ZIL editor mode + samples
 
 - A **basic CodeMirror 6 ZIL mode** (`app/modules/languages/zil/`): angle-bracket forms, atoms, strings, `;`-comments, the core directives (`<ROUTINE>`, `<OBJECT>`, `<ROOM>`, `<VERSION>`, `<GLOBAL>`, …). v1 is highlighting + bracket matching (not a full grammar); lint is the compiler's diagnostics.
-- **ZIL samples:** start with **Cloak of Darkness** (the IF "hello world", canonical in ZIL) + a one-room Zork-y starter that shows `<VERSION ZIP>` (z3). Bundled like the I6 samples, profile-scoped.
+- **ZIL samples:** a **concept set mirroring the Inform 6 samples** (one-room/skeleton, two rooms, an NPC, a puzzle, light & darkness, a daemon) plus **Cloak of Darkness** and a Zork-y `<VERSION ZIP>` (z3) starter — ~6–8 demos, drawn from ZILF's bundled `sample/` dir + zillib examples where possible, each verified to compile (golden cases). Bundled like the I6 samples, profile-scoped.
 
 ### 3.5 The `/zil/` route + toggle
 

@@ -154,10 +154,20 @@ csproj: `ValidateExecutableReferencesMatchSelfContained=false`; `<AdditionalProp
 **Files:** Create `app/modules/languages/zil/mode.ts` + `mode.test.ts`.
 - [ ] Basic StreamLanguage/Lezer-lite tokenizer: angle-bracket forms `<…>`, atoms, `"strings"`, `;`-comments, core directives (`ROUTINE`,`OBJECT`,`ROOM`,`GLOBAL`,`CONSTANT`,`VERSION`,`SYNTAX`,`TELL`,`COND`,`SET`,`SETG`…), bracket matching. Unit-test the tokenizer on a few lines. Commit `feat(zil): basic CodeMirror ZIL syntax mode`.
 
-### Task 9: ZIL samples
+### Task 9: ZIL sample set (concept demos, similar to the I6 samples)
 
-**Files:** Create `app/modules/languages/zil/samples/` — **Cloak of Darkness** (canonical IF, exists in ZIL) + a **one-room Zork-y starter** (`<VERSION ZIP>` z3). A `samples.ts` registry mirroring the I6 samples shape.
-- [ ] Add the `.zil` sources (verified to compile via the golden harness — add each as a golden case), the registry, a `sampleById` test. Commit `feat(zil): ZIL samples (Cloak of Darkness + starter)`.
+**Files:** Create `app/modules/languages/zil/samples/` + `samples.ts` (registry mirroring the I6 samples shape).
+
+Build a **concept set mirroring the Inform 6 samples** — ZIL has no Std/Puny split, so it's one set of ~6–8 demos. **Draw from ZILF's bundled `sample/` dir + the zillib examples where possible** (the spike's ZILF clone at `tools/zilf-wasm/zilf/sample/` has real ZIL games) and adapt/trim; only hand-write where needed. Cover the same concepts as the I6 set:
+- **Cloak of Darkness** (the canonical IF sample, in ZIL),
+- a **one-room / skeleton** starter (`<VERSION ZIP>` z3, Zork-y),
+- **Two Rooms** (a directional link + a takeable object),
+- an **NPC** (a character + a response),
+- a **puzzle** (e.g. a locked container + key),
+- **Light & darkness** (a dark room + a light source),
+- a **daemon / timed event**.
+
+- [ ] **Each sample MUST compile cleanly** — add each as a **golden-compile case** (Task 7's Node harness, byte/sha-checked) so they can't silently rot. Build the `samples.ts` registry + a `sampleById` test. Commit `feat(zil): ZIL sample set — concept demos (Cloak of Darkness, rooms, NPC, puzzle, light, daemon)`.
 
 ### Task 10: `ZIL_PROFILE`
 
