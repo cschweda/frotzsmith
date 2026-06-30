@@ -4,7 +4,12 @@ export type { CompileResult, StoryExt }
 
 /** Options passed to a language profile's compile function. */
 export interface CompileOpts {
-  version?: StoryExt
+  /** Story-file version to target (z3/z4/z5/z8/ulx). */
+  ext?: StoryExt
+  /** Std/Puny library profile selector (Inform 6 only). */
+  profileId?: 'std' | 'puny'
+  /** User-uploaded extension files to mount (Inform 6 only). */
+  extensions?: { name: string; content: string }[]
 }
 
 /**

@@ -1,5 +1,6 @@
 import type { LanguageProfile, CompileOpts } from '~/modules/languages/types'
 import type { CompileResult } from '~/modules/inform6/types'
+import { I6_PROFILE } from '~/modules/languages/i6/profile'
 
 /**
  * Module-level registry mapping language id → LanguageProfile.
@@ -13,20 +14,9 @@ export function registerProfile(profile: LanguageProfile): void {
   _registry.set(profile.id, profile)
 }
 
-// ─── Minimal i6 stub ────────────────────────────────────────────────────────
-// Task 2 calls registerProfile(I6_PROFILE) to replace this.
-registerProfile({
-  id: 'i6',
-  label: 'Inform 6',
-  badge: 'beta',
-  route: '/',
-  fileExt: 'inf',
-  stateKey: 'i6',
-  versionTargets: ['z3', 'z4', 'z5', 'z8'],
-  async compile(_source: string, _opts: CompileOpts): Promise<CompileResult> {
-    throw new Error('i6 compile stub — replace via registerProfile(I6_PROFILE) in Task 2')
-  },
-})
+// ─── Real I6_PROFILE ────────────────────────────────────────────────────────
+// Replaces the Task 2 stub with the full Inform 6 compile path.
+registerProfile(I6_PROFILE)
 
 // ─── Minimal zil stub ───────────────────────────────────────────────────────
 // Task 10 calls registerProfile(ZIL_PROFILE) to replace this.
