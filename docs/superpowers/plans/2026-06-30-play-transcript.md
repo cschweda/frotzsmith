@@ -580,18 +580,92 @@ git commit -m "feat(play-transcript): capture player commands from the Play ifra
 
 ---
 
-### Task 6: Drop the toolbar "Ready" indicator + keep Play mounted across tabs
+### Task 6: Move Compile/Play to the title bar + drop the "Ready" indicator + keep Play mounted
 
 **Files:**
+- Modify: `app/components/ide/TitleStrip.vue`
 - Modify: `app/components/ide/RightPaneTabs.vue`
 
 **Interfaces:**
-- Consumes: nothing new (`status` stays — it drives the Results tab dot and the Compile button spinner).
-- Produces: the toolbar no longer renders the `Ready/Not ready/Compiling…` text; the Play iframe stays mounted (`v-show`) so the live game and the transcript both survive tab switches.
+- Consumes: `TitleStrip` now also pulls `status`, `canPlay`, `runCompile`, `playStory` from `useIde` (in addition to `source`). `RightPaneTabs` keeps only `activeTab` + `status` (the latter still drives the Results tab dot).
+- Produces: the **Compile** + **Play** buttons live in the title bar (right-aligned, vertically centred), full size; the tab row holds only the tabs; the `Ready/Not ready/Compiling…` text and `statusMeta` are gone; the Play iframe stays mounted (`v-show`) so the live game and the transcript survive tab switches.
 
-- [ ] **Step 1: Remove the `statusMeta` computed**
+> Why: the Compile/Play buttons are big and legible enough to sit in the title nav, which declutters the tab row and frees the old toolbar slot. (User request, 2026-06-30.)
 
-In `app/components/ide/RightPaneTabs.vue`, delete the whole `statusMeta` block:
+- [ ] **Step 1: Move Compile + Play into `TitleStrip.vue`**
+
+Replace the entire contents of `app/components/ide/TitleStrip.vue` with:
+
+```vue
+<script setup lang="ts">
+const { source, status, canPlay, runCompile, playStory } = useIde()
+
+// The game's title & headline, read live from the source.
+const meta = computed(() => {
+  const story = /Constant\s+Story\s+"([^"]*)"/i.exec(source.value)?.[1]?.trim()
+  const headline = (/Constant\s+Headline\s+"([^"]*)"/i.exec(source.value)?.[1] ?? '')
+    .replace(/\^/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return { story: story || 'Untitled', headline }
+})
+</script>
+
+<template>
+  <div class="flex shrink-0 items-center gap-3 border-b border-default px-4 py-2.5">
+    <div class="min-w-0 flex-1">
+      <p class="truncate text-sm font-bold">{{ meta.story }}</p>
+      <p v-if="meta.headline" class="text-muted truncate text-xs">{{ meta.headline }}</p>
+    </div>
+
+    <!-- Primary actions — moved up from the tab row; right-aligned, vertically centred. -->
+    <div class="flex shrink-0 items-center gap-3">
+      <UButton
+        color="primary"
+        icon="i-lucide-hammer"
+        class="frotz-glow font-bold"
+        :loading="status === 'compiling'"
+        @click="runCompile"
+      >
+        Compile
+        <kbd
+          class="ml-1 hidden rounded bg-black/20 px-1.5 py-0.5 text-[10px] font-semibold sm:inline"
+          >⌘B</kbd
+        >
+      </UButton>
+
+      <!-- Hidden (but space reserved → no layout shift) until a clean compile. -->
+      <UButton
+        color="success"
+        icon="i-lucide-play"
+        class="font-bold"
+        :class="canPlay ? 'visible' : 'invisible'"
+        :disabled="!canPlay"
+        title="Play the compiled game"
+        @click="playStory"
+      >
+        Play
+      </UButton>
+    </div>
+  </div>
+</template>
+```
+
+- [ ] **Step 2: Remove the toolbar right group + `statusMeta` from `RightPaneTabs.vue`**
+
+Trim the `useIde()` destructure to only what RightPaneTabs still uses — change:
+
+```ts
+const { activeTab, status, result, runCompile, canPlay, playStory } = useIde()
+```
+
+to:
+
+```ts
+const { activeTab, status } = useIde()
+```
+
+Delete the whole `statusMeta` computed block:
 
 ```ts
 // "Ready" is red with an ✗ until a clean compile, then green with a ✓.
@@ -607,13 +681,10 @@ const statusMeta = computed(() => {
 })
 ```
 
-(Leave the `useIde()` destructure unchanged — `status` is still used by the tab dot and the Compile button's `:loading`.)
-
-- [ ] **Step 2: Remove the status `<span>` from the template**
-
-Delete this block (the `Ready/Not ready/Compiling…` indicator) from the right-hand toolbar group:
+In the template, delete the ENTIRE right-hand toolbar group — the `Ready` span AND both buttons (which now live in the title bar):
 
 ```html
+      <div class="ml-auto flex items-center gap-3">
         <!-- Fixed width so the label changing never shifts the buttons. -->
         <span
           role="status"
@@ -623,9 +694,37 @@ Delete this block (the `Ready/Not ready/Compiling…` indicator) from the right-
           <UIcon :name="statusMeta.icon" :class="['size-4 shrink-0', statusMeta.spin && 'animate-spin']" />
           <span>{{ statusMeta.label }}</span>
         </span>
+
+        <UButton
+          color="primary"
+          icon="i-lucide-hammer"
+          class="frotz-glow font-bold"
+          :loading="status === 'compiling'"
+          @click="runCompile"
+        >
+          Compile
+          <kbd
+            class="ml-1 hidden rounded bg-black/20 px-1.5 py-0.5 text-[10px] font-semibold sm:inline"
+            >⌘B</kbd
+          >
+        </UButton>
+
+        <!-- Hidden (but space reserved → no layout shift) until a clean compile. -->
+        <UButton
+          color="success"
+          icon="i-lucide-play"
+          class="font-bold"
+          :class="canPlay ? 'visible' : 'invisible'"
+          :disabled="!canPlay"
+          title="Play the compiled game"
+          @click="playStory"
+        >
+          Play
+        </UButton>
+      </div>
 ```
 
-The wrapping `<div class="ml-auto flex items-center gap-3">` and the Compile/Play buttons stay; they remain right-aligned, with the freed space to their left.
+After this, the tab-header row contains only the tabs group (Results · Play · Transcript · Test Script + the disabled Map). The Results tab dot still reads from `status`.
 
 - [ ] **Step 3: Keep Play mounted (`v-show`)**
 
@@ -645,20 +744,105 @@ Change the panel area so Play is always mounted and toggled by `v-show`, with th
 Run: `yarn typecheck`
 Expected: PASS.
 
-Run: `yarn dev`. Expected:
-- The toolbar shows only **Compile** / **Play** on the right — no "Ready/Not ready" text. The **Results** tab still shows a red dot on errors / green dot on a clean compile, and **Compile** still shows its spinner while compiling.
+Run: `yarn dev` (or the running server on `localhost:3000`). Expected:
+- The **title bar** (above the tabs) now shows the game title on the left and **Compile** + **Play** on the right, vertically centred. The tab row shows only the tabs — no "Ready/Not ready" text anywhere. The **Results** tab still shows a red dot on errors / green dot on a clean compile, and **Compile** still shows its spinner while compiling.
 - Compile + Play, type a command, switch to **Transcript** then back to **Play** → the game is **still where you left it** (not restarted), and the transcript persisted.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add app/components/ide/RightPaneTabs.vue
-git commit -m "refactor(ide): drop toolbar Ready indicator; keep Play mounted across tabs"
+git add app/components/ide/TitleStrip.vue app/components/ide/RightPaneTabs.vue
+git commit -m "refactor(ide): move Compile/Play to the title bar; drop Ready indicator; keep Play mounted"
 ```
 
 ---
 
-### Task 7: Verify suite + docs
+### Task 7: SPA loading splash (no more blank screen on load)
+
+**Files:**
+- Create: `app/spa-loading-template.html`
+
+**Interfaces:**
+- Consumes: nothing (self-contained static HTML/CSS).
+- Produces: a branded, full-viewport loading splash shown from first paint until the Vue app hydrates. Nuxt auto-detects `~/spa-loading-template.html` (srcDir `app/`) when `ssr: false` — **no `nuxt.config.ts` change needed** (presence of the file enables it).
+
+**Background:** The app is `ssr: false`, so the served HTML is an empty shell and the user sees ~1–2 s of blank/white before the SPA mounts (user report, 2026-06-30). Nuxt 4's `spaLoadingTemplate` mechanism injects this file's contents alongside `<div id="__nuxt"></div>`, kept in the DOM until the Vue app's suspense resolves — exactly the gap to fill (confirmed against the Nuxt 4 docs). The splash is raw HTML + inline `<style>`: it renders before the app CSS, Tailwind, and icon fonts load, so it inlines everything and hard-codes the dark theme (`colorMode.preference: 'dark'`; live body bg `#0f172a` = slate-900) and brand amber (`--frotz-amber: #f0a830`) so there is no flash and it reads as Frotzsmith.
+
+- [ ] **Step 1: Create `app/spa-loading-template.html`**
+
+```html
+<!--
+  Frotzsmith SPA loading splash (ssr: false). Shown from first paint until the
+  Vue app hydrates. Self-contained: it renders BEFORE the app CSS / Tailwind /
+  icon fonts load, so it inlines all styles and hard-codes the dark theme
+  (body #0f172a = slate-900) + brand amber (#f0a830) to avoid any flash.
+-->
+<div class="frotz-spa" role="status" aria-label="Loading Frotzsmith">
+  <div class="frotz-spa__brand">
+    <svg class="frotz-spa__hammer" xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#f0a830" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="m15 12-8.373 8.373a1 1 0 1 1-3-3L12 9"/>
+      <path d="m18 15 4-4"/>
+      <path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5"/>
+    </svg>
+    <span class="frotz-spa__word">Frotzsmith</span>
+  </div>
+  <span class="frotz-spa__sub">INFORM 6 IDE</span>
+  <div class="frotz-spa__spinner" aria-hidden="true"></div>
+</div>
+<style>
+  html, body { margin: 0; background: #0f172a; }
+  .frotz-spa {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; background: #0f172a; color: #e2e8f0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .frotz-spa__brand { display: flex; align-items: center; gap: 10px; }
+  .frotz-spa__word { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; color: #f8fafc; }
+  .frotz-spa__sub { font-size: 11px; font-weight: 600; letter-spacing: 0.18em; color: #64748b; }
+  .frotz-spa__spinner {
+    margin-top: 10px; width: 34px; height: 34px; border-radius: 50%;
+    border: 3px solid rgba(240, 168, 48, 0.2); border-top-color: #f0a830;
+    animation: frotz-spa-spin 0.7s linear infinite;
+  }
+  @keyframes frotz-spa-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .frotz-spa__spinner { animation-duration: 2.2s; } }
+</style>
+```
+
+- [ ] **Step 2: Verify Nuxt embeds it in the SPA shell**
+
+The SPA template is read at build / dev-server start, so a newly-added file needs a fresh build to appear. Run:
+
+```bash
+yarn generate
+```
+
+Expected: exit 0. Then confirm the splash markup was embedded in the generated shell:
+
+```bash
+grep -c "frotz-spa" .output/public/index.html
+```
+
+Expected: a non-zero count (the loader markup is inlined into the production HTML). This proves the auto-detection works without any config change.
+
+- [ ] **Step 3: Typecheck (unaffected)**
+
+Run: `yarn typecheck`
+Expected: PASS (a static asset; no type surface).
+
+(The live visual check — hard-reload shows the dark amber splash for ~1–2 s, no white flash — is the controller's verification, since the running dev server must be restarted to pick up a new SPA template.)
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add app/spa-loading-template.html
+git commit -m "feat(ui): branded SPA loading splash (no blank screen on load)"
+```
+
+---
+
+### Task 8: Verify suite + docs
 
 **Files:**
 - Modify: `CHANGELOG.md`
