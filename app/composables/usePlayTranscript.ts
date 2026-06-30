@@ -1,5 +1,8 @@
 import { appendCommand, toScriptText } from './play-transcript'
 
+// Register the cross-game reset watcher exactly once (mirrors useMap / useTestScripts).
+let playTranscriptWatchRegistered = false
+
 /**
  * The Play transcript: the read-only, in-memory log of commands the player typed
  * during the current interactive Play session. Captured from the Parchment iframe
@@ -23,7 +26,8 @@ export function usePlayTranscript() {
   // game doesn't show the prior game's captured commands.
   // useIde() is safe here: usePlayTranscript is not called during useIde's
   // initialization (only inside runCompile), so there is no circular call chain.
-  if (import.meta.client) {
+  if (import.meta.client && !playTranscriptWatchRegistered) {
+    playTranscriptWatchRegistered = true
     const { activeStoryKey } = useIde()
     watch(activeStoryKey, () => {
       commands.value = []
