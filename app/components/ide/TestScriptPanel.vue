@@ -37,6 +37,10 @@ const liveStatus = computed(() => {
 })
 
 function onRun() {
+  run(parseScript(activeScript.value?.text ?? ''))
+}
+
+function onSendToPlay() {
   sendToPlay(parseScript(activeScript.value?.text ?? ''))
 }
 
@@ -80,12 +84,21 @@ function confirmRename() {
         size="sm"
         icon="i-lucide-play"
         :disabled="!canPlay || !activeScript"
-        :title="canPlay ? 'Play this script in the live game' : 'Compile a clean build first'"
+        :title="canPlay ? 'Replay the script headlessly — each turn\'s output appears below' : 'Compile a clean build first'"
         @click="onRun"
       >
         Run
       </UButton>
       <UButton v-else color="error" size="sm" icon="i-lucide-square" @click="cancel">Cancel</UButton>
+
+      <UButton
+        color="neutral" variant="subtle" size="sm" icon="i-lucide-gamepad-2"
+        :disabled="!canPlay || !activeScript || running"
+        title="Play this script in the live game (the Play tab)"
+        @click="onSendToPlay"
+      >
+        Send to Play
+      </UButton>
 
       <UButton
         color="neutral" variant="subtle" size="sm" icon="i-lucide-eraser"
@@ -112,7 +125,7 @@ function confirmRename() {
       >
         <UIcon name="i-lucide-scroll-text" class="size-10 text-primary" />
         <p class="text-lg font-semibold">{{ canPlay ? 'Write a script and press Run' : 'Compile to run scripts' }}</p>
-        <p class="text-muted max-w-sm text-sm">Run plays the script in the live game (the Play tab).</p>
+        <p class="text-muted max-w-sm text-sm">Run replays the script headlessly and shows each turn's output here. Send to Play runs it in the live game.</p>
       </div>
 
       <div v-for="(t, i) in turns" :key="i" class="mb-3">
