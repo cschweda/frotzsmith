@@ -1,13 +1,19 @@
 import wasmUrl from '~/modules/inform6/wasm/inform6.wasm?url'
+import { cachedAsync } from '~/utils/cached-async'
 
 interface CaptureHooks {
   print: (line: string) => void
   printErr: (line: string) => void
 }
 
-// The factory is loaded once (lazily) and cached; instances are created per compile.
-let factoryPromise: Promise<(opts?: Record<string, unknown>) => Promise<Inform6Instance>> | null =
-  null
+// The factory is loaded once (lazily) and cached; instances are created per
+// compile. A failed load clears the cache so the next compile retries instead
+// of re-throwing a stale rejection for the rest of the session.
+const getFactory = cachedAsync(() =>
+  import('~/modules/inform6/wasm/inform6.mjs').then(
+    m => m.default as (opts?: Record<string, unknown>) => Promise<Inform6Instance>,
+  ),
+)
 
 /** The subset of the Emscripten module Frotzsmith uses. */
 export interface Inform6Instance {
@@ -26,19 +32,6 @@ export interface Inform6Instance {
  * global state and is not safe to run `main()` twice.
  */
 export function useCompilerWasm() {
-  async function getFactory() {
-    if (!factoryPromise) {
-      factoryPromise = import('~/modules/inform6/wasm/inform6.mjs').then(
-        m => m.default as (opts?: Record<string, unknown>) => Promise<Inform6Instance>,
-      )
-    }
-    // factoryPromise is non-null here (set in the if block if it was null).
-    // Capture in a const and guard so TypeScript can narrow the type.
-    const f = factoryPromise
-    if (!f) throw new Error('invariant: factory promise must be initialized')
-    return f
-  }
-
   async function createInstance(hooks: CaptureHooks): Promise<Inform6Instance> {
     const factory = await getFactory()
     return factory({

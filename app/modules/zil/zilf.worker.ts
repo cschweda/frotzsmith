@@ -62,6 +62,11 @@ async function getExports() {
       exportsCache = (await r.getAssemblyExports(config.mainAssemblyName)) as typeof exportsCache
       return exportsCache
     })()
+    // A failed boot must not be cached forever — clear so the next message
+    // retries (side-branch catch; callers still see the original rejection).
+    bootPromise.catch(() => {
+      bootPromise = null
+    })
   }
 
   return bootPromise

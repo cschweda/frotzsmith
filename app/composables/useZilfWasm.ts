@@ -1,5 +1,6 @@
 import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { parseZilDiagnostics } from '~/modules/zil/zil-diagnostics'
+import { cachedAsync } from '~/utils/cached-async'
 
 /**
  * Lazily spawns a `zilf.worker.ts` Web Worker on the first ZIL compile request,
@@ -218,51 +219,37 @@ function tryWorkerCompile(
 
 // ─── Main-thread fallback ─────────────────────────────────────────────────────
 
-/** Cached exports from the main-thread boot (reused across fallback compiles). */
-let _mainThreadExports: ZilfExportCache | null = null
-
-/** In-flight boot promise — shared across concurrent calls. */
-let _mainThreadBootPromise: Promise<ZilfExportCache> | null = null
-
 /**
  * Boot the .NET WASM ZILF runtime on the main thread (once) and return the
  * cached assembly exports.  Mirror of the boot sequence in zilf.worker.ts.
+ * cachedAsync clears the cache when a boot fails (e.g. a network blip fetching
+ * dotnet.js on the first compile), so the next compile retries instead of
+ * re-throwing the stale rejection for the rest of the session.
  */
-async function getMainThreadExports(): Promise<ZilfExportCache> {
-  if (_mainThreadExports) return _mainThreadExports
-
-  if (!_mainThreadBootPromise) {
-    _mainThreadBootPromise = (async () => {
-      // Bypass Vite's import-analysis URL rewriting (?import) so the external,
-      // non-Vite dotnet.js loads unprocessed in dev AND prod.  The Function
-      // constructor hides the import from Vite's static analyzer so it cannot
-      // rewrite the URL.  The app's CSP already allows unsafe-eval (ZVM JIT).
-      const dynamicImport = new Function('u', 'return import(u)') as (u: string) => Promise<unknown>
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const mod = await dynamicImport('/zilf/_framework/dotnet.js')
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      const { dotnet } = mod as {
-        dotnet: { withApplicationArguments(): { create(): Promise<unknown> } }
-      }
-      const runtime = await (
-        dotnet.withApplicationArguments() as {
-          create(): Promise<Record<string, unknown>>
-        }
-      ).create()
-      const r = runtime as {
-        getConfig(): { mainAssemblyName: string }
-        getAssemblyExports(name: string): Promise<unknown>
-      }
-      const config = r.getConfig()
-      _mainThreadExports = (await r.getAssemblyExports(
-        config.mainAssemblyName,
-      )) as ZilfExportCache
-      return _mainThreadExports
-    })()
+const getMainThreadExports = cachedAsync(async (): Promise<ZilfExportCache> => {
+  // Bypass Vite's import-analysis URL rewriting (?import) so the external,
+  // non-Vite dotnet.js loads unprocessed in dev AND prod.  The Function
+  // constructor hides the import from Vite's static analyzer so it cannot
+  // rewrite the URL.  The app's CSP already allows unsafe-eval (ZVM JIT).
+  const dynamicImport = new Function('u', 'return import(u)') as (u: string) => Promise<unknown>
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const mod = await dynamicImport('/zilf/_framework/dotnet.js')
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  const { dotnet } = mod as {
+    dotnet: { withApplicationArguments(): { create(): Promise<unknown> } }
   }
-
-  return _mainThreadBootPromise
-}
+  const runtime = await (
+    dotnet.withApplicationArguments() as {
+      create(): Promise<Record<string, unknown>>
+    }
+  ).create()
+  const r = runtime as {
+    getConfig(): { mainAssemblyName: string }
+    getAssemblyExports(name: string): Promise<unknown>
+  }
+  const config = r.getConfig()
+  return (await r.getAssemblyExports(config.mainAssemblyName)) as ZilfExportCache
+})
 
 // ─── composable ───────────────────────────────────────────────────────────────
 
