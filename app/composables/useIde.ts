@@ -84,19 +84,38 @@ export function useIde() {
   const canPlay = computed(() => status.value === 'success' && !!result.value?.storyFile)
   const playNonce = useState<number>('frotz:play-nonce', () => 0)
 
+  /** Language of the most recent IdeLayout mount — restore() compares against it
+   *  so a language switch (and only a language switch) blanks run artifacts. */
+  const lastLang = useState<string | null>('frotz:last-lang', () => null)
+
   // Send-to-Play: a parsed script queued to feed into the live Parchment game.
   const pendingScript = useState<string[] | null>('frotz:pending-script', () => null)
 
   /** Restore the persisted profile mode, then the source recovery snapshot. */
   function restore() {
     if (import.meta.client) {
+      // Language switched since the last mount → the compile result, status,
+      // right-pane tab, queued script, transcripts, and map all belong to the
+      // other language (the shared useState keys are language-agnostic). Blank
+      // them BEFORE restoring; same-language remounts (e.g. a /technical
+      // round-trip) keep the working state.
+      if (lastLang.value !== null && lastLang.value !== profile.value.id) {
+        resetForNewSource()
+        usedProfile.value = null
+      }
+      lastLang.value = profile.value.id
+
       const profileModeKey = buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.profileMode)
       const targetKey = buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.target)
+      // No persisted value → 'auto', so the other language's in-memory choice
+      // (e.g. a forced z4) doesn't leak into this language's toolbar.
       const saved = localStorage.getItem(profileModeKey)
-      if (saved === 'auto' || saved === 'std' || saved === 'puny') profileMode.value = saved
+      profileMode.value = saved === 'auto' || saved === 'std' || saved === 'puny' ? saved : 'auto'
       const t = localStorage.getItem(targetKey)
-      if (t !== null && (t === 'auto' || (profile.value.versionTargets as string[]).includes(t)))
-        targetMode.value = t as 'auto' | StoryExt
+      targetMode.value =
+        t !== null && (t === 'auto' || (profile.value.versionTargets as string[]).includes(t))
+          ? (t as 'auto' | StoryExt)
+          : 'auto'
     }
     restoreExtensions()
     // Restore source before project files so tab reconciliation runs against the

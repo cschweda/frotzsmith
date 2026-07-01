@@ -292,3 +292,46 @@ describe('useIde — runCompile clean-slate orchestration', () => {
     expect(ide.pendingScript.value).toBeNull()
   })
 })
+
+describe('useIde — language-switch artifact reset (restore)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    useLanguage().setLanguage('i6')
+  })
+
+  it('same-language remount keeps compile artifacts (/technical round-trip)', () => {
+    const ide = useIde()
+    ide.restore()
+    setupSuccessResult()
+    ide.activeTab.value = 'play'
+    ide.restore() // remount, same language
+    expect(ide.status.value).toBe('success')
+    expect(ide.result.value).not.toBeNull()
+  })
+
+  it('switching languages blanks status, result, tab, and queued script', () => {
+    const ide = useIde()
+    ide.restore() // i6 mount
+    setupSuccessResult()
+    ide.activeTab.value = 'play'
+    ide.pendingScript.value = ['look']
+
+    useLanguage().setLanguage('zil')
+    ide.restore() // zil mount
+
+    expect(ide.status.value).toBe('idle')
+    expect(ide.result.value).toBeNull()
+    expect(ide.activeTab.value).toBe('results')
+    expect(ide.pendingScript.value).toBeNull()
+  })
+
+  it('switching languages resets an unforced profile/target to auto', () => {
+    const ide = useIde()
+    ide.restore()
+    ide.targetMode.value = 'z4' // in-memory only; nothing persisted for zil
+    useLanguage().setLanguage('zil')
+    ide.restore()
+    expect(ide.targetMode.value).toBe('auto')
+  })
+})
