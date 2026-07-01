@@ -9,6 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Fixed — 2026-07-01 review batch
+- **Run replays test scripts headlessly again** — the per-turn transcript fills the
+  Test Script panel in place; the live-game path is now its own **Send to Play**
+  button. Replay **timeouts** are reported as timeouts (not "Stopped"), and the
+  wall-clock budget scales with script length (15 s + 250 ms/command, capped at 2 min);
+  **Stop** keeps working after a mid-run tab switch.
+- **Language switches no longer leak state** — navigating `/` ↔ `/zil/` blanks the
+  other language's compile result/status/game/queued script (a stale I6 game could
+  previously boot inside the ZIL IDE); empty-storage restores reset scripts,
+  extensions, and open tabs instead of inheriting (and persisting) the other
+  language's; the editor reseeds the language default in **both** directions.
+- **Session watchers survive navigation** — crash-recovery autosave (and the
+  script-bucket/map/transcript reset watchers) are registered in detached effect
+  scopes, so a visit to `/technical` no longer silently kills autosave.
+- **Active test-script selection survives compiles and reloads** (compiles no longer
+  blank the persisted selection back to "Script 1").
+- **Compiler robustness** — Inform 6 source is compiled as UTF-8 (`-Cu`; accented
+  prose no longer silently mojibakes), raw WASM traps surface as a fatal diagnostic
+  instead of a silent zero-diagnostic failure, and a failed lazy WASM boot (network
+  blip) retries on the next compile instead of bricking the session.
+- **Main-thread compile UX** — "Compiling…" is guaranteed to paint before the
+  synchronous ZIL compile freezes the thread (double-rAF), and clicks queued during
+  the freeze can't immediately trigger a second full freeze.
+- **Accessibility** — right-pane tabs get accessible names (they were unnamed
+  icon-only below 640 px), full tabs semantics (`aria-controls`/`tabpanel`, roving
+  tabindex, arrow keys) and an sr-only compile-status cue; editor-tab close is
+  pointer-only + **Delete** key (no focusable control nested in `role="tab"`);
+  the auto-map SVG uses coherent group/graphic roles; a `<main>` landmark; the
+  mobile Source/Output switch announces state (`aria-pressed`);
+  `prefers-reduced-motion` is honoured.
+- **Auto-map fit** no longer over-zooms tiny maps — a one-room map renders
+  room-sized (fit is clamped to ~3 cells across).
+- **Security** — extension `.zip` import is capped (200 `.h` entries / 5 MB
+  uncompressed, rejected before expansion), closing the 2026-06-30 audit's
+  zip-bomb finding; oversized single `.h` uploads are rejected too.
+- **SEO** — per-route `canonical`/`og:url` (`/zil/` and `/technical/` no longer
+  declare themselves duplicates of the homepage); stale "ZIL coming" OG copy.
+
+### Added — 2026-07-01 review batch
+- **CI** (GitHub Actions): `yarn test` + `yarn typecheck` + `yarn generate` on
+  every push/PR.
+
 ### Added — compiler & libraries
 - Client-side **Inform 6 → Z-machine** compilation: `inform6` v6.44 built to
   WebAssembly, verified byte-identical to a native build.
