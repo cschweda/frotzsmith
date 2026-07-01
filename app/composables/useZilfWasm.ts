@@ -23,12 +23,18 @@ import { parseZilDiagnostics } from '~/modules/zil/zil-diagnostics'
  * Failure modes:
  * - Worker construction fails  → _workerFailed, main-thread fallback.
  * - Worker sends { error }     → _workerFailed, main-thread fallback.
- * - Worker times out (>14 s)   → terminate worker, _workerFailed, main-thread.
+ * - Worker times out (>4 s)    → terminate worker, _workerFailed, main-thread.
  * - Main-thread boot/compile error → ok: false with a clear Diagnostic.
  */
 
-/** ms to wait for the Worker before falling back to the main-thread path. */
-const WORKER_TIMEOUT_MS = 14_000
+/**
+ * ms to wait for the Worker before falling back to the main-thread path.
+ * The Worker currently never delivers a result (the .NET WASM runtime does not
+ * complete a compile in a Web Worker context, in dev AND prod), so this is
+ * dead time before the reliable main-thread fallback runs — kept short. Only
+ * the first compile per session pays it; `_workerFailed` skips the Worker after.
+ */
+const WORKER_TIMEOUT_MS = 4_000
 
 // ─── shared types ─────────────────────────────────────────────────────────────
 
