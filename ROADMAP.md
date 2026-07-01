@@ -1,7 +1,8 @@
 # Frotzsmith Roadmap
 
-Frotzsmith is a browser-based **Interactive Fiction** IDE (Inform 6 today; ZIL in progress): write, compile to a Z-machine
-story file entirely client-side, and play it inline. See
+Frotzsmith is a browser-based **Interactive Fiction** IDE with two source languages —
+**Inform 6** and **ZIL** (via ZILF): write, compile to a Z-machine story file entirely
+client-side, and play it inline. See
 [CHANGELOG.md](./CHANGELOG.md) for what's shipped, and
 [`docs/13-v2-roadmap.md`](./docs/13-v2-roadmap.md) for detailed feasibility notes.
 
@@ -38,15 +39,24 @@ story file entirely client-side, and play it inline. See
   play (room names from the status line, exits from your movement); zoom / pan / Fit, a
   graph-paper backdrop, and a per-room hover popover (exits + objects). Per-game, resets
   on compile
+- **ZIL — a second source language** *(alpha)* — write ZIL (Infocom's original MDL/Lisp-like
+  language) at `/zil/` and compile it client-side with the **ZILF + ZAPF** toolchain (C#/.NET 10)
+  built to .NET WebAssembly, run in a Web Worker and lazy-loaded on first compile; `zillib` is
+  embedded and the `<VERSION>` directive targets z3 / z5 / z8. A title-strip **I6 ↔ ZIL toggle**
+  (Inform 6 `beta` · ZIL `alpha`) with per-language namespaced project state, a basic CodeMirror
+  ZIL syntax mode, and 7 ZIL concept demos (Cloak of Darkness, rooms, NPC, puzzle, light, daemon).
+  Because ZIL emits Z-code, inline play, the auto-map, test scripts, and the transcript all work
+  for it unchanged
 
 ## Planned (v2)
 
 See [`docs/13-v2-roadmap.md`](./docs/13-v2-roadmap.md) for the full assessments.
 
-- **ZIL / ZILF** as a third source language — Zorkie + Pyodide (client-side) or a
-  complete ZILF backend, ideally surfaced as a third option in the library/compiler
-  selection dropdown alongside Standard Library and PunyInform. The play side is free:
-  ZIL compiles to the same z-code.
+- **The Skein** — a branching test tree with blessed-output regression diffing (the
+  test-script transcript is its linear spine), plus Send-to-Play from a script.
+- **Richer ZIL tooling** — deeper ZIL syntax highlighting / lint beyond the compiler's
+  diagnostics, more samples, and a landing-page language picker at `/` (the title-strip
+  toggle is the interim).
 - **Extensions registry** — a searchable online catalog.
 - **Glulx** — larger games (the `StoryEngine` seam allows it).
-- **Multi-`.inf` projects**, and an `app.frotzsmith.com` + landing-page split.
+- **Multi-file projects**, and an `app.frotzsmith.com` + landing-page split.
