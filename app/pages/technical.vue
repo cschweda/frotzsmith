@@ -50,6 +50,14 @@ const resources = [
     ],
   },
   {
+    group: 'ZIL / ZILF',
+    items: [
+      { label: 'ZILF compiler (Heptapod)', href: 'https://foss.heptapod.net/zilf/zilf/' },
+      { label: 'ZILF (GitHub mirror)', href: 'https://github.com/taradinoc/zilf' },
+      { label: 'zilf.io — ZIL in the browser', href: 'https://zilf.io/' },
+    ],
+  },
+  {
     group: 'Z-machine & play',
     items: [
       { label: 'Awesome Z-machine (curated list)', href: 'https://github.com/cschweda/awesome-z-machine' },
@@ -97,10 +105,11 @@ const resources = [
       <section class="space-y-3">
         <h1 class="text-3xl font-bold tracking-tight">Technical Details</h1>
         <p class="text-muted max-w-2xl">
-          Frotzsmith compiles and runs Inform 6 entirely in the browser — no server touches your source
-          or story file. This page documents the toolchain and, more importantly, the hard limits, with
-          numbers measured through this exact build. Written for people who already know what a Z-machine
-          is.
+          Frotzsmith compiles and runs <strong class="text-default">Inform 6</strong> and
+          <strong class="text-default">ZIL</strong> entirely in the browser — no server touches your source
+          or story file. Both emit Z-machine story files, so the play, auto-map, and test-script layers are
+          shared. This page documents the toolchain and, more importantly, the hard limits, with numbers
+          measured through this exact build. Written for people who already know what a Z-machine is.
         </p>
       </section>
 
@@ -169,6 +178,30 @@ Object -> lamp "brass lamp"
         <ul class="text-muted list-disc space-y-1.5 pl-5 text-sm">
           <li><span class="text-default">Standard Library v{{ frotzsmith.versions.stdlib }}</span> (Parser / VerbLib / Grammar) and <span class="text-default">PunyInform v{{ frotzsmith.versions.punyinform }}</span> (globals.h + puny.h) are bundled and auto-imported.</li>
           <li>Library is fuzzily detected from the source: PunyInform markers (<code class="frotz-code">Include "puny.h"/"globals.h"</code>, <code class="frotz-code">$ZCODE_*</code>, <code class="frotz-code">INITIAL_LOCATION_VALUE</code>, <code class="frotz-code">OPTIONAL_*</code>) select PunyInform; otherwise Standard. Either can be forced.</li>
+        </ul>
+      </section>
+
+      <!-- ZIL / ZILF -->
+      <section class="space-y-4">
+        <h2 class="text-primary text-xl font-bold">ZIL &amp; the ZILF toolchain <span class="text-warning text-sm font-semibold align-middle">alpha</span></h2>
+        <p class="text-muted max-w-2xl text-sm">
+          <span class="text-default">ZIL</span> (Zork Implementation Language) is Infocom's original MDL/Lisp-like
+          authoring language — angle-bracket forms like <code class="frotz-code">&lt;ROUTINE&gt;</code> and
+          <code class="frotz-code">&lt;OBJECT&gt;</code>. The modern <a href="https://foss.heptapod.net/zilf/zilf/" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">ZILF</a>
+          toolchain (ZILF + ZAPF, C# / .NET 10) reimplements it, and Frotzsmith runs that compiler in the browser at
+          <NuxtLink to="/zil/" class="text-primary hover:underline">/zil/</NuxtLink>. Because ZIL emits ordinary Z-code,
+          play, the auto-map, test scripts, and the transcript all work for it unchanged.
+        </p>
+        <pre class="bg-elevated border-default overflow-x-auto rounded-lg border p-4 text-xs leading-relaxed"><code>.zil source
+  └─▶ ZILF front end   (ZIL → ZAP assembly)
+        └─▶ ZAPF        (ZAP → Z-code, .z3 / .z5 / .z8)
+              └─▶ same Blob URL → Parchment → ZVM  (as Inform 6)</code></pre>
+        <ul class="text-muted list-disc space-y-1.5 pl-5 text-sm">
+          <li>ZILF + ZAPF are <span class="text-default">C# / .NET 10</span>, built offline to <span class="text-default">.NET WebAssembly</span> (a different runtime from the Emscripten <code class="frotz-code">inform6.wasm</code>) and committed like the I6 compiler. Pinned at ZILF rev <code class="frotz-code">{{ frotzsmith.versions.zilf }}</code>.</li>
+          <li>The <code class="frotz-code">zillib</code> standard library is <span class="text-default">embedded in the bundle</span>, so a single <code class="frotz-code">.zil</code> file compiles with no local library files.</li>
+          <li>Story version comes from the <code class="frotz-code">&lt;VERSION&gt;</code> directive, driven by the target menu — <span class="text-default">z3 / z5 / z8</span>.</li>
+          <li>The compiler runs in a <span class="text-default">Web Worker</span> (a ZIL compile takes a few seconds — the UI shows a "Compiling…" state and never blocks), and the <span class="text-default">~7.5&nbsp;MB gzipped</span> .NET bundle is <span class="text-default">lazy-loaded only on the first ZIL compile</span> — Inform 6 users never download it.</li>
+          <li>Diagnostics (<code class="frotz-code">&lt;file&gt;:&lt;line&gt;: error ZIL0122: …</code>) parse into the same clickable, jump-to-line format as Inform 6 errors.</li>
         </ul>
       </section>
 
@@ -278,14 +311,15 @@ Object -> lamp "brass lamp"
       <section class="space-y-3">
         <h2 class="text-primary text-xl font-bold">Not supported (by design)</h2>
         <ul class="text-muted list-disc space-y-1.5 pl-5 text-sm">
-          <li>Glulx / Inform 7 — Frotzsmith is Inform 6 → Z-machine only.</li>
+          <li>Glulx / Inform 7 — Frotzsmith targets the Z-machine only, from Inform 6 or ZIL.</li>
           <li>Z-machine v6 (graphics).</li>
-          <li>Multi-<code class="frotz-code">.inf</code> projects — one source file plus <code class="frotz-code">Include</code>d <code class="frotz-code">.h</code> extensions.</li>
+          <li>Multi-file projects — one source file per project (Inform 6: one <code class="frotz-code">.inf</code> plus <code class="frotz-code">Include</code>d <code class="frotz-code">.h</code> extensions; ZIL: one <code class="frotz-code">.zil</code> against the embedded <code class="frotz-code">zillib</code>).</li>
         </ul>
         <p class="text-muted text-sm">
-          The <code class="frotz-code">.inf</code> is the canonical artifact; localStorage holds only a
-          crash-recovery snapshot (<code class="frotz-code">frotzsmith:&lt;lang&gt;:recovery</code>, e.g. <code class="frotz-code">frotzsmith:i6:recovery</code>) and never
-          replaces the file you export.
+          Your source file (<code class="frotz-code">.inf</code> or <code class="frotz-code">.zil</code>) is the canonical
+          artifact; localStorage holds only a per-language crash-recovery snapshot
+          (<code class="frotz-code">frotzsmith:&lt;lang&gt;:recovery</code>, e.g. <code class="frotz-code">frotzsmith:i6:recovery</code> /
+          <code class="frotz-code">frotzsmith:zil:recovery</code>) and never replaces the file you export.
         </p>
       </section>
 
@@ -308,7 +342,7 @@ Object -> lamp "brass lamp"
       <section class="border-default space-y-2 border-t pt-6">
         <p class="font-mono text-sm">
           Inform {{ frotzsmith.versions.inform6 }} · Standard Library {{ frotzsmith.versions.stdlib }} ·
-          PunyInform {{ frotzsmith.versions.punyinform }} · Parchment + ifvms ZVM
+          PunyInform {{ frotzsmith.versions.punyinform }} · ZILF {{ frotzsmith.versions.zilf }} · Parchment + ifvms ZVM
         </p>
         <p class="text-muted text-xs">
           <a :href="frotzsmith.repoUrl" target="_blank" rel="noopener noreferrer" class="hover:text-default">{{ frotzsmith.repoUrl }}</a>

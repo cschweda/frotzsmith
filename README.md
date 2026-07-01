@@ -2,7 +2,7 @@
 
 ![Frotzsmith — a browser-based Interactive Fiction IDE](./public/og-image.png)
 
-> A personal, browser-based **Interactive Fiction** IDE — write source, compile to a Z-machine story file entirely client-side, play it inline, and run long test scripts. **Inform 6 (+ PunyInform) today; ZIL in progress.** No backend, no accounts, offline-capable.
+> A personal, browser-based **Interactive Fiction** IDE — write source, compile to a Z-machine story file entirely client-side, play it inline, and run long test scripts. **Two source languages: Inform 6 (+ PunyInform), and ZIL (via ZILF).** No backend, no accounts, offline-capable.
 
 [![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
 [![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82.svg)](https://nuxt.com)
@@ -11,11 +11,13 @@
 [![WCAG 2.1 AA](https://img.shields.io/badge/a11y-WCAG%202.1%20AA-success.svg)](https://www.w3.org/WAI/WCAG21/quickref/)
 [![Status](https://img.shields.io/badge/status-alpha-orange.svg)](./docs/00-master-design.md)
 
-> **Status — Inform 6 beta · ZIL alpha (in progress).** Write Inform 6, compile to a Z-machine story file entirely in the browser (Standard Library or PunyInform, auto-detected), **play it inline** via Parchment + the pure-JS ZVM, **capture your playthrough and replay command scripts headlessly**, load 21 worked samples, and pull in your own extensions. See [ROADMAP.md](./ROADMAP.md) for what's next and [CHANGELOG.md](./CHANGELOG.md) for what's shipped; design docs live in [`docs/`](./docs).
+> **Status — Inform 6 beta · ZIL alpha.** Write **Inform 6** (at `/`) or **ZIL** (at `/zil/`) and compile to a Z-machine story file entirely in the browser — I6 via `inform6.wasm` (Standard Library or PunyInform, auto-detected), ZIL via the **ZILF** compiler built to .NET WebAssembly. Then **play it inline** via Parchment + the pure-JS ZVM, watch a **live auto-map** draw as you explore, **capture your playthrough and replay command scripts headlessly**, load worked samples (21 for Inform 6, 7 for ZIL), and pull in your own extensions. A title-strip toggle flips between the two languages, each with its own namespaced project state. See [ROADMAP.md](./ROADMAP.md) for what's next and [CHANGELOG.md](./CHANGELOG.md) for what's shipped; design docs live in [`docs/`](./docs).
 
 ## What it is
 
 Frotzsmith mirrors the working rhythm of the classic Inform 7 IDE — source on the left, compile, watch results appear on the right where a successful build becomes a live, playable game — but for **Inform 6**, not Inform 7. It compiles entirely in the browser (the `inform6` compiler built to WebAssembly), auto-imports the correct standard library so a plain `.inf` "just works," plays the compiled story inline with [Parchment](https://github.com/curiousdannii/parchment), and exports both the raw `.z8` story file and a self-contained, offline-playable HTML bundle.
+
+A second source language, **ZIL** — Infocom's original MDL/Lisp-like language — lives at `/zil/`. It compiles with the modern [**ZILF**](https://foss.heptapod.net/zilf/zilf/) toolchain (ZILF + ZAPF, C#/.NET) built to WebAssembly and run in a Web Worker, with `zillib` embedded and the `<VERSION>` directive targeting z3/z5/z8. Because ZIL emits the same Z-code, everything downstream — inline play, the auto-map, test scripts, the transcript — works for ZIL unchanged. The heavy .NET bundle is lazy-loaded only on the first ZIL compile, so Inform 6 users never download it.
 
 A power-user testing layer runs arbitrarily long command scripts (`n. examine rock. lift rock.`) through a headless replay engine and shows the per-turn transcript. Playing by hand also records every command you type into a read-only **Transcript**, and one click turns that captured playthrough into a reusable **Test Script** — the linear spine from which a full branching Skein with blessed-output regression diffing later grows.
 
@@ -23,7 +25,7 @@ A power-user testing layer runs arbitrarily long command scripts (`n. examine ro
 
 Inform 6 is the author's favourite IF language, but browser tooling is fragmented: interpreters play *finished* story files, and the Inform 7 IDE is a desktop app tied to I7's natural-language layer. There is no clean, modern, browser-native place to **write I6, compile it, and immediately play it** with library auto-import and saved test scripts. Frotzsmith fills that gap — primarily for the author's own use, secondarily as a shareable open-source tool.
 
-[Borogove](https://borogove.app) is the nearest neighbour and is excellent; Frotzsmith is narrower by design — Inform 6 today (ZIL in progress), profile-driven, fully static/offline, account-free, with a closer Inform 7-IDE feel and a script→Skein testing spine.
+[Borogove](https://borogove.app) is the nearest neighbour and is excellent; Frotzsmith is narrower by design — Inform 6 and ZIL, profile-driven, fully static/offline, account-free, with a closer Inform 7-IDE feel and a script→Skein testing spine.
 
 ## The loop
 
@@ -45,8 +47,8 @@ write I6  ──▶  compile (inform6.wasm, client-side)  ──▶  play inline
 |------|--------|
 | Framework | Nuxt 4 (static, `ssr: false`) |
 | UI | Nuxt UI 4 |
-| Editor | CodeMirror 6 (custom Inform 6 mode) |
-| Compiler | `inform6` → WebAssembly (Emscripten, single-threaded) |
+| Editor | CodeMirror 6 (Inform 6 + ZIL syntax modes) |
+| Compilers | Inform 6: `inform6` → WebAssembly (Emscripten, single-threaded). ZIL: **ZILF + ZAPF** (C#/.NET 10) → .NET WebAssembly, in a Web Worker, lazy-loaded |
 | Interpreter | Parchment / ZVM (Z-machine) |
 | Headless engine | pure-JS ZVM (ifvms) in a Web Worker, behind a `StoryEngine` seam |
 | Language | TypeScript |
@@ -61,11 +63,11 @@ write I6  ──▶  compile (inform6.wasm, client-side)  ──▶  play inline
 
 ## Roadmap
 
-**Shipped (v1):** client-side compile (Standard Library + PunyInform, auto-detected; z3/z4/z5/z8 targets), clickable errors, crash-recovery autosave, **inline play** (Parchment + ZVM), named **test scripts** (persisted) replayed headlessly with a per-turn **transcript**, a read-only **Transcript** that captures the commands you type while playing (one-click **Copy to Test Script**), 21 verified samples, extensions (drop-in `.h`/`.zip` + a select/deselect picker), Prettify, Open / Save As, a Technical Details page, and privacy-friendly analytics.
+**Shipped:** client-side compile for **two source languages** — **Inform 6** (Standard Library + PunyInform, auto-detected; z3/z4/z5/z8 targets) and **ZIL** *(alpha)* via ZILF (z3/z5/z8 through the `<VERSION>` directive); a title-strip **I6 ↔ ZIL toggle** with per-language namespaced project state; clickable errors, crash-recovery autosave, **inline play** (Parchment + ZVM), a **live auto-map** drawn as you explore, named **test scripts** (persisted) replayed headlessly with a per-turn **transcript**, a read-only **Transcript** that captures the commands you type while playing (one-click **Copy to Test Script**), worked samples (21 Inform 6 · 7 ZIL), extensions (drop-in `.h`/`.zip` + a select/deselect picker), Prettify, Open / Save As, a Technical Details page, and privacy-friendly analytics.
 
-**Next (v1):** a Skein-style branching tree with **blessed-output regression diffing** (the test-script transcript is its linear spine), plus Send-to-Play from a script.
+**Next:** a Skein-style branching tree with **blessed-output regression diffing** (the test-script transcript is its linear spine), plus Send-to-Play from a script.
 
-**Planned (v2):** ZIL/ZILF as a third source language, play-time auto-map, an online extensions registry, Glulx, and multi-`.inf` projects.
+**Planned:** an online extensions registry, Glulx, and multi-file projects.
 
 See [ROADMAP.md](./ROADMAP.md) for detail, [CHANGELOG.md](./CHANGELOG.md) for what's shipped, and [`docs/13-v2-roadmap.md`](./docs/13-v2-roadmap.md) for v2 feasibility notes.
 
@@ -122,15 +124,16 @@ Periodic adversarial (red-team) + defensive (blue-team) reviews of the client-si
 
 ## License & attribution
 
-Frotzsmith is licensed under the [GNU General Public License v3.0](./LICENSE) — © 2026 Christopher Schweda. (GPLv3 to support the in-progress ZIL backend, which bundles the GPLv3 [ZILF](https://foss.heptapod.net/zilf/zilf/) compiler; MIT until then.)
+Frotzsmith is licensed under the [GNU General Public License v3.0](./LICENSE) — © 2026 Christopher Schweda. It is GPLv3 because the ZIL backend bundles the GPLv3 [ZILF](https://foss.heptapod.net/zilf/zilf/) compiler and its `zillib` standard library; distributing them as part of this app requires the combined work to be GPLv3.
 
 Bundled third-party components keep their own licenses:
 
 - **Inform 6 compiler** and **Standard Library 6.12.8** — Artistic License 2.0 ([DavidKinder/Inform6](https://github.com/DavidKinder/Inform6))
 - **PunyInform 6.7** — see [johanberntsson/PunyInform](https://github.com/johanberntsson/PunyInform)
+- **ZILF + ZAPF compiler** and the **`zillib`** standard library — **GPLv3** ([zilf/zilf](https://foss.heptapod.net/zilf/zilf/), pinned at rev `5262550`), built offline to WebAssembly on the **.NET runtime** (MIT, [.NET Foundation](https://github.com/dotnet/runtime))
 - **Parchment** / **ZVM (ifvms)** — MIT ([curiousdannii/parchment](https://github.com/curiousdannii/parchment))
 
-**Inspiration:** [Borogove](https://borogove.app) — the multi-language, browser-based IF IDE that proved this could be done well in the browser. **No Borogove code is used here**; Frotzsmith is an independent, Inform 6-focused take, but Borogove was a definite inspiration (and the model for the extension picker).
+**Inspiration:** [Borogove](https://borogove.app) — the multi-language, browser-based IF IDE that proved this could be done well in the browser. **No Borogove code is used here**; Frotzsmith is an independent take (Inform 6 and ZIL), but Borogove was a definite inspiration (and the model for the extension picker).
 
 The **Haunted House** sample is reverse-engineered from Radio Shack's 1979 TRS-80 (Tandy Model I/III) text adventure and reimplemented in Inform 6.
 
