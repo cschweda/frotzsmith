@@ -15,7 +15,7 @@
  * We do NOT provide composable globals like useCompiler, useTranscript, useIde,
  * etc. — each test file provides the specific stubs it needs via vi.stubGlobal.
  */
-import { ref, computed, watch, watchEffect, readonly, nextTick } from 'vue'
+import { ref, computed, watch, watchEffect, readonly, nextTick, effectScope } from 'vue'
 import { vi, beforeEach } from 'vitest'
 import { slugify, storyBaseName } from '../app/utils/slug'
 
@@ -43,6 +43,7 @@ if (typeof window !== 'undefined') {
   vi.stubGlobal('watchEffect', watchEffect)
   vi.stubGlobal('readonly', readonly)
   vi.stubGlobal('nextTick', nextTick)
+  vi.stubGlobal('effectScope', effectScope)
 
   // App-level auto-imported utilities (used in useIde without import statements)
   vi.stubGlobal('slugify', slugify)
