@@ -25,6 +25,13 @@ export class ReplayCancelledError extends Error {
   }
 }
 
+export class ReplayTimeoutError extends Error {
+  constructor(public readonly timeoutMs: number) {
+    super(`Replay timed out after ${timeoutMs} ms`)
+    this.name = 'ReplayTimeoutError'
+  }
+}
+
 /**
  * Pure transport controller: drives a worker-like object to a ReplayResult, with
  * cancel() and an optional timeout — both `terminate()` the worker (ADR-003).
@@ -68,7 +75,7 @@ export function runReplayController(
       }
     }
     worker.onerror = (err: unknown) => fail(err instanceof Error ? err : new Error('Worker error'))
-    if (opts.timeoutMs != null) timer = setTimeout(() => fail(new ReplayCancelledError()), opts.timeoutMs)
+    if (opts.timeoutMs != null) timer = setTimeout(() => fail(new ReplayTimeoutError(opts.timeoutMs!)), opts.timeoutMs)
     // Start the worker only after the handlers above are wired.
     worker.postMessage(req)
   })

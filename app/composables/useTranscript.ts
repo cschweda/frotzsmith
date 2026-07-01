@@ -1,7 +1,15 @@
 import type { TurnRecord } from '~/modules/inform6/engine/StoryEngine'
-import { ReplayCancelledError } from './useReplay'
+import { ReplayCancelledError, ReplayTimeoutError } from './useReplay'
 
-const REPLAY_TIMEOUT_MS = 15_000
+/** Wall-clock budget for a headless replay: 15s base + 250ms per command,
+ *  capped at 2 minutes — "arbitrarily long" scripts shouldn't hit a flat 15s wall. */
+export function replayBudgetMs(commandCount: number): number {
+  return Math.min(15_000 + 250 * commandCount, 120_000)
+}
+
+// Module-level so Stop still works after the Test Script panel remounts
+// (tab switches v-if the panel away mid-run; a per-closure fn went stale).
+let cancelFn: (() => void) | null = null
 
 /** Owns the current transcript run: state, progress, cancellation. */
 export function useTranscript() {
@@ -13,8 +21,6 @@ export function useTranscript() {
   const progress = useState<{ done: number; total: number } | null>('frotz:transcript-progress', () => null)
   const ms = useState<number | null>('frotz:transcript-ms', () => null)
   const error = useState<string | null>('frotz:transcript-error', () => null)
-
-  let cancelFn: (() => void) | null = null
 
   async function run(commands: string[]) {
     if (!canPlay.value || running.value) return
@@ -31,7 +37,7 @@ export function useTranscript() {
     try {
       const ctrl = replay(new Uint8Array(story), 'zmachine', commands, {
         onProgress: (done, total) => (progress.value = { done, total }),
-        timeoutMs: REPLAY_TIMEOUT_MS,
+        timeoutMs: replayBudgetMs(commands.length),
       })
       cancelFn = ctrl.cancel
       const res = await ctrl.promise
@@ -39,6 +45,8 @@ export function useTranscript() {
       ms.value = res.ms
     } catch (e) {
       if (e instanceof ReplayCancelledError) error.value = `Stopped after ${progress.value?.done ?? 0} commands.`
+      else if (e instanceof ReplayTimeoutError)
+        error.value = `Timed out after ${progress.value?.done ?? 0} of ${progress.value?.total ?? 0} commands (${Math.round(e.timeoutMs / 1000)}s limit).`
       else error.value = e instanceof Error ? e.message : 'Replay failed.'
     } finally {
       running.value = false

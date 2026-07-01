@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { runReplayController, ReplayCancelledError, type WorkerLike } from './useReplay'
+import { runReplayController, ReplayCancelledError, ReplayTimeoutError, type WorkerLike } from './useReplay'
 
 function fakeWorker() {
   const w: WorkerLike & { terminated: boolean; emit: (data: unknown) => void } = {
@@ -45,11 +45,11 @@ describe('runReplayController', () => {
     expect(w.terminated).toBe(true)
   })
 
-  it('times out, terminating the worker', async () => {
+  it('times out with ReplayTimeoutError (distinct from a user cancel), terminating the worker', async () => {
     vi.useFakeTimers()
     const w = fakeWorker()
     const { promise } = runReplayController(() => w, { story: new Uint8Array(), target: 'zmachine', commands: [] }, { timeoutMs: 1000 })
-    const assertion = expect(promise).rejects.toBeInstanceOf(ReplayCancelledError)
+    const assertion = expect(promise).rejects.toBeInstanceOf(ReplayTimeoutError)
     vi.advanceTimersByTime(1000)
     await assertion
     expect(w.terminated).toBe(true)
