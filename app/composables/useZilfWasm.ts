@@ -92,13 +92,29 @@ function buildResultFromPayload(
 
   try {
     const storyFile = base64ToUint8Array(payload.storyBase64)
+    const ms = Math.round(performance.now() - started)
+    const warnings = diagnostics.filter(d => d.severity === 'warning').length
+
+    // ZILF emits no output on a clean compile (only errors/warnings surface as
+    // diagnostics), so synthesize a summary — the Results "Compiler output"
+    // pane shows this instead of "(no output)". Richer ZILF stats (object /
+    // routine counts) would need the .NET side to return them; this is the
+    // interim summary from what we already have.
+    const summary = [
+      'ZILF: compiled successfully.',
+      `  target       ${storyExt}`,
+      `  story size   ${storyFile.length.toLocaleString('en-US')} bytes`,
+      `  compile time ${(ms / 1000).toFixed(1)} s`,
+      `  diagnostics  0 errors, ${warnings} warning${warnings === 1 ? '' : 's'}`,
+    ].join('\n')
+
     return {
       ok: true,
       storyFile,
       storyExt,
       diagnostics,
-      rawStderr,
-      ms: Math.round(performance.now() - started),
+      rawStderr: rawStderr ? `${summary}\n\n${rawStderr}` : summary,
+      ms,
       byteLength: storyFile.length,
     }
   } catch (decodeErr: unknown) {
