@@ -151,9 +151,13 @@ export function useTestScripts() {
 
   if (import.meta.client && !watching) {
     watching = true
-    watch(buckets, persist, { deep: true })
-    watch(activeStoryKey, newKey => {
-      ensureBucket(newKey)
+    // Detached scope so these session-long watchers survive component unmount
+    // (see useSourceDocument for the failure mode).
+    effectScope(true).run(() => {
+      watch(buckets, persist, { deep: true })
+      watch(activeStoryKey, newKey => {
+        ensureBucket(newKey)
+      })
     })
   }
 

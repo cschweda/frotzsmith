@@ -104,7 +104,8 @@ export function useMap() {
   // useState means the first closure's reset() still clears the shared state.
   if (import.meta.client && !mapWatchRegistered) {
     mapWatchRegistered = true
-    watch(activeStoryKey, reset)
+    // Detached scope so the watcher survives component unmount (session-long).
+    effectScope(true).run(() => watch(activeStoryKey, reset))
   }
 
   return {

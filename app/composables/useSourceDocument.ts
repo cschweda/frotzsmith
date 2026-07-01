@@ -79,7 +79,10 @@ export function useSourceDocument() {
 
   if (import.meta.client && !watching) {
     watching = true
-    watch(source, scheduleSave)
+    // Detached scope: the first caller is a component (IdeLayout), and a bare
+    // watch() would bind to its effect scope and die on unmount (any navigation)
+    // while `watching` stays true — silently killing autosave for the session.
+    effectScope(true).run(() => watch(source, scheduleSave))
   }
 
   return { source, savedAt, restore, save }

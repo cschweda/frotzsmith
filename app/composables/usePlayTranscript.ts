@@ -28,9 +28,12 @@ export function usePlayTranscript() {
   // initialization (only inside runCompile), so there is no circular call chain.
   if (import.meta.client && !playTranscriptWatchRegistered) {
     playTranscriptWatchRegistered = true
-    const { activeStoryKey } = useIde()
-    watch(activeStoryKey, () => {
-      commands.value = []
+    // Detached scope so the watcher survives component unmount (session-long).
+    effectScope(true).run(() => {
+      const { activeStoryKey } = useIde()
+      watch(activeStoryKey, () => {
+        commands.value = []
+      })
     })
   }
 
