@@ -20,6 +20,17 @@ async function onKeydown(event: KeyboardEvent) {
   await nextTick()
   tablist.querySelector<HTMLElement>(`[data-tab-id="${next}"]`)?.focus()
 }
+
+// Delete/Backspace closes the focused closable tab (the visible × is pointer-only:
+// a focusable button nested inside role="tab" is an axe nested-interactive violation).
+async function onCloseKey(event: KeyboardEvent, id: string) {
+  if (id === 'source') return
+  event.preventDefault()
+  const tablist = (event.currentTarget as HTMLElement).closest('[role="tablist"]') as HTMLElement | null
+  closeTab(id)
+  await nextTick()
+  tablist?.querySelector<HTMLElement>(`[data-tab-id="${activeId.value}"]`)?.focus()
+}
 </script>
 
 <template>
@@ -44,9 +55,11 @@ async function onKeydown(event: KeyboardEvent) {
           ? 'bg-default text-primary'
           : 'text-muted hover:bg-default/60 hover:text-default',
       ]"
+      :aria-keyshortcuts="tab.id !== 'source' ? 'Delete' : undefined"
       @click="openFile(tab.id)"
       @keydown.enter="openFile(tab.id)"
       @keydown.space.prevent="openFile(tab.id)"
+      @keydown.delete="onCloseKey($event, tab.id)"
     >
       <UIcon
         :name="tab.editable ? 'i-lucide-file-code-2' : 'i-lucide-file-lock-2'"
@@ -54,15 +67,15 @@ async function onKeydown(event: KeyboardEvent) {
       />
       <span class="whitespace-nowrap">{{ tab.name }}</span>
       <span v-if="!tab.editable" class="sr-only">(read-only)</span>
-      <button
+      <span
         v-if="tab.id !== 'source'"
-        type="button"
-        class="ml-1 rounded p-0.5 opacity-50 hover:bg-error/15 hover:text-error hover:opacity-100"
-        :aria-label="`Close ${tab.name}`"
+        aria-hidden="true"
+        :title="`Close ${tab.name} (Delete)`"
+        class="ml-1 cursor-pointer rounded p-0.5 opacity-50 hover:bg-error/15 hover:text-error hover:opacity-100"
         @click.stop="closeTab(tab.id)"
       >
         <UIcon name="i-lucide-x" class="size-3" />
-      </button>
+      </span>
     </div>
   </div>
 </template>
