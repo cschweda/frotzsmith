@@ -200,10 +200,13 @@ async function getMainThreadExports(): Promise<ZilfExportCache> {
 
   if (!_mainThreadBootPromise) {
     _mainThreadBootPromise = (async () => {
-      // Same import pattern as the worker, see zilf.worker.ts for rationale.
-      const dotnetEntryUrl: string = '/zilf/_framework/dotnet.js'
+      // Bypass Vite's import-analysis URL rewriting (?import) so the external,
+      // non-Vite dotnet.js loads unprocessed in dev AND prod.  The Function
+      // constructor hides the import from Vite's static analyzer so it cannot
+      // rewrite the URL.  The app's CSP already allows unsafe-eval (ZVM JIT).
+      const dynamicImport = new Function('u', 'return import(u)') as (u: string) => Promise<unknown>
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const mod = await import(/* @vite-ignore */ dotnetEntryUrl)
+      const mod = await dynamicImport('/zilf/_framework/dotnet.js')
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const { dotnet } = mod as {
         dotnet: { withApplicationArguments(): { create(): Promise<unknown> } }

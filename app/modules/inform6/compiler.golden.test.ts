@@ -44,13 +44,17 @@ Include "Grammar";
 `
 
 // ---------------------------------------------------------------------------
-// Golden sha-256 of the compiled story.z5.
-// Computed on first verified run; locked here so any compiler regression
-// (e.g. WASM rebuild) is caught automatically.  To recompute:
+// Golden sha-256 of the compiled story.z5, with the 6-byte serial at Z-machine
+// header offset 0x12 (bytes 18–23) zeroed before hashing.  The serial encodes
+// the compilation date (YYMMDD), so masking it makes the golden deterministic
+// across days.  The header checksum at 0x1C covers bytes from 0x40 onward and
+// is NOT affected by the serial, so masking only bytes 18–23 is sufficient.
+//
+// To recompute: set GOLDEN_SHA256 = 'PENDING', run the test with
 //   yarn test compiler.golden --reporter=verbose
-// and update the value below.
+// then paste the printed sha256 back here.
 // ---------------------------------------------------------------------------
-const GOLDEN_SHA256: string = '607505c85dd736174f4125e399cf41caae94884c8905728651ebdba3535de089'
+const GOLDEN_SHA256: string = '2d8ffb2cd54a2545763d27644da5deff9fae712a794cfcade1688491592e7694'
 
 describe('inform6.wasm golden compile (node-env)', () => {
   it('compiles a minimal std game to a deterministic, valid z5 story', async () => {
@@ -133,7 +137,12 @@ describe('inform6.wasm golden compile (node-env)', () => {
     expect(storyFile.length - headerLen).toBeLessThan(512)
 
     // 4. Golden sha-256 — compile is deterministic across runs.
-    const sha256 = createHash('sha256').update(storyFile).digest('hex')
+    // The 6-byte serial at Z-machine header offset 0x12 (bytes 18–23) encodes
+    // the compilation date (YYMMDD).  Mask it to zero so the hash is stable
+    // across calendar days regardless of when the test runs.
+    const maskedStory = storyFile.slice()
+    maskedStory.fill(0, 18, 24)
+    const sha256 = createHash('sha256').update(maskedStory).digest('hex')
     if (GOLDEN_SHA256 !== 'PENDING') {
       expect(sha256, 'golden sha-256 changed — WASM was rebuilt or source changed').toBe(
         GOLDEN_SHA256,
