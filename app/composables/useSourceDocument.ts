@@ -45,16 +45,15 @@ export function useSourceDocument() {
           source.value = snap.source
           savedAt.value = snap.savedAt ?? null
         }
-      } else if (profile.value.id === 'zil') {
-        // No snapshot: seed the ZIL starter so a fresh /zil/ project shows ZIL
-        // source.  Covers the navigation case (/ → /zil/ in one session) where
-        // frotz:source is already initialised with the I6 demo from the factory
-        // but the ZIL recovery bucket has nothing — without this branch the I6
-        // demo would persist in the ZIL editor until the author starts typing.
-        source.value = zilSkeletonSource
+      } else {
+        // No snapshot for this language: seed its starter. The useState factory
+        // only runs once per session, so after navigating between /zil/ and /
+        // `source` still holds the OTHER language's text — both directions need
+        // the explicit reseed (a zil-only branch here once leaked the ZIL
+        // skeleton into the I6 editor, where autosave then persisted it).
+        source.value = profile.value.id === 'zil' ? zilSkeletonSource : demoSource
+        savedAt.value = null
       }
-      // i6: no branch needed — the factory initialises correctly (demoSource)
-      // and the i6 recovery snapshot, if any, is already loaded above.
     } catch {
       // corrupt snapshot — ignore, keep the default
     }

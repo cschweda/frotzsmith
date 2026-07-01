@@ -61,4 +61,18 @@ describe('useSourceDocument — fresh-project seed (no snapshot)', () => {
     expect(source.value).toContain('WEST-OF-HOUSE')
     expect(source.value).not.toContain('Constant Story')
   })
+
+  it('seeds the I6 demo via restore() when navigating from zil to i6', () => {
+    // Session starts on /zil/ (shared link): factory seeds the ZIL skeleton.
+    useLanguage().setLanguage('zil')
+    const zil = useSourceDocument()
+    expect(zil.source.value).toContain('WEST-OF-HOUSE')
+
+    // Navigate to / — IdeLayout remounts and calls restore() with no i6 snapshot.
+    useLanguage().setLanguage('i6')
+    const { source, restore } = useSourceDocument()
+    restore()
+    expect(source.value).toContain('Constant Story')
+    expect(source.value).not.toContain('WEST-OF-HOUSE')
+  })
 })
