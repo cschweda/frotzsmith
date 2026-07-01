@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { frotzsmith } from '~~/frotzsmith.config'
 
-useHead({ title: 'Technical Details — Frotzsmith' })
+useHead({
+  title: 'Technical Details — Frotzsmith',
+  link: [{ rel: 'canonical', href: `${frotzsmith.siteUrl}/technical/` }],
+  meta: [{ property: 'og:url', content: `${frotzsmith.siteUrl}/technical/` }],
+})
 
 const colorMode = useColorMode()
 function toggleTheme() {

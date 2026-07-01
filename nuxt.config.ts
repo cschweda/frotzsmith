@@ -59,7 +59,7 @@ export default defineNuxtConfig({
         { property: 'og:title', content: 'Frotzsmith — a browser-based Interactive Fiction IDE' },
         {
           property: 'og:description',
-          content: 'Write, compile, and play interactive fiction entirely in your browser — Inform 6, with ZIL coming.',
+          content: 'Write, compile, and play interactive fiction entirely in your browser — Inform 6 and ZIL.',
         },
         { property: 'og:url', content: `${SITE_URL}/` },
         { property: 'og:image', content: `${SITE_URL}/og-image.png` },
@@ -71,7 +71,7 @@ export default defineNuxtConfig({
         { name: 'twitter:title', content: 'Frotzsmith — a browser-based Interactive Fiction IDE' },
         {
           name: 'twitter:description',
-          content: 'Write, compile, and play interactive fiction entirely in your browser — Inform 6, with ZIL coming.',
+          content: 'Write, compile, and play interactive fiction entirely in your browser — Inform 6 and ZIL.',
         },
         { name: 'twitter:image', content: `${SITE_URL}/og-image.png` },
       ],
@@ -79,7 +79,8 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
         { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
-        { rel: 'canonical', href: `${SITE_URL}/` },
+        // canonical is set per page (index/zil/technical) — a global one would
+        // declare every route a duplicate of the homepage.
       ],
       // Privacy-friendly analytics by Plausible (no cookies, no personal data).
       script: [
