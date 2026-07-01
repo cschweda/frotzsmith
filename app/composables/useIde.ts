@@ -1,5 +1,6 @@
 import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { formatI6 } from '~/utils/format-i6'
+import { formatZil } from '~/utils/format-zil'
 import { PROFILES, detectProfile, type ProfileId } from '~/modules/inform6/profiles'
 import { sampleById } from '~/modules/inform6/samples'
 import { sampleById as zilSampleById } from '~/modules/languages/zil/samples'
@@ -145,7 +146,8 @@ export function useIde() {
   /** Re-indent and tidy the active editable file (source or an uploaded ext). */
   function format() {
     if (!activeFile.value.editable) return
-    writeActive(formatI6(readFile(activeFile.value.id)))
+    const src = readFile(activeFile.value.id)
+    writeActive(profile.value.id === 'zil' ? formatZil(src) : formatI6(src))
   }
 
   function setProfileMode(mode: ProfileMode) {

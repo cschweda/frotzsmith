@@ -172,9 +172,9 @@ function toggleTheme() {
       </NuxtLink>
     </div>
 
-    <!-- Prettify: I6 only (formatI6 is I6-specific; ZIL has no equivalent formatter) -->
+    <!-- Prettify: I6 (formatI6) and ZIL (formatZil) — each uses its own formatter -->
     <UButton
-      v-if="profile.id === 'i6'"
+      v-if="profile.id === 'i6' || profile.id === 'zil'"
       size="lg"
       color="neutral"
       variant="subtle"
