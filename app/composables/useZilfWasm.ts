@@ -10,17 +10,45 @@ import { parseZilDiagnostics } from '~/modules/zil/zil-diagnostics'
  * downstream consumers (play, results panel, auto-map, test scripts) work
  * unchanged.
  *
+ * Worker + main-thread fallback strategy (ADR-013):
+ *   PRIMARY  — Worker path: compile off the main thread, best UX.
+ *   FALLBACK — Main-thread path: runs if the Worker fails to load or times out
+ *              (covers the Vite dev-server worker-transform hang AND any env
+ *              where the Worker never starts). The fallback boots the same
+ *              .NET WASM runtime on the main thread; the UI shows "Compiling…"
+ *              throughout (~5–9 s is acceptable for an alpha feature).
+ *   CACHING  — Once the worker proves unusable (_workerFailed = true), every
+ *              subsequent compile in the session skips the Worker entirely.
+ *
  * Failure modes:
- * - Worker/boot error → `ok: false` with a clear error `Diagnostic`, no throw.
- * - Compile error (success: false) → `ok: false` with parsed ZILF diagnostics.
- * - Success with diagnostics → `ok: true`, `storyFile` set, warnings surfaced.
+ * - Worker construction fails  → _workerFailed, main-thread fallback.
+ * - Worker sends { error }     → _workerFailed, main-thread fallback.
+ * - Worker times out (>14 s)   → terminate worker, _workerFailed, main-thread.
+ * - Main-thread boot/compile error → ok: false with a clear Diagnostic.
  */
+
+/** ms to wait for the Worker before falling back to the main-thread path. */
+const WORKER_TIMEOUT_MS = 14_000
+
+// ─── shared types ─────────────────────────────────────────────────────────────
+
+type ZilfExportCache = {
+  ZilfExports: { Compile: (source: string, version: number) => string }
+}
+
+type CompilePayload = {
+  success: boolean
+  storyBase64: string | null
+  diagnostics: string[]
+}
+
+// ─── helpers ──────────────────────────────────────────────────────────────────
 
 /** Map numeric Z-machine version to the file extension used by CompileResult. */
 function versionToExt(version: number): StoryExt {
   if (version === 3) return 'z3'
   if (version === 8) return 'z8'
-  return 'z5'  // Default; z5 is the most common target.
+  return 'z5' // Default; z5 is the most common target.
 }
 
 /** Decodes a base64 string to a Uint8Array (browser-safe). */
@@ -33,8 +61,63 @@ function base64ToUint8Array(b64: string): Uint8Array {
   return bytes
 }
 
+/**
+ * Build a CompileResult from a raw ZILF compile payload.
+ * Shared by both the Worker path and the main-thread fallback.
+ */
+function buildResultFromPayload(
+  payload: CompilePayload,
+  storyExt: StoryExt,
+  started: number,
+): CompileResult {
+  const diagnostics = parseZilDiagnostics(payload.diagnostics ?? [])
+  const rawStderr = (payload.diagnostics ?? []).join('\n')
+
+  if (!payload.success || !payload.storyBase64) {
+    return {
+      ok: false,
+      storyExt,
+      diagnostics,
+      rawStderr,
+      ms: Math.round(performance.now() - started),
+      byteLength: 0,
+    }
+  }
+
+  try {
+    const storyFile = base64ToUint8Array(payload.storyBase64)
+    return {
+      ok: true,
+      storyFile,
+      storyExt,
+      diagnostics,
+      rawStderr,
+      ms: Math.round(performance.now() - started),
+      byteLength: storyFile.length,
+    }
+  } catch (decodeErr: unknown) {
+    const msg = `Failed to decode ZILF story bytes: ${String(decodeErr)}`
+    return {
+      ok: false,
+      storyExt,
+      diagnostics: [{ severity: 'error', message: msg }],
+      rawStderr: msg,
+      ms: Math.round(performance.now() - started),
+      byteLength: 0,
+    }
+  }
+}
+
+// ─── Worker path ──────────────────────────────────────────────────────────────
+
 /** Module-level worker instance — created on first compile, reused thereafter. */
 let _worker: Worker | null = null
+
+/**
+ * Once set to true, the worker is considered unusable for this session and every
+ * compile goes directly to the main-thread fallback.
+ */
+let _workerFailed = false
 
 function getWorker(): Worker {
   if (!_worker) {
@@ -49,7 +132,107 @@ function getWorker(): Worker {
 }
 
 /**
- * Composable that wraps the ZILF Web Worker and returns a `CompileResult`.
+ * Attempt a compile via the Web Worker.
+ * Returns the raw payload on success, or null if the worker failed / timed out.
+ * A null result triggers the main-thread fallback and sets _workerFailed.
+ */
+function tryWorkerCompile(
+  source: string,
+  version: number,
+): Promise<CompilePayload | null> {
+  return new Promise<CompilePayload | null>((resolve) => {
+    let worker: Worker
+    try {
+      worker = getWorker()
+    } catch (spawnErr: unknown) {
+      // Worker construction failed (e.g. Vite dev transform hang, wrong env).
+      _workerFailed = true
+      resolve(null)
+      return
+    }
+
+    const timer = setTimeout(() => {
+      worker.removeEventListener('message', handler)
+      // Terminate the stuck worker; next getWorker() call creates a fresh one.
+      try {
+        worker.terminate()
+        _worker = null
+      } catch {
+        /* ignore — the worker may already be dead */
+      }
+      _workerFailed = true
+      resolve(null)
+    }, WORKER_TIMEOUT_MS)
+
+    const handler = (event: MessageEvent) => {
+      clearTimeout(timer)
+      worker.removeEventListener('message', handler)
+
+      const data = event.data as CompilePayload | { error: string }
+      if ('error' in data) {
+        // Worker surfaced a boot or runtime error — fall back to main thread.
+        _workerFailed = true
+        resolve(null)
+        return
+      }
+      resolve(data)
+    }
+
+    worker.addEventListener('message', handler)
+    worker.postMessage({ source, version })
+  })
+}
+
+// ─── Main-thread fallback ─────────────────────────────────────────────────────
+
+/** Cached exports from the main-thread boot (reused across fallback compiles). */
+let _mainThreadExports: ZilfExportCache | null = null
+
+/** In-flight boot promise — shared across concurrent calls. */
+let _mainThreadBootPromise: Promise<ZilfExportCache> | null = null
+
+/**
+ * Boot the .NET WASM ZILF runtime on the main thread (once) and return the
+ * cached assembly exports.  Mirror of the boot sequence in zilf.worker.ts.
+ */
+async function getMainThreadExports(): Promise<ZilfExportCache> {
+  if (_mainThreadExports) return _mainThreadExports
+
+  if (!_mainThreadBootPromise) {
+    _mainThreadBootPromise = (async () => {
+      // Same import pattern as the worker, see zilf.worker.ts for rationale.
+      const dotnetEntryUrl: string = '/zilf/_framework/dotnet.js'
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const mod = await import(/* @vite-ignore */ dotnetEntryUrl)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      const { dotnet } = mod as {
+        dotnet: { withApplicationArguments(): { create(): Promise<unknown> } }
+      }
+      const runtime = await (
+        dotnet.withApplicationArguments() as {
+          create(): Promise<Record<string, unknown>>
+        }
+      ).create()
+      const r = runtime as {
+        getConfig(): { mainAssemblyName: string }
+        getAssemblyExports(name: string): Promise<unknown>
+      }
+      const config = r.getConfig()
+      _mainThreadExports = (await r.getAssemblyExports(
+        config.mainAssemblyName,
+      )) as ZilfExportCache
+      return _mainThreadExports
+    })()
+  }
+
+  return _mainThreadBootPromise
+}
+
+// ─── composable ───────────────────────────────────────────────────────────────
+
+/**
+ * Composable that wraps the ZILF Web Worker (with main-thread fallback) and
+ * returns a `CompileResult`.
  *
  * Usage:
  * ```ts
@@ -62,93 +245,35 @@ export function useZilfWasm() {
     const started = performance.now()
     const storyExt = versionToExt(version)
 
-    return new Promise<CompileResult>((resolve) => {
-      let worker: Worker
-      try {
-        worker = getWorker()
-      } catch (spawnErr: unknown) {
-        // Worker construction failed (e.g. not in a browser context).
-        resolve({
-          ok: false,
-          storyExt,
-          diagnostics: [
-            {
-              severity: 'error',
-              message: `Failed to spawn ZILF worker: ${String(spawnErr)}`,
-            },
-          ],
-          rawStderr: String(spawnErr),
-          ms: Math.round(performance.now() - started),
-          byteLength: 0,
-        })
-        return
+    // ── Worker path (primary) ──────────────────────────────────────────────
+    if (!_workerFailed) {
+      const payload = await tryWorkerCompile(source, version)
+      if (payload !== null) {
+        return buildResultFromPayload(payload, storyExt, started)
       }
+      // Worker failed or timed out — fall through to main-thread.
+    }
 
-      const handler = (event: MessageEvent) => {
-        worker.removeEventListener('message', handler)
-        const data = event.data as
-          | { success: boolean; storyBase64: string | null; diagnostics: string[] }
-          | { error: string }
-
-        if ('error' in data) {
-          // Worker surfaced a boot or runtime error.
-          const msg = `ZILF runtime error: ${data.error}`
-          resolve({
-            ok: false,
-            storyExt,
-            diagnostics: [{ severity: 'error', message: msg }],
-            rawStderr: msg,
-            ms: Math.round(performance.now() - started),
-            byteLength: 0,
-          })
-          return
-        }
-
-        const diagnostics = parseZilDiagnostics(data.diagnostics ?? [])
-        const rawStderr = (data.diagnostics ?? []).join('\n')
-
-        if (!data.success || !data.storyBase64) {
-          resolve({
-            ok: false,
-            storyExt,
-            diagnostics,
-            rawStderr,
-            ms: Math.round(performance.now() - started),
-            byteLength: 0,
-          })
-          return
-        }
-
-        let storyFile: Uint8Array
-        try {
-          storyFile = base64ToUint8Array(data.storyBase64)
-        } catch (decodeErr: unknown) {
-          const msg = `Failed to decode ZILF story bytes: ${String(decodeErr)}`
-          resolve({
-            ok: false,
-            storyExt,
-            diagnostics: [{ severity: 'error', message: msg }],
-            rawStderr: msg,
-            ms: Math.round(performance.now() - started),
-            byteLength: 0,
-          })
-          return
-        }
-
-        resolve({
-          ok: true,
-          storyFile,
-          storyExt,
-          diagnostics,
-          rawStderr,
-          ms: Math.round(performance.now() - started),
-          byteLength: storyFile.length,
-        })
+    // ── Main-thread fallback ───────────────────────────────────────────────
+    // Boots the .NET WASM runtime directly on the main thread.  The UI will
+    // be blocked for ~5–9 s on first compile; subsequent compiles reuse the
+    // cached exports and are much faster.
+    try {
+      const exports = await getMainThreadExports()
+      const raw = exports.ZilfExports.Compile(source, version)
+      const payload = JSON.parse(raw) as CompilePayload
+      return buildResultFromPayload(payload, storyExt, started)
+    } catch (err: unknown) {
+      const msg = `ZILF runtime error (main-thread): ${String(err)}`
+      return {
+        ok: false,
+        storyExt,
+        diagnostics: [{ severity: 'error', message: msg }],
+        rawStderr: msg,
+        ms: Math.round(performance.now() - started),
+        byteLength: 0,
       }
-
-      worker.addEventListener('message', handler)
-      worker.postMessage({ source, version })
-    })
+    }
   }
 
   return { compile }
