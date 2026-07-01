@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { emptyGraph, parseDirection, parseRoomName, addStep, layout, exitsOf, connectedDirs, parseObjects, parseExits } from './map-graph'
+import { emptyGraph, parseDirection, parseRoomName, addStep, layout, exitsOf, connectedDirs, parseObjects, parseExits, fitViewBox } from './map-graph'
 
 describe('parseDirection', () => {
   it('maps abbreviations, full words, and "go X" to a Dir', () => {
@@ -217,5 +217,25 @@ describe('parseObjects', () => {
   it('returns [] when nothing matches', () => {
     expect(parseObjects('A featureless room.')).toEqual([])
     expect(parseObjects('')).toEqual([])
+  })
+})
+
+describe('fitViewBox', () => {
+  const opts = { cell: 120, roomW: 96, roomH: 48, pad: 60, minW: 360 }
+
+  it('clamps a single-room map to the minimum width, centred on the room', () => {
+    const vb = fitViewBox({ minCol: 0, maxCol: 0, minRow: 0, maxRow: 0 }, opts)
+    expect(vb.w).toBe(360)
+    expect(vb.x + vb.w / 2).toBeCloseTo(0)
+    expect(vb.y + vb.h / 2).toBeCloseTo(0)
+    // Height scales by the same factor so aspect is preserved.
+    expect(vb.h).toBeCloseTo(168 * (360 / 216))
+  })
+
+  it('leaves larger maps exactly at bounds + padding', () => {
+    const vb = fitViewBox({ minCol: 0, maxCol: 10, minRow: 0, maxRow: 5 }, opts)
+    expect(vb.w).toBe(10 * 120 + 96 + 120)
+    expect(vb.h).toBe(5 * 120 + 48 + 120)
+    expect(vb.x).toBe(-48 - 60)
   })
 })

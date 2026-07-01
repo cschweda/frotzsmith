@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { connectedDirs, oppositeDir, type Dir } from '~/composables/map-graph'
+import { connectedDirs, oppositeDir, fitViewBox, type Dir } from '~/composables/map-graph'
 const { layout, currentRoom, details, graph, noRoomName, roomObjects, roomExits, mapMode, toggleMapMode } = useMap()
 
 const CELL = 120, ROOM_W = 96, ROOM_H = 48, PAD = 60
 /** Clamp limits for the viewBox width (SVG user-space units). */
 const MIN_W = CELL       // most zoomed-in: one cell wide
 const MAX_W = CELL * 60  // most zoomed-out: 60 cells wide
+/** Fit never zooms tighter than ~3 cells across — a 1-room map stays room-sized. */
+const MIN_FIT_W = CELL * 3
 
 const hasRooms = computed(() => layout.value.rooms.length > 0)
 /** True once the play frame confirms the status line has no room name and no rooms have been recorded. */
@@ -37,13 +39,11 @@ const zoomPct = computed(() => Math.round((baseW.value / view.value.w) * 100))
 
 /** Set the viewBox to show all rooms with padding (the "fit" state). */
 function fitView() {
-  const b = layout.value.bounds
-  const x = b.minCol * CELL - ROOM_W / 2 - PAD
-  const y = b.minRow * CELL - ROOM_H / 2 - PAD
-  const w = (b.maxCol - b.minCol) * CELL + ROOM_W + PAD * 2
-  const h = (b.maxRow - b.minRow) * CELL + ROOM_H + PAD * 2
-  view.value = { x, y, w, h }
-  baseW.value = w
+  const vb = fitViewBox(layout.value.bounds, {
+    cell: CELL, roomW: ROOM_W, roomH: ROOM_H, pad: PAD, minW: MIN_FIT_W,
+  })
+  view.value = vb
+  baseW.value = vb.w
 }
 
 /** Reset to fit mode and re-fit immediately (Fit button). */

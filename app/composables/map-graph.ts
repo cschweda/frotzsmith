@@ -213,3 +213,36 @@ export function parseObjects(roomText: string): string[] {
   }
   return [...new Set(out)]
 }
+
+export interface FitViewBox {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+/**
+ * The SVG viewBox that fits `bounds` with padding — clamped to a minimum width
+ * so a tiny map (one or two rooms) doesn't zoom a single room box up to fill
+ * the whole pane. Clamping keeps the fitted centre and the aspect ratio.
+ */
+export function fitViewBox(
+  bounds: { minCol: number; maxCol: number; minRow: number; maxRow: number },
+  opts: { cell: number; roomW: number; roomH: number; pad: number; minW: number },
+): FitViewBox {
+  const { cell, roomW, roomH, pad, minW } = opts
+  let x = bounds.minCol * cell - roomW / 2 - pad
+  let y = bounds.minRow * cell - roomH / 2 - pad
+  let w = (bounds.maxCol - bounds.minCol) * cell + roomW + pad * 2
+  let h = (bounds.maxRow - bounds.minRow) * cell + roomH + pad * 2
+  if (w < minW) {
+    const scale = minW / w
+    const cx = x + w / 2
+    const cy = y + h / 2
+    w = minW
+    h = h * scale
+    x = cx - w / 2
+    y = cy - h / 2
+  }
+  return { x, y, w, h }
+}
