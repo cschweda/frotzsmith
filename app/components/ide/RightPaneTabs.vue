@@ -10,6 +10,22 @@ const tabs: { id: RightTab; label: string; icon: string }[] = [
   { id: 'testscript', label: 'Test Script', icon: 'i-lucide-scroll-text' },
   { id: 'map', label: 'Map', icon: 'i-lucide-map' },
 ]
+
+// Arrow-key navigation + focus-follows-selection (ARIA tabs pattern), mirroring
+// EditorTabs. currentTarget is captured before the await — it nulls after dispatch.
+async function onKeydown(event: KeyboardEvent) {
+  if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
+  const ids = tabs.map(t => t.id)
+  const i = ids.indexOf(activeTab.value)
+  if (i === -1) return
+  const next = event.key === 'ArrowRight' ? ids[i + 1] ?? ids[0] : ids[i - 1] ?? ids[ids.length - 1]
+  if (!next) return
+  event.preventDefault()
+  const tablist = event.currentTarget as HTMLElement
+  activeTab.value = next
+  await nextTick()
+  tablist.querySelector<HTMLElement>(`#rtab-${next}`)?.focus()
+}
 </script>
 
 <template>
@@ -19,12 +35,16 @@ const tabs: { id: RightTab; label: string; icon: string }[] = [
     <!-- Header: tabs only — Compile/Play live in the title bar (TitleStrip). -->
     <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-default px-2 py-2">
       <div class="flex items-center gap-1">
-        <div role="tablist" class="flex gap-1">
+        <div role="tablist" aria-label="Output panels" class="flex gap-1" @keydown="onKeydown">
           <button
             v-for="t in tabs"
+            :id="`rtab-${t.id}`"
             :key="t.id"
             role="tab"
             :aria-selected="activeTab === t.id"
+            :aria-label="t.label"
+            aria-controls="right-tabpanel"
+            :tabindex="activeTab === t.id ? 0 : -1"
             type="button"
             :class="[
               'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition',
@@ -46,6 +66,9 @@ const tabs: { id: RightTab; label: string; icon: string }[] = [
               class="size-2 rounded-full bg-success"
               aria-hidden="true"
             />
+            <span v-if="t.id === 'results' && (status === 'error' || status === 'success')" class="sr-only">
+              {{ status === 'error' ? '— compile failed' : '— compiled cleanly' }}
+            </span>
           </button>
         </div>
 
@@ -53,7 +76,7 @@ const tabs: { id: RightTab; label: string; icon: string }[] = [
 
     </div>
 
-    <div class="min-h-0 flex-1">
+    <div id="right-tabpanel" role="tabpanel" :aria-labelledby="`rtab-${activeTab}`" class="min-h-0 flex-1">
       <PlayPanel v-show="activeTab === 'play'" />
       <ResultsPanel v-if="activeTab === 'results'" />
       <TranscriptPanel v-else-if="activeTab === 'transcript'" />
