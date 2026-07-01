@@ -291,6 +291,14 @@ describe('useIde — runCompile clean-slate orchestration', () => {
     await ide.runCompile()
     expect(ide.pendingScript.value).toBeNull()
   })
+
+  it('runCompile ignores a second call within 500ms of completion (queued freeze click)', async () => {
+    const { runCompile } = useIde()
+    await runCompile()
+    expect(_compileMock).toHaveBeenCalledTimes(1)
+    await runCompile() // dispatched immediately after — e.g. a click queued during a main-thread freeze
+    expect(_compileMock).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('useIde — language-switch artifact reset (restore)', () => {

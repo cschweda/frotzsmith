@@ -88,6 +88,12 @@ export function useIde() {
    *  so a language switch (and only a language switch) blanks run artifacts. */
   const lastLang = useState<string | null>('frotz:last-lang', () => null)
 
+  /** performance.now() at the end of the last compile — debounces clicks that
+   *  were queued during a main-thread compile freeze (they dispatch AFTER the
+   *  freeze, when status is no longer 'compiling', and would otherwise trigger
+   *  a second full freeze). */
+  const lastCompileEnd = useState<number>('frotz:last-compile-end', () => 0)
+
   // Send-to-Play: a parsed script queued to feed into the live Parchment game.
   const pendingScript = useState<string[] | null>('frotz:pending-script', () => null)
 
@@ -153,14 +159,25 @@ export function useIde() {
     activeTab.value = 'results'
   }
 
+  /** Two rAFs = a guaranteed paint opportunity (setTimeout(0) is not), so
+   *  "Compiling…" is actually on screen before a long synchronous main-thread
+   *  compile (ZIL: ~5-9s) blocks the thread. */
+  function nextPaint(): Promise<void> {
+    return new Promise(resolve => {
+      if (!import.meta.client || typeof requestAnimationFrame === 'undefined') return resolve()
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    })
+  }
+
   async function runCompile() {
     if (status.value === 'compiling') return
+    if (import.meta.client && lastCompileEnd.value > 0 && performance.now() - lastCompileEnd.value < 500) return
     status.value = 'compiling'
     // Fresh build → blank the prior game's artifacts (first room on next Play).
     resetEphemeral()
     activeTab.value = 'results'
     const pid = effectiveProfile.value
-    await new Promise(resolve => setTimeout(resolve, 0)) // let "Compiling…" paint
+    await nextPaint()
     try {
       const r = await compile(source.value, {
         profileId: pid,
@@ -174,6 +191,8 @@ export function useIde() {
       result.value = null
       usedProfile.value = pid
       status.value = 'error'
+    } finally {
+      if (import.meta.client) lastCompileEnd.value = performance.now()
     }
   }
 
