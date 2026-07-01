@@ -75,6 +75,7 @@ const drawerOpen = computed({
     <div class="flex gap-1 border-b border-default p-2 lg:hidden">
       <button
         type="button"
+        :aria-pressed="mobileView === 'editor'"
         :class="[
           'flex-1 rounded-lg py-2 text-sm font-semibold transition',
           mobileView === 'editor' ? 'bg-primary/15 text-primary' : 'text-muted',
@@ -85,6 +86,7 @@ const drawerOpen = computed({
       </button>
       <button
         type="button"
+        :aria-pressed="mobileView === 'output'"
         :class="[
           'flex-1 rounded-lg py-2 text-sm font-semibold transition',
           mobileView === 'output' ? 'bg-primary/15 text-primary' : 'text-muted',
@@ -96,7 +98,7 @@ const drawerOpen = computed({
     </div>
 
     <!-- Explorer + two-pane shell -->
-    <div class="flex min-h-0 flex-1">
+    <main class="flex min-h-0 flex-1">
       <!-- Desktop: collapsible explorer column -->
       <aside
         v-if="panelOpen"
@@ -125,7 +127,7 @@ const drawerOpen = computed({
           <RightPaneTabs />
         </section>
       </div>
-    </div>
+    </main>
 
     <!-- Mobile: explorer as a slide-over drawer -->
     <USlideover v-model:open="drawerOpen" side="left" title="Project files" class="lg:hidden">
