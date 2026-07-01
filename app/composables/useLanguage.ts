@@ -23,6 +23,12 @@ registerProfile(I6_PROFILE)
 registerProfile(ZIL_PROFILE)
 
 /**
+ * All registered language profiles in display order (I6 first, ZIL second).
+ * Used by the language toggle in the toolbar.
+ */
+const ALL_PROFILES: LanguageProfile[] = [I6_PROFILE, ZIL_PROFILE]
+
+/**
  * Composable that exposes the active language profile and a setter.
  *
  * State is shared via useState('frotz:lang') so every component calling
@@ -41,5 +47,8 @@ export function useLanguage() {
     lang.value = id
   }
 
-  return { profile, setLanguage }
+  /** All registered profiles in display order — for the language toggle. */
+  const profiles = ALL_PROFILES
+
+  return { profile, setLanguage, profiles }
 }

@@ -52,8 +52,19 @@ export function useIde() {
       : activeProfile.value.defaultExt
   })
 
-  /** The `Constant Story "…"` title from the source, if any. */
-  const storyTitle = computed(() => /Constant\s+Story\s+"([^"]*)"/i.exec(source.value)?.[1]?.trim())
+  /**
+   * The story title from the source, used for Save-As filenames — language-aware.
+   * I6: reads `Constant Story "…"`.
+   * ZIL: reads the first pipe-segment of `<CONSTANT GAME-BANNER "Title|…">`.
+   */
+  const storyTitle = computed(() => {
+    if (profile.value.id === 'zil') {
+      const banner = /<CONSTANT\s+GAME-BANNER[^"]*"([^"]*)/i.exec(source.value)?.[1] ?? ''
+      const title = banner.split('|')[0]?.trim().replace(/[\r\n]/g, ' ').trim()
+      return title || undefined
+    }
+    return /Constant\s+Story\s+"([^"]*)"/i.exec(source.value)?.[1]?.trim()
+  })
   /** Filename stem for Save-As / Download: slug of the title (or 'story'), '-puny' for PunyInform. */
   const storyBase = computed(() => storyBaseName(storyTitle.value, effectiveProfile.value === 'puny'))
 
@@ -193,7 +204,9 @@ export function useIde() {
     source.value = ''
     // Blank source → storyKey is 'untitled'.
     activeStoryKey.value = storyKey.value
-    setProfileMode(library)
+    // Only set/persist the I6 library profile for I6; ZIL has no library concept
+    // and persisting 'std' into the ZIL storage bucket is a state smell.
+    if (profile.value.id === 'i6') setProfileMode(library)
     result.value = null
     status.value = 'idle'
     activeTab.value = 'results'

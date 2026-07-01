@@ -7,7 +7,7 @@ import type { ProfileId } from '~/modules/inform6/profiles'
 
 const { format, loadSample, profileMode, activeProfile, setProfileMode, targetMode, effectiveExt, setTargetMode } =
   useIde()
-const { profile } = useLanguage()
+const { profile, profiles } = useLanguage()
 const { activeFile } = useProjectFiles()
 const colorMode = useColorMode()
 const toast = useToast()
@@ -150,7 +150,31 @@ function toggleTheme() {
       </div>
     </div>
 
+    <!-- Language toggle: Inform 6 ↔ ZIL -->
+    <div class="flex items-center gap-0.5 rounded-lg border border-default bg-elevated/60 p-0.5">
+      <NuxtLink
+        v-for="p in profiles"
+        :key="p.id"
+        :to="p.route"
+        class="flex items-center gap-1.5 rounded px-2.5 py-1 text-sm font-semibold transition-colors"
+        :class="profile.id === p.id
+          ? 'bg-primary/15 text-primary'
+          : 'text-muted hover:text-default'"
+      >
+        {{ p.label }}
+        <UBadge
+          :color="p.badge === 'beta' ? 'primary' : 'warning'"
+          size="xs"
+          variant="subtle"
+        >
+          {{ p.badge }}
+        </UBadge>
+      </NuxtLink>
+    </div>
+
+    <!-- Prettify: I6 only (formatI6 is I6-specific; ZIL has no equivalent formatter) -->
     <UButton
+      v-if="profile.id === 'i6'"
       size="lg"
       color="neutral"
       variant="subtle"

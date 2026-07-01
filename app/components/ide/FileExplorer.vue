@@ -51,38 +51,40 @@ const libraryOpen = ref(true)
         </li>
       </ul>
 
-      <!-- Library group (read-only, collapsible) -->
-      <button
-        type="button"
-        class="text-muted mt-2 flex w-full items-center gap-1.5 px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-widest hover:text-default"
-        :aria-expanded="libraryOpen"
-        @click="libraryOpen = !libraryOpen"
-      >
-        <UIcon
-          :name="libraryOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-          class="size-3"
-        />
-        Library ({{ libraryFiles.length }})
-      </button>
-      <ul v-show="libraryOpen">
-        <li v-for="file in libraryFiles" :key="file.id">
-          <button
-            type="button"
-            :aria-current="file.id === activeId ? 'true' : undefined"
-            :class="[
-              'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition',
-              file.id === activeId
-                ? 'bg-primary/15 font-semibold text-primary'
-                : 'text-muted hover:bg-default/60 hover:text-default',
-            ]"
-            @click="openFile(file.id)"
-          >
-            <UIcon name="i-lucide-file-lock-2" class="size-4 shrink-0 opacity-70" />
-            <span class="truncate">{{ file.name }}</span>
-            <span class="sr-only">(read-only library file)</span>
-          </button>
-        </li>
-      </ul>
+      <!-- Library group (read-only, collapsible) — hidden for ZIL (zillib is embedded in WASM) -->
+      <template v-if="libraryFiles.length > 0">
+        <button
+          type="button"
+          class="text-muted mt-2 flex w-full items-center gap-1.5 px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-widest hover:text-default"
+          :aria-expanded="libraryOpen"
+          @click="libraryOpen = !libraryOpen"
+        >
+          <UIcon
+            :name="libraryOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+            class="size-3"
+          />
+          Library ({{ libraryFiles.length }})
+        </button>
+        <ul v-show="libraryOpen">
+          <li v-for="file in libraryFiles" :key="file.id">
+            <button
+              type="button"
+              :aria-current="file.id === activeId ? 'true' : undefined"
+              :class="[
+                'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition',
+                file.id === activeId
+                  ? 'bg-primary/15 font-semibold text-primary'
+                  : 'text-muted hover:bg-default/60 hover:text-default',
+              ]"
+              @click="openFile(file.id)"
+            >
+              <UIcon name="i-lucide-file-lock-2" class="size-4 shrink-0 opacity-70" />
+              <span class="truncate">{{ file.name }}</span>
+              <span class="sr-only">(read-only library file)</span>
+            </button>
+          </li>
+        </ul>
+      </template>
     </nav>
 
     <!-- Add files: reuse the existing extensions modal -->

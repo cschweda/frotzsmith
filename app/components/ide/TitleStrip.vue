@@ -1,10 +1,19 @@
 <script setup lang="ts">
 const { source, status, canPlay, runCompile, playStory } = useIde()
+const { profile } = useLanguage()
 
 defineProps<{ actions?: boolean }>()
 
-// The game's title & headline, read live from the source.
+// The game's title & headline, read live from the source — language-aware.
 const meta = computed(() => {
+  if (profile.value.id === 'zil') {
+    // ZIL: extract from <CONSTANT GAME-BANNER "Title|Subtitle|...">
+    // The banner may span multiple lines; capture everything up to the closing quote.
+    const banner = /<CONSTANT\s+GAME-BANNER[^"]*"([^"]*)/i.exec(source.value)?.[1] ?? ''
+    const parts = banner.split('|').map(p => p.trim().replace(/[\r\n]/g, ' ').trim())
+    return { story: parts[0] || 'Untitled', headline: parts[1] ?? '' }
+  }
+  // I6 path — unchanged.
   const story = /Constant\s+Story\s+"([^"]*)"/i.exec(source.value)?.[1]?.trim()
   const headline = (/Constant\s+Headline\s+"([^"]*)"/i.exec(source.value)?.[1] ?? '')
     .replace(/\^/g, ' ')
@@ -28,10 +37,12 @@ const meta = computed(() => {
         icon="i-lucide-hammer"
         class="frotz-glow font-bold"
         :loading="status === 'compiling'"
+        :disabled="status === 'compiling'"
         @click="runCompile"
       >
-        Compile
+        {{ status === 'compiling' ? 'Compiling…' : 'Compile' }}
         <kbd
+          v-if="status !== 'compiling'"
           class="ml-1 hidden rounded bg-black/20 px-1.5 py-0.5 text-[10px] font-semibold sm:inline"
           >⌘B</kbd
         >

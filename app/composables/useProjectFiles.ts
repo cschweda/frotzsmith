@@ -45,7 +45,9 @@ export function useProjectFiles() {
         name: e.name,
         origin: e.origin,
       })),
-      libraryNames: libraryFiles.value.map(f => f.name),
+      // ZIL uses zillib embedded in the WASM bundle — no I6 library files belong
+      // in the ZIL project view.
+      libraryNames: profile.value.id === 'i6' ? libraryFiles.value.map(f => f.name) : [],
     }),
   )
   const validIds = computed(() => new Set(files.value.map(f => f.id)))
