@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { makeZipEntryFilter, ZipLimitError, ZIP_MAX_TOTAL_BYTES } from '~/utils/zip-limits'
+
 const { all, isEnabled, toggle, addUploaded, removeUploaded, enabledCount } = useExtensions()
 
 const open = ref(false)
@@ -15,11 +17,11 @@ async function addZip(file: File): Promise<number> {
   const { unzipSync, strFromU8 } = await import('fflate')
   const buf = new Uint8Array(await file.arrayBuffer())
   let n = 0
-  for (const [path, data] of Object.entries(unzipSync(buf))) {
-    if (path.toLowerCase().endsWith('.h')) {
-      addUploaded(path.split('/').pop() as string, strFromU8(data))
-      n++
-    }
+  // The filter admits only .h entries and throws ZipLimitError on a bomb —
+  // fflate consults it per entry BEFORE decompressing.
+  for (const [path, data] of Object.entries(unzipSync(buf, { filter: makeZipEntryFilter() }))) {
+    addUploaded(path.split('/').pop() as string, strFromU8(data))
+    n++
   }
   return n
 }
@@ -28,8 +30,18 @@ async function ingest(files: File[]) {
   let added = 0
   for (const file of files) {
     const lower = file.name.toLowerCase()
-    if (lower.endsWith('.zip')) added += await addZip(file)
-    else if (lower.endsWith('.h')) {
+    if (lower.endsWith('.zip')) {
+      try {
+        added += await addZip(file)
+      } catch (e) {
+        note.value = e instanceof ZipLimitError ? e.message : 'Could not read that .zip.'
+        return
+      }
+    } else if (lower.endsWith('.h')) {
+      if (file.size > ZIP_MAX_TOTAL_BYTES) {
+        note.value = `${file.name} is too large (5 MB max).`
+        continue
+      }
       addUploaded(file.name, await file.text())
       added++
     }
