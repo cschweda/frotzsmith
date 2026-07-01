@@ -70,28 +70,39 @@ export function layout(g: MapGraph): MapLayout {
     return [c, r]
   }
 
-  if (g.start) place(g.start, 0, 0)
-
-  // Repeated passes place each edge's target next to its already-placed source.
-  let changed = true
-  while (changed) {
-    changed = false
-    for (const e of g.edges) {
-      const from = pos.get(e.from)
-      if (!from || pos.has(e.to)) continue
-      const [dc, dr] = DELTA[e.dir]
-      if (dc === 0 && dr === 0) {
-        const [c, r] = nearestFree(from[0], from[1]); place(e.to, c, r)
-      } else if (!occupied.has(key(from[0] + dc, from[1] + dr))) {
-        place(e.to, from[0] + dc, from[1] + dr)
-      } else {
-        const [c, r] = nearestFree(from[0] + dc, from[1] + dr); place(e.to, c, r)
+  // Repeated passes place each edge's target next to its already-placed source,
+  // by the edge's compass delta. Runs until no further edge can be placed.
+  const relax = () => {
+    let changed = true
+    while (changed) {
+      changed = false
+      for (const e of g.edges) {
+        const from = pos.get(e.from)
+        if (!from || pos.has(e.to)) continue
+        const [dc, dr] = DELTA[e.dir]
+        if (dc === 0 && dr === 0) {
+          const [c, r] = nearestFree(from[0], from[1]); place(e.to, c, r)
+        } else if (!occupied.has(key(from[0] + dc, from[1] + dr))) {
+          place(e.to, from[0] + dc, from[1] + dr)
+        } else {
+          const [c, r] = nearestFree(from[0] + dc, from[1] + dr); place(e.to, c, r)
+        }
+        changed = true
       }
-      changed = true
     }
   }
-  // Orphans unreachable from start: drop them at free cells, insertion order.
-  for (const room of g.rooms) if (!pos.has(room)) { const [c, r] = nearestFree(0, 0); place(room, c, r) }
+
+  if (g.start) place(g.start, 0, 0)
+  relax()
+  // Rooms unreachable from `start` via edges (e.g. entered by a magic word or an
+  // unparsed move, so the entering step created no edge) seed a NEW component
+  // root at a free cell — then relax again so that component's own rooms are
+  // positioned by their true compass edges, not dumped one-by-one by the spiral.
+  for (const room of g.rooms) {
+    if (pos.has(room)) continue
+    const [c, r] = nearestFree(0, 0); place(room, c, r)
+    relax()
+  }
 
   const connectors: Connector[] = g.edges.map(e => {
     const a = pos.get(e.from)!, b = pos.get(e.to)!
@@ -126,14 +137,44 @@ function splitObjects(s: string): string[] {
     .filter(Boolean)
 }
 
-/** Best-effort object names from a room's captured text (Std/Puny "X here" listing). */
+/** Reject fragments the fuzzy patterns pick up that clearly aren't objects:
+ *  over-long noun stacks and phrases carrying pronouns/narrative words. */
+function plausibleObject(name: string): boolean {
+  const n = name.trim()
+  if (!n || n.split(/\s+/).length > 5) return false
+  return !/\b(?:you|your|yourself|it|its|itself|they|them|there|here|which|that|who|whose|when|where|nothing|something|anything|everything)\b/i.test(n)
+}
+
+// Verbs that typically sit next to an object noun in a room description
+// ("a lamp SITS on the table", "a knife IS levitating"). SUBJECT_VERB (article
+// first) can safely use the weak is/are too because the leading article anchors
+// it; VERB_SUBJECT keeps only strong placement verbs so it doesn't fire on
+// narrative "it is a dark night" clauses.
+const PLACE_VERBS = 'is|are|was|were|lies|lie|lay|hangs?|sits?|rests?|stands?|floats?|levitates?|leans?|dangles?|glows?|gleams?|glimmers?|sparkles?|glitters?'
+const STRONG_VERBS = 'lies|lie|lay|hangs?|sits?|rests?|stands?|floats?|levitates?|leans?|dangles?|glows?|gleams?|glimmers?|sparkles?|glitters?'
+const SUBJECT_VERB = new RegExp(`(?:^|[.!?"']\\s*)(?:a|an|some) (.+?) (?:${PLACE_VERBS})\\b`, 'i')
+const VERB_SUBJECT = new RegExp(`\\b(?:${STRONG_VERBS}) (?:a|an|some) (.+?)(?:\\s+(?:on|in|at|by|near|against|from|above|below|beside|behind|beneath|atop|inside|around)\\b|[.!?"']|$)`, 'i')
+
+/** Best-effort object names from a room's captured text. High-precision listing
+ *  phrasings first, then a fuzzy pass over describe-style prose so custom object
+ *  descriptions ("A knife is levitating…") surface too. Tuned for the dev map, so
+ *  it favors recall — an occasional scenery/narrative noun may slip through. */
 export function parseObjects(roomText: string): string[] {
   const out: string[] = []
-  for (const line of roomText.split('\n')) {
-    const see = /you can (?:also )?see (.+?) here\b/i.exec(line)
-    if (see) out.push(...splitObjects(see[1]!))
-    const there = /there (?:is|are) (.+?) here\b/i.exec(line)
-    if (there) out.push(...splitObjects(there[1]!))
+  const add = (raw: string | undefined) => {
+    if (raw) for (const o of splitObjects(raw)) if (plausibleObject(o)) out.push(o)
   }
-  return out
+  for (const line of roomText.split('\n')) {
+    // "You can (also) see a lamp here." — Standard/PunyInform default listing.
+    add(/you can (?:also )?see (.+?) here\b/i.exec(line)?.[1])
+    // "There is a lamp here." — the other default listing.
+    add(/there (?:is|are) (.+?) here\b/i.exec(line)?.[1])
+    // "There is a scroll on the ground." — placement phrasing.
+    add(/there (?:is|are) (.+?) (?:on|in|under|beneath|atop|beside|behind|near|inside) the\b/i.exec(line)?.[1])
+    // Fuzzy: "A knife is levitating…", "A rug lies on the floor."
+    add(SUBJECT_VERB.exec(line)?.[1])
+    // Fuzzy: "…on the floor sits a rusty sword."
+    add(VERB_SUBJECT.exec(line)?.[1])
+  }
+  return [...new Set(out)]
 }

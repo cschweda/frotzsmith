@@ -109,6 +109,28 @@ describe('formatZil – comment and string handling', () => {
     expect(formatZil(input)).toBe(expected)
   })
 
+  it('preserves a multi-line ;"…" block comment verbatim', () => {
+    // A `;` comments the next datum; `;"…"` comments a string that may span
+    // lines. The scanner must follow the string to its close (not stop at `;`),
+    // so continuation lines are emitted untouched and the brackets inside the
+    // comment never shift the depth of the code that follows it.
+    const input = src(
+      ';"Doc comment line one',
+      ' still the comment (with <brackets> that must not count)',
+      ' comment ends here"',
+      '<CONSTANT X 42>',
+    )
+    expect(formatZil(input)).toBe(input)
+  })
+
+  it('resumes structural scanning after a ;"…" comment closes mid-line', () => {
+    // `;"skip me"` comments only the string; the `<BAR>` after it is live code
+    // and must still be indented as the routine body.
+    const input = src('<ROUTINE FOO ()', ';"skip me" <BAR>>')
+    const expected = src('<ROUTINE FOO ()', '    ;"skip me" <BAR>>')
+    expect(formatZil(input)).toBe(expected)
+  })
+
   it('does not count brackets inside "strings"', () => {
     // Brackets inside a string literal must NOT affect the bracket depth.
     const input = src('<ROUTINE FOO ()', '<TELL "x < y > (z)" CR>>')

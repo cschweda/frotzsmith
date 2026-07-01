@@ -38,10 +38,33 @@ describe('useMap', () => {
     expect(m.graph.value.edges.length).toBe(1)
   })
 
+  it('keeps a sticky union of objects ever seen in a room, even after they are taken', () => {
+    const m = useMap()
+    // First visit lists two objects.
+    m.recordRoom('Vault', 'A cold vault.\n\nYou can see a ruby and a gold bar here.')
+    // Come back later (via another room) after taking the ruby — description no
+    // longer lists it. `objects` (current) drops it; `seenObjects` (sticky) keeps it.
+    m.recordCommand('north'); m.recordRoom('Hall', 'A hall.')
+    m.recordCommand('south'); m.recordRoom('Vault', 'A cold vault.\n\nYou can see a gold bar here.')
+    const d = m.details('Vault')
+    expect(d.objects).toEqual(['gold bar'])
+    expect(d.seenObjects).toEqual(['ruby', 'gold bar'])
+  })
+
+  it('toggles the map view mode and reset() does NOT change it (view preference)', () => {
+    const m = useMap()
+    expect(m.mapMode.value).toBe('player')
+    m.toggleMapMode()
+    expect(m.mapMode.value).toBe('dev')
+    m.recordRoom('Cottage', 'x'); m.reset()
+    expect(m.mapMode.value).toBe('dev') // survives a world reset
+  })
+
   it('reset() clears everything', () => {
     const m = useMap()
-    m.recordRoom('Cottage', 'x'); m.reset()
+    m.recordRoom('Cottage', 'A cosy cottage.\n\nYou can see a lamp here.'); m.reset()
     expect(m.graph.value.rooms).toEqual([])
     expect(m.currentRoom.value).toBeNull()
+    expect(m.roomObjects.value).toEqual({})
   })
 })

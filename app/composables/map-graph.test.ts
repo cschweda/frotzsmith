@@ -99,6 +99,28 @@ describe('layout', () => {
     expect(L.connectors.find(x => x.to === 'C')!.grid).toBe(false)
   })
 
+  it('lays out a component entered via a non-directional edge by its own compass exits', () => {
+    // Haunted House: you start Outside (no compass exit — you enter by the magic
+    // word PLUGH, which parses to no direction), then go east, east. Foyer/Living/
+    // Dining are unreachable from `start` via edges, but their east-edges between
+    // each other must still be honored — a left→right row, not a spiral stack.
+    const g = build([
+      [null, null, 'Outside'],
+      ['Outside', null, 'Foyer'], // magic word: room recorded, but no edge
+      ['Foyer', 'e', 'Living'],
+      ['Living', 'e', 'Dining'],
+    ])
+    const L = layout(g)
+    const at = (name: string) => L.rooms.find(r => r.name === name)!
+    // East edges place each room one column to the right, same row.
+    expect(at('Living').col).toBe(at('Foyer').col + 1)
+    expect(at('Living').row).toBe(at('Foyer').row)
+    expect(at('Dining').col).toBe(at('Living').col + 1)
+    expect(at('Dining').row).toBe(at('Living').row)
+    // …and the connectors are solid (grid), not the dashed spiral fallback.
+    expect(L.connectors.filter(c => c.dir === 'e').every(c => c.grid)).toBe(true)
+  })
+
   it('is deterministic for a fixed graph', () => {
     const g = build([[null, null, 'A'], ['A', 'n', 'B'], ['B', 'e', 'C'], ['C', 's', 'D']])
     expect(layout(g)).toEqual(layout(g))
@@ -131,6 +153,36 @@ describe('parseObjects', () => {
   it('handles "there is X here" and "you can also see"', () => {
     expect(parseObjects('There is a rusty sword here.')).toEqual(['rusty sword'])
     expect(parseObjects('You can also see a map here.')).toEqual(['map'])
+  })
+  it('catches "there is X on/in the …" placement phrasing', () => {
+    expect(parseObjects('There is a mysterious scroll on the ground.')).toEqual(['mysterious scroll'])
+    expect(parseObjects('There is a coin in the fountain.')).toEqual(['coin'])
+  })
+  it('does not swallow narrative "there is … the …" without a spatial preposition', () => {
+    // The scroll's examine text must not be mistaken for a room object.
+    expect(parseObjects("It says, 'There is ESCAPE from the second floor!'")).toEqual([])
+  })
+  it('de-duplicates an object matched by more than one pattern', () => {
+    expect(parseObjects('You can see a lamp here.\nThere is a lamp here.')).toEqual(['lamp'])
+  })
+  it('fuzzily lifts objects out of custom describe prose (subject-verb)', () => {
+    expect(parseObjects('A knife is levitating in the middle of the room.')).toEqual(['knife'])
+    expect(parseObjects('An ornate lamp rests on the mantel.')).toEqual(['ornate lamp'])
+  })
+  it('fuzzily lifts objects introduced after a placement verb (verb-subject)', () => {
+    expect(parseObjects('On the floor sits a rusty sword.')).toEqual(['rusty sword'])
+  })
+  it('captures both a custom-described and a listed object from one room', () => {
+    const living = 'The Living Room\nYou are in the living room.\n\n' +
+      'A knife is levitating in the middle of the room.\n\nThere is a mysterious scroll on the ground.'
+    expect(parseObjects(living)).toEqual(['knife', 'mysterious scroll'])
+  })
+  it('does not treat narrative sentences as objects', () => {
+    // "keeps" is not a placement verb; "the wind is…" is a definite-article clause;
+    // pronoun-laden fragments are rejected outright.
+    expect(parseObjects('A mysterious force keeps you planted in place.')).toEqual([])
+    expect(parseObjects('The wind is restless today, blowing leaves around.')).toEqual([])
+    expect(parseObjects('It is a dark and stormy night.')).toEqual([])
   })
   it('returns [] when nothing matches', () => {
     expect(parseObjects('A featureless room.')).toEqual([])

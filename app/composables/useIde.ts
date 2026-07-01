@@ -109,17 +109,34 @@ export function useIde() {
     restoreScripts()
   }
 
-  async function runCompile() {
-    if (status.value === 'compiling') return
-    status.value = 'compiling'
-    // Fresh build → blank the captured play transcript, the last script-run output,
-    // the active test script selection, and the Parchment autosave (first room on next Play).
-    // Saved scripts are kept and re-selectable; nothing is auto-run.
+  /** Blank every ephemeral run artifact: the captured play transcript, the last
+   *  script-run output, the active test-script selection, the auto-map, and the
+   *  Parchment autosave. Shared by a fresh compile and by loading a new source so
+   *  nothing from the previous game lingers. Saved scripts are kept. */
+  function resetEphemeral() {
     usePlayTranscript().reset()
     useTranscript().reset()
     useTestScripts().select('')
     useMap().reset()
     clearPlayAutosave()
+  }
+
+  /** A new source was loaded (sample / opened file / new project): drop the
+   *  compiled result and all ephemeral artifacts so the IDE returns to a clean
+   *  slate — no stale results, transcript, map, or running Parchment game. The
+   *  PlayPanel tears its iframe down when `result` goes null. */
+  function resetForNewSource() {
+    resetEphemeral()
+    result.value = null
+    status.value = 'idle'
+    activeTab.value = 'results'
+  }
+
+  async function runCompile() {
+    if (status.value === 'compiling') return
+    status.value = 'compiling'
+    // Fresh build → blank the prior game's artifacts (first room on next Play).
+    resetEphemeral()
     activeTab.value = 'results'
     const pid = effectiveProfile.value
     await new Promise(resolve => setTimeout(resolve, 0)) // let "Compiling…" paint
@@ -171,9 +188,7 @@ export function useIde() {
       source.value = s.source
       activeStoryKey.value = storyKey.value
       setTargetMode(s.target)
-      result.value = null
-      status.value = 'idle'
-      activeTab.value = 'results'
+      resetForNewSource()
       return
     }
     // I6 path — unchanged.
@@ -186,9 +201,7 @@ export function useIde() {
     // profile happens to be forced (e.g. from a prior New Project).
     setProfileMode('auto')
     setTargetMode(s.target ?? 'auto')
-    result.value = null
-    status.value = 'idle'
-    activeTab.value = 'results'
+    resetForNewSource()
   }
 
   /** Load arbitrary source text (e.g. an opened .inf file) into the editor. */
@@ -196,9 +209,7 @@ export function useIde() {
     source.value = text
     // Commit the new game's bucket key AFTER source is set so storyKey reflects the loaded file.
     activeStoryKey.value = storyKey.value
-    result.value = null
-    status.value = 'idle'
-    activeTab.value = 'results'
+    resetForNewSource()
   }
 
   /** Start a fresh project: a blank editor with the chosen library forced. */
@@ -209,9 +220,7 @@ export function useIde() {
     // Only set/persist the I6 library profile for I6; ZIL has no library concept
     // and persisting 'std' into the ZIL storage bucket is a state smell.
     if (profile.value.id === 'i6') setProfileMode(library)
-    result.value = null
-    status.value = 'idle'
-    activeTab.value = 'results'
+    resetForNewSource()
   }
 
   /** Clear all Parchment autosave entries from localStorage so the next Play boots

@@ -92,7 +92,9 @@ async function saveAs() {
         New Project
       </UButton>
 
-      <ExtensionsModal />
+      <!-- Extensions are an Inform 6 concept (`Include "…";`); ZIL uses zillib
+           embedded in the WASM bundle, so hide it outside I6. -->
+      <ExtensionsModal v-if="profile.id === 'i6'" />
     </div>
 
     <UModal v-model:open="open" title="New project" description="Start with a blank editor for the chosen library.">

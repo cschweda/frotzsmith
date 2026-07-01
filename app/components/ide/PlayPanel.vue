@@ -124,6 +124,13 @@ function onMessage(e: MessageEvent) {
 }
 
 watch(() => playNonce.value, boot)
+// A new or cleared build invalidates the running game: tear the iframe down so a
+// stale game never lingers after loading a new source or recompiling. Play is
+// only re-enabled by a clean compile, and pressing it bumps playNonce → boot().
+watch(() => result.value, () => {
+  revoke()
+  src.value = null
+})
 onMounted(() => {
   document.addEventListener('fullscreenchange', onFsChange)
   window.addEventListener('message', onMessage)

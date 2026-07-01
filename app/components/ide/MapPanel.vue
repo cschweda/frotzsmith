@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Dir } from '~/composables/map-graph'
-const { layout, currentRoom, details, graph, noRoomName } = useMap()
+const { layout, currentRoom, details, graph, noRoomName, roomObjects, mapMode, toggleMapMode } = useMap()
 
 const CELL = 120, ROOM_W = 96, ROOM_H = 48, PAD = 60
 /** Clamp limits for the viewBox width (SVG user-space units). */
@@ -262,6 +262,22 @@ const stubConnectors = computed(() =>
 /** Regular (cardinal/diagonal) connectors — stubs are rendered separately. */
 const regularConnectors = computed(() => layout.value.connectors.filter(c => !STUB_DIRS.has(c.dir)))
 
+// ─── Dev view: each room's full object history painted under its box ─────────
+const DEV_MAX_LINES = 4  // objects listed on a box before collapsing to "+N more"
+const DEV_OBJ_MAX = 14   // per-object label truncation
+/** name → up to DEV_MAX_LINES object labels + overflow count. Empty unless dev mode. */
+const devObjectsByRoom = computed(() => {
+  const m = new Map<string, { items: string[]; more: number }>()
+  if (mapMode.value !== 'dev') return m
+  for (const r of layout.value.rooms) {
+    const objs = roomObjects.value[r.name] ?? []
+    if (!objs.length) continue
+    const items = objs.slice(0, DEV_MAX_LINES).map(o => (o.length > DEV_OBJ_MAX ? o.slice(0, DEV_OBJ_MAX - 1) + '…' : o))
+    m.set(r.name, { items, more: Math.max(0, objs.length - DEV_MAX_LINES) })
+  }
+  return m
+})
+
 // ─── Hover / focus popover ─────────────────────────────────────────────────
 /** Full-word direction names shown in the popover and the SR room list. */
 const dirWord: Record<Dir, string> = {
@@ -281,7 +297,8 @@ const srRoomList = computed(() =>
     const exitText = exits.length
       ? exits.map(e => `${dirWord[e.dir]} to ${e.to}`).join(', ')
       : 'no exits'
-    return { name: r.name, exitText }
+    const objs = roomObjects.value[r.name] ?? []
+    return { name: r.name, exitText, objText: objs.length ? objs.join(', ') : '' }
   }),
 )
 
@@ -292,6 +309,15 @@ const focused = ref<string | null>(null)
 
 /** Exits, objects, and one-line description for the hovered room. */
 const hoveredDetails = computed(() => hovered.value ? details(hovered.value) : null)
+
+/** Every object ever seen in the hovered room, each flagged `taken` when it is
+ *  no longer in the current contents — so the popover can show both at a glance. */
+const hoveredSeen = computed(() => {
+  const d = hoveredDetails.value
+  if (!d) return [] as { name: string; taken: boolean }[]
+  const present = new Set(d.objects)
+  return d.seenObjects.map(name => ({ name, taken: !present.has(name) }))
+})
 </script>
 
 <template>
@@ -407,6 +433,27 @@ const hoveredDetails = computed(() => hovered.value ? details(hovered.value) : n
             :stroke-width="r.name === currentRoom ? 3 : 1.5"
           />
           <text text-anchor="middle" dominant-baseline="middle" fill="currentColor" class="text-highlighted text-sm">{{ fitLabel(r.name) }}</text>
+
+          <!-- Dev view: every object ever seen in this room, painted below the
+               box (sticky, so taken items still show). Player view omits this. -->
+          <template v-if="devObjectsByRoom.get(r.name)">
+            <text
+              v-for="(o, oi) in devObjectsByRoom.get(r.name)!.items"
+              :key="oi"
+              text-anchor="middle"
+              :y="ROOM_H / 2 + 13 + oi * 11"
+              class="fill-amber-600 dark:fill-amber-400"
+              style="font-size: 9px"
+            >{{ o }}</text>
+            <text
+              v-if="devObjectsByRoom.get(r.name)!.more"
+              text-anchor="middle"
+              :y="ROOM_H / 2 + 13 + devObjectsByRoom.get(r.name)!.items.length * 11"
+              fill="currentColor"
+              class="text-muted"
+              style="font-size: 9px"
+            >+{{ devObjectsByRoom.get(r.name)!.more }} more</text>
+          </template>
         </g>
       </svg>
 
@@ -414,7 +461,7 @@ const hoveredDetails = computed(() => hovered.value ? details(hovered.value) : n
            Enumerates each room with full-word direction targets so AT users
            can navigate the map without the SVG graphics. -->
       <ul class="sr-only" aria-label="Room list">
-        <li v-for="item in srRoomList" :key="item.name">{{ item.name }} — {{ item.exitText }}</li>
+        <li v-for="item in srRoomList" :key="item.name">{{ item.name }} — {{ item.exitText }}<template v-if="item.objText">; objects seen: {{ item.objText }}</template></li>
       </ul>
 
       <!-- Room detail popover — bottom-left corner, shown on hover or keyboard focus -->
@@ -429,14 +476,36 @@ const hoveredDetails = computed(() => hovered.value ? details(hovered.value) : n
           {{ hoveredDetails.exits.map(d => dirWord[d]).join(', ') || '—' }}
         </p>
         <p class="text-muted text-xs">
-          <span class="font-medium">Objects:</span>
+          <span class="font-medium">Here now:</span>
           {{ hoveredDetails.objects.join(', ') || '—' }}
+        </p>
+        <p v-if="hoveredSeen.length" class="text-muted text-xs">
+          <span class="font-medium">Seen here:</span>
+          <template v-for="(o, i) in hoveredSeen" :key="o.name"><span
+            :class="o.taken ? 'line-through opacity-60' : ''"
+            :title="o.taken ? 'no longer here' : 'here now'"
+          >{{ o.name }}</span>{{ i < hoveredSeen.length - 1 ? ', ' : '' }}</template>
         </p>
         <p v-if="hoveredDetails.description" class="text-muted mt-1.5 text-xs italic">{{ hoveredDetails.description }}</p>
       </div>
 
       <!-- Zoom / pan control overlay — top-right, keyboard-operable -->
       <div class="absolute right-2 top-2 flex items-center gap-1 rounded-lg bg-elevated/80 px-2 py-1 backdrop-blur-sm">
+        <UButton
+          size="xs"
+          :variant="mapMode === 'dev' ? 'soft' : 'ghost'"
+          :color="mapMode === 'dev' ? 'primary' : 'neutral'"
+          :icon="mapMode === 'dev' ? 'i-lucide-wrench' : 'i-lucide-user-round'"
+          :aria-pressed="mapMode === 'dev'"
+          :aria-label="mapMode === 'dev'
+            ? 'Dev view active — every room\'s object history is shown. Switch to player view.'
+            : 'Player view active. Switch to dev view to show every room\'s object history.'"
+          :title="mapMode === 'dev' ? 'Dev view — all room objects shown' : 'Player view — switch to Dev to show all room objects'"
+          @click="toggleMapMode"
+        >
+          <span class="text-xs font-medium">{{ mapMode === 'dev' ? 'Dev' : 'Player' }}</span>
+        </UButton>
+        <span class="bg-default mx-0.5 h-4 w-px" aria-hidden="true" />
         <span class="text-muted min-w-[3ch] text-right text-xs tabular-nums">{{ zoomPct }}%</span>
         <UButton
           icon="i-lucide-zoom-in"

@@ -31,7 +31,19 @@ function scan(text: string, startInString: boolean): Scan {
       if (c === '"') inString = false
       continue
     }
-    if (c === ';') break // `;` starts a comment to end-of-line in ZIL
+    if (c === ';') {
+      // `;` comments out the next datum. `;"…"` comments a string that may span
+      // lines: enter string mode so its continuation lines are tracked and its
+      // brackets ignored, then resume normal scanning after the closing quote.
+      // Any other `;` (`;ATOM`, `;<form>`, bare `;`) comments to end-of-line.
+      const m = /^\s*"/.exec(text.slice(i + 1))
+      if (m) {
+        i += m[0].length // advance onto the opening quote; the loop's i++ steps inside
+        inString = true
+        continue
+      }
+      break
+    }
     if (c === '"') {
       inString = true
       continue
