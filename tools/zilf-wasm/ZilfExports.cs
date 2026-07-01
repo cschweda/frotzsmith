@@ -4,11 +4,25 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices.JavaScript;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Zilf.Common;
 using Zilf.Compiler;
 using Zilf.Diagnostics;
 using Zapf;
+
+// Source-generated JSON context: trim-safe, no reflection required.
+[JsonSerializable(typeof(string[]))]
+[JsonSerializable(typeof(CompileResult))]
+[JsonSerializable(typeof(List<string>))]
+internal partial class ZilfJsonContext : JsonSerializerContext { }
+
+internal sealed class CompileResult
+{
+    public bool success { get; init; }
+    public string? storyBase64 { get; init; }
+    public List<string> diagnostics { get; init; } = new();
+}
 
 /// <summary>
 /// WASM exports for the ZILF compiler spike.
@@ -91,11 +105,13 @@ public partial class ZilfExports
     internal static string ListResources()
     {
         var names = typeof(ZilfExports).Assembly.GetManifestResourceNames();
-        return JsonSerializer.Serialize(names);
+        return JsonSerializer.Serialize(names, ZilfJsonContext.Default.StringArray);
     }
 
     static string Serialize(bool success, string? storyBase64, List<string> diagnostics) =>
-        JsonSerializer.Serialize(new { success, storyBase64, diagnostics });
+        JsonSerializer.Serialize(
+            new CompileResult { success = success, storyBase64 = storyBase64, diagnostics = diagnostics },
+            ZilfJsonContext.Default.CompileResult);
 }
 
 sealed class ListDiagnosticLogger : IDiagnosticLogger

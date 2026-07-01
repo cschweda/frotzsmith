@@ -5,8 +5,10 @@
     <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
     <!-- Allow referencing OutputType=Exe projects (Zilf/Zapf are Exe) -->
     <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
-    <!-- Trimming is handled in Task 6; disabled here to avoid ZILF reflection breaks -->
-    <PublishTrimmed>false</PublishTrimmed>
+    <!-- Trimming: root all ZILF/ZAPF assemblies (preserve="all" via ZilfRoots.xml)
+         so the BCL is aggressively trimmed while ZILF's reflection usage is safe. -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
     <!-- Suppress analyzers that require Roslyn (not available in WASM build) -->
     <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
     <RunAnalyzersDuringLiveAnalysis>false</RunAnalyzersDuringLiveAnalysis>
@@ -35,6 +37,11 @@
     <EmbeddedResource Include="zilf/zillib/*.mud">
       <LogicalName>zillib_%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- Trimmer root descriptor: preserve="all" for ZILF/ZAPF assemblies -->
+  <ItemGroup>
+    <TrimmerRootDescriptor Include="ZilfRoots.xml" />
   </ItemGroup>
 
   <!-- Reference Zilf and Zapf; suppress AOT/trim/self-contained propagation -->

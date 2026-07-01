@@ -1,0 +1,14 @@
+<!-- ILLink root descriptor: preserve all types/members in ZILF + ZAPF assemblies.
+     This prevents the .NET trimmer from removing any code in ZILF's own assemblies
+     (which use heavy reflection for built-in discovery) while still allowing aggressive
+     trimming of the unused BCL (~22 MB target). -->
+<linker>
+  <assembly fullname="zilf"        preserve="all" />
+  <assembly fullname="Zilf.Common" preserve="all" />
+  <assembly fullname="Zilf.Emit"   preserve="all" />
+  <assembly fullname="zapf"        preserve="all" />
+  <assembly fullname="Zapf.Parsing" preserve="all" />
+  <assembly fullname="FastHashSet"  preserve="all" />
+  <assembly fullname="ReadLine"     preserve="all" />
+  <assembly fullname="ZilfWasm"     preserve="all" />
+</linker>

@@ -30,7 +30,20 @@ This will:
 2. Run `dotnet publish -c Release -p:WasmFingerprintAssets=false`.
 3. Copy the `_framework/` bundle to **`public/zilf/`** (replacing any prior output).
 
-Expected output: ~200 files, ~25–28 MB raw (untrimmed; trimming is Task 6).
+Expected output: ~201 files, ~20 MB raw / ~7.5 MB gzipped (trimmed; Task 6).
+
+## Bundle size
+
+| State | Raw | Gzipped |
+|-------|-----|---------|
+| Untrimmed (Task 5 baseline) | ~28 MB | ~10.1 MB |
+| Trimmed (Task 6, `TrimMode=full`) | ~20 MB | ~7.5 MB |
+
+**Trim strategy:** `PublishTrimmed=true`, `TrimMode=full`. All ZILF/ZAPF assemblies are
+preserved wholesale via `ZilfRoots.xml` (`preserve="all"` for `zilf`, `Zilf.Common`,
+`Zilf.Emit`, `zapf`, `Zapf.Parsing`, `FastHashSet`, `ReadLine`, `ZilfWasm`). The BCL is
+aggressively trimmed. `ZilfExports.cs` uses source-generated JSON (`ZilfJsonContext`) to
+stay trim-safe — avoids `JsonSerializerIsReflectionDisabled` at runtime.
 
 ## Smoke-check
 

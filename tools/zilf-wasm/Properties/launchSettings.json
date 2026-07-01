@@ -1,6 +1,6 @@
 {
     "profiles": {
-      "zilf-wasm-spike": {
+      "zilf-wasm": {
         "commandName": "Project",
         "launchBrowser": true,
         "environmentVariables": {

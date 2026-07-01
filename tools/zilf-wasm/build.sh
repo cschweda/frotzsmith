@@ -67,7 +67,9 @@ mkdir -p "${OUTPUT_DIR}"
 cp -r "${FRAMEWORK_SRC}" "${OUTPUT_DIR}/_framework"
 
 # Also copy dotnet.js from wwwroot root if present (some .NET versions put it there)
-for f in dotnet.js main.js index.html; do
+# NOTE: main.js and index.html are wasmbrowser template samples — not used by the
+# Frotzsmith worker (which imports _framework/dotnet.js directly). Do NOT copy them.
+for f in dotnet.js; do
   SRC="${SCRIPT_DIR}/publish/wwwroot/${f}"
   if [[ -f "${SRC}" ]]; then
     cp "${SRC}" "${OUTPUT_DIR}/${f}"
