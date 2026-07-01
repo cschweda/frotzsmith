@@ -92,6 +92,10 @@ describe('I6_PROFILE — static shape', () => {
   it('compile is a function', () => {
     expect(typeof I6_PROFILE.compile).toBe('function')
   })
+
+  it('editorMode is a function', () => {
+    expect(typeof I6_PROFILE.editorMode).toBe('function')
+  })
 })
 
 // ---------------------------------------------------------------------------

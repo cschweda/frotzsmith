@@ -1,4 +1,5 @@
 import type { CompileResult, StoryExt } from '~/modules/inform6/types'
+import type { LanguageSupport } from '@codemirror/language'
 
 export type { CompileResult, StoryExt }
 
@@ -38,4 +39,6 @@ export interface LanguageProfile {
   versionTargets: StoryExt[]
   /** Compile the given source to a story file. */
   compile(source: string, opts: CompileOpts): Promise<CompileResult>
+  /** Returns the CodeMirror LanguageSupport instance for this language's editor mode. */
+  editorMode: () => LanguageSupport
 }

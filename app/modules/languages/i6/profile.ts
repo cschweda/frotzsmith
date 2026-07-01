@@ -3,6 +3,7 @@ import type { CompileResult } from '~/modules/inform6/types'
 import { PROFILES } from '~/modules/inform6/profiles'
 import { parseDiagnostics, parseStats } from '~/utils/parse-diagnostics'
 import { useCompilerWasm } from '~/composables/useCompilerWasm'
+import { inform6 } from '~/modules/inform6/editor/i6-language'
 
 const VERSION_SWITCH: Record<string, string> = {
   z3: '-v3',
@@ -30,6 +31,8 @@ export const I6_PROFILE: LanguageProfile = {
   fileExt: 'inf',
   stateKey: 'i6',
   versionTargets: ['z3', 'z4', 'z5', 'z8'],
+
+  editorMode: inform6,
 
   async compile(source: string, opts: CompileOpts): Promise<CompileResult> {
     const { createInstance } = useCompilerWasm()

@@ -10,12 +10,12 @@ import {
 } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { bracketMatching, indentOnInput } from '@codemirror/language'
-import { inform6 } from '~/modules/inform6/editor/i6-language'
 import { i6Theme } from '~/modules/inform6/editor/i6-theme'
 import { i6Lint } from '~/modules/inform6/editor/i6-lint'
 
 const { activeId, activeFile, readFile, writeActive, openFile, files } = useProjectFiles()
 const { jumpSignal, runCompile } = useIde()
+const { profile } = useLanguage()
 const colorMode = useColorMode()
 
 const host = ref<HTMLElement | null>(null)
@@ -42,10 +42,10 @@ function makeState(id: string): EditorState {
     bracketMatching(),
     indentOnInput(),
     EditorView.lineWrapping,
-    inform6(),
+    profile.value.editorMode(),
     EditorState.readOnly.of(!editable),
     EditorView.contentAttributes.of({
-      'aria-label': `${name}${editable ? '' : ', read-only'} — Inform 6 editor`,
+      'aria-label': `${name}${editable ? '' : ', read-only'} — ${profile.value.label} editor`,
     }),
     themeComp.of(i6Theme(isDark())),
     keymap.of([
@@ -54,7 +54,7 @@ function makeState(id: string): EditorState {
       ...defaultKeymap,
       ...historyKeymap,
     ]),
-    ...(editable ? [i6Lint()] : []),
+    ...(editable && profile.value.id === 'i6' ? [i6Lint()] : []),
     EditorView.updateListener.of(u => {
       // Only the live, active editable file writes back (avoids stale closures).
       if (u.docChanged && editable && activeId.value === id) writeActive(u.state.doc.toString())

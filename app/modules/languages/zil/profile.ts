@@ -1,6 +1,7 @@
 import type { LanguageProfile, CompileOpts } from '~/modules/languages/types'
 import type { CompileResult } from '~/modules/inform6/types'
 import { useZilfWasm } from '~/composables/useZilfWasm'
+import { zil } from '~/modules/languages/zil/mode'
 
 /** Maps a StoryExt string to the numeric Z-machine version ZILF expects. */
 const EXT_TO_VERSION: Record<string, number> = {
@@ -29,6 +30,8 @@ export const ZIL_PROFILE: LanguageProfile = {
   fileExt: 'zil',
   stateKey: 'zil',
   versionTargets: ['z3', 'z5', 'z8'],
+
+  editorMode: zil,
 
   async compile(source: string, opts: CompileOpts): Promise<CompileResult> {
     const version = (opts.ext !== undefined ? EXT_TO_VERSION[opts.ext] : undefined) ?? 3

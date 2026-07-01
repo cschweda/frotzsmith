@@ -75,6 +75,10 @@ describe('ZIL_PROFILE — static shape', () => {
   it('compile is a function', () => {
     expect(typeof ZIL_PROFILE.compile).toBe('function')
   })
+
+  it('editorMode is a function', () => {
+    expect(typeof ZIL_PROFILE.editorMode).toBe('function')
+  })
 })
 
 // ---------------------------------------------------------------------------

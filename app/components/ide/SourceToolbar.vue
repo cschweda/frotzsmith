@@ -10,7 +10,8 @@ const open = ref(false)
 const library = ref<ProfileId>('std')
 
 function create() {
-  newProject(library.value)
+  // ZIL has no library choice — pass 'std' as a harmless default (ignored by ZIL).
+  newProject(profile.value.id === 'i6' ? library.value : 'std')
   open.value = false
 }
 
@@ -42,7 +43,7 @@ async function saveAs() {
     try {
       const handle = (await picker({
         suggestedName: name,
-        types: [{ description: 'Inform 6 source', accept: { 'text/plain': [`.${profile.value.fileExt}`] } }],
+        types: [{ description: `${profile.value.label} source`, accept: { 'text/plain': [`.${profile.value.fileExt}`] } }],
       })) as { createWritable: () => Promise<{ write: (d: string) => Promise<void>; close: () => Promise<void> }> }
       const writable = await handle.createWritable()
       await writable.write(text)
@@ -97,7 +98,7 @@ async function saveAs() {
     <UModal v-model:open="open" title="New project" description="Start with a blank editor for the chosen library.">
       <template #body>
         <div class="space-y-4">
-          <UFormField label="Library" hint="The editor starts blank; load a Skeleton from Samples for a starting structure.">
+          <UFormField v-if="profile.id === 'i6'" label="Library" hint="The editor starts blank; load a Skeleton from Samples for a starting structure.">
             <div class="flex gap-2">
               <UButton
                 :color="library === 'std' ? 'primary' : 'neutral'"

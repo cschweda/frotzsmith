@@ -2,6 +2,7 @@
 import { frotzsmith } from '~~/frotzsmith.config'
 
 const { restore, savedAt, activeProfile, profileMode, result, effectiveExt } = useIde()
+const { profile: langProfile } = useLanguage()
 const { panelOpen, togglePanel } = useProjectFiles()
 const mobileView = ref<'editor' | 'output'>('editor')
 
@@ -18,9 +19,13 @@ watch(savedAt, () => {
   flashTimer = setTimeout(() => (justSaved.value = false), 900)
 })
 
-// Compiler + active library version, so authors know exactly what's running.
+// Compiler + active library/toolchain version, so authors know exactly what's running.
 const versionLabel = computed(() => {
   const v = frotzsmith.versions
+  if (langProfile.value.id === 'zil') {
+    return `ZILF ${v.zilf} · zillib`
+  }
+  // I6 path — unchanged.
   const lib = activeProfile.value.id === 'puny' ? `PunyInform ${v.punyinform}` : `Std Lib ${v.stdlib}`
   return `Inform ${v.inform6} · ${lib}`
 })
@@ -176,10 +181,15 @@ const drawerOpen = computed({
         </span>
       </template>
 
-      <span class="ml-auto flex items-center gap-1.5">
+      <!-- I6: show Std/Puny library mode; ZIL: show language label only. -->
+      <span v-if="langProfile.id === 'i6'" class="ml-auto flex items-center gap-1.5">
         <UIcon name="i-lucide-book-open" class="size-3.5" />
         {{ profileMode === 'auto' ? 'Auto' : 'Forced' }}: {{ activeProfile.shortLabel }} ·
         {{ effectiveExt.toUpperCase() }}
+      </span>
+      <span v-else class="ml-auto flex items-center gap-1.5">
+        <UIcon name="i-lucide-book-open" class="size-3.5" />
+        ZIL · {{ effectiveExt.toUpperCase() }}
       </span>
 
       <a

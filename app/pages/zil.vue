@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const { setLanguage, profile } = useLanguage()
-setLanguage('i6')
-useHead({ title: 'Frotzsmith — Inform 6 IDE' })
+setLanguage('zil')
+useHead({ title: 'Frotzsmith — ZIL IDE' })
 </script>
 
 <template>

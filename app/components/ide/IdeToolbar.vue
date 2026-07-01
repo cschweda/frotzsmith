@@ -2,17 +2,29 @@
 import type { ProfileMode } from '~/composables/useIde'
 import type { StoryExt } from '~/modules/inform6/types'
 import { SAMPLES, type Sample } from '~/modules/inform6/samples'
+import { ZIL_SAMPLES } from '~/modules/languages/zil/samples'
 import type { ProfileId } from '~/modules/inform6/profiles'
 
 const { format, loadSample, profileMode, activeProfile, setProfileMode, targetMode, effectiveExt, setTargetMode } =
   useIde()
+const { profile } = useLanguage()
 const { activeFile } = useProjectFiles()
 const colorMode = useColorMode()
 const toast = useToast()
 
-// Samples menu: one entry per concept; choose the library in a submenu instead of
-// listing every concept twice (saves space).
+// Samples menu: language-aware — ZIL shows a flat list; I6 shows the grouped
+// library submenu (one entry per concept, std vs puny as children).
 const sampleItems = computed(() => {
+  if (profile.value.id === 'zil') {
+    return [
+      ZIL_SAMPLES.map(s => ({
+        label: s.name,
+        icon: 'i-lucide-book-open-text',
+        onSelect: () => loadSample(s.id),
+      })),
+    ]
+  }
+  // I6 path — unchanged.
   const byName = new Map<string, Partial<Record<ProfileId, Sample>>>()
   for (const s of SAMPLES) {
     const entry = byName.get(s.name) ?? {}
@@ -67,9 +79,20 @@ const VERSION_LABEL: Record<string, string> = {
   z5: 'Z-machine v5 · .z5',
   z8: 'Z-machine v8 · .z8',
 }
-// Target options depend on the active library: PunyInform can target the small
-// z3/z4; the full Standard Library is too large for those.
+// Target options: ZIL lists z3/z5/z8 from the language profile; I6 lists the
+// active library's targets with an "auto" entry (unchanged from before).
 const targetItems = computed(() => {
+  if (profile.value.id === 'zil') {
+    return [
+      profile.value.versionTargets.map(t => ({
+        label: VERSION_LABEL[t] ?? t,
+        trailingIcon: effectiveExt.value === t ? 'i-lucide-check' : undefined,
+        onSelect: () => setTargetMode(t),
+      })),
+    ]
+  }
+  // I6 path — unchanged. Target options depend on the active library: PunyInform
+  // can target the small z3/z4; the full Standard Library is too large for those.
   const item = (mode: 'auto' | StoryExt, label: string) => ({
     label,
     trailingIcon: targetMode.value === mode ? 'i-lucide-check' : undefined,
@@ -153,7 +176,7 @@ function toggleTheme() {
 
     <!-- Library (auto-detected by default) + theme -->
     <div class="ml-auto flex items-center gap-2">
-      <UDropdownMenu :items="profileItems">
+      <UDropdownMenu v-if="profile.id === 'i6'" :items="profileItems">
         <UButton
           color="neutral"
           variant="subtle"

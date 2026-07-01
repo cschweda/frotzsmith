@@ -2,6 +2,7 @@ import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { formatI6 } from '~/utils/format-i6'
 import { PROFILES, detectProfile, type ProfileId } from '~/modules/inform6/profiles'
 import { sampleById } from '~/modules/inform6/samples'
+import { sampleById as zilSampleById } from '~/modules/languages/zil/samples'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 
 export type CompileStatus = 'idle' | 'compiling' | 'success' | 'error'
@@ -36,6 +37,14 @@ export function useIde() {
   // Story-file version: 'auto' uses the profile default, or force z3 / z5 / z8.
   const targetMode = useState<'auto' | StoryExt>('frotz:target', () => 'auto')
   const effectiveExt = computed<StoryExt>(() => {
+    // ZIL: auto → first versionTarget (z3); forced → validate against versionTargets.
+    if (profile.value.id === 'zil') {
+      if (targetMode.value === 'auto') return profile.value.versionTargets[0]!
+      return (profile.value.versionTargets as string[]).includes(targetMode.value)
+        ? targetMode.value
+        : profile.value.versionTargets[0]!
+    }
+    // I6 path — unchanged.
     if (targetMode.value === 'auto') return activeProfile.value.defaultExt
     // Fall back to the profile default if the forced target isn't valid for it.
     return activeProfile.value.targets.includes(targetMode.value)
@@ -142,6 +151,19 @@ export function useIde() {
 
   /** Load a built-in sample into the editor, prettified for consistent formatting. */
   function loadSample(id: string) {
+    // ZIL samples: look up from the ZIL sample registry; no I6 formatting.
+    if (profile.value.id === 'zil') {
+      const s = zilSampleById(id)
+      if (!s) return
+      source.value = s.source
+      activeStoryKey.value = storyKey.value
+      setTargetMode(s.target)
+      result.value = null
+      status.value = 'idle'
+      activeTab.value = 'results'
+      return
+    }
+    // I6 path — unchanged.
     const s = sampleById(id)
     if (!s) return
     source.value = formatI6(s.source)

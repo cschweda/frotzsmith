@@ -23,6 +23,8 @@ export const frotzsmith = {
     inform6: '6.44',
     stdlib: '6.12.8',
     punyinform: '6.7',
+    /** ZILF (ZIL compiler) — source revision used to build the bundled WASM. */
+    zilf: 'r5262550',
   },
 
   // ── Z-machine limits (bytes) — the real ceilings, for footer warnings ─────
