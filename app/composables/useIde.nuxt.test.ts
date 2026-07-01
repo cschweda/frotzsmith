@@ -270,19 +270,25 @@ describe('useIde — runCompile clean-slate orchestration', () => {
     expect(status.value).toBe('error')
   })
 
-  it('runCompile deselects the active test script (select(""))', async () => {
-    // Seed a script and select it
+  it('runCompile preserves the active test-script selection', async () => {
+    // Regression: resetEphemeral used to select('') on every compile, which
+    // persisted activeId='' — after a reload the panel reverted to "Script 1".
     const { add, scripts, select } = useTestScripts()
     add('My Script')
     select(scripts.value[0]!.id)
-    const { activeId } = useTestScripts()
-    expect(activeId.value).not.toBe('')
+    const selected = useTestScripts().activeId.value
+    expect(selected).not.toBe('')
 
     const { runCompile } = useIde()
     await runCompile()
 
-    // After compile, active script should be deselected
-    const { activeId: activeIdAfter } = useTestScripts()
-    expect(activeIdAfter.value).toBe('')
+    expect(useTestScripts().activeId.value).toBe(selected)
+  })
+
+  it('runCompile clears any queued Send-to-Play script', async () => {
+    const ide = useIde()
+    ide.pendingScript.value = ['look']
+    await ide.runCompile()
+    expect(ide.pendingScript.value).toBeNull()
   })
 })

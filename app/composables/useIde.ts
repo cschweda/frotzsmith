@@ -110,14 +110,16 @@ export function useIde() {
   }
 
   /** Blank every ephemeral run artifact: the captured play transcript, the last
-   *  script-run output, the active test-script selection, the auto-map, and the
+   *  script-run output, any queued Send-to-Play commands, the auto-map, and the
    *  Parchment autosave. Shared by a fresh compile and by loading a new source so
-   *  nothing from the previous game lingers. Saved scripts are kept. */
+   *  nothing from the previous game lingers. Saved scripts — including which one
+   *  is selected — are kept: they're per-game (bucketed by activeStoryKey), and
+   *  blanking the selection here persisted activeId='' and lost it on reload. */
   function resetEphemeral() {
     usePlayTranscript().reset()
     useTranscript().reset()
-    useTestScripts().select('')
     useMap().reset()
+    pendingScript.value = null
     clearPlayAutosave()
   }
 
