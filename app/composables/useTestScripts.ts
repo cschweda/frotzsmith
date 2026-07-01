@@ -90,11 +90,12 @@ export function useTestScripts() {
     if (!import.meta.client) return
     try {
       const raw = localStorage.getItem(getKey())
-      if (raw) {
-        const parsed = JSON.parse(raw) as unknown
-        const migrated = migrateScriptStore(parsed, activeStoryKey.value)
-        buckets.value = migrated.buckets as Record<string, Bucket>
-      }
+      // No stored value for this language → start empty, so the previous
+      // language's in-memory buckets don't leak into (and get persisted under)
+      // this language's key on the next write.
+      buckets.value = raw
+        ? (migrateScriptStore(JSON.parse(raw) as unknown, activeStoryKey.value).buckets as Record<string, Bucket>)
+        : {}
     } catch {
       // corrupt — ignore, start empty
       buckets.value = {}

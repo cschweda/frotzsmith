@@ -35,19 +35,27 @@ export function useExtensions() {
     if (!import.meta.client) return
     try {
       const raw = localStorage.getItem(getKey())
-      if (!raw) return
-      const data = JSON.parse(raw) as { uploaded?: Extension[]; enabled?: string[] }
-      if (Array.isArray(data.uploaded)) {
-        uploaded.value = data.uploaded.map(u => ({
-          ...u,
-          description: 'Uploaded extension.',
-          library: 'any' as const,
-          origin: 'uploaded' as const,
-        }))
+      if (!raw) {
+        // No stored value for this language → reset, so the other language's
+        // uploads/enabled set don't leak into this language (or its compiles).
+        uploaded.value = []
+        enabledIds.value = []
+        return
       }
-      if (Array.isArray(data.enabled)) enabledIds.value = data.enabled
+      const data = JSON.parse(raw) as { uploaded?: Extension[]; enabled?: string[] }
+      uploaded.value = Array.isArray(data.uploaded)
+        ? data.uploaded.map(u => ({
+            ...u,
+            description: 'Uploaded extension.',
+            library: 'any' as const,
+            origin: 'uploaded' as const,
+          }))
+        : []
+      enabledIds.value = Array.isArray(data.enabled) ? data.enabled : []
     } catch {
-      // corrupt — ignore, start clean
+      // corrupt — start clean
+      uploaded.value = []
+      enabledIds.value = []
     }
   }
 

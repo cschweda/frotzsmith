@@ -120,19 +120,24 @@ export function useProjectFiles() {
     if (!import.meta.client) return
     try {
       const raw = localStorage.getItem(getKey())
-      if (raw) {
-        const data = JSON.parse(raw) as { open?: boolean; activeId?: string; openTabs?: string[] }
-        if (typeof data.open === 'boolean') panelOpen.value = data.open
-        tabs.value = reconcileOpen(
-          {
-            activeId: data.activeId ?? 'source',
-            openTabs: Array.isArray(data.openTabs) ? data.openTabs : ['source'],
-          },
-          validIds.value,
-        )
+      if (!raw) {
+        // No stored value for this language → default tab state; the previous
+        // language's open tabs reference files that don't exist here.
+        tabs.value = { activeId: 'source', openTabs: ['source'] }
+        return
       }
+      const data = JSON.parse(raw) as { open?: boolean; activeId?: string; openTabs?: string[] }
+      if (typeof data.open === 'boolean') panelOpen.value = data.open
+      tabs.value = reconcileOpen(
+        {
+          activeId: data.activeId ?? 'source',
+          openTabs: Array.isArray(data.openTabs) ? data.openTabs : ['source'],
+        },
+        validIds.value,
+      )
     } catch {
       // corrupt — start clean
+      tabs.value = { activeId: 'source', openTabs: ['source'] }
     }
   }
 
