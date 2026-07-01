@@ -1,6 +1,6 @@
-import type { LanguageProfile, CompileOpts } from '~/modules/languages/types'
-import type { CompileResult } from '~/modules/inform6/types'
+import type { LanguageProfile } from '~/modules/languages/types'
 import { I6_PROFILE } from '~/modules/languages/i6/profile'
+import { ZIL_PROFILE } from '~/modules/languages/zil/profile'
 
 /**
  * Module-level registry mapping language id → LanguageProfile.
@@ -18,20 +18,9 @@ export function registerProfile(profile: LanguageProfile): void {
 // Replaces the Task 2 stub with the full Inform 6 compile path.
 registerProfile(I6_PROFILE)
 
-// ─── Minimal zil stub ───────────────────────────────────────────────────────
-// Task 10 calls registerProfile(ZIL_PROFILE) to replace this.
-registerProfile({
-  id: 'zil',
-  label: 'ZIL',
-  badge: 'alpha',
-  route: '/zil/',
-  fileExt: 'zil',
-  stateKey: 'zil',
-  versionTargets: ['z3', 'z5'],
-  async compile(_source: string, _opts: CompileOpts): Promise<CompileResult> {
-    throw new Error('zil compile stub — replace via registerProfile(ZIL_PROFILE) in Task 10')
-  },
-})
+// ─── Real ZIL_PROFILE ───────────────────────────────────────────────────────
+// Replaces the Task 10 stub with the full ZIL compile path via useZilfWasm.
+registerProfile(ZIL_PROFILE)
 
 /**
  * Composable that exposes the active language profile and a setter.
