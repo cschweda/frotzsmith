@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { Dir } from '~/composables/map-graph'
-const { layout, currentRoom, details, graph, noRoomName, roomObjects, mapMode, toggleMapMode } = useMap()
+import { connectedDirs, oppositeDir, type Dir } from '~/composables/map-graph'
+const { layout, currentRoom, details, graph, noRoomName, roomObjects, roomExits, mapMode, toggleMapMode } = useMap()
 
 const CELL = 120, ROOM_W = 96, ROOM_H = 48, PAD = 60
 /** Clamp limits for the viewBox width (SVG user-space units). */
@@ -278,6 +278,49 @@ const devObjectsByRoom = computed(() => {
   return m
 })
 
+// ─── Unexplored exits: ways out a room advertises but you haven't walked ─────
+// Drawn as short dashed stubs pointing in the compass direction, so every exit
+// is visible before you traverse it. Explicit per-direction geometry (relative
+// to the room-box centre). u/d/in/out have no planar direction, so they sit at
+// offset spots; rare overlaps with cardinal stubs are acceptable.
+const W2 = ROOM_W / 2, H2 = ROOM_H / 2, SL = 18
+type StubGeom = { x1: number; y1: number; x2: number; y2: number; lx: number; ly: number; label: string; anchor: 'start' | 'middle' | 'end'; base: 'auto' | 'middle' | 'hanging' }
+const UNEXPLORED_GEOM: Record<Dir, StubGeom> = {
+  n:   { x1: 0,   y1: -H2, x2: 0,       y2: -H2 - SL, lx: 0,        ly: -H2 - SL - 6, label: 'N',   anchor: 'middle', base: 'auto' },
+  s:   { x1: 0,   y1: H2,  x2: 0,       y2: H2 + SL,  lx: 0,        ly: H2 + SL + 6,  label: 'S',   anchor: 'middle', base: 'hanging' },
+  e:   { x1: W2,  y1: 0,   x2: W2 + SL, y2: 0,        lx: W2 + SL + 4, ly: 0,         label: 'E',   anchor: 'start',  base: 'middle' },
+  w:   { x1: -W2, y1: 0,   x2: -W2 - SL, y2: 0,       lx: -W2 - SL - 4, ly: 0,        label: 'W',   anchor: 'end',    base: 'middle' },
+  ne:  { x1: W2,  y1: -H2, x2: W2 + SL, y2: -H2 - SL, lx: W2 + SL + 4, ly: -H2 - SL, label: 'NE',  anchor: 'start',  base: 'auto' },
+  nw:  { x1: -W2, y1: -H2, x2: -W2 - SL, y2: -H2 - SL, lx: -W2 - SL - 4, ly: -H2 - SL, label: 'NW', anchor: 'end',   base: 'auto' },
+  se:  { x1: W2,  y1: H2,  x2: W2 + SL, y2: H2 + SL,  lx: W2 + SL + 4, ly: H2 + SL,   label: 'SE',  anchor: 'start',  base: 'hanging' },
+  sw:  { x1: -W2, y1: H2,  x2: -W2 - SL, y2: H2 + SL, lx: -W2 - SL - 4, ly: H2 + SL,  label: 'SW',  anchor: 'end',    base: 'hanging' },
+  u:   { x1: -W2 / 2, y1: -H2, x2: -W2 / 2, y2: -H2 - SL, lx: -W2 / 2, ly: -H2 - SL - 6, label: '↑', anchor: 'middle', base: 'auto' },
+  d:   { x1: -W2 / 2, y1: H2,  x2: -W2 / 2, y2: H2 + SL,  lx: -W2 / 2, ly: H2 + SL + 6,  label: '↓', anchor: 'middle', base: 'hanging' },
+  in:  { x1: -W2, y1: -H2 / 2, x2: -W2 - SL, y2: -H2 / 2, lx: -W2 - SL - 4, ly: -H2 / 2, label: 'in',  anchor: 'end', base: 'middle' },
+  out: { x1: -W2, y1: H2 / 2,  x2: -W2 - SL, y2: H2 / 2,  lx: -W2 - SL - 4, ly: H2 / 2,  label: 'out', anchor: 'end', base: 'middle' },
+}
+
+/** Flat list of dashed exit stubs for every advertised-but-unwalked direction. */
+const unexploredStubs = computed(() => {
+  const out: (StubGeom & { key: string })[] = []
+  for (const r of layout.value.rooms) {
+    const advertised = roomExits.value[r.name]
+    if (!advertised?.length) continue
+    const connected = new Set(connectedDirs(graph.value, r.name))
+    const p = pos(r.name)
+    for (const dir of advertised) {
+      if (connected.has(dir)) continue
+      const g = UNEXPLORED_GEOM[dir]
+      out.push({
+        key: `${r.name}-${dir}`,
+        x1: p.x + g.x1, y1: p.y + g.y1, x2: p.x + g.x2, y2: p.y + g.y2,
+        lx: p.x + g.lx, ly: p.y + g.ly, label: g.label, anchor: g.anchor, base: g.base,
+      })
+    }
+  }
+  return out
+})
+
 // ─── Hover / focus popover ─────────────────────────────────────────────────
 /** Full-word direction names shown in the popover and the SR room list. */
 const dirWord: Record<Dir, string> = {
@@ -293,10 +336,14 @@ const dirWord: Record<Dir, string> = {
  */
 const srRoomList = computed(() =>
   layout.value.rooms.map(r => {
-    const exits = graph.value.edges.filter(e => e.from === r.name)
-    const exitText = exits.length
-      ? exits.map(e => `${dirWord[e.dir]} to ${e.to}`).join(', ')
-      : 'no exits'
+    const parts: string[] = []
+    const seen = new Set<Dir>()
+    // Out-edges (with destination), then reverse in-edges, then advertised-but-
+    // unexplored exits — the same set the map draws.
+    for (const e of graph.value.edges) if (e.from === r.name && !seen.has(e.dir)) { parts.push(`${dirWord[e.dir]} to ${e.to}`); seen.add(e.dir) }
+    for (const e of graph.value.edges) if (e.to === r.name) { const d = oppositeDir(e.dir); if (!seen.has(d)) { parts.push(`${dirWord[d]} to ${e.from}`); seen.add(d) } }
+    for (const d of roomExits.value[r.name] ?? []) if (!seen.has(d)) parts.push(`${dirWord[d]} (unexplored)`)
+    const exitText = parts.length ? parts.join(', ') : 'no exits'
     const objs = roomObjects.value[r.name] ?? []
     return { name: r.name, exitText, objText: objs.length ? objs.join(', ') : '' }
   }),
@@ -318,6 +365,16 @@ const hoveredSeen = computed(() => {
   const present = new Set(d.objects)
   return d.seenObjects.map(name => ({ name, taken: !present.has(name) }))
 })
+
+/** Hovered room's exits, each flagged `unexplored` when advertised but not yet
+ *  walked — so the popover marks the same ways out the map draws as stubs. */
+const hoveredExits = computed(() => {
+  const d = hoveredDetails.value
+  if (!d) return [] as { word: string; unexplored: boolean }[]
+  const connected = new Set(d.connectedExits)
+  return d.exits.map(dir => ({ word: dirWord[dir], unexplored: !connected.has(dir) }))
+})
+const hoveredHasUnexplored = computed(() => hoveredExits.value.some(x => x.unexplored))
 </script>
 
 <template>
@@ -393,6 +450,22 @@ const hoveredSeen = computed(() => {
               fill="currentColor"
               stroke="none"
               class="text-xs text-muted"
+            >{{ s.label }}</text>
+          </template>
+        </g>
+
+        <!-- unexplored exits: advertised via Exits.h but not yet walked → dashed
+             stubs pointing the way, so every exit is visible before traversal -->
+        <g class="text-muted">
+          <template v-for="s in unexploredStubs" :key="s.key">
+            <line
+              :x1="s.x1" :y1="s.y1" :x2="s.x2" :y2="s.y2"
+              stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 3" fill="none"
+            />
+            <text
+              :x="s.lx" :y="s.ly"
+              :text-anchor="s.anchor" :dominant-baseline="s.base"
+              fill="currentColor" stroke="none" style="font-size: 9px"
             >{{ s.label }}</text>
           </template>
         </g>
@@ -473,8 +546,12 @@ const hoveredSeen = computed(() => {
         <p class="mb-1.5 text-sm font-semibold leading-tight">{{ hovered }}</p>
         <p class="text-muted text-xs">
           <span class="font-medium">Exits:</span>
-          {{ hoveredDetails.exits.map(d => dirWord[d]).join(', ') || '—' }}
+          <template v-if="hoveredExits.length"><template v-for="(x, i) in hoveredExits" :key="x.word"><span
+            :class="x.unexplored ? 'italic opacity-70' : ''"
+          >{{ x.word }}{{ x.unexplored ? '*' : '' }}</span>{{ i < hoveredExits.length - 1 ? ', ' : '' }}</template></template>
+          <template v-else>—</template>
         </p>
+        <p v-if="hoveredHasUnexplored" class="text-muted/70 text-[10px] italic">* not yet walked</p>
         <p class="text-muted text-xs">
           <span class="font-medium">Here now:</span>
           {{ hoveredDetails.objects.join(', ') || '—' }}

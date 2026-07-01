@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { emptyGraph, parseDirection, parseRoomName, addStep, layout, exitsOf, parseObjects } from './map-graph'
+import { emptyGraph, parseDirection, parseRoomName, addStep, layout, exitsOf, connectedDirs, parseObjects, parseExits } from './map-graph'
 
 describe('parseDirection', () => {
   it('maps abbreviations, full words, and "go X" to a Dir', () => {
@@ -139,6 +139,36 @@ describe('exitsOf', () => {
   it('returns [] for a room with no out-edges', () => {
     const g = build([[null, null, 'A'], ['A', 'n', 'B']])
     expect(exitsOf(g, 'B')).toEqual([])
+  })
+})
+
+describe('connectedDirs', () => {
+  it('includes out-edges and the reverse of in-edges', () => {
+    // A -e-> B: A is connected east (out-edge); B is connected west (came from A).
+    const g = build([[null, null, 'A'], ['A', 'e', 'B']])
+    expect(connectedDirs(g, 'A')).toEqual(['e'])
+    expect(connectedDirs(g, 'B')).toEqual(['w'])
+  })
+})
+
+describe('parseExits', () => {
+  it('parses an "Obvious exits: …" line into canonical-order directions', () => {
+    expect(parseExits('You are in the foyer.\nObvious exits: south, west, east.')).toEqual(['e', 's', 'w'])
+  })
+  it('handles up/down/in and abbreviations', () => {
+    expect(parseExits('Obvious exits: north, up, in.')).toEqual(['n', 'u', 'in'])
+    expect(parseExits('Exits: n, se, w.')).toEqual(['n', 'se', 'w'])
+  })
+  it('accepts the "You can go …" phrasing', () => {
+    expect(parseExits('You can go north or east.')).toEqual(['n', 'e'])
+  })
+  it('returns [] for "none" and when there is no exits line', () => {
+    expect(parseExits('Obvious exits: none.')).toEqual([])
+    expect(parseExits('A featureless room. The way out is barred.')).toEqual([])
+    expect(parseExits('')).toEqual([])
+  })
+  it('is not fooled by the word "exits" without a colon in prose', () => {
+    expect(parseExits('All the exits are sealed shut.')).toEqual([])
   })
 })
 

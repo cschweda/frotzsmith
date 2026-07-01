@@ -1,6 +1,6 @@
 // app/composables/useMap.ts
 import {
-  emptyGraph, addStep, layout as computeLayout, parseDirection, exitsOf, parseObjects,
+  emptyGraph, addStep, layout as computeLayout, parseDirection, connectedDirs, parseObjects, parseExits,
   type Dir, type MapGraph,
 } from './map-graph'
 
@@ -16,6 +16,9 @@ export function useMap() {
   /** Sticky per-room union of every object ever seen there — survives take/drop,
    *  so the map can show what WAS in a room even after it's gone (dev view). */
   const roomObjects = useState<Record<string, string[]>>('frotz:map-objects', () => ({}))
+  /** Directions each room advertises via its "Obvious exits: …" line (Exits.h),
+   *  so the map can show exits you haven't walked yet. */
+  const roomExits = useState<Record<string, Dir[]>>('frotz:map-exits', () => ({}))
   const lastDir = useState<Dir | null>('frotz:map-lastdir', () => null)
   const prevRoom = useState<string | null>('frotz:map-prevroom', () => null)
   /** True when the play frame confirmed the status line carries no room name. */
@@ -29,6 +32,7 @@ export function useMap() {
     currentRoom.value = null
     roomText.value = {}
     roomObjects.value = {}
+    roomExits.value = {}
     lastDir.value = null
     prevRoom.value = null
     noRoomName.value = false
@@ -61,6 +65,10 @@ export function useMap() {
         const added = seen.filter(o => !prev.includes(o))
         if (added.length) roomObjects.value = { ...roomObjects.value, [name]: [...prev, ...added] }
       }
+      // Record the room's advertised exits (Exits.h "Obvious exits: …"), so the
+      // map can show ways out you haven't walked yet.
+      const exits = parseExits(text)
+      if (exits.length) roomExits.value = { ...roomExits.value, [name]: exits }
     }
     graph.value = addStep(graph.value, prevRoom.value, lastDir.value, name)
     currentRoom.value = name
@@ -71,10 +79,16 @@ export function useMap() {
     const t = roomText.value[room] ?? ''
     const lines = t.split('\n').map(l => l.trim())
     const description = lines.find(l => Boolean(l) && !l.startsWith('>') && l !== room) ?? ''
-    // `objects` = best-effort current contents (from the latest description);
-    // `seenObjects` = the sticky union of everything ever seen here (dev view).
+    // `exits` = every way out the room advertises (connected or not);
+    // `connectedExits` = the subset already drawn as connectors (out-edge or the
+    // reverse of an in-edge). `objects` = best-effort current contents;
+    // `seenObjects` = the sticky union ever seen here (dev view).
+    const connected = connectedDirs(graph.value, room)
+    const advertised = roomExits.value[room] ?? []
+    const exits = advertised.length ? [...advertised, ...connected.filter(d => !advertised.includes(d))] : connected
     return {
-      exits: exitsOf(graph.value, room),
+      exits,
+      connectedExits: connected,
       objects: parseObjects(t),
       seenObjects: roomObjects.value[room] ?? [],
       description,
@@ -94,7 +108,7 @@ export function useMap() {
   }
 
   return {
-    graph, currentRoom, roomText, roomObjects, layout, mapMode,
+    graph, currentRoom, roomText, roomObjects, roomExits, layout, mapMode,
     recordCommand, recordRoom, details, reset, toggleMapMode, noRoomName, markNoRoom,
   }
 }

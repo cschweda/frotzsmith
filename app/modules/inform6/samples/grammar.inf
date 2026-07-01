@@ -167,4 +167,5 @@ Verb 'incant' 'invoke'
 ! ---------------------------------------------------------------------------
 !  GRAMMAR — must be the LAST include; finalises all parse tables
 ! ---------------------------------------------------------------------------
+Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

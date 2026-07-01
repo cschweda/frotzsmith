@@ -82,6 +82,7 @@ export const PROFILES: Record<ProfileId, LibraryProfile> = {
       'VerbLib.h': 'verblib.h',
       'Grammar.h': 'grammar.h',
       'English.h': 'english.h',
+      'Exits.h': 'exits.h',
     }),
   },
   puny: {

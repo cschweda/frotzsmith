@@ -143,4 +143,5 @@ Object -> rusty_key "rusty key"
 ! Grammar.h defines all built-in verb/grammar tables. It must come after
 ! VerbLib.h (which defines the action routines Grammar references) and after
 ! all your objects (so any custom `Verb` directives you add are included).
+Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

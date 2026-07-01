@@ -478,6 +478,7 @@ name "fire" "raging"
 
 [ DeathMessage; print "You have died."; ];
 
+Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";
 
 

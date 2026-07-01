@@ -149,4 +149,5 @@ Object hermit "old hermit" Hut
 !  after this line will be seen by the grammar machinery, so any custom
 !  Verb directives must appear BEFORE this Include.
 ! ---------------------------------------------------------------------------
+Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

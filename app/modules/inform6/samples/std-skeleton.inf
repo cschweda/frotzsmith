@@ -108,4 +108,5 @@ Object StartRoom "Starting Room"
 !  must appear BEFORE this include. Including Grammar after your objects
 !  ensures all object names are known when the grammar tables are compiled.
 
+Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

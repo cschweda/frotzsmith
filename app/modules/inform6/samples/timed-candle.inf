@@ -169,4 +169,5 @@ Object -> candle "lit candle"
 
 ! --- Grammar (must be the final Include) -------------------------------------
 ! Grammar.h defines all built-in verb/grammar tables. Always the last Include.
+Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

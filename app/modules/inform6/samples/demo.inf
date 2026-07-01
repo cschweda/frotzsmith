@@ -108,4 +108,5 @@ Object Meadow "Meadow"
 !  Any custom Verb or Extend directives for new commands must appear BEFORE
 !  this include.
 
+Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

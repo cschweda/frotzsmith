@@ -133,4 +133,5 @@ Object -> -> coin "gold coin"
 !  GRAMMAR — must be the LAST include in every Standard Library game
 !  Sets up parser tables for all built-in verbs including LOCK and UNLOCK.
 ! ---------------------------------------------------------------------------
+Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

@@ -27,7 +27,9 @@ describe('useMap', () => {
     m.recordCommand('north')
     m.recordRoom('Meadow', 'A sunlit meadow.\n\nYou can see a daisy here.')
     expect(m.graph.value.edges).toEqual([{ from: 'Cottage', to: 'Meadow', dir: 'n' }])
-    expect(m.details('Meadow')).toMatchObject({ exits: [], objects: ['daisy'] })
+    // Meadow was entered heading north, so it has a south connection back to
+    // Cottage (the reverse of the in-edge), even with no advertised exits line.
+    expect(m.details('Meadow')).toMatchObject({ exits: ['s'], objects: ['daisy'] })
     expect(m.details('Cottage').exits).toEqual(['n'])
   })
 
@@ -49,6 +51,20 @@ describe('useMap', () => {
     const d = m.details('Vault')
     expect(d.objects).toEqual(['gold bar'])
     expect(d.seenObjects).toEqual(['ruby', 'gold bar'])
+  })
+
+  it('records advertised exits and marks connected vs unexplored in details()', () => {
+    const m = useMap()
+    m.recordRoom('Foyer', 'You are in the foyer.\nObvious exits: south, west, east.')
+    m.recordCommand('east'); m.recordRoom('Living Room', 'You are in the living room.\nObvious exits: west.')
+    const foyer = m.details('Foyer')
+    expect(foyer.exits).toEqual(['e', 's', 'w']) // everything the foyer advertises
+    expect(foyer.connectedExits).toEqual(['e']) // east has a connector → south + west are stubs
+    // Living Room was entered FROM the west; that connector counts as connected,
+    // so its advertised "west" is NOT drawn as a redundant unexplored stub.
+    const living = m.details('Living Room')
+    expect(living.exits).toEqual(['w'])
+    expect(living.connectedExits).toEqual(['w'])
   })
 
   it('toggles the map view mode and reset() does NOT change it (view preference)', () => {

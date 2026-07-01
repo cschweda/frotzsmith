@@ -131,4 +131,5 @@ Verb 'exits' 'dirs' 'directions'
 ! ---------------------------------------------------------------------------
 ! GRAMMAR — must be included last, after all Verb declarations
 ! ---------------------------------------------------------------------------
+Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

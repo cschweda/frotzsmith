@@ -158,4 +158,5 @@ Object Cellar "Cellar"
 ! Builds the full verb/grammar table.  Must follow all Object definitions and
 ! any custom Verb declarations so the table can reference them.
 ! ---------------------------------------------------------------------------
+Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

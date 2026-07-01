@@ -130,6 +130,41 @@ export function exitsOf(g: MapGraph, room: string): Dir[] {
   return DIR_ORDER.filter(d => dirs.has(d))
 }
 
+const OPPOSITE: Record<Dir, Dir> = {
+  n: 's', s: 'n', e: 'w', w: 'e', ne: 'sw', sw: 'ne', nw: 'se', se: 'nw',
+  u: 'd', d: 'u', in: 'out', out: 'in',
+}
+
+/** The compass opposite of a direction (n↔s, e↔w, ne↔sw, u↔d, in↔out). */
+export function oppositeDir(d: Dir): Dir { return OPPOSITE[d] }
+
+/** Directions from `room` that already have a connector drawn — an out-edge, OR
+ *  an in-edge whose reverse points back this way (so the room you came from sits
+ *  in that direction). Used to suppress redundant "unexplored" stubs. */
+export function connectedDirs(g: MapGraph, room: string): Dir[] {
+  const dirs = new Set<Dir>()
+  for (const e of g.edges) {
+    if (e.from === room) dirs.add(e.dir)
+    if (e.to === room) dirs.add(OPPOSITE[e.dir])
+  }
+  return DIR_ORDER.filter(d => dirs.has(d))
+}
+
+/** Directions a room advertises via an "Obvious exits: …" line (printed by the
+ *  Standard Library Exits.h helper). Lenient: also accepts a bare "Exits: …" or
+ *  "You can go …". Returns canonical compass order; [] for "none" or no line. */
+export function parseExits(roomText: string): Dir[] {
+  const m = /(?:obvious )?exits\s*:\s*([^.\n]*)/i.exec(roomText)
+    ?? /\byou can go\b\s+([^.\n]*)/i.exec(roomText)
+  if (!m) return []
+  const found = new Set<Dir>()
+  for (const word of m[1]!.toLowerCase().split(/[^a-z]+/)) {
+    const d = DIRS[word]
+    if (d) found.add(d)
+  }
+  return DIR_ORDER.filter(d => found.has(d))
+}
+
 function splitObjects(s: string): string[] {
   return s
     .split(/\s*,\s*|\s+and\s+/i)
