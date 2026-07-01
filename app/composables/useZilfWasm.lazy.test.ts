@@ -1,61 +1,37 @@
 /**
- * Lazy-load and fallback behavior assertions for useZilfWasm.
+ * Worker-disabled + main-thread compile behavior for useZilfWasm.
  *
- * 1. Lazy Worker construction — the ZILF Web Worker (and its 7.5 MB .NET WASM
- *    bundle) must NOT be constructed when the module is imported.
+ * The ZILF Web Worker is currently DISABLED (`WORKER_ENABLED = false`) because
+ * `dotnet.create()` hangs inside a plain Web Worker — see
+ * docs/superpowers/notes/2026-07-01-zil-worker-followup.md. Compiles therefore
+ * run on the main thread. These tests assert:
+ *   1. importing the module constructs no Worker (page navigation stays free);
+ *   2. compile() constructs no Worker either (worker disabled), goes straight to
+ *      the main-thread path, and always RESOLVES to a CompileResult — never hangs
+ *      (in the test env the .NET runtime can't load, so it resolves ok:false).
  *
- * 2. Main-thread fallback — when the Worker sends an error response, subsequent
- *    compiles must bypass the Worker entirely and attempt the main-thread path.
- *
- * Environment: node (default — no DOM/localStorage needed).
+ * Environment: node (no DOM/localStorage needed).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// ─── Worker mock helpers ───────────────────────────────────────────────────────
-
-/** Build a Worker mock that resolves with a failed-compile (non-error) payload. */
-function makeSuccessWorkerMock() {
-  let messageHandler: ((e: { data: unknown }) => void) | null = null
+/** A Worker mock we assert is NEVER constructed while the worker is disabled. */
+function makeWorkerSpy() {
   return vi.fn().mockImplementation(() => ({
-    addEventListener: vi.fn((event: string, handler: (e: { data: unknown }) => void) => {
-      if (event === 'message') messageHandler = handler
-    }),
+    addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
     terminate: vi.fn(),
-    postMessage: vi.fn(() => {
-      // Immediately resolve with a compile-failure (enough to settle the Promise).
-      messageHandler?.({
-        data: { success: false, storyBase64: null, diagnostics: [] },
-      })
-    }),
+    postMessage: vi.fn(),
   }))
 }
 
-/** Build a Worker mock that fires an { error } response immediately. */
-function makeErrorWorkerMock() {
-  let messageHandler: ((e: { data: unknown }) => void) | null = null
-  return vi.fn().mockImplementation(() => ({
-    addEventListener: vi.fn((event: string, handler: (e: { data: unknown }) => void) => {
-      if (event === 'message') messageHandler = handler
-    }),
-    removeEventListener: vi.fn(),
-    terminate: vi.fn(),
-    postMessage: vi.fn(() => {
-      messageHandler?.({ data: { error: 'Worker boot failed (mock)' } })
-    }),
-  }))
-}
-
-// ─── tests ────────────────────────────────────────────────────────────────────
-
-describe('useZilfWasm — lazy Worker construction', () => {
+describe('useZilfWasm — worker disabled, main-thread compile', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.unstubAllGlobals()
   })
 
   it('does NOT construct a Worker on module import (page navigation is free)', async () => {
-    const WorkerSpy = makeSuccessWorkerMock()
+    const WorkerSpy = makeWorkerSpy()
     vi.stubGlobal('Worker', WorkerSpy)
 
     // Just importing the composable must NOT touch the Worker global.
@@ -64,60 +40,32 @@ describe('useZilfWasm — lazy Worker construction', () => {
     expect(WorkerSpy).not.toHaveBeenCalled()
   })
 
-  it('constructs the Worker exactly once on the first compile() call', async () => {
-    const WorkerSpy = makeSuccessWorkerMock()
+  it('compile() constructs no Worker (disabled) and resolves to a CompileResult', async () => {
+    const WorkerSpy = makeWorkerSpy()
     vi.stubGlobal('Worker', WorkerSpy)
 
     const { useZilfWasm } = await import('~/composables/useZilfWasm')
 
-    // Still no Worker after import.
+    // Worker disabled → straight to the main-thread path. The .NET runtime can't
+    // load in the test env, so it resolves ok:false — the point is it never
+    // spawns a Worker and never hangs.
+    const result = await useZilfWasm().compile('<ROUTINE GO () <CRLF>>', 3)
+
     expect(WorkerSpy).not.toHaveBeenCalled()
-
-    // First compile triggers construction.
-    await useZilfWasm().compile('<ROUTINE GO () <CRLF>>', 3)
-    expect(WorkerSpy).toHaveBeenCalledTimes(1)
+    expect(result.ok).toBe(false)
   })
 
-  it('reuses the same Worker instance on a second compile() call', async () => {
-    const WorkerSpy = makeSuccessWorkerMock()
+  it('resolves (never hangs) across repeated compiles, still without a Worker', async () => {
+    const WorkerSpy = makeWorkerSpy()
     vi.stubGlobal('Worker', WorkerSpy)
 
     const { useZilfWasm } = await import('~/composables/useZilfWasm')
 
-    await useZilfWasm().compile('source-a', 3)
-    await useZilfWasm().compile('source-b', 5)
+    const r1 = await useZilfWasm().compile('source-a', 3)
+    const r2 = await useZilfWasm().compile('source-b', 5)
 
-    // Worker was constructed once, reused for the second call.
-    expect(WorkerSpy).toHaveBeenCalledTimes(1)
-  })
-})
-
-describe('useZilfWasm — main-thread fallback after worker error', () => {
-  beforeEach(() => {
-    vi.resetModules()
-    vi.unstubAllGlobals()
-  })
-
-  it('falls back to main-thread and skips Worker on subsequent compiles when worker errors', async () => {
-    const WorkerSpy = makeErrorWorkerMock()
-    vi.stubGlobal('Worker', WorkerSpy)
-
-    const { useZilfWasm } = await import('~/composables/useZilfWasm')
-
-    // First compile: worker fires an error → fallback triggers.
-    // The main-thread fallback will also fail (no real dotnet.js in tests),
-    // but the important thing is the result is ok:false (not a hang).
-    const result1 = await useZilfWasm().compile('source-a', 3)
-    expect(result1.ok).toBe(false)
-
-    // Worker was tried once.
-    expect(WorkerSpy).toHaveBeenCalledTimes(1)
-
-    // Second compile: worker is marked failed → should NOT call Worker again.
-    const result2 = await useZilfWasm().compile('source-b', 5)
-    expect(result2.ok).toBe(false)
-
-    // Worker count stays at 1 — second compile went straight to main-thread.
-    expect(WorkerSpy).toHaveBeenCalledTimes(1)
+    expect(r1.ok).toBe(false)
+    expect(r2.ok).toBe(false)
+    expect(WorkerSpy).not.toHaveBeenCalled()
   })
 })

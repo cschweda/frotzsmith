@@ -57,6 +57,10 @@ See [`docs/13-v2-roadmap.md`](./docs/13-v2-roadmap.md) for the full assessments.
 - **Richer ZIL tooling** — deeper ZIL syntax highlighting / lint beyond the compiler's
   diagnostics, more samples, and a landing-page language picker at `/` (the title-strip
   toggle is the interim).
+- **Off-main-thread ZIL compile** — ZIL compiles on the main thread today (~5–9 s, a brief
+  UI block); the Web Worker path hangs because the .NET `wasmbrowser` runtime's
+  `dotnet.create()` won't boot standalone in a Worker. Full diagnosis + fix paths in
+  [`docs/superpowers/notes/2026-07-01-zil-worker-followup.md`](./docs/superpowers/notes/2026-07-01-zil-worker-followup.md).
 - **Extensions registry** — a searchable online catalog.
 - **Glulx** — larger games (the `StoryEngine` seam allows it).
 - **Multi-file projects**, and an `app.frotzsmith.com` + landing-page split.

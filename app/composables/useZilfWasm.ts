@@ -28,12 +28,23 @@ import { parseZilDiagnostics } from '~/modules/zil/zil-diagnostics'
  */
 
 /**
- * ms to wait for the Worker before falling back to the main-thread path.
- * The Worker currently never delivers a result (the .NET WASM runtime does not
- * complete a compile in a Web Worker context, in dev AND prod), so this is
- * dead time before the reliable main-thread fallback runs — kept short. Only
- * the first compile per session pays it; `_workerFailed` skips the Worker after.
+ * Whether to attempt the Web Worker path at all.
+ *
+ * DISABLED: the .NET `wasmbrowser` runtime's `dotnet.create()` never completes
+ * inside a plain Web Worker. `dotnet.js` detects the worker context and takes
+ * its managed-pthread-worker path, waiting for a main-thread .NET host that our
+ * standalone worker doesn't provide — so boot hangs (diagnosed via stage
+ * logging; shimming window/document/requestAnimationFrame did not help; the
+ * bundle is single-threaded, so COOP/COEP/SharedArrayBuffer is not the cause).
+ * Compiling on the main thread is the reliable path (~5–9 s, brief UI block —
+ * acceptable for alpha). Re-enabling needs the official .NET worker pattern
+ * (a separate worker-configured build + host↔worker messaging); see
+ * `docs/superpowers/notes/2026-07-01-zil-worker-followup.md`. Typed `boolean`
+ * so the Worker code below stays reachable (not dead) for that future work.
  */
+const WORKER_ENABLED: boolean = false
+
+/** ms to wait for the Worker before falling back to the main thread (only used when WORKER_ENABLED). */
 const WORKER_TIMEOUT_MS = 4_000
 
 // ─── shared types ─────────────────────────────────────────────────────────────
@@ -270,8 +281,10 @@ export function useZilfWasm() {
     const started = performance.now()
     const storyExt = versionToExt(version)
 
-    // ── Worker path (primary) ──────────────────────────────────────────────
-    if (!_workerFailed) {
+    // ── Worker path (disabled — see WORKER_ENABLED) ────────────────────────
+    // dotnet.create() hangs inside a plain Web Worker, so we compile on the
+    // main thread. The worker code is kept, gated off, for a future re-enable.
+    if (WORKER_ENABLED && !_workerFailed) {
       const payload = await tryWorkerCompile(source, version)
       if (payload !== null) {
         return buildResultFromPayload(payload, storyExt, started)
