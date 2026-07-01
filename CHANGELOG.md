@@ -26,9 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `alpha`), each with its own `frotzsmith:<lang>:*`-namespaced project state.
 - **ZILF/ZAPF compiler in the browser** — the modern **ZILF + ZAPF** toolchain
   (C# / .NET 10) is built offline to **.NET WebAssembly** and committed like
-  `inform6.wasm`. It runs in a **Web Worker with a main-thread fallback** so a compile
-  always completes, and the ~7.5 MB bundle is **lazy-loaded only on the first ZIL
-  compile** — Inform 6 users never download it. The `zillib` standard library is
+  `inform6.wasm`. It runs on the **main thread** (an off-main-thread Web Worker is a
+  documented follow-up — the .NET runtime doesn't boot standalone in a Worker), and the
+  ~7.5 MB bundle is **lazy-loaded only on the first ZIL compile** — Inform 6 users never
+  download it. The `zillib` standard library is
   embedded; the `<VERSION>` directive drives the **z3 / z5 / z8** target.
 - **ZIL authoring** — a CodeMirror 6 **ZIL syntax mode**, compile **diagnostics** parsed
   to the same click-to-jump format as Inform 6, a **ZIL-safe Prettify**, and a

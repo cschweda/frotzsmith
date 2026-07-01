@@ -41,7 +41,7 @@ client-side, and play it inline. See
   on compile
 - **ZIL — a second source language** *(alpha)* — write ZIL (Infocom's original MDL/Lisp-like
   language) at `/zil/` and compile it client-side with the **ZILF + ZAPF** toolchain (C#/.NET 10)
-  built to .NET WebAssembly, run in a Web Worker and lazy-loaded on first compile; `zillib` is
+  built to .NET WebAssembly, run on the main thread and lazy-loaded on first compile; `zillib` is
   embedded and the `<VERSION>` directive targets z3 / z5 / z8. A title-strip **I6 ↔ ZIL toggle**
   (Inform 6 `beta` · ZIL `alpha`) with per-language namespaced project state, a basic CodeMirror
   ZIL syntax mode, and 7 ZIL concept demos (Cloak of Darkness, rooms, NPC, puzzle, light, daemon).
