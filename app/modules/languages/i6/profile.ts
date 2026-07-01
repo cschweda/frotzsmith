@@ -67,20 +67,29 @@ export const I6_PROFILE: LanguageProfile = {
     m.FS.chdir('/work') // Inform writes output relative to the working directory
 
     const outName = `story.${ext}`
+    let crash: string | null = null
     try {
       m.callMain([
         `+include_path=${libProfile.includePath}`,
         '-s', // emit statistics (story size, memory use) for the stats bar
+        // FS.writeFile encodes the editor string as UTF-8; without -Cu Inform
+        // reads ISO-8859-1 and non-ASCII prose silently mojibakes in-game.
+        '-Cu',
         VERSION_SWITCH[ext]!,
         'story.inf',
         outName,
       ])
-    } catch {
-      // Emscripten throws on non-zero exit; diagnostics below carry the detail.
+    } catch (e) {
+      // Emscripten throws ExitStatus for ordinary non-zero exits — the parsed
+      // diagnostics carry that detail. Anything else is a real crash (e.g. a
+      // WASM RuntimeError trap) and must not vanish.
+      const name = (e as { name?: string } | null)?.name
+      if (name !== 'ExitStatus') crash = String(e)
     }
 
     const raw = out.join('\n')
     const { diagnostics, errorCount } = parseDiagnostics(raw)
+    if (crash) diagnostics.push({ severity: 'fatal', message: `Compiler crashed: ${crash}` })
 
     let storyFile: Uint8Array | undefined
     try {
@@ -90,7 +99,7 @@ export const I6_PROFILE: LanguageProfile = {
     }
 
     return {
-      ok: errorCount === 0 && !!storyFile,
+      ok: errorCount === 0 && !crash && !!storyFile,
       storyFile,
       storyExt: ext,
       diagnostics,

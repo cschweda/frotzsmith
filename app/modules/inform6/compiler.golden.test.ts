@@ -56,42 +56,49 @@ Include "Grammar";
 // ---------------------------------------------------------------------------
 const GOLDEN_SHA256: string = '2d8ffb2cd54a2545763d27644da5deff9fae712a794cfcade1688491592e7694'
 
+// Boot a fresh compiler instance with the Standard Library mounted (fresh per
+// compile — the compiler holds global state and can't run main() twice).
+async function bootWithStdLib() {
+  // Dynamic import so Vitest resolves it through Vite's transform
+  // (same pattern used by useCompilerWasm.ts in the browser).
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore — no hand-written types for this pre-built Emscripten module
+  const mod = await import('./wasm/inform6.mjs')
+  const factory: (opts: Record<string, unknown>) => Promise<Record<string, unknown>> = mod.default
+
+  const output: string[] = []
+
+  const m = await factory({
+    print: (line: string) => output.push(line),
+    printErr: (line: string) => output.push(line),
+    // Point Emscripten at the real .wasm on disk.  Without this, the default
+    // locateFile resolves relative to import.meta.url of inform6.mjs which
+    // may be a Vite virtual URL rather than a file:// path.
+    locateFile: (path: string) => (path.endsWith('.wasm') ? WASM_PATH : path),
+  }) as { FS: { mkdir: (p: string) => void; writeFile: (p: string, d: string | Uint8Array) => void; readFile: (p: string) => Uint8Array; chdir: (p: string) => void }; callMain: (args: string[]) => number }
+
+  // --- Mount Standard Library (same layout as useCompiler.ts) -------------
+  const mkdir = (p: string) => { try { m.FS.mkdir(p) } catch { /* exists */ } }
+  mkdir('/lib')
+  mkdir('/lib/std')
+
+  for (const name of readdirSync(STD_LIB_DIR)) {
+    if (!name.endsWith('.h')) continue
+    const content = readFileSync(`${STD_LIB_DIR}/${name}`)
+    m.FS.writeFile(`/lib/std/${name}`, content)
+    for (const [alias, real] of Object.entries(STD_ALIASES)) {
+      if (real === name) m.FS.writeFile(`/lib/std/${alias}`, content)
+    }
+  }
+  mkdir('/work')
+  return { m, output }
+}
+
 describe('inform6.wasm golden compile (node-env)', () => {
   it('compiles a minimal std game to a deterministic, valid z5 story', async () => {
-    // Dynamic import so Vitest resolves it through Vite's transform
-    // (same pattern used by useCompilerWasm.ts in the browser).
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore — no hand-written types for this pre-built Emscripten module
-    const mod = await import('./wasm/inform6.mjs')
-    const factory: (opts: Record<string, unknown>) => Promise<Record<string, unknown>> = mod.default
-
-    const output: string[] = []
-
-    const m = await factory({
-      print: (line: string) => output.push(line),
-      printErr: (line: string) => output.push(line),
-      // Point Emscripten at the real .wasm on disk.  Without this, the default
-      // locateFile resolves relative to import.meta.url of inform6.mjs which
-      // may be a Vite virtual URL rather than a file:// path.
-      locateFile: (path: string) => (path.endsWith('.wasm') ? WASM_PATH : path),
-    }) as { FS: { mkdir: (p: string) => void; writeFile: (p: string, d: string | Uint8Array) => void; readFile: (p: string) => Uint8Array; chdir: (p: string) => void }; callMain: (args: string[]) => number }
-
-    // --- Mount Standard Library (same layout as useCompiler.ts) -------------
-    const mkdir = (p: string) => { try { m.FS.mkdir(p) } catch { /* exists */ } }
-    mkdir('/lib')
-    mkdir('/lib/std')
-
-    for (const name of readdirSync(STD_LIB_DIR)) {
-      if (!name.endsWith('.h')) continue
-      const content = readFileSync(`${STD_LIB_DIR}/${name}`)
-      m.FS.writeFile(`/lib/std/${name}`, content)
-      for (const [alias, real] of Object.entries(STD_ALIASES)) {
-        if (real === name) m.FS.writeFile(`/lib/std/${alias}`, content)
-      }
-    }
+    const { m, output } = await bootWithStdLib()
 
     // --- Write source + compile ---------------------------------------------
-    mkdir('/work')
     m.FS.writeFile('/work/story.inf', TINY_SOURCE)
     m.FS.chdir('/work')
 
@@ -152,5 +159,39 @@ describe('inform6.wasm golden compile (node-env)', () => {
       // eslint-disable-next-line no-console
       console.log(`[golden-compile] sha256 = ${sha256}  (${storyFile.length} bytes) — paste into GOLDEN_SHA256`)
     }
+  })
+
+  it('compiles non-ASCII source cleanly with -Cu (editor text is UTF-8)', async () => {
+    const { m, output } = await bootWithStdLib()
+
+    // Accented Latin-1 chars only — no em-dash etc.; those need a Zcharacter
+    // declaration in z5 and would fail the compile for an unrelated reason.
+    const source = `\
+Constant Story "Café";
+Constant Headline "^Un café à minuit.^";
+Include "Parser";
+Include "VerbLib";
+[ Initialise; location = Cafe; print "café déjà vu^"; ];
+Object Cafe "Café"
+  with description "Um café.",
+  has light;
+Include "Grammar";
+`
+    m.FS.writeFile('/work/story.inf', source) // Emscripten encodes JS strings as UTF-8
+    m.FS.chdir('/work')
+
+    let exitCode: number | undefined
+    try {
+      exitCode = m.callMain(['+include_path=/lib/std', '-s', '-Cu', '-v5', 'story.inf', 'story.z5'])
+    } catch (e: unknown) {
+      throw new Error(`callMain threw: ${String(e)}\n\nCompiler output:\n${output.join('\n')}`)
+    }
+
+    const raw = output.join('\n')
+    expect(exitCode, `exit code\nCompiler output:\n${raw}`).toBe(0)
+    expect(raw).not.toMatch(/unknown option|bad option/i)
+    const storyFile = m.FS.readFile('/work/story.z5')
+    expect(storyFile.length).toBeGreaterThan(0)
+    expect(storyFile[0]).toBe(5)
   })
 })
