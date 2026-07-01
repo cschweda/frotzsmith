@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-> Working alpha — the core IDE compiles and plays Inform 6 entirely in the browser.
+> Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
 ### Added — compiler & libraries
 - Client-side **Inform 6 → Z-machine** compilation: `inform6` v6.44 built to
@@ -18,6 +18,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   PunyInform → z3–z8; `.z5` default). Maximally verbose `-s` output.
 - Footer stats: story-file size, dynamic memory / 64 KB (warns near the ceiling),
   total Z-machine free.
+
+### Added — ZIL (second source language · alpha)
+- **A second language at `/zil/`** — write **ZIL** (Infocom's original MDL/Lisp-like
+  authoring language) and compile it to a Z-machine story file entirely client-side,
+  alongside Inform 6. A **title-strip toggle** switches the two (Inform 6 `beta` · ZIL
+  `alpha`), each with its own `frotzsmith:<lang>:*`-namespaced project state.
+- **ZILF/ZAPF compiler in the browser** — the modern **ZILF + ZAPF** toolchain
+  (C# / .NET 10) is built offline to **.NET WebAssembly** and committed like
+  `inform6.wasm`. It runs in a **Web Worker with a main-thread fallback** so a compile
+  always completes, and the ~7.5 MB bundle is **lazy-loaded only on the first ZIL
+  compile** — Inform 6 users never download it. The `zillib` standard library is
+  embedded; the `<VERSION>` directive drives the **z3 / z5 / z8** target.
+- **ZIL authoring** — a CodeMirror 6 **ZIL syntax mode**, compile **diagnostics** parsed
+  to the same click-to-jump format as Inform 6, a **ZIL-safe Prettify**, and a
+  post-compile **summary** (target · story size · time · diagnostics).
+- **7 ZIL concept demos** — Cloak of Darkness, a Skeleton starter, Two Rooms, an NPC,
+  a locked-chest puzzle, light & darkness, and a daemon/timed event; each verified to
+  compile as a golden case.
+- **Shared for free** — because ZIL emits Z-code, inline **play**, the **auto-map**,
+  **test scripts**, and the **transcript** all work for ZIL unchanged.
+- **Relicensed MIT → GPLv3** — bundling and distributing the GPLv3 ZILF/ZAPF compiler
+  requires the combined app to be GPLv3.
 
 ### Added — play
 - **Inline Play** via the bundled Parchment interpreter + pure-JS **ZVM** (MIT):
