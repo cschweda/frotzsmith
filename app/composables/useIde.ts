@@ -165,7 +165,17 @@ export function useIde() {
   function nextPaint(): Promise<void> {
     return new Promise(resolve => {
       if (!import.meta.client || typeof requestAnimationFrame === 'undefined') return resolve()
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      let done = false
+      const finish = () => {
+        if (!done) {
+          done = true
+          resolve()
+        }
+      }
+      requestAnimationFrame(() => requestAnimationFrame(finish))
+      // Hidden tabs never fire rAF (Chrome throttles it to zero) — the compile
+      // must not hang until the tab becomes visible again.
+      setTimeout(finish, 100)
     })
   }
 
