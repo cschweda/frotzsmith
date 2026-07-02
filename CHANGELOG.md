@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   via `addEventListener` (which leaves the `onmessage` IDL attribute null), boots
   eagerly on spawn, tags requests with ids, and posts stage breadcrumbs; the
   worker timeout is boot-aware (60 s) instead of shorter than the compile itself.
+- **The ZIL compiler pre-warms on `/zil/`** — the first `Compile()` after a cold
+  boot pays ~20 s of mono-interpreter warm-up (measured; download + `create()`
+  are sub-second on a fast connection), so the page now boots the worker and runs
+  a throwaway skeleton compile in the background on mount. The author's first
+  real compile behaves like a warm one (~5 s, off-thread). `/zilf/_framework/*`
+  also gets a one-week cache header (it previously revalidated ~30 assets per
+  session).
 
 ### Fixed — 2026-07-01 review batch
 - **Run replays test scripts headlessly again** — the per-turn transcript fills the

@@ -68,6 +68,21 @@ describe('useZilfWasm — worker enabled, error fallback to main thread', () => 
     expect(result.ok).toBe(false)
   })
 
+  it('warmZilCompiler pre-boots the worker once and is idempotent', async () => {
+    const { spy, instances } = makeFailingWorkerSpy()
+    vi.stubGlobal('Worker', spy)
+
+    const mod = await import('~/composables/useZilfWasm')
+    mod.warmZilCompiler()
+    mod.warmZilCompiler() // second call must be a no-op
+    await new Promise(r => setTimeout(r, 0)) // let the fire-and-forget settle
+
+    expect(spy).toHaveBeenCalledTimes(1)
+    // The warm-up goes through the normal compile protocol (throwaway skeleton).
+    expect(instances[0]!.posted).toHaveLength(1)
+    expect(instances[0]!.posted[0]).toMatchObject({ version: 3, requestId: expect.any(Number) })
+  })
+
   it('after a worker failure, later compiles skip the Worker and still resolve', async () => {
     const { spy } = makeFailingWorkerSpy()
     vi.stubGlobal('Worker', spy)

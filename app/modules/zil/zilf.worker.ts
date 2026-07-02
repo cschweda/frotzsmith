@@ -24,8 +24,10 @@
  *
  * The dotnet.js entry is the productionized bundle committed to
  * public/zilf/_framework/ and served at /zilf/_framework/dotnet.js.
- * It is loaded lazily — the ~7.5 MB bundle downloads only when the first ZIL
- * compile is requested (this worker is only spawned for that first compile).
+ * The ~7.5 MB bundle downloads only when this worker is spawned — on the /zil/
+ * page's mount (warmZilCompiler pre-warms it with a throwaway skeleton compile,
+ * absorbing the ~20 s cold interpreter warm-up) or on the first compile,
+ * whichever comes first. Inform 6 users never download it.
  *
  * SPA-fallback caveat (Nuxt dev): a missing _framework/* path returns a 200
  * text/html SPA shell rather than a 404.  If dotnet fails to boot (e.g. the

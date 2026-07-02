@@ -1,11 +1,13 @@
 import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { parseZilDiagnostics } from '~/modules/zil/zil-diagnostics'
 import { cachedAsync } from '~/utils/cached-async'
+import zilSkeletonSource from '~/modules/languages/zil/samples/skeleton.zil?raw'
 
 /**
- * Lazily spawns a `zilf.worker.ts` Web Worker on the first ZIL compile request,
- * then reuses it for all subsequent compiles.  The 7.5 MB .NET WASM bundle is
- * downloaded only when the user first triggers a ZIL compile — not at page load.
+ * Spawns a `zilf.worker.ts` Web Worker on the first ZIL compile request — or
+ * earlier, via warmZilCompiler() on the /zil/ page's mount — then reuses it for
+ * all subsequent compiles.  The 7.5 MB .NET WASM bundle is downloaded only for
+ * ZIL users (never on the Inform 6 page).
  *
  * Returns the same `CompileResult` shape used by the Inform 6 path so all
  * downstream consumers (play, results panel, auto-map, test scripts) work
@@ -267,6 +269,35 @@ const getMainThreadExports = cachedAsync(async (): Promise<ZilfExportCache> => {
   const config = r.getConfig()
   return (await r.getAssemblyExports(config.mainAssemblyName)) as ZilfExportCache
 })
+
+// ─── warm-up ──────────────────────────────────────────────────────────────────
+
+/** warmZilCompiler has been kicked this session (it is once-only). */
+let _warmKicked = false
+
+/**
+ * Pre-warm the ZIL compiler in the background: spawn the worker, boot the .NET
+ * runtime, and run a throwaway skeleton compile. The FIRST compile after a cold
+ * boot pays ~20 s of mono-interpreter/jiterpreter warm-up (measured; the
+ * download and `dotnet.create()` are sub-second on a fast connection) — this
+ * absorbs that cost while the author is still writing, so their first real
+ * compile behaves like a warm one (~5 s, off-thread).
+ *
+ * Called from the /zil/ page on mount. Fire-and-forget and once-only; failures
+ * are swallowed (the first real compile surfaces them via the normal path).
+ * Worker path only — a main-thread warm-up would freeze the UI uninvited.
+ * If the author compiles before the warm-up finishes, the worker (single-
+ * threaded) queues their request behind it: worst case equals today's cold
+ * compile, so this can only help.
+ */
+export function warmZilCompiler(): void {
+  if (!import.meta.client || _warmKicked) return
+  if (!WORKER_ENABLED || _workerFailed || typeof Worker === 'undefined') return
+  _warmKicked = true
+  void tryWorkerCompile(zilSkeletonSource, 3).catch(() => {
+    /* surfaced by the first real compile */
+  })
+}
 
 // ─── composable ───────────────────────────────────────────────────────────────
 

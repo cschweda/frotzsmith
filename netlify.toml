@@ -39,3 +39,12 @@
   for = "/_nuxt/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
+# The .NET ZILF bundle: stable filenames (WasmFingerprintAssets=false), ~30
+# assets, changes only on a deliberate compiler rebuild. A week of caching
+# kills the per-session revalidation storm; not immutable, so a rebuild still
+# propagates within a week (bump the path if one ever needs to be instant).
+[[headers]]
+  for = "/zilf/_framework/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
