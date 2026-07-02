@@ -172,7 +172,7 @@ Object -> lamp "brass lamp"
           <li>Flags: <code class="frotz-code">-O2 -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sSTACK_SIZE=8MB -sEXIT_RUNTIME -sFORCE_FILESYSTEM -sEXPORTED_RUNTIME_METHODS=FS,callMain</code></li>
           <li><span class="text-default">Re-instantiated per compile</span> — the compiler's <code class="frotz-code">main()</code> is not safe to re-run in a single instance.</li>
           <li>MEMFS is case-sensitive, so capitalized aliases (<code class="frotz-code">Parser.h</code>, <code class="frotz-code">VerbLib.h</code>, <code class="frotz-code">Grammar.h</code>, <code class="frotz-code">English.h</code>) are mounted beside the lowercase originals.</li>
-          <li>Invoked as <code class="frotz-code">+include_path=&lt;lib&gt; -s -v&lt;N&gt; story.inf story.zN</code>; <code class="frotz-code">-s</code> emits the full statistics shown in the results log.</li>
+          <li>Invoked as <code class="frotz-code">+include_path=&lt;lib&gt; -s -Cu -v&lt;N&gt; story.inf story.zN</code>; <code class="frotz-code">-s</code> emits the full statistics shown in the results log, and <code class="frotz-code">-Cu</code> reads the source as UTF-8 (the editor's encoding), so accented text survives the compile.</li>
         </ul>
       </section>
 
@@ -321,9 +321,11 @@ Object -> lamp "brass lamp"
         </ul>
         <p class="text-muted text-sm">
           Your source file (<code class="frotz-code">.inf</code> or <code class="frotz-code">.zil</code>) is the canonical
-          artifact; localStorage holds only a per-language crash-recovery snapshot
-          (<code class="frotz-code">frotzsmith:&lt;lang&gt;:recovery</code>, e.g. <code class="frotz-code">frotzsmith:i6:recovery</code> /
-          <code class="frotz-code">frotzsmith:zil:recovery</code>) and never replaces the file you export.
+          artifact; localStorage never replaces the file you export. What it does hold, namespaced per language
+          under <code class="frotz-code">frotzsmith:&lt;lang&gt;:*</code>: the crash-recovery snapshot
+          (<code class="frotz-code">…:recovery</code>), your named test scripts (<code class="frotz-code">…:scripts</code>),
+          uploaded extensions (<code class="frotz-code">…:extensions</code>), and UI preferences
+          (open tabs, library/target choice).
         </p>
       </section>
 

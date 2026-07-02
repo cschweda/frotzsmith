@@ -10,12 +10,13 @@
 [![Inform 6](https://img.shields.io/badge/Inform%206-6.44-f59e0b.svg)](https://github.com/DavidKinder/Inform6)
 [![WCAG 2.1 AA](https://img.shields.io/badge/a11y-WCAG%202.1%20AA-success.svg)](https://www.w3.org/WAI/WCAG21/quickref/)
 [![Status](https://img.shields.io/badge/status-alpha-orange.svg)](./docs/00-master-design.md)
+[![CI](https://github.com/cschweda/frotzsmith/actions/workflows/ci.yml/badge.svg)](https://github.com/cschweda/frotzsmith/actions/workflows/ci.yml)
 
 > **Status — Inform 6 beta · ZIL alpha.** Write **Inform 6** (at `/`) or **ZIL** (at `/zil/`) and compile to a Z-machine story file entirely in the browser — I6 via `inform6.wasm` (Standard Library or PunyInform, auto-detected), ZIL via the **ZILF** compiler built to .NET WebAssembly. Then **play it inline** via Parchment + the pure-JS ZVM, watch a **live auto-map** draw as you explore, **capture your playthrough and replay command scripts headlessly**, load worked samples (21 for Inform 6, 7 for ZIL), and pull in your own extensions. A title-strip toggle flips between the two languages, each with its own namespaced project state. See [ROADMAP.md](./ROADMAP.md) for what's next and [CHANGELOG.md](./CHANGELOG.md) for what's shipped; design docs live in [`docs/`](./docs).
 
 ## What it is
 
-Frotzsmith mirrors the working rhythm of the classic Inform 7 IDE — source on the left, compile, watch results appear on the right where a successful build becomes a live, playable game — but for **Inform 6**, not Inform 7. It compiles entirely in the browser (the `inform6` compiler built to WebAssembly), auto-imports the correct standard library so a plain `.inf` "just works," plays the compiled story inline with [Parchment](https://github.com/curiousdannii/parchment), and exports both the raw `.z8` story file and a self-contained, offline-playable HTML bundle.
+Frotzsmith mirrors the working rhythm of the classic Inform 7 IDE — source on the left, compile, watch results appear on the right where a successful build becomes a live, playable game — but for **Inform 6**, not Inform 7. It compiles entirely in the browser (the `inform6` compiler built to WebAssembly), auto-imports the correct standard library so a plain `.inf` "just works," plays the compiled story inline with [Parchment](https://github.com/curiousdannii/parchment), and exports the raw story file (`.z3`–`.z8`; a self-contained offline-playable HTML bundle is planned).
 
 A second source language, **ZIL** — Infocom's original MDL/Lisp-like language — lives at `/zil/`. It compiles with the modern [**ZILF**](https://foss.heptapod.net/zilf/zilf/) toolchain (ZILF + ZAPF, C#/.NET) built to WebAssembly and run **on the main thread** (~5–9 s per compile; an off-main-thread Web Worker is a documented follow-up — the .NET runtime doesn't boot standalone in a Worker), with `zillib` embedded and the `<VERSION>` directive targeting z3/z5/z8. Because ZIL emits the same Z-code, everything downstream — inline play, the auto-map, test scripts, the transcript — works for ZIL unchanged. The heavy .NET bundle is lazy-loaded only on the first ZIL compile, so Inform 6 users never download it.
 
@@ -53,7 +54,7 @@ write I6  ──▶  compile (inform6.wasm, client-side)  ──▶  play inline
 | Headless engine | pure-JS ZVM (ifvms) in a Web Worker, behind a `StoryEngine` seam |
 | Language | TypeScript |
 | State | Vue composables (no Pinia) |
-| Testing | Vitest (unit, Node environment) |
+| Testing | Vitest — pure logic in Node, composable/state suites in happy-dom; CI (GitHub Actions) runs test + typecheck + generate on every push/PR |
 | Theme | Dark by default, accessible light/dark toggle |
 | Accessibility | WCAG 2.1 AA, axe-core zero-violation gate, fully responsive |
 | Package manager | Yarn 1.22 |
@@ -63,9 +64,9 @@ write I6  ──▶  compile (inform6.wasm, client-side)  ──▶  play inline
 
 ## Roadmap
 
-**Shipped:** client-side compile for **two source languages** — **Inform 6** (Standard Library + PunyInform, auto-detected; z3/z4/z5/z8 targets) and **ZIL** *(alpha)* via ZILF (z3/z5/z8 through the `<VERSION>` directive); a title-strip **I6 ↔ ZIL toggle** with per-language namespaced project state; clickable errors, crash-recovery autosave, **inline play** (Parchment + ZVM), a **live auto-map** drawn as you explore, named **test scripts** (persisted) replayed headlessly with a per-turn **transcript**, a read-only **Transcript** that captures the commands you type while playing (one-click **Copy to Test Script**), worked samples (21 Inform 6 · 7 ZIL), extensions (drop-in `.h`/`.zip` + a select/deselect picker), Prettify, Open / Save As, a Technical Details page, and privacy-friendly analytics.
+**Shipped:** client-side compile for **two source languages** — **Inform 6** (Standard Library + PunyInform, auto-detected; z3/z4/z5/z8 targets) and **ZIL** *(alpha)* via ZILF (z3/z5/z8 through the `<VERSION>` directive); a title-strip **I6 ↔ ZIL toggle** with per-language namespaced project state; clickable errors, crash-recovery autosave, **inline play** (Parchment + ZVM), a **live auto-map** drawn as you explore, named **test scripts** (persisted) replayed headlessly with a per-turn **transcript** — or sent into the live game with **Send to Play** — a read-only **Transcript** that captures the commands you type while playing (one-click **Copy to Test Script**), worked samples (21 Inform 6 · 7 ZIL), extensions (drop-in `.h`/`.zip` + a select/deselect picker), Prettify, Open / Save As, a Technical Details page, and privacy-friendly analytics.
 
-**Next:** a Skein-style branching tree with **blessed-output regression diffing** (the test-script transcript is its linear spine), plus Send-to-Play from a script.
+**Next:** a Skein-style branching tree with **blessed-output regression diffing** (the test-script transcript is its linear spine).
 
 **Planned:** an online extensions registry, Glulx, and multi-file projects.
 
@@ -89,7 +90,7 @@ The complete design suite lives in [`docs/`](./docs):
 ```bash
 yarn install
 yarn dev        # local dev server
-yarn test       # unit tests (Vitest, Node environment)
+yarn test       # unit tests (Vitest — Node + happy-dom suites)
 yarn typecheck  # nuxt typecheck (strict)
 yarn generate   # static build (Netlify publishes dist)
 yarn preview    # preview the static build

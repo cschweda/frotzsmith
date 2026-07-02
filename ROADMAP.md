@@ -27,8 +27,8 @@ client-side, and play it inline. See
   (Plausible), SEO/OG, accessible, responsive, dark by default
 - **Test scripts** — named scripts (CodeMirror editor, localStorage persistence,
   first-class rename, Clear) replayed headlessly via the `StoryEngine`/`replay()`
-  Web Worker seam, with live progress + cancel; blessed-output diffing (the Skein)
-  is still ahead
+  Web Worker seam, with live progress + cancel — or sent into the live game with
+  **Send to Play**; blessed-output diffing (the Skein) is still ahead
 - **Play transcript** — interactive Play records the commands you type into a
   read-only **Transcript** tab; one-click **Copy to Test Script** turns a playthrough
   into a reusable script (captured via a verified same-origin `postMessage` from the player)
@@ -53,7 +53,7 @@ client-side, and play it inline. See
 See [`docs/13-v2-roadmap.md`](./docs/13-v2-roadmap.md) for the full assessments.
 
 - **The Skein** — a branching test tree with blessed-output regression diffing (the
-  test-script transcript is its linear spine), plus Send-to-Play from a script.
+  test-script transcript is its linear spine).
 - **Richer ZIL tooling** — deeper ZIL syntax highlighting / lint beyond the compiler's
   diagnostics, more samples, and a landing-page language picker at `/` (the title-strip
   toggle is the interim).
