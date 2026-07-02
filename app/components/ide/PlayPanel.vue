@@ -58,17 +58,46 @@ function fireKey(target: EventTarget, win: Window, key: string, code: string, ke
   }
 }
 
-// Wait until the game is ready for a typed line. If a [MORE]/char prompt is up
-// (no LineInput), press a key to advance, then keep waiting.
-async function waitForLineInput(doc: Document, win: Window, timeoutMs = 5000): Promise<HTMLInputElement | null> {
-  const start = Date.now()
-  while (Date.now() - start < timeoutMs) {
-    const input = doc.querySelector('input.LineInput') as HTMLInputElement | null
-    if (input) return input
-    fireKey(doc, win, ' ', 'Space', 32) // advance a [MORE]/char prompt
-    await delay(140)
-  }
-  return null
+/** True when a [MORE]/char prompt is up (GlkOte's pager or a CharInput field). */
+function pagerIsUp(doc: Document): boolean {
+  const more = doc.querySelector('.MorePrompt') as HTMLElement | null
+  if (more && more.style.display !== 'none') return true
+  return !!doc.querySelector('input.CharInput')
+}
+
+// Wait until the game is ready for a typed line. Event-paced via MutationObserver,
+// NOT fixed-interval polling: Chrome throttles chained timers in long-hidden tabs
+// (intensive throttling ≈ one per minute), which used to stall the feed mid-script.
+// Observer callbacks fire on DOM changes regardless of visibility. If a [MORE]/char
+// prompt is up, press a key to advance, then keep waiting; the watchdog timer only
+// bounds a game that never asks for line input again (e.g. it quit).
+function waitForLineInput(doc: Document, win: Window, timeoutMs = 10_000): Promise<HTMLInputElement | null> {
+  return new Promise(resolve => {
+    let done = false
+    let observer: MutationObserver | null = null
+    let watchdog: ReturnType<typeof setTimeout> | null = null
+    const finish = (input: HTMLInputElement | null) => {
+      if (done) return
+      done = true
+      observer?.disconnect()
+      if (watchdog) clearTimeout(watchdog)
+      resolve(input)
+    }
+    const check = () => {
+      const input = doc.querySelector('input.LineInput') as HTMLInputElement | null
+      if (input) return finish(input)
+      if (pagerIsUp(doc)) fireKey(doc, win, ' ', 'Space', 32)
+    }
+    observer = new MutationObserver(check)
+    observer.observe(doc.getElementById('windowport') ?? doc.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class'],
+    })
+    watchdog = setTimeout(() => finish(doc.querySelector('input.LineInput') as HTMLInputElement | null), timeoutMs)
+    check() // the input may already be present — don't wait for a mutation
+  })
 }
 
 // Feed a parsed script into the live GlkOte game, one command at a watchable pace.
@@ -85,7 +114,10 @@ async function feedScript(commands: string[]) {
       input.focus()
       input.value = cmd
       fireKey(input, win, 'Enter', 'Enter', 13)
-      await delay(420)
+      // Watchable pace — but only when someone can watch. Hidden tabs skip it:
+      // waitForLineInput already gates on the response having rendered, and a
+      // throttled 420ms timer would stall the whole feed.
+      if (document.visibilityState === 'visible') await delay(420)
     }
   } finally {
     win.__frotzScriptRunning = false

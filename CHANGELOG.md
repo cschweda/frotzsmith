@@ -46,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   zip-bomb finding; oversized single `.h` uploads are rejected too.
 - **SEO** — per-route `canonical`/`og:url` (`/zil/` and `/technical/` no longer
   declare themselves duplicates of the homepage); stale "ZIL coming" OG copy.
+- **Send-to-Play feed is event-paced** — command feeding now waits on the game's
+  actual DOM output (MutationObserver) instead of fixed timers, so Chrome's
+  background-tab timer throttling can no longer stall a script mid-feed; the
+  cosmetic per-command delay is skipped while the tab is hidden.
 
 ### Added — 2026-07-01 review batch
 - **CI** (GitHub Actions): `yarn test` + `yarn typecheck` + `yarn generate` on
