@@ -18,7 +18,7 @@
 
 Frotzsmith mirrors the working rhythm of the classic Inform 7 IDE — source on the left, compile, watch results appear on the right where a successful build becomes a live, playable game — but for **Inform 6**, not Inform 7. It compiles entirely in the browser (the `inform6` compiler built to WebAssembly), auto-imports the correct standard library so a plain `.inf` "just works," plays the compiled story inline with [Parchment](https://github.com/curiousdannii/parchment), and exports the raw story file (`.z3`–`.z8`; a self-contained offline-playable HTML bundle is planned).
 
-A second source language, **ZIL** — Infocom's original MDL/Lisp-like language — lives at `/zil/`. It compiles with the modern [**ZILF**](https://foss.heptapod.net/zilf/zilf/) toolchain (ZILF + ZAPF, C#/.NET) built to WebAssembly and run **on the main thread** (~5–9 s per compile; an off-main-thread Web Worker is a documented follow-up — the .NET runtime doesn't boot standalone in a Worker), with `zillib` embedded and the `<VERSION>` directive targeting z3/z5/z8. Because ZIL emits the same Z-code, everything downstream — inline play, the auto-map, test scripts, the transcript — works for ZIL unchanged. The heavy .NET bundle is lazy-loaded only on the first ZIL compile, so Inform 6 users never download it.
+A second source language, **ZIL** — Infocom's original MDL/Lisp-like language — lives at `/zil/`. It compiles with the modern [**ZILF**](https://foss.heptapod.net/zilf/zilf/) toolchain (ZILF + ZAPF, C#/.NET) built to WebAssembly and run **in a Web Worker**, so the ~5 s compile no longer blocks the UI (with an automatic main-thread fallback if the worker can't boot), with `zillib` embedded and the `<VERSION>` directive targeting z3/z5/z8. Because ZIL emits the same Z-code, everything downstream — inline play, the auto-map, test scripts, the transcript — works for ZIL unchanged. The heavy .NET bundle is lazy-loaded only on the first ZIL compile, so Inform 6 users never download it.
 
 A power-user testing layer runs arbitrarily long command scripts (`n. examine rock. lift rock.`) through a headless replay engine and shows the per-turn transcript. Playing by hand also records every command you type into a read-only **Transcript**, and one click turns that captured playthrough into a reusable **Test Script** — the linear spine from which a full branching Skein with blessed-output regression diffing later grows.
 
@@ -49,7 +49,7 @@ write I6  ──▶  compile (inform6.wasm, client-side)  ──▶  play inline
 | Framework | Nuxt 4 (static, `ssr: false`) |
 | UI | Nuxt UI 4 |
 | Editor | CodeMirror 6 (Inform 6 + ZIL syntax modes) |
-| Compilers | Inform 6: `inform6` → WebAssembly (Emscripten, single-threaded). ZIL: **ZILF + ZAPF** (C#/.NET 10) → .NET WebAssembly, main-thread, lazy-loaded |
+| Compilers | Inform 6: `inform6` → WebAssembly (Emscripten, single-threaded). ZIL: **ZILF + ZAPF** (C#/.NET 10) → .NET WebAssembly in a Web Worker (main-thread fallback), lazy-loaded |
 | Interpreter | Parchment / ZVM (Z-machine) |
 | Headless engine | pure-JS ZVM (ifvms) in a Web Worker, behind a `StoryEngine` seam |
 | Language | TypeScript |

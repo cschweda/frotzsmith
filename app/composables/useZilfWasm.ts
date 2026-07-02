@@ -24,29 +24,30 @@ import { cachedAsync } from '~/utils/cached-async'
  * Failure modes:
  * - Worker construction fails  → _workerFailed, main-thread fallback.
  * - Worker sends { error }     → _workerFailed, main-thread fallback.
- * - Worker times out (>4 s)    → terminate worker, _workerFailed, main-thread.
+ * - Worker times out (>60 s)   → terminate worker, _workerFailed, main-thread.
  * - Main-thread boot/compile error → ok: false with a clear Diagnostic.
  */
 
 /**
  * Whether to attempt the Web Worker path at all.
  *
- * DISABLED: the .NET `wasmbrowser` runtime's `dotnet.create()` never completes
- * inside a plain Web Worker. `dotnet.js` detects the worker context and takes
- * its managed-pthread-worker path, waiting for a main-thread .NET host that our
- * standalone worker doesn't provide — so boot hangs (diagnosed via stage
- * logging; shimming window/document/requestAnimationFrame did not help; the
- * bundle is single-threaded, so COOP/COEP/SharedArrayBuffer is not the cause).
- * Compiling on the main thread is the reliable path (~5–9 s, brief UI block —
- * acceptable for alpha). Re-enabling needs the official .NET worker pattern
- * (a separate worker-configured build + host↔worker messaging); see
+ * ENABLED (2026-07-02). The old hang was dotnet/runtime#114918: dotnet.js
+ * treats the worker as a managed-pthread deputy — and never resolves its
+ * asset-load promises, blocking `create()` forever — whenever BOTH
+ * `importScripts` exists AND `globalThis.onmessage` is SET. Our worker used
+ * `self.onmessage = …`, which tripped the check; registering the handler via
+ * addEventListener (the pattern in Microsoft's ".NET on Web Workers" guide)
+ * leaves `onmessage` null and the runtime boots standalone. History + links in
  * `docs/superpowers/notes/2026-07-01-zil-worker-followup.md`. Typed `boolean`
- * so the Worker code below stays reachable (not dead) for that future work.
+ * so the fallback path below stays reachable (not dead code).
  */
-const WORKER_ENABLED: boolean = false
+const WORKER_ENABLED: boolean = true
 
-/** ms to wait for the Worker before falling back to the main thread (only used when WORKER_ENABLED). */
-const WORKER_TIMEOUT_MS = 4_000
+/** ms to wait for a Worker compile before falling back to the main thread.
+ *  Generous: the FIRST compile includes the ~7.5 MB .NET download + runtime
+ *  boot (seconds) plus the ~5–9 s compile; an overrun terminates the worker,
+ *  sets _workerFailed, and re-compiles on the main thread. */
+const WORKER_TIMEOUT_MS = 60_000
 
 // ─── shared types ─────────────────────────────────────────────────────────────
 
@@ -165,6 +166,10 @@ function getWorker(): Worker {
   return _worker
 }
 
+/** Monotonic id so a late response from an aborted compile can't be mistaken
+ *  for the current one (the worker is reused across compiles). */
+let _requestSeq = 0
+
 /**
  * Attempt a compile via the Web Worker.
  * Returns the raw payload on success, or null if the worker failed / timed out.
@@ -178,15 +183,22 @@ function tryWorkerCompile(
     let worker: Worker
     try {
       worker = getWorker()
-    } catch (spawnErr: unknown) {
+    } catch {
       // Worker construction failed (e.g. Vite dev transform hang, wrong env).
       _workerFailed = true
       resolve(null)
       return
     }
 
-    const timer = setTimeout(() => {
+    const requestId = ++_requestSeq
+
+    const finish = (payload: CompilePayload | null) => {
+      clearTimeout(timer)
       worker.removeEventListener('message', handler)
+      resolve(payload)
+    }
+
+    const timer = setTimeout(() => {
       // Terminate the stuck worker; next getWorker() call creates a fresh one.
       try {
         worker.terminate()
@@ -195,25 +207,30 @@ function tryWorkerCompile(
         /* ignore — the worker may already be dead */
       }
       _workerFailed = true
-      resolve(null)
+      finish(null)
     }, WORKER_TIMEOUT_MS)
 
     const handler = (event: MessageEvent) => {
-      clearTimeout(timer)
-      worker.removeEventListener('message', handler)
-
-      const data = event.data as CompilePayload | { error: string }
+      const data = event.data as (CompilePayload | { error: string } | { stage: string }) & {
+        requestId?: number
+      }
+      if ('stage' in data) {
+        // Boot/compile breadcrumbs from the worker — keep listening.
+        console.debug('[zilf-worker] stage:', data.stage)
+        return
+      }
+      if (data.requestId !== requestId) return // stale response from a prior compile
       if ('error' in data) {
         // Worker surfaced a boot or runtime error — fall back to main thread.
         _workerFailed = true
-        resolve(null)
+        finish(null)
         return
       }
-      resolve(data)
+      finish(data)
     }
 
     worker.addEventListener('message', handler)
-    worker.postMessage({ source, version })
+    worker.postMessage({ source, version, requestId })
   })
 }
 

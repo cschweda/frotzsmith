@@ -1,7 +1,43 @@
 # ZIL compile — Web Worker follow-up
 
 **Date:** 2026-07-01
-**Status:** Worker **disabled**; ZIL compiles on the **main thread** (works, ~5–9 s, brief UI block). This note is the handoff to make the compile run **off the main thread** (non-blocking) later.
+**Status:** ~~Worker **disabled**~~ → **RESOLVED 2026-07-02 — worker enabled and shipping.** See the resolution section below; the rest of this note is preserved as the diagnostic history.
+
+---
+
+## ✅ Resolution (2026-07-02)
+
+**Root cause: [dotnet/runtime#114918](https://github.com/dotnet/runtime/issues/114918)** — a
+.NET 9 regression (worked in .NET 8, still open, repros through .NET 11 previews). The loader
+sets `ENVIRONMENT_IS_WORKER` only when **both** `importScripts` exists **and
+`globalThis.onmessage` is truthy**; when it's true, `assets.ts` deliberately skips resolving the
+asset-instantiation promises (the managed-pthread "deputy" path — it expects a main-thread .NET
+host to feed it assets), so `dotnet.create()` blocks forever.
+
+**Our trigger was one line of our own code:** `zilf.worker.ts` did `self.onmessage = async … `
+and booted the runtime inside that handler — so at `create()` time `onmessage` was set. **That's
+why the window/document/rAF shims never helped** (the "ruled out" list below was right that shims
+don't fix it, but wrong about why): the detection reads `onmessage`, not the DOM.
+
+**The fix (JS-only, no rebuild):**
+1. Register the handler with `self.addEventListener('message', …)` — this never sets the
+   `onmessage` IDL attribute, so `ENVIRONMENT_IS_WORKER` stays false and the runtime boots
+   standalone. This matches Microsoft's official
+   [".NET on Web Workers"](https://learn.microsoft.com/en-us/aspnet/core/client-side/dotnet-on-webworkers?view=aspnetcore-10.0)
+   pattern (plain `wasmbrowser` + `[JSExport]`, .NET 8–10; .NET 11 adds a
+   `dotnet new blazorwebworker` template).
+2. Boot eagerly at module scope (`void getExports()`) so the boot overlaps the first request;
+   keep stage breadcrumbs (`{ stage }` messages, logged at debug level by `useZilfWasm`).
+3. `WORKER_ENABLED = true`; `WORKER_TIMEOUT_MS` 4 s → **60 s** (the old value was shorter than
+   the compile itself and would have timed out every first attempt); add a `requestId` to the
+   message protocol so a stale response can't satisfy the wrong compile.
+
+**Verified:** the stage log now passes the old stall point
+(`calling dotnet.create()` → `runtime created` → `assembly exports ready`), Cloak of Darkness
+compiles to the identical `story.z3` (27.7 KB) and plays, warm compiles run ~5 s **fully
+off-thread** (main-thread poller gaps stayed ≤ ~1 s during the whole compile, vs a solid 6 s+
+freeze on the main-thread path), and the main-thread fallback still engages on worker failure
+(unit-tested).
 
 ---
 

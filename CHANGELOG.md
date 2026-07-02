@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Fixed — 2026-07-02 ZIL compiles off the main thread
+- **The ZIL Web Worker is enabled** — ZILF compiles no longer block the UI (warm
+  compiles ~5 s fully off-thread; the main-thread path remains as an automatic
+  fallback). The historical `dotnet.create()` hang was
+  [dotnet/runtime#114918](https://github.com/dotnet/runtime/issues/114918):
+  dotnet.js treats a worker with an **assigned `onmessage`** as a managed-pthread
+  deputy and never resolves its asset loads. The worker now registers its handler
+  via `addEventListener` (which leaves the `onmessage` IDL attribute null), boots
+  eagerly on spawn, tags requests with ids, and posts stage breadcrumbs; the
+  worker timeout is boot-aware (60 s) instead of shorter than the compile itself.
+
 ### Fixed — 2026-07-01 review batch
 - **Run replays test scripts headlessly again** — the per-turn transcript fills the
   Test Script panel in place; the live-game path is now its own **Send to Play**
@@ -72,8 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `alpha`), each with its own `frotzsmith:<lang>:*`-namespaced project state.
 - **ZILF/ZAPF compiler in the browser** — the modern **ZILF + ZAPF** toolchain
   (C# / .NET 10) is built offline to **.NET WebAssembly** and committed like
-  `inform6.wasm`. It runs on the **main thread** (an off-main-thread Web Worker is a
-  documented follow-up — the .NET runtime doesn't boot standalone in a Worker), and the
+  `inform6.wasm`. It runs **in a Web Worker** (originally main-thread; see the
+  2026-07-02 fix above), and the
   ~7.5 MB bundle is **lazy-loaded only on the first ZIL compile** — Inform 6 users never
   download it. The `zillib` standard library is
   embedded; the `<VERSION>` directive drives the **z3 / z5 / z8** target.
