@@ -83,6 +83,12 @@ The complete design suite lives in [`docs/`](./docs):
 - [`11-architecture-decisions.md`](./docs/11-architecture-decisions.md) — the ADR log
 - [`12-use-cases.md`](./docs/12-use-cases.md) — concrete author workflows
 
+## Beta testing
+
+Trying Frotzsmith out? [`docs/beta-testing.md`](./docs/beta-testing.md) has the
+known limitations and what's most useful to report; the toolbar's bug icon
+goes straight to [issues](https://github.com/cschweda/frotzsmith/issues).
+
 ## Development
 
 > Prerequisites: **Node 22** (see `.nvmrc`) and **Yarn 1.22**.

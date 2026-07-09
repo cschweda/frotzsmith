@@ -329,6 +329,11 @@ let _warmKicked = false
 export function warmZilCompiler(): void {
   if (!import.meta.client || _warmKicked) return
   if (!WORKER_ENABLED || _workerFailed || typeof Worker === 'undefined') return
+  // A visitor who opens /zil/ just to look must not be committed to a ~9 MB
+  // download + ~20 s of background CPU on a metered or slow connection.
+  // (Data Saver / effectiveType are Chromium-only; absent → assume fine.)
+  const conn = (navigator as { connection?: { saveData?: boolean; effectiveType?: string } }).connection
+  if (conn?.saveData || conn?.effectiveType?.includes('2g')) return
   _warmKicked = true
   void tryWorkerCompile(zilSkeletonSource, 3, { timeoutMs: null, latch: false })
 }

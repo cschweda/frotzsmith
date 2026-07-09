@@ -4,6 +4,7 @@ import type { StoryExt } from '~/modules/inform6/types'
 import { SAMPLES, type Sample } from '~/modules/inform6/samples'
 import { ZIL_SAMPLES } from '~/modules/languages/zil/samples'
 import type { ProfileId } from '~/modules/inform6/profiles'
+import { frotzsmith } from '~~/frotzsmith.config'
 
 const { format, loadSample, profileMode, activeProfile, setProfileMode, targetMode, effectiveExt, setTargetMode } =
   useIde()
@@ -227,6 +228,18 @@ function toggleTheme() {
         </UButton>
       </UDropdownMenu>
 
+      <!-- Beta feedback: lowest-friction path to a bug report. -->
+      <UButton
+        size="lg"
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-bug"
+        :to="`${frotzsmith.repoUrl}/issues`"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Report a bug or request a feature (GitHub)"
+        aria-label="Report a bug or request a feature on GitHub"
+      />
       <UButton
         size="lg"
         color="neutral"

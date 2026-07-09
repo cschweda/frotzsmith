@@ -51,6 +51,32 @@ describe('useZilfWasm — worker enabled, error fallback to main thread', () => 
     expect(result.ok).toBe(false)
   })
 
+  it('warmZilCompiler respects Data Saver — no ~9 MB download uninvited', async () => {
+    // A visitor who opens /zil/ just to LOOK, on a metered connection, must
+    // not be committed to the .NET bundle download + ~20 s background warm-up.
+    const { spy } = makeWorkerSpy('silent')
+    vi.stubGlobal('Worker', spy)
+    vi.stubGlobal('navigator', { connection: { saveData: true } })
+
+    const mod = await import('~/composables/useZilfWasm')
+    mod.warmZilCompiler()
+    await new Promise(r => setTimeout(r, 0))
+
+    expect(spy).not.toHaveBeenCalled() // no worker, no download
+  })
+
+  it('warmZilCompiler skips 2g-class connections', async () => {
+    const { spy } = makeWorkerSpy('silent')
+    vi.stubGlobal('Worker', spy)
+    vi.stubGlobal('navigator', { connection: { saveData: false, effectiveType: 'slow-2g' } })
+
+    const mod = await import('~/composables/useZilfWasm')
+    mod.warmZilCompiler()
+    await new Promise(r => setTimeout(r, 0))
+
+    expect(spy).not.toHaveBeenCalled()
+  })
+
   it('warmZilCompiler pre-boots the worker once and is idempotent', async () => {
     const { spy, instances } = makeFailingWorkerSpy()
     vi.stubGlobal('Worker', spy)
