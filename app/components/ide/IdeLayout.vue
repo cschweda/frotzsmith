@@ -6,7 +6,12 @@ const { profile: langProfile } = useLanguage()
 const { panelOpen, togglePanel } = useProjectFiles()
 const mobileView = ref<'editor' | 'output'>('editor')
 
-onMounted(() => restore())
+const { consumeShareFragment } = useShareLink()
+onMounted(() => {
+  restore()
+  // After restore, so the pristine-buffer check sees the real recovered state.
+  consumeShareFragment()
+})
 
 const savedLabel = computed(() => (savedAt.value ? 'Recovery saved' : 'Not saved yet'))
 

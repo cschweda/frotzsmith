@@ -4,6 +4,10 @@ import type { ProfileId } from '~/modules/inform6/profiles'
 const { source, storyBase, loadSource, newProject } = useIde()
 const { togglePanel, panelOpen } = useProjectFiles()
 const { profile } = useLanguage()
+const { copyShareLink } = useShareLink()
+function onShare() {
+  void copyShareLink() // outcome lands in a toast either way
+}
 
 // New-project modal state.
 const open = ref(false)
@@ -86,6 +90,16 @@ async function saveAs() {
 
       <UButton color="neutral" variant="subtle" size="sm" icon="i-lucide-save" @click="saveAs">
         Save As
+      </UButton>
+      <UButton
+        color="neutral"
+        variant="subtle"
+        size="sm"
+        icon="i-lucide-link"
+        title="Copy a link that carries this source (compressed in the URL — nothing is uploaded)"
+        @click="onShare"
+      >
+        Share
       </UButton>
 
       <UButton color="primary" variant="subtle" size="sm" icon="i-lucide-file-plus-2" @click="open = true">
