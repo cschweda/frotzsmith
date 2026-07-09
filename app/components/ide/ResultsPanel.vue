@@ -1,5 +1,11 @@
 <script setup lang="ts">
+import { useHtmlExport } from '~/composables/useHtmlExport'
+
 const { result, status, storyBase, jumpTo, playStory } = useIde()
+const { exportHtml, exporting } = useHtmlExport()
+function onExportHtml() {
+  void exportHtml() // outcome surfaces via toast on failure
+}
 
 const errorCount = computed(
   () => result.value?.diagnostics.filter(d => d.severity !== 'warning').length ?? 0,
@@ -86,6 +92,17 @@ function downloadStory() {
             @click="downloadStory"
           >
             Download story file
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="subtle"
+            size="lg"
+            icon="i-lucide-file-code-2"
+            :loading="exporting"
+            title="A single offline-playable .html — upload it to itch.io or any static host"
+            @click="onExportHtml"
+          >
+            Export playable HTML
           </UButton>
         </div>
       </div>

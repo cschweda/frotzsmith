@@ -23,6 +23,10 @@ client-side, and play it inline. See
 - Prettify (collapses blank lines, indents custom classes), live lint, syntax
   highlighting, click-to-jump errors
 - Open `.inf` / Save As, New Project, crash-recovery autosave
+- **Export playable HTML** — one self-contained offline-playable file
+  (interpreter inlined via import-map → `data:` URI, story embedded as
+  base64); the no-hosting distribution path (itch.io, Neocities, any static
+  host)
 - Technical Details page (limits + resources), privacy-friendly analytics
   (Plausible), SEO/OG, accessible, responsive, dark by default
 - **Test scripts** — named scripts (CodeMirror editor, localStorage persistence,

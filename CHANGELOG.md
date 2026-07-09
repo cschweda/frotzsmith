@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Added — 2026-07-09 Export playable HTML; beta pre-flights
+- **Export playable HTML** — one click on a successful build produces a
+  single self-contained `.html`: the vendored Parchment/ZVM player inlined,
+  the interpreter delivered through an import map → `data:` URI (Parchment
+  loads engines via `import("./zvm.js")`), and the story embedded as base64
+  with the same `#game.zN` format-detection fragment the IDE's blob URLs use.
+  Plays offline from `file://` or any static host — the no-hosting
+  distribution path (itch.io, Neocities) now that hosted publishing is
+  deliberately deferred (see `docs/superpowers/specs/2026-07-09-publish-mode-design.md`).
+- **Beta pre-flights** — a toolbar bug-report link straight to GitHub issues;
+  the ZIL pre-warm respects Data Saver / 2g connections (opening `/zil/` to
+  look no longer commits a metered visitor to the ~9 MB .NET download); and
+  `docs/beta-testing.md` documents known limitations for testers.
+
 ### Fixed — 2026-07-09 (later the same day) boot waterfall, honest CI gates, storage cues
 - **Route chunks preload in parallel** — with `ssr: false` the browser
   discovered each route's chunks serially (entry → route resolve → page chunk

@@ -17,8 +17,9 @@ browser/OS — and the source that triggered it, if you can share it.
 - **Single-file projects.** One source buffer plus extensions; multi-file
   projects are on the roadmap.
 - **Z-machine targets only** (z3/z4/z5/z8). No Glulx yet.
-- **Export is the raw story file.** A self-contained playable HTML export is
-  in progress; hosted publishing is deliberately deferred.
+- **Export is the raw story file or a one-file playable HTML** (Results →
+  "Export playable HTML" — works offline, uploads cleanly to itch.io). Hosted
+  publishing is deliberately deferred.
 - **Your work lives in this browser's localStorage.** Crash-recovery autosave
   is on, but clearing site data clears your source — use **Save As** for
   anything you care about. If storage fills up, the app warns you once and
