@@ -7,7 +7,7 @@
  * LCP waterfall back.
  */
 import { describe, it, expect } from 'vitest'
-import { collectChunks, injectPreloads } from './inject-preloads.mjs'
+import { collectChunks, injectPreloads, resolveOutDir } from './inject-preloads.mjs'
 
 // Shaped like Nuxt's build:manifest payload: keys are module ids, `imports`
 // are keys, `file`/`css` are emitted names.
@@ -75,5 +75,22 @@ describe('injectPreloads', () => {
 
   it('throws when the html has no </head> marker', () => {
     expect(() => injectPreloads('<html><body></body></html>', { js: ['x.js'], css: [] })).toThrow(/head/)
+  })
+})
+
+describe('resolveOutDir', () => {
+  // Nitro's Netlify preset writes the site to dist/ (netlify.toml publishes
+  // it); the local/CI static preset writes .output/public. The injector must
+  // patch whichever actually exists, or production quietly loses the hints.
+  it('prefers dist/ when its index.html exists (Netlify preset)', () => {
+    expect(resolveOutDir('/r', p => p === '/r/dist/index.html')).toBe('/r/dist')
+  })
+
+  it('falls back to .output/public (static preset; broken dist symlink on CI)', () => {
+    expect(resolveOutDir('/r', p => p === '/r/.output/public/index.html')).toBe('/r/.output/public')
+  })
+
+  it('throws when neither output exists', () => {
+    expect(() => resolveOutDir('/r', () => false)).toThrow(/output/)
   })
 })

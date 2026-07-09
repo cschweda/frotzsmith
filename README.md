@@ -2,7 +2,7 @@
 
 ![Frotzsmith — a browser-based Interactive Fiction IDE](./public/og-image.png)
 
-> A personal, browser-based **Interactive Fiction** IDE — write source, compile to a Z-machine story file entirely client-side, play it inline, and run long test scripts. **Two source languages: Inform 6 (+ PunyInform), and ZIL (via ZILF).** No backend, no accounts, offline-capable.
+> A personal, browser-based **Interactive Fiction** IDE — write source, compile to a Z-machine story file entirely client-side, play it inline, and run long test scripts. **Two source languages: Inform 6 (+ PunyInform), and ZIL (via ZILF).** No backend, no accounts — nothing leaves the browser after load.
 
 [![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
 [![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82.svg)](https://nuxt.com)
@@ -26,7 +26,7 @@ A power-user testing layer runs arbitrarily long command scripts (`n. examine ro
 
 Inform 6 is the author's favourite IF language, but browser tooling is fragmented: interpreters play *finished* story files, and the Inform 7 IDE is a desktop app tied to I7's natural-language layer. There is no clean, modern, browser-native place to **write I6, compile it, and immediately play it** with library auto-import and saved test scripts. Frotzsmith fills that gap — primarily for the author's own use, secondarily as a shareable open-source tool.
 
-[Borogove](https://borogove.app) is the nearest neighbour and is excellent; Frotzsmith is narrower by design — Inform 6 and ZIL, profile-driven, fully static/offline, account-free, with a closer Inform 7-IDE feel and a script→Skein testing spine.
+[Borogove](https://borogove.app) is the nearest neighbour and is excellent; Frotzsmith is narrower by design — Inform 6 and ZIL, profile-driven, fully static, account-free, with a closer Inform 7-IDE feel and a script→Skein testing spine.
 
 ## The loop
 
@@ -54,7 +54,7 @@ write I6  ──▶  compile (inform6.wasm, client-side)  ──▶  play inline
 | Headless engine | pure-JS ZVM (ifvms) in a Web Worker, behind a `StoryEngine` seam |
 | Language | TypeScript |
 | State | Vue composables (no Pinia) |
-| Testing | Vitest — pure logic in Node, composable/state suites in happy-dom; CI (GitHub Actions) runs test + typecheck + generate on every push/PR |
+| Testing | Vitest — pure logic in Node, composable/state suites in happy-dom; CI (GitHub Actions) runs test (incl. the ZIL sample goldens) + typecheck + generate + artifact checks + an **axe-core zero-violation gate** on every push to `main` and every PR |
 | Theme | Dark by default, accessible light/dark toggle |
 | Accessibility | WCAG 2.1 AA, axe-core zero-violation gate, fully responsive |
 | Package manager | Yarn 1.22 |

@@ -130,14 +130,14 @@ const resources = [
         <div class="grid gap-4 sm:grid-cols-2">
           <div class="space-y-2">
             <h3 class="text-muted text-xs font-semibold uppercase tracking-wide">Inform 7 — natural language</h3>
-            <pre class="bg-elevated border-default overflow-x-auto rounded-lg border p-3 text-xs leading-relaxed"><code>The Cottage is a room.
+            <pre tabindex="0" class="bg-elevated border-default overflow-x-auto rounded-lg border p-3 text-xs leading-relaxed"><code>The Cottage is a room.
 "A cosy one-room cottage."
 The brass lamp is in the Cottage.
 The description is "Small and dented."</code></pre>
           </div>
           <div class="space-y-2">
             <h3 class="text-muted text-xs font-semibold uppercase tracking-wide">Inform 6 — a programming language</h3>
-            <pre class="bg-elevated border-default overflow-x-auto rounded-lg border p-3 text-xs leading-relaxed"><code>Object Cottage "Cottage"
+            <pre tabindex="0" class="bg-elevated border-default overflow-x-auto rounded-lg border p-3 text-xs leading-relaxed"><code>Object Cottage "Cottage"
   with description "A cosy one-room cottage.",
   has  light;
 Object -> lamp "brass lamp"
@@ -155,7 +155,7 @@ Object -> lamp "brass lamp"
       <!-- Pipeline -->
       <section class="space-y-3">
         <h2 class="text-primary text-xl font-bold">Pipeline</h2>
-        <pre class="bg-elevated border-default overflow-x-auto rounded-lg border p-4 text-xs leading-relaxed"><code>.inf source
+        <pre tabindex="0" class="bg-elevated border-default overflow-x-auto rounded-lg border p-4 text-xs leading-relaxed"><code>.inf source
   └─▶ inform6.wasm  (Inform {{ frotzsmith.versions.inform6 }} via Emscripten)
         └─▶ Z-code  (.z3 / .z5 / .z8 bytes, in memory)
               └─▶ Blob URL  (tagged #game.zN)
@@ -191,12 +191,12 @@ Object -> lamp "brass lamp"
         <p class="text-muted max-w-2xl text-sm">
           <span class="text-default">ZIL</span> (Zork Implementation Language) is Infocom's original MDL/Lisp-like
           authoring language — angle-bracket forms like <code class="frotz-code">&lt;ROUTINE&gt;</code> and
-          <code class="frotz-code">&lt;OBJECT&gt;</code>. The modern <a href="https://foss.heptapod.net/zilf/zilf/" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">ZILF</a>
+          <code class="frotz-code">&lt;OBJECT&gt;</code>. The modern <a href="https://foss.heptapod.net/zilf/zilf/" target="_blank" rel="noopener noreferrer" class="text-primary underline">ZILF</a>
           toolchain (ZILF + ZAPF, C# / .NET 10) reimplements it, and Frotzsmith runs that compiler in the browser at
-          <NuxtLink to="/zil/" class="text-primary hover:underline">/zil/</NuxtLink>. Because ZIL emits ordinary Z-code,
+          <NuxtLink to="/zil/" class="text-primary underline">/zil/</NuxtLink>. Because ZIL emits ordinary Z-code,
           play, the auto-map, test scripts, and the transcript all work for it unchanged.
         </p>
-        <pre class="bg-elevated border-default overflow-x-auto rounded-lg border p-4 text-xs leading-relaxed"><code>.zil source
+        <pre tabindex="0" class="bg-elevated border-default overflow-x-auto rounded-lg border p-4 text-xs leading-relaxed"><code>.zil source
   └─▶ ZILF front end   (ZIL → ZAP assembly)
         └─▶ ZAPF        (ZAP → Z-code, .z3 / .z5 / .z8)
               └─▶ same Blob URL → Parchment → ZVM  (as Inform 6)</code></pre>
@@ -204,7 +204,7 @@ Object -> lamp "brass lamp"
           <li>ZILF + ZAPF are <span class="text-default">C# / .NET 10</span>, built offline to <span class="text-default">.NET WebAssembly</span> (a different runtime from the Emscripten <code class="frotz-code">inform6.wasm</code>) and committed like the I6 compiler. Pinned at ZILF rev <code class="frotz-code">{{ frotzsmith.versions.zilf }}</code>.</li>
           <li>The <code class="frotz-code">zillib</code> standard library is <span class="text-default">embedded in the bundle</span>, so a single <code class="frotz-code">.zil</code> file compiles with no local library files.</li>
           <li>Story version comes from the <code class="frotz-code">&lt;VERSION&gt;</code> directive, driven by the target menu — <span class="text-default">z3 / z5 / z8</span>.</li>
-          <li>The compiler runs in a <span class="text-default">Web Worker</span>, so the ~5&nbsp;s compile doesn't block the UI (a main-thread fallback covers environments where the worker can't boot — the historical hang was <a href="https://github.com/dotnet/runtime/issues/114918" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">dotnet/runtime#114918</a>: dotnet.js treats a worker with an assigned <code class="frotz-code">onmessage</code> as a managed-pthread deputy; registering via <code class="frotz-code">addEventListener</code> avoids it). The <span class="text-default">~7.5&nbsp;MB gzipped</span> .NET bundle downloads and <span class="text-default">pre-warms in the background when this page's IDE opens</span> — a throwaway skeleton compile absorbs the ~20&nbsp;s cold interpreter warm-up, so the first real compile behaves like a warm one (~5&nbsp;s). Inform 6 users never download it.</li>
+          <li>The compiler runs in a <span class="text-default">Web Worker</span>, so the ~5&nbsp;s compile doesn't block the UI (a main-thread fallback covers environments where the worker can't boot — the historical hang was <a href="https://github.com/dotnet/runtime/issues/114918" target="_blank" rel="noopener noreferrer" class="text-primary underline">dotnet/runtime#114918</a>: dotnet.js treats a worker with an assigned <code class="frotz-code">onmessage</code> as a managed-pthread deputy; registering via <code class="frotz-code">addEventListener</code> avoids it). The <span class="text-default">~7.5&nbsp;MB gzipped</span> .NET bundle downloads and <span class="text-default">pre-warms in the background when this page's IDE opens</span> — a throwaway skeleton compile absorbs the ~20&nbsp;s cold interpreter warm-up, so the first real compile behaves like a warm one (~5&nbsp;s). Inform 6 users never download it.</li>
           <li>Diagnostics (<code class="frotz-code">&lt;file&gt;:&lt;line&gt;: error ZIL0122: …</code>) parse into the same clickable, jump-to-line format as Inform 6 errors.</li>
         </ul>
       </section>
@@ -216,7 +216,7 @@ Object -> lamp "brass lamp"
           These are the <span class="text-default">Z-machine format's</span> limits, not Frotzsmith's — they
           bind any z-code interpreter.
         </p>
-        <div class="border-default overflow-x-auto rounded-lg border">
+        <div tabindex="0" class="border-default overflow-x-auto rounded-lg border">
           <table class="w-full text-sm">
             <thead class="bg-elevated text-muted text-left">
               <tr>
@@ -256,7 +256,7 @@ Object -> lamp "brass lamp"
       <section class="space-y-4">
         <h2 class="text-primary text-xl font-bold">Measured — this toolchain</h2>
         <p class="text-muted text-sm">Generated 400-room games compiled through <code class="frotz-code">inform6.wasm</code>:</p>
-        <div class="border-default overflow-x-auto rounded-lg border">
+        <div tabindex="0" class="border-default overflow-x-auto rounded-lg border">
           <table class="w-full text-sm">
             <thead class="bg-elevated text-muted text-left">
               <tr>

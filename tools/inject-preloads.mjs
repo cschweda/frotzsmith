@@ -15,7 +15,7 @@
  * Pure helpers (collectChunks / injectPreloads) are unit-tested in
  * inject-preloads.test.ts.
  */
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 /**
@@ -61,6 +61,20 @@ export function injectPreloads(html, { js, css }) {
   return html.replace(marker, `${links.join('')}${marker}`)
 }
 
+/**
+ * Where did this generate write the site? Nitro's Netlify preset emits to
+ * dist/ (what netlify.toml publishes); the local/CI static preset emits to
+ * .output/public (locally dist is a convenience symlink to it, which on CI
+ * is broken — an absolute macOS path). Probe for index.html rather than the
+ * directory so a dangling symlink doesn't fool the check.
+ */
+export function resolveOutDir(root, exists = existsSync) {
+  for (const dir of ['dist', '.output/public']) {
+    if (exists(`${resolve(root, dir)}/index.html`)) return resolve(root, dir)
+  }
+  throw new Error('inject-preloads: no generated output found (looked in dist/ and .output/public/)')
+}
+
 // ─── runner ───────────────────────────────────────────────────────────────
 // Route table: generated HTML file → its page component's manifest key.
 const ROUTES = {
@@ -72,9 +86,10 @@ const ROUTES = {
 const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())
 if (isMain) {
   const root = process.cwd()
+  const outDir = resolveOutDir(root)
   const manifest = JSON.parse(readFileSync(resolve(root, '.nuxt/client-manifest.json'), 'utf8'))
   for (const [htmlPath, pageKey] of Object.entries(ROUTES)) {
-    const abs = resolve(root, '.output/public', htmlPath)
+    const abs = resolve(outDir, htmlPath)
     const html = readFileSync(abs, 'utf8')
     const chunks = collectChunks(manifest, pageKey)
     const out = injectPreloads(html, chunks)

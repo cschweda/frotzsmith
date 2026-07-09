@@ -145,7 +145,8 @@ function toggleTheme() {
         <UIcon name="i-lucide-hammer" class="size-5" />
       </span>
       <div class="leading-none">
-        <p class="text-lg font-extrabold tracking-tight">Frotzsmith</p>
+        <!-- h1: the IDE pages' only level-one heading (axe page-has-heading-one). -->
+        <h1 class="text-lg font-extrabold tracking-tight">Frotzsmith</h1>
         <p class="text-muted text-[10px] font-semibold uppercase tracking-widest">Interactive Fiction IDE</p>
       </div>
     </div>

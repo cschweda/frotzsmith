@@ -5,9 +5,17 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
@@ -15,6 +23,30 @@ jobs:
           node-version: 22
           cache: yarn
       - run: yarn install --frozen-lockfile
+      # ZIL_SAMPLE_GOLDEN compiles all 7 shipped ZIL samples against the real
+      # .NET WASM toolchain (~40 s) — skipped locally for speed, enforced here.
       - run: yarn test
+        env:
+          ZIL_SAMPLE_GOLDEN: 1
       - run: yarn typecheck
       - run: yarn generate
+      # The static output must actually contain the payloads the app needs —
+      # a Nitro preset or asset-copy regression would otherwise pass CI and
+      # break production. (dist is a local symlink; CI checks .output/public.)
+      - name: Verify generated artifacts
+        run: |
+          test -f .output/public/index.html
+          test -f .output/public/zil/index.html
+          test -f .output/public/technical/index.html
+          test -f .output/public/play/index.html
+          test -f .output/public/play/demo.z5
+          test -f .output/public/zilf/_framework/dotnet.js
+          test -f .output/public/zilf/_framework/dotnet.native.wasm
+          grep -q 'rel="modulepreload"' .output/public/index.html
+      # The README's axe-core zero-violation gate, for real: serve the build
+      # and fail on any violation on the three routes (full default ruleset).
+      - name: Accessibility gate (axe-core, zero violations)
+        run: |
+          npx serve -l 8080 .output/public &
+          for i in $(seq 1 20); do curl -sf http://localhost:8080/ >/dev/null && break; sleep 1; done
+          yarn a11y
