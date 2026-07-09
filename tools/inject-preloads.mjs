@@ -15,8 +15,11 @@
  * Pure helpers (collectChunks / injectPreloads) are unit-tested in
  * inject-preloads.test.ts.
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+
+/** Raw size above which a preloaded chunk is demoted to fetchpriority=low. */
+const LOW_PRIORITY_BYTES = 150 * 1024
 
 /**
  * Walk a page's transitive static imports through the manifest.
@@ -44,14 +47,20 @@ export function collectChunks(manifest, pageKey) {
 /**
  * Insert preload links before </head>. Idempotent: hrefs already present in
  * the document (including Nuxt's own entry modulepreload) are skipped.
+ *
+ * opts.lowPriority: files to hint fetchpriority="low" — heavy chunks must not
+ * compete with the entry/CSS for first-paint bandwidth (measured live: the
+ * 609 KB IDE chunk at default priority pushed FCP from ~2 s to ~4.5 s).
  */
-export function injectPreloads(html, { js, css }) {
+export function injectPreloads(html, { js, css }, opts = {}) {
   const marker = '</head>'
   if (!html.includes(marker)) throw new Error('inject-preloads: no </head> marker in the HTML')
+  const low = new Set(opts.lowPriority ?? [])
   const links = []
   for (const file of js) {
     if (html.includes(`/_nuxt/${file}`)) continue
-    links.push(`<link rel="modulepreload" crossorigin href="/_nuxt/${file}">`)
+    const priority = low.has(file) ? ' fetchpriority="low"' : ''
+    links.push(`<link rel="modulepreload" crossorigin${priority} href="/_nuxt/${file}">`)
   }
   for (const file of css) {
     if (html.includes(`/_nuxt/${file}`)) continue
@@ -92,9 +101,18 @@ if (isMain) {
     const abs = resolve(outDir, htmlPath)
     const html = readFileSync(abs, 'utf8')
     const chunks = collectChunks(manifest, pageKey)
-    const out = injectPreloads(html, chunks)
+    const lowPriority = chunks.js.filter((f) => {
+      try {
+        return statSync(resolve(outDir, '_nuxt', f)).size > LOW_PRIORITY_BYTES
+      } catch {
+        return false
+      }
+    })
+    const out = injectPreloads(html, chunks, { lowPriority })
     writeFileSync(abs, out)
-    const injected = out === html ? 0 : chunks.js.length + chunks.css.length
-    console.log(`inject-preloads: ${htmlPath} ← ${chunks.js.length} js + ${chunks.css.length} css (${injected ? 'injected' : 'already present'})`)
+    const status = out === html ? 'already present' : 'injected'
+    console.log(
+      `inject-preloads: ${htmlPath} ← ${chunks.js.length} js (${lowPriority.length} low-priority) + ${chunks.css.length} css (${status})`,
+    )
   }
 }

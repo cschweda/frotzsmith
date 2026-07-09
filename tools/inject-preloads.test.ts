@@ -65,6 +65,15 @@ describe('injectPreloads', () => {
     expect(out.indexOf('page-index.js')).toBeLessThan(out.indexOf('</head>'))
   })
 
+  it('marks designated heavy chunks fetchpriority=low so they cannot starve first paint', () => {
+    // Measured live: preloading the 609 KB IDE chunk at default priority made
+    // it compete with the entry+CSS — FCP slid from ~2 s to ~4.5 s while LCP
+    // stayed flat. Low priority keeps the discovery win without the contention.
+    const out = injectPreloads(HTML, { js: ['page-index.js', 'ide.js'], css: [] }, { lowPriority: ['ide.js'] })
+    expect(out).toContain('<link rel="modulepreload" crossorigin href="/_nuxt/page-index.js">')
+    expect(out).toContain('<link rel="modulepreload" crossorigin fetchpriority="low" href="/_nuxt/ide.js">')
+  })
+
   it('is idempotent — an href already present is not injected twice', () => {
     const once = injectPreloads(HTML, { js: ['page-index.js'], css: [] })
     const twice = injectPreloads(once, { js: ['page-index.js'], css: [] })
