@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Fixed — 2026-07-09 Inform 6 compiles off the main thread; first paint slims down
+- **Inform 6 compiles in a Web Worker** — with a 60 s wall-clock timeout, a
+  fail-fast error channel (`error`/`messageerror`), and an automatic
+  main-thread fallback, mirroring the ZILF worker. Closes the 2026-06-30
+  audit's tracked Medium: a pathological source can no longer freeze the tab.
+- **~1.1 MB of compile-time-only text left the critical-path chunk** — the
+  Standard Library + PunyInform `.h` bodies now ride the compile worker's own
+  chunk (fetched on first compile, not page load), with a lazy copy behind the
+  file explorer's read-only library tabs; the 23 sample bodies are per-sample
+  lazy chunks loaded on selection. Critical-path JS drops from ~600 KB gz to
+  ~330 KB gz on both pages (ZIL authors previously downloaded the entire
+  Inform 6 library before first paint).
+- **Error paths fail loudly instead of invisibly** — a thrown compile
+  exception (e.g. a failed `inform6.wasm` fetch) surfaces as a fatal
+  diagnostic instead of an error banner reading "0 errors" over empty panes;
+  the ZIL worker falls back immediately when its script fails to boot (was: a
+  silent 60 s hang); the ZIL pre-warm no longer shares the real compiles'
+  timeout, so a slow connection can't get the shared worker terminated
+  mid-compile and every later compile silently latched onto the main-thread
+  freeze; and `useIde` survives blocked or full `localStorage` (new
+  `safeGetItem`/`safeSetItem` utility — the IDE previously failed to mount
+  under Chrome's "Block all cookies").
+
 ### Fixed — 2026-07-02 ZIL compiles off the main thread
 - **The ZIL Web Worker is enabled** — ZILF compiles no longer block the UI (warm
   compiles ~5 s fully off-thread; the main-thread path remains as an automatic
