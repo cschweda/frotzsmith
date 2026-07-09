@@ -133,25 +133,12 @@ describe('PROFILES shape – std', () => {
     expect(PROFILES.std.includePath).toBe('/lib/std')
   })
 
-  it('has a non-empty files array', () => {
-    expect(PROFILES.std.files.length).toBeGreaterThan(0)
-  })
-
-  it('contains capitalized Parser.h / VerbLib.h aliases', () => {
-    const paths = PROFILES.std.files.map(f => f.path)
-    expect(paths).toContain('/lib/std/Parser.h')
-    expect(paths).toContain('/lib/std/VerbLib.h')
-    expect(paths).toContain('/lib/std/Grammar.h')
-    expect(paths).toContain('/lib/std/English.h')
-  })
-
-  it('all file entries have path and non-empty content', () => {
-    for (const f of PROFILES.std.files) {
-      expect(typeof f.path).toBe('string')
-      expect(f.path.length).toBeGreaterThan(0)
-      expect(typeof f.content).toBe('string')
-      expect(f.content.length).toBeGreaterThan(0)
-    }
+  it('lists the canonical (capitalized) library names in the manifest', () => {
+    // Bodies live in profile-files.ts; the sync test there pins this manifest
+    // to the real file set.
+    expect(PROFILES.std.libraryFileNames).toContain('Parser.h')
+    expect(PROFILES.std.libraryFileNames).toContain('VerbLib.h')
+    expect(PROFILES.std.libraryFileNames).toContain('Grammar.h')
   })
 })
 
@@ -170,8 +157,8 @@ describe('PROFILES shape – puny', () => {
     expect(PROFILES.puny.includePath).toBe('/lib/puny')
   })
 
-  it('has a non-empty files array', () => {
-    expect(PROFILES.puny.files.length).toBeGreaterThan(0)
+  it('lists puny.h in the manifest', () => {
+    expect(PROFILES.puny.libraryFileNames).toContain('puny.h')
   })
 })
 

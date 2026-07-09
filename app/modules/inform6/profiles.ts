@@ -11,9 +11,12 @@ export interface VirtualFile {
 export type ProfileId = 'std' | 'puny'
 
 /**
- * A library profile bundles everything that differs between Inform 6 dialects:
- * the include set, the default story version, and the starter template. The
- * compiler, editor, and UI only ever talk about the *active profile*.
+ * A library profile bundles the METADATA that differs between Inform 6
+ * dialects: labels, include path, story-version targets, the starter template,
+ * and the curated file-name manifest. The ~900 KB of actual library `.h`
+ * bodies live in `profile-files.ts` (PROFILE_FILES), which only the compile
+ * path and the explorer's lazy content loader may import — keeping this
+ * module (and every UI chunk that imports it) light.
  */
 export interface LibraryProfile {
   id: ProfileId
@@ -28,43 +31,13 @@ export interface LibraryProfile {
   targets: StoryExt[]
   /** A minimal game that compiles cleanly under this profile. */
   starter: string
-  /** Library files (with any case aliases) ready to mount. */
-  files: VirtualFile[]
-}
-
-const stdRaw = import.meta.glob('./lib/std/*.h', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-}) as Record<string, string>
-
-const punyRaw = import.meta.glob('./lib/puny/*.h', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-}) as Record<string, string>
-
-/**
- * Builds the virtual file list for a library directory, adding capitalized
- * aliases where the library's own includes are mixed-case (the WASM filesystem
- * is case-sensitive).
- */
-function buildFiles(
-  raw: Record<string, string>,
-  includePath: string,
-  aliases: Record<string, string> = {},
-): VirtualFile[] {
-  const byName: Record<string, string> = {}
-  const files: VirtualFile[] = []
-  for (const [path, content] of Object.entries(raw)) {
-    const name = path.split('/').pop() as string
-    byName[name] = content
-    files.push({ path: `${includePath}/${name}`, content })
-  }
-  for (const [alias, real] of Object.entries(aliases)) {
-    if (byName[real]) files.push({ path: `${includePath}/${alias}`, content: byName[real] })
-  }
-  return files
+  /**
+   * Canonical library file names shown in the file explorer, in display
+   * order — the capitalized alias where one exists (what authors `Include`),
+   * WITHOUT the file bodies. Kept in lockstep with PROFILE_FILES by the sync
+   * test in profile-files.test.ts.
+   */
+  libraryFileNames: string[]
 }
 
 export const PROFILES: Record<ProfileId, LibraryProfile> = {
@@ -77,13 +50,17 @@ export const PROFILES: Record<ProfileId, LibraryProfile> = {
     defaultExt: 'z5',
     targets: ['z5', 'z8'],
     starter: stdStarter,
-    files: buildFiles(stdRaw, '/lib/std', {
-      'Parser.h': 'parser.h',
-      'VerbLib.h': 'verblib.h',
-      'Grammar.h': 'grammar.h',
-      'English.h': 'english.h',
-      'Exits.h': 'exits.h',
-    }),
+    libraryFileNames: [
+      'English.h',
+      'Exits.h',
+      'Grammar.h',
+      'infglk.h',
+      'infix.h',
+      'linklpa.h',
+      'Parser.h',
+      'VerbLib.h',
+      'version.h',
+    ],
   },
   puny: {
     id: 'puny',
@@ -94,7 +71,20 @@ export const PROFILES: Record<ProfileId, LibraryProfile> = {
     defaultExt: 'z5',
     targets: ['z3', 'z4', 'z5', 'z8'],
     starter: punyStarter,
-    files: buildFiles(punyRaw, '/lib/puny'),
+    libraryFileNames: [
+      'ext_cheap_scenery.h',
+      'ext_flags.h',
+      'ext_menu.h',
+      'ext_quote_box.h',
+      'ext_talk_menu.h',
+      'ext_waittime.h',
+      'globals.h',
+      'grammar.h',
+      'messages.h',
+      'parser.h',
+      'puny.h',
+      'scope.h',
+    ],
   },
 }
 

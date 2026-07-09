@@ -7,7 +7,7 @@ import {
   type TabState,
 } from '~/composables/project-files'
 import type { ProfileMode } from '~/composables/useIde'
-import { PROFILES, detectProfile } from '~/modules/inform6/profiles'
+import { PROFILES, detectProfile, type ProfileId } from '~/modules/inform6/profiles'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 
 /**
@@ -33,8 +33,29 @@ export function useProjectFiles() {
     PROFILES[profileMode.value === 'auto' ? detectProfile(source.value) : profileMode.value],
   )
 
-  // Canonical (de-duped) library files for the active profile, with content.
-  const libraryFiles = computed(() => canonicalLibraryFiles(activeProfile.value.files))
+  // Library file NAMES come from the light, curated manifest (profiles.ts) so
+  // the explorer list renders without the ~900 KB of library text. The BODIES
+  // (profile-files.ts) are fetched lazily the first time a library tab's
+  // content is actually read, then cached reactively per profile — SourcePane
+  // watches readFile() output, so the open tab fills in when the chunk lands.
+  const libContents = useState<Partial<Record<ProfileId, Record<string, string>>>>(
+    'frotz:lib-contents',
+    () => ({}),
+  )
+  function ensureLibraryContent(pid: ProfileId) {
+    if (libContents.value[pid]) return
+    void import('~/modules/inform6/profile-files')
+      .then(({ PROFILE_FILES }) => {
+        const map: Record<string, string> = {}
+        for (const f of canonicalLibraryFiles(PROFILE_FILES[pid])) map[f.name] = f.content
+        libContents.value = { ...libContents.value, [pid]: map }
+      })
+      .catch(() => {
+        // Chunk failed to load (offline?) — the tab keeps its placeholder; a
+        // later readFile retries the import.
+      })
+  }
+
   const enabledExtensions = computed(() => all.value.filter(e => isEnabled(e.id)))
 
   const files = computed<ProjectFileMeta[]>(() =>
@@ -47,7 +68,7 @@ export function useProjectFiles() {
       })),
       // ZIL uses zillib embedded in the WASM bundle — no I6 library files belong
       // in the ZIL project view.
-      libraryNames: profile.value.id === 'i6' ? libraryFiles.value.map(f => f.name) : [],
+      libraryNames: profile.value.id === 'i6' ? activeProfile.value.libraryFileNames : [],
     }),
   )
   const validIds = computed(() => new Set(files.value.map(f => f.id)))
@@ -104,7 +125,11 @@ export function useProjectFiles() {
     if (id === 'source') return source.value
     if (id.startsWith('lib:')) {
       const name = id.slice(4)
-      return libraryFiles.value.find(f => f.name === name)?.content ?? ''
+      const pid = activeProfile.value.id
+      const cached = libContents.value[pid]
+      if (cached) return cached[name] ?? ''
+      ensureLibraryContent(pid) // kicks the lazy chunk; reactive fill on arrival
+      return ''
     }
     return all.value.find(e => e.id === id)?.content ?? ''
   }

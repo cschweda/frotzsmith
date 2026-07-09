@@ -1,27 +1,15 @@
 import type { LanguageProfile, CompileOpts } from '~/modules/languages/types'
 import type { CompileResult } from '~/modules/inform6/types'
-import { PROFILES } from '~/modules/inform6/profiles'
-import { parseDiagnostics, parseStats } from '~/utils/parse-diagnostics'
-import { useCompilerWasm } from '~/composables/useCompilerWasm'
 import { inform6 } from '~/modules/inform6/editor/i6-language'
 
-const VERSION_SWITCH: Record<string, string> = {
-  z3: '-v3',
-  z4: '-v4',
-  z5: '-v5',
-  z8: '-v8',
-  ulx: '-G',
-}
-
 /**
- * Real I6_PROFILE: wraps the Inform 6 compile path that previously lived in
- * useCompiler.ts. Compile delegates here via useLanguage().profile.value.compile().
+ * I6_PROFILE: the Inform 6 language profile.
  *
- * Behavior is identical to the old useCompiler.compile() body:
- *   - Picks Std/Puny library via opts.profileId (defaults to 'std').
- *   - Mounts library files + user extensions in MEMFS.
- *   - Runs inform6.wasm via useCompilerWasm.
- *   - Returns a CompileResult with diagnostics, stats, and the story bytes.
+ * Compile delegates here via useLanguage().profile.value.compile(). The real
+ * compile body lives in `~/modules/inform6/compile-main` (runI6Compile), which
+ * carries the heavy library text — it is reached only via dynamic import so
+ * this module (on the critical path of every page through useLanguage) stays
+ * light.
  */
 export const I6_PROFILE: LanguageProfile = {
   id: 'i6',
@@ -35,78 +23,7 @@ export const I6_PROFILE: LanguageProfile = {
   editorMode: inform6,
 
   async compile(source: string, opts: CompileOpts): Promise<CompileResult> {
-    const { createInstance } = useCompilerWasm()
-    const libProfile = PROFILES[opts.profileId ?? 'std']
-    const ext = opts.ext ?? libProfile.defaultExt
-    const started = performance.now()
-    const out: string[] = []
-
-    const m = await createInstance({
-      print: line => out.push(line),
-      printErr: line => out.push(line),
-    })
-
-    const mkdir = (path: string) => {
-      try {
-        m.FS.mkdir(path)
-      } catch {
-        // already exists — fine
-      }
-    }
-
-    mkdir('/lib')
-    mkdir(libProfile.includePath)
-    for (const file of libProfile.files) m.FS.writeFile(file.path, file.content)
-    // Mount enabled extensions so `Include "name";` resolves to name.h.
-    for (const extFile of opts.extensions ?? []) {
-      m.FS.writeFile(`${libProfile.includePath}/${extFile.name}.h`, extFile.content)
-    }
-
-    mkdir('/work')
-    m.FS.writeFile('/work/story.inf', source)
-    m.FS.chdir('/work') // Inform writes output relative to the working directory
-
-    const outName = `story.${ext}`
-    let crash: string | null = null
-    try {
-      m.callMain([
-        `+include_path=${libProfile.includePath}`,
-        '-s', // emit statistics (story size, memory use) for the stats bar
-        // FS.writeFile encodes the editor string as UTF-8; without -Cu Inform
-        // reads ISO-8859-1 and non-ASCII prose silently mojibakes in-game.
-        '-Cu',
-        VERSION_SWITCH[ext]!,
-        'story.inf',
-        outName,
-      ])
-    } catch (e) {
-      // Emscripten throws ExitStatus for ordinary non-zero exits — the parsed
-      // diagnostics carry that detail. Anything else is a real crash (e.g. a
-      // WASM RuntimeError trap) and must not vanish.
-      const name = (e as { name?: string } | null)?.name
-      if (name !== 'ExitStatus') crash = String(e)
-    }
-
-    const raw = out.join('\n')
-    const { diagnostics, errorCount } = parseDiagnostics(raw)
-    if (crash) diagnostics.push({ severity: 'fatal', message: `Compiler crashed: ${crash}` })
-
-    let storyFile: Uint8Array | undefined
-    try {
-      storyFile = m.FS.readFile(`/work/${outName}`)
-    } catch {
-      // no output produced
-    }
-
-    return {
-      ok: errorCount === 0 && !crash && !!storyFile,
-      storyFile,
-      storyExt: ext,
-      diagnostics,
-      rawStderr: raw,
-      ms: Math.round(performance.now() - started),
-      byteLength: storyFile?.length ?? 0,
-      stats: parseStats(raw),
-    }
+    const { runI6Compile } = await import('~/modules/inform6/compile-main')
+    return runI6Compile(source, opts)
   },
 }
