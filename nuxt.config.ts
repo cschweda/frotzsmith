@@ -1,4 +1,5 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { frotzsmith } from './frotzsmith.config'
 
 // All app-wide constants live in frotzsmith.config.ts (single source of truth).
@@ -18,6 +19,19 @@ export default defineNuxtConfig({
   vite: {
     worker: {
       format: 'es',
+    },
+  },
+
+  // Dump the client build manifest for tools/inject-preloads.mjs, which runs
+  // after `nuxt generate` (postgenerate) and injects <link rel="modulepreload">
+  // hints for each route's page + IDE chunk chain into the generated HTML.
+  // ssr:false ships an empty shell, so without hints the browser discovers
+  // those chunks serially — entry → route resolve → page chunk → IDE chunk —
+  // which is the LCP waterfall Lighthouse flags as the network-dependency tree.
+  hooks: {
+    'build:manifest': (manifest) => {
+      mkdirSync('.nuxt', { recursive: true })
+      writeFileSync('.nuxt/client-manifest.json', JSON.stringify(manifest, null, 2))
     },
   },
 

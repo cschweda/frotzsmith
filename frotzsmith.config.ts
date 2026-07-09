@@ -12,9 +12,11 @@ export const frotzsmith = {
   description:
     'A free, browser-based IDE for Inform 6 interactive fiction — write, compile to Z-machine, and play instantly, all client-side. Standard Library & PunyInform.',
   /** Public site URL — used for absolute og:image / canonical links.
-   *  Currently the Netlify subdomain; switch to https://frotzsmith.com once the
-   *  custom domain is connected (this one constant drives all SEO/OG links). */
-  siteUrl: 'https://frotzsmith.netlify.app',
+   *  The custom domain (connected 2026-07). Netlify serves the *.netlify.app
+   *  alias with a `Link: <https://frotzsmith.com/>; rel=canonical` header, so
+   *  the DOM canonical must agree with it — a mismatch reads as "multiple
+   *  conflicting canonicals" to crawlers/Lighthouse. */
+  siteUrl: 'https://frotzsmith.com',
   repoUrl: 'https://github.com/cschweda/frotzsmith',
   author: 'cschweda',
 

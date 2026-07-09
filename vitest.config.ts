@@ -42,7 +42,7 @@ export default defineConfig({
   plugins: [nuxtClientMetaPlugin()],
   test: {
     environment: 'node',
-    include: ['app/**/*.{test,spec}.ts'],
+    include: ['app/**/*.{test,spec}.ts', 'tools/*.{test,spec}.ts'],
     setupFiles: ['./test/nuxt-setup.ts'],
     environmentMatchGlobs: [
       // Composable tests that need DOM/localStorage run in happy-dom
