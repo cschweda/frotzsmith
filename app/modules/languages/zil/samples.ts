@@ -43,7 +43,7 @@ export interface ZilSample {
 
 /**
  * The full ZIL sample set: one sample per concept, all compiling cleanly
- * against the committed ZILF bundle (public/zilf/_framework).
+ * against the committed ZILF bundle (public/zilf/<rev>/_framework).
  * Every sample targets z3 (<VERSION ZIP>) — the standard for single-file
  * zillib games.
  */

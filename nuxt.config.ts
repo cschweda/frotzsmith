@@ -96,13 +96,14 @@ export default defineNuxtConfig({
         // canonical is set per page (index/zil/technical) — a global one would
         // declare every route a duplicate of the homepage.
       ],
-      // Privacy-friendly analytics by Plausible (no cookies, no personal data).
+      // Privacy-friendly analytics by Plausible (no cookies, no personal
+      // data), served FIRST-PARTY via the netlify.toml /pa/* proxy — closes
+      // the audit's SRI item (no third-party script execution) and lets CSP
+      // drop plausible.io. The bootstrap is a real file (public/pa/init.js),
+      // not an inline script.
       script: [
-        { src: 'https://plausible.io/js/pa-2FCOIzY7AvsOrnssGbGde.js', async: true },
-        {
-          innerHTML:
-            'window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()',
-        },
+        { src: '/pa/script.js', async: true },
+        { src: '/pa/init.js', defer: true },
       ],
     },
   },

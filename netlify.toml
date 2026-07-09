@@ -10,6 +10,21 @@
 [build.environment]
   NODE_VERSION = "22"
 
+# Plausible analytics, first-party proxied (must precede the SPA catch-all —
+# Netlify redirects are first-match). Self-serving the script closes the
+# audit's SRI item (no third-party script execution under our origin) and
+# lets CSP drop plausible.io entirely; /pa/init.js replaces the old inline
+# bootstrap (one less 'unsafe-inline' dependency).
+[[redirects]]
+  from = "/pa/script.js"
+  to = "https://plausible.io/js/pa-2FCOIzY7AvsOrnssGbGde.js"
+  status = 200
+
+[[redirects]]
+  from = "/pa/event"
+  to = "https://plausible.io/api/event"
+  status = 200
+
 # SPA fallback for client-side routing (Frotzsmith is a single-page tool).
 [[redirects]]
   from = "/*"
@@ -32,7 +47,7 @@
     X-Content-Type-Options = "nosniff"
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://plausible.io; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' blob: https://plausible.io; worker-src 'self' blob:; frame-src 'self' blob:; child-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' blob:; worker-src 'self' blob:; frame-src 'self' blob:; child-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
 
 # Long-cache content-hashed build assets (WASM, interpreter, JS/CSS).
 [[headers]]
@@ -40,11 +55,26 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# The .NET ZILF bundle: stable filenames (WasmFingerprintAssets=false), ~30
-# assets, changes only on a deliberate compiler rebuild. A week of caching
-# kills the per-session revalidation storm; not immutable, so a rebuild still
-# propagates within a week (bump the path if one ever needs to be instant).
+# EXCEPT Nuxt's app manifest: it is unfingerprinted and polled to detect new
+# deploys / recover from stale-chunk errors — immutable-caching it broke that
+# for long-lived sessions. (Later rules override earlier ones on Netlify.)
 [[headers]]
-  for = "/zilf/_framework/*"
+  for = "/_nuxt/builds/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# The .NET ZILF bundle lives under a compiler-revision path
+# (/zilf/r<rev>/_framework, see ZILF_FRAMEWORK_BASE), so it can be immutable:
+# a rebuild lands under a new path and propagates instantly, and the old
+# stale-dotnet.js → SPA-fallback cache-poisoning edge is gone.
+[[headers]]
+  for = "/zilf/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Vendored Parchment player assets: unfingerprinted but change rarely; a week
+# of caching kills the ~6 conditional round-trips on every compile→play.
+[[headers]]
+  for = "/play/web/*"
   [headers.values]
     Cache-Control = "public, max-age=604800"

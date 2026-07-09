@@ -40,8 +40,9 @@ jobs:
           test -f .output/public/technical/index.html
           test -f .output/public/play/index.html
           test -f .output/public/play/demo.z5
-          test -f .output/public/zilf/_framework/dotnet.js
-          test -f .output/public/zilf/_framework/dotnet.native.wasm
+          test -f .output/public/zilf/r5262550/_framework/dotnet.js
+          test -f .output/public/zilf/r5262550/_framework/dotnet.native.wasm
+          test -f .output/public/pa/init.js
           grep -q 'rel="modulepreload"' .output/public/index.html
       # The README's axe-core zero-violation gate, for real: serve the build
       # and fail on any violation on the three routes (full default ruleset).

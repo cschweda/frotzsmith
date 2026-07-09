@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Plays offline from `file://` or any static host — the no-hosting
   distribution path (itch.io, Neocities) now that hosted publishing is
   deliberately deferred (see `docs/superpowers/specs/2026-07-09-publish-mode-design.md`).
+- **Share** — a toolbar button copies a link that carries the current source
+  *inside the URL fragment* (deflate + base64url, TypeScript-playground
+  style) — nothing is uploaded, and fragments never reach a server. Opening
+  a share link auto-loads only over a pristine buffer; over real work it
+  offers a sticky "Replace editor contents" toast instead of overwriting
+  (the recovery autosave would persist a silent replacement within a
+  second). Wrong-language and malformed fragments are ignored.
 - **Beta pre-flights** — a toolbar bug-report link straight to GitHub issues;
   the ZIL pre-warm respects Data Saver / 2g connections (opening `/zil/` to
   look no longer commits a metered visitor to the ~9 MB .NET download); and

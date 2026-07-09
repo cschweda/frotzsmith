@@ -23,13 +23,14 @@ import { readdir } from 'node:fs/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
 import { ZIL_SAMPLES } from '~/modules/languages/zil/samples'
+import { ZILF_FRAMEWORK_BASE } from '~~/frotzsmith.config'
 
 // ---------------------------------------------------------------------------
 // Paths
 // ---------------------------------------------------------------------------
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '../../..')
-const frameworkDir = path.join(repoRoot, 'public/zilf/_framework')
+const frameworkDir = path.join(repoRoot, 'public', ZILF_FRAMEWORK_BASE)
 
 // ---------------------------------------------------------------------------
 // Version string → integer mapping (matches ZilfExports.Compile second arg)

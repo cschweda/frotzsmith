@@ -1,7 +1,7 @@
 # tools/zilf-wasm — offline ZILF→WASM build
 
 Builds a `.NET 10 WebAssembly` bundle that exposes **ZILF + ZAPF** to JavaScript
-via `[JSExport]`. The output (`public/zilf/_framework/`) is **committed** and
+via `[JSExport]`. The output (`public/zilf/<rev>/_framework/` (versioned; see ZILF_FRAMEWORK_BASE)) is **committed** and
 shipped as a static artifact — the same offline model as `inform6.wasm`. Netlify
 never builds this; it simply serves the pre-committed files.
 

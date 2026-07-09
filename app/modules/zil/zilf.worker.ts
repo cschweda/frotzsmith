@@ -23,7 +23,8 @@
  * docs/superpowers/notes/2026-07-01-zil-worker-followup.md).
  *
  * The dotnet.js entry is the productionized bundle committed to
- * public/zilf/_framework/ and served at /zilf/_framework/dotnet.js.
+ * public/zilf/<rev>/_framework/ (versioned path → immutable caching; see
+ * ZILF_FRAMEWORK_BASE in frotzsmith.config).
  * The ~7.5 MB bundle downloads only when this worker is spawned — on the /zil/
  * page's mount (warmZilCompiler pre-warms it with a throwaway skeleton compile,
  * absorbing the ~20 s cold interpreter warm-up) or on the first compile,
@@ -34,6 +35,8 @@
  * framework assets are absent), the error below will catch it and surface a
  * clear message rather than a silent hang.
  */
+
+import { ZILF_FRAMEWORK_BASE } from '~~/frotzsmith.config'
 
 export type {} // Ensure this is treated as a module by TypeScript.
 
@@ -64,7 +67,7 @@ async function getExports() {
       // already allows unsafe-eval (ZVM JIT).
       const dynamicImport = new Function('u', 'return import(u)') as (u: string) => Promise<unknown>
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const mod = await dynamicImport('/zilf/_framework/dotnet.js')
+      const mod = await dynamicImport(`${ZILF_FRAMEWORK_BASE}/dotnet.js`)
       stage('dotnet.js imported')
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const { dotnet } = mod as { dotnet: { withApplicationArguments(): { create(): Promise<unknown> } } }

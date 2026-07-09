@@ -142,7 +142,17 @@ onBeforeUnmount(() => {
         :aria-label="isFullscreen ? 'Exit full screen' : 'Play full screen'"
         @click="toggleFullscreen"
       />
-      <iframe ref="playFrame" :src="src" class="h-full w-full border-0" title="Game — Parchment interpreter" />
+      <!-- sandbox (audit 2026-06-30, defense-in-depth): allow-same-origin +
+           allow-scripts are required (the shell scripts the iframe's DOM and
+           the player runs the ZVM), but popups, top navigation, downloads,
+           and form submission stay blocked. -->
+      <iframe
+        ref="playFrame"
+        :src="src"
+        sandbox="allow-same-origin allow-scripts"
+        class="h-full w-full border-0"
+        title="Game — Parchment interpreter"
+      />
     </template>
     <div
       v-else

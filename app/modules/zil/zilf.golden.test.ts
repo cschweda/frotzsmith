@@ -17,13 +17,14 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { readdir } from 'node:fs/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
+import { ZILF_FRAMEWORK_BASE } from '~~/frotzsmith.config'
 
 // ---------------------------------------------------------------------------
 // Paths — resolved relative to this test file.
 // ---------------------------------------------------------------------------
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '../../..')
-const frameworkDir = path.join(repoRoot, 'public/zilf/_framework')
+const frameworkDir = path.join(repoRoot, 'public', ZILF_FRAMEWORK_BASE)
 
 // ---------------------------------------------------------------------------
 // The same one-room fixture used by test-smoke.mjs (stable against the

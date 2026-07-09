@@ -2,6 +2,7 @@ import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { parseZilDiagnostics } from '~/modules/zil/zil-diagnostics'
 import { cachedAsync } from '~/utils/cached-async'
 import zilSkeletonSource from '~/modules/languages/zil/samples/skeleton.zil?raw'
+import { ZILF_FRAMEWORK_BASE } from '~~/frotzsmith.config'
 
 /**
  * Spawns a `zilf.worker.ts` Web Worker on the first ZIL compile request — or
@@ -281,7 +282,7 @@ const getMainThreadExports = cachedAsync(async (): Promise<ZilfExportCache> => {
   // rewrite the URL.  The app's CSP already allows unsafe-eval (ZVM JIT).
   const dynamicImport = new Function('u', 'return import(u)') as (u: string) => Promise<unknown>
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const mod = await dynamicImport('/zilf/_framework/dotnet.js')
+  const mod = await dynamicImport(`${ZILF_FRAMEWORK_BASE}/dotnet.js`)
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   const { dotnet } = mod as {
     dotnet: { withApplicationArguments(): { create(): Promise<unknown> } }

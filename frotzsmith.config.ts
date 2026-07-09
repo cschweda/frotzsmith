@@ -69,6 +69,15 @@ export const frotzsmith = {
 export type FrotzsmithConfig = typeof frotzsmith
 
 /**
+ * Where the versioned ZILF .NET bundle is served from. The path carries the
+ * compiler revision so the whole directory can be cached immutable — a
+ * rebuild lands under a new path, which also kills the old cache-poisoning
+ * edge (a stale dotnet.js requesting a removed file used to get the SPA
+ * fallback's HTML cached under the wasm URL for a week).
+ */
+export const ZILF_FRAMEWORK_BASE = `/zilf/${frotzsmith.versions.zilf}/_framework`
+
+/**
  * Build a namespaced localStorage key for a given language state key.
  * Inserts `stateKey` between the `frotzsmith:` prefix and the rest of the base key.
  *
