@@ -1,7 +1,13 @@
 # Publish Mode — Design (v1: unlisted links)
 
 **Date:** 2026-07-09
-**Status:** Approved (design); not yet planned/implemented
+**Status:** DEFERRED (2026-07-09, same day) — the design is approved and kept,
+but hosted publishing means maintaining Supabase (and every published game)
+indefinitely, which isn't a commitment this project can carry right now.
+Revisit if that changes. The no-hosting alternative ships first: the
+self-contained offline-playable **HTML bundle export** (already planned in the
+README), which gives authors distribution via itch.io / their own site with
+zero Frotzsmith custodianship.
 **Decisions locked with author:** unlisted links only in v1 · GitHub OAuth only · Netlify + Supabase (no droplet) · no app-wide accounts
 
 ## Goal

@@ -61,3 +61,12 @@ See [`docs/13-v2-roadmap.md`](./docs/13-v2-roadmap.md) for the full assessments.
 - **Extensions registry** — a searchable online catalog.
 - **Glulx** — larger games (the `StoryEngine` seam allows it).
 - **Multi-file projects**, and an `app.frotzsmith.com` + landing-page split.
+- **Publish mode** — hosted card pages (cover, summary, play-online link) for
+  works-in-progress and finished games, Borogove-style. Designed and
+  deliberately deferred: it requires maintaining hosted storage (Supabase) —
+  and every published game — indefinitely. Full design (auth model, data
+  model, sandboxed play origin) preserved in
+  [`docs/superpowers/specs/2026-07-09-publish-mode-design.md`](./docs/superpowers/specs/2026-07-09-publish-mode-design.md).
+  The no-hosting alternative ships first: the self-contained **HTML bundle
+  export**, which lets authors distribute via itch.io or any static host with
+  zero Frotzsmith infrastructure.
