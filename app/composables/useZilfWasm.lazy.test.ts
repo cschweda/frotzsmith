@@ -16,20 +16,40 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-/** A Worker mock that immediately reports a boot error for any compile request. */
-function makeFailingWorkerSpy() {
-  const instances: Array<{ posted: unknown[] }> = []
+/** What a mock Worker does in response to a posted compile request. */
+type WorkerBehavior =
+  | 'reply-error' // posts back a structured { error } message (boot failed in-worker)
+  | 'error-event' // fires an `error` event (worker script failed to load/parse)
+  | 'messageerror-event' // fires a `messageerror` event (deserialization failure)
+  | 'silent' // never responds at all (stalled download / hung boot)
+
+/** A type-aware Worker mock: listeners are registered per event type (like the
+ *  real Worker), so an `error` listener never sees `message` events. */
+function makeWorkerSpy(behavior: WorkerBehavior) {
+  type Listener = (e: { data?: unknown; message?: string }) => void
+  const instances: Array<{ posted: unknown[]; terminate: ReturnType<typeof vi.fn> }> = []
   const spy = vi.fn().mockImplementation(() => {
-    const listeners = new Set<(e: { data: unknown }) => void>()
+    const listeners = new Map<string, Set<Listener>>()
+    const of = (type: string) => [...(listeners.get(type) ?? [])]
     const inst = {
       posted: [] as unknown[],
-      addEventListener: (_type: string, fn: (e: { data: unknown }) => void) => listeners.add(fn),
-      removeEventListener: (_type: string, fn: (e: { data: unknown }) => void) => listeners.delete(fn),
+      addEventListener: (type: string, fn: Listener) => {
+        if (!listeners.has(type)) listeners.set(type, new Set())
+        listeners.get(type)!.add(fn)
+      },
+      removeEventListener: (type: string, fn: Listener) => listeners.get(type)?.delete(fn),
       terminate: vi.fn(),
       postMessage(msg: { requestId?: number }) {
         inst.posted.push(msg)
         queueMicrotask(() => {
-          for (const fn of [...listeners]) fn({ data: { error: 'boot failed (test env)', requestId: msg.requestId } })
+          if (behavior === 'reply-error') {
+            for (const fn of of('message')) fn({ data: { error: 'boot failed (test env)', requestId: msg.requestId } })
+          } else if (behavior === 'error-event') {
+            for (const fn of of('error')) fn({ message: 'worker script failed (test env)' })
+          } else if (behavior === 'messageerror-event') {
+            for (const fn of of('messageerror')) fn({ data: null })
+          }
+          // 'silent' — no response.
         })
       },
     }
@@ -37,6 +57,11 @@ function makeFailingWorkerSpy() {
     return inst
   })
   return { spy, instances }
+}
+
+/** A Worker mock that immediately reports a boot error for any compile request. */
+function makeFailingWorkerSpy() {
+  return makeWorkerSpy('reply-error')
 }
 
 describe('useZilfWasm — worker enabled, error fallback to main thread', () => {
@@ -94,5 +119,100 @@ describe('useZilfWasm — worker enabled, error fallback to main thread', () => 
     expect(r1.ok).toBe(false)
     expect(r2.ok).toBe(false)
     expect(spy).toHaveBeenCalledTimes(1) // _workerFailed caches the fallback decision
+  })
+})
+
+describe('useZilfWasm — worker error/messageerror events fail fast', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    vi.unstubAllGlobals()
+  })
+
+  it('falls back promptly when the worker script fails to boot (error event)', async () => {
+    // A worker whose script fails to load/parse (bad deploy, CSP, dev
+    // transform) fires `error` and never posts a message — without an error
+    // listener the user stares at "Compiling…" for the full 60 s timeout.
+    vi.useFakeTimers()
+    try {
+      const { spy } = makeWorkerSpy('error-event')
+      vi.stubGlobal('Worker', spy)
+
+      const { useZilfWasm } = await import('~/composables/useZilfWasm')
+      let settled = false
+      const p = useZilfWasm().compile('src', 3).then((r) => {
+        settled = true
+        return r
+      })
+      await vi.advanceTimersByTimeAsync(1_000) // far below the 60 s timeout
+      expect(settled).toBe(true)
+
+      const r = await p
+      expect(r.ok).toBe(false) // main-thread fallback (no .NET in node); the point is it resolved fast
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('falls back promptly on a messageerror event', async () => {
+    vi.useFakeTimers()
+    try {
+      const { spy } = makeWorkerSpy('messageerror-event')
+      vi.stubGlobal('Worker', spy)
+
+      const { useZilfWasm } = await import('~/composables/useZilfWasm')
+      let settled = false
+      const p = useZilfWasm().compile('src', 3).then((r) => {
+        settled = true
+        return r
+      })
+      await vi.advanceTimersByTimeAsync(1_000)
+      expect(settled).toBe(true)
+
+      const r = await p
+      expect(r.ok).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('useZilfWasm — warm-up must not sabotage real compiles', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    vi.unstubAllGlobals()
+  })
+
+  it('a stalled warm-up neither terminates the worker nor latches main-thread mode', async () => {
+    // Regression: the warm-up shared the real compiles' 60 s timeout. On a slow
+    // connection (7.5 MB download + ~20 s boot) the warm-up's timer fired,
+    // terminate()d the shared worker — killing any real compile queued behind
+    // it — and latched _workerFailed, so every later compile silently froze
+    // the main thread with no signal that degraded mode was active.
+    vi.useFakeTimers()
+    try {
+      const { spy, instances } = makeWorkerSpy('silent')
+      vi.stubGlobal('Worker', spy)
+
+      const mod = await import('~/composables/useZilfWasm')
+      mod.warmZilCompiler()
+      await vi.advanceTimersByTimeAsync(61_000) // well past WORKER_TIMEOUT_MS
+
+      // The stalled warm-up must not have killed the worker…
+      expect(instances[0]!.terminate).not.toHaveBeenCalled()
+
+      // …and a real compile must still attempt the worker path (no latch).
+      const p = mod.useZilfWasm().compile('src', 3)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(instances[0]!.posted).toHaveLength(2) // warm-up + real compile
+
+      // The real compile still owns its own timeout: a genuinely dead worker
+      // is terminated and latched by IT, and the compile resolves via fallback.
+      await vi.advanceTimersByTimeAsync(61_000)
+      const r = await p
+      expect(r.ok).toBe(false)
+      expect(instances[0]!.terminate).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

@@ -23,9 +23,12 @@ import zilSkeletonSource from '~/modules/languages/zil/samples/skeleton.zil?raw'
  *   CACHING  — Once the worker proves unusable (_workerFailed = true), every
  *              subsequent compile in the session skips the Worker entirely.
  *
- * Failure modes:
+ * Failure modes (real compiles; the background warm-up never latches):
  * - Worker construction fails  → _workerFailed, main-thread fallback.
  * - Worker sends { error }     → _workerFailed, main-thread fallback.
+ * - Worker fires error/messageerror (script failed to load / bad message)
+ *                              → terminate worker, _workerFailed, main-thread
+ *                                fallback immediately (no 60 s wait).
  * - Worker times out (>60 s)   → terminate worker, _workerFailed, main-thread.
  * - Main-thread boot/compile error → ok: false with a clear Diagnostic.
  */
@@ -175,19 +178,23 @@ let _requestSeq = 0
 /**
  * Attempt a compile via the Web Worker.
  * Returns the raw payload on success, or null if the worker failed / timed out.
- * A null result triggers the main-thread fallback and sets _workerFailed.
+ * A null result triggers the main-thread fallback; whether it also latches
+ * _workerFailed is governed by opts.latch (real compiles latch, the background
+ * warm-up must not).
  */
 function tryWorkerCompile(
   source: string,
   version: number,
+  opts: { timeoutMs?: number | null; latch?: boolean } = {},
 ): Promise<CompilePayload | null> {
+  const { timeoutMs = WORKER_TIMEOUT_MS, latch = true } = opts
   return new Promise<CompilePayload | null>((resolve) => {
     let worker: Worker
     try {
       worker = getWorker()
     } catch {
       // Worker construction failed (e.g. Vite dev transform hang, wrong env).
-      _workerFailed = true
+      if (latch) _workerFailed = true
       resolve(null)
       return
     }
@@ -195,22 +202,27 @@ function tryWorkerCompile(
     const requestId = ++_requestSeq
 
     const finish = (payload: CompilePayload | null) => {
-      clearTimeout(timer)
+      if (timer !== null) clearTimeout(timer)
       worker.removeEventListener('message', handler)
+      worker.removeEventListener('error', onWorkerError)
+      worker.removeEventListener('messageerror', onWorkerError)
       resolve(payload)
     }
 
-    const timer = setTimeout(() => {
-      // Terminate the stuck worker; next getWorker() call creates a fresh one.
-      try {
-        worker.terminate()
-        _worker = null
-      } catch {
-        /* ignore — the worker may already be dead */
-      }
-      _workerFailed = true
-      finish(null)
-    }, WORKER_TIMEOUT_MS)
+    const timer =
+      timeoutMs === null
+        ? null
+        : setTimeout(() => {
+            // Terminate the stuck worker; next getWorker() call creates a fresh one.
+            try {
+              worker.terminate()
+              _worker = null
+            } catch {
+              /* ignore — the worker may already be dead */
+            }
+            if (latch) _workerFailed = true
+            finish(null)
+          }, timeoutMs)
 
     const handler = (event: MessageEvent) => {
       const data = event.data as (CompilePayload | { error: string } | { stage: string }) & {
@@ -224,14 +236,31 @@ function tryWorkerCompile(
       if (data.requestId !== requestId) return // stale response from a prior compile
       if ('error' in data) {
         // Worker surfaced a boot or runtime error — fall back to main thread.
-        _workerFailed = true
+        if (latch) _workerFailed = true
         finish(null)
         return
       }
       finish(data)
     }
 
+    /** The worker script itself failed (load/parse error) or a message failed
+     *  to deserialize — no compile response will ever arrive, so fail fast
+     *  instead of waiting out the timeout. Drop the dead worker so a later
+     *  attempt constructs a fresh one (and gets a fresh, fast error signal). */
+    const onWorkerError = () => {
+      try {
+        worker.terminate()
+        _worker = null
+      } catch {
+        /* ignore */
+      }
+      if (latch) _workerFailed = true
+      finish(null)
+    }
+
     worker.addEventListener('message', handler)
+    worker.addEventListener('error', onWorkerError)
+    worker.addEventListener('messageerror', onWorkerError)
     worker.postMessage({ source, version, requestId })
   })
 }
@@ -289,14 +318,19 @@ let _warmKicked = false
  * If the author compiles before the warm-up finishes, the worker (single-
  * threaded) queues their request behind it: worst case equals today's cold
  * compile, so this can only help.
+ *
+ * No timeout and no failure latch: on a slow connection the warm-up can
+ * legitimately exceed WORKER_TIMEOUT_MS (download + boot + first compile);
+ * a timer here would terminate the SHARED worker — killing any real compile
+ * queued behind it — and latch _workerFailed, silently degrading every later
+ * compile to the main-thread freeze. A truly broken worker is discovered
+ * (and latched) by the first real compile's own timeout.
  */
 export function warmZilCompiler(): void {
   if (!import.meta.client || _warmKicked) return
   if (!WORKER_ENABLED || _workerFailed || typeof Worker === 'undefined') return
   _warmKicked = true
-  void tryWorkerCompile(zilSkeletonSource, 3).catch(() => {
-    /* surfaced by the first real compile */
-  })
+  void tryWorkerCompile(zilSkeletonSource, 3, { timeoutMs: null, latch: false })
 }
 
 // ─── composable ───────────────────────────────────────────────────────────────
@@ -316,9 +350,7 @@ export function useZilfWasm() {
     const started = performance.now()
     const storyExt = versionToExt(version)
 
-    // ── Worker path (disabled — see WORKER_ENABLED) ────────────────────────
-    // dotnet.create() hangs inside a plain Web Worker, so we compile on the
-    // main thread. The worker code is kept, gated off, for a future re-enable.
+    // ── Worker path (primary — see WORKER_ENABLED) ─────────────────────────
     if (WORKER_ENABLED && !_workerFailed) {
       const payload = await tryWorkerCompile(source, version)
       if (payload !== null) {
