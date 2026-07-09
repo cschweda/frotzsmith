@@ -3,7 +3,7 @@ import { formatI6 } from '~/utils/format-i6'
 import { formatZil } from '~/utils/format-zil'
 import { safeGetItem, safeSetItem } from '~/utils/safe-storage'
 import { PROFILES, detectProfile, type ProfileId } from '~/modules/inform6/profiles'
-import { sampleById } from '~/modules/inform6/samples'
+import { sampleById, loadSampleSource } from '~/modules/inform6/samples'
 import { sampleById as zilSampleById } from '~/modules/languages/zil/samples'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 
@@ -243,8 +243,9 @@ export function useIde() {
       safeSetItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.target), mode)
   }
 
-  /** Load a built-in sample into the editor, prettified for consistent formatting. */
-  function loadSample(id: string) {
+  /** Load a built-in sample into the editor, prettified for consistent formatting.
+   *  Async: I6 sample bodies live in per-sample lazy chunks (loadSampleSource). */
+  async function loadSample(id: string): Promise<void> {
     // ZIL samples: look up from the ZIL sample registry; no I6 formatting.
     if (profile.value.id === 'zil') {
       const s = zilSampleById(id)
@@ -255,10 +256,12 @@ export function useIde() {
       resetForNewSource()
       return
     }
-    // I6 path — unchanged.
+    // I6 path.
     const s = sampleById(id)
     if (!s) return
-    source.value = formatI6(s.source)
+    const src = await loadSampleSource(id)
+    if (src === null) return // chunk failed to load — keep the current source
+    source.value = formatI6(src)
     // Commit the new game's bucket key AFTER source is set so storyKey reflects the sample.
     activeStoryKey.value = storyKey.value
     // Reset to auto so the sample compiles with its own library, not whatever

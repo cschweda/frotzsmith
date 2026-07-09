@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SAMPLES, sampleById } from './samples'
+import { SAMPLES, sampleById, loadSampleSource } from './samples'
 
 // ---------------------------------------------------------------------------
 // sampleById
@@ -55,7 +55,7 @@ describe('SAMPLES registry', () => {
     expect(uniqueIds.size).toBe(ids.length)
   })
 
-  it('every sample has required string fields: id, name, description, source', () => {
+  it('every sample has required string fields: id, name, description, file', () => {
     for (const s of SAMPLES) {
       expect(typeof s.id).toBe('string')
       expect(s.id.length).toBeGreaterThan(0)
@@ -63,8 +63,7 @@ describe('SAMPLES registry', () => {
       expect(s.name.length).toBeGreaterThan(0)
       expect(typeof s.description).toBe('string')
       expect(s.description.length).toBeGreaterThan(0)
-      expect(typeof s.source).toBe('string')
-      expect(s.source.length).toBeGreaterThan(0)
+      expect(s.file).toMatch(/\.inf$/)
     }
   })
 
@@ -110,9 +109,18 @@ describe('SAMPLES – special cases', () => {
     }
   })
 
-  it('sample sources are non-trivially long (at least 100 chars)', () => {
+  it('every sample body loads lazily and is non-trivially long (file ↔ id sync)', async () => {
+    // Bodies moved behind loadSampleSource (per-sample lazy chunks). Loading
+    // every one here guards the `file:` field against typos/renames — a
+    // mismatch returns null and fails loudly.
     for (const s of SAMPLES) {
-      expect(s.source.length).toBeGreaterThan(100)
+      const src = await loadSampleSource(s.id)
+      expect(src, `body for ${s.id} (${s.file})`).not.toBeNull()
+      expect(src!.length).toBeGreaterThan(100)
     }
+  })
+
+  it('loadSampleSource returns null for an unknown id', async () => {
+    expect(await loadSampleSource('nonexistent')).toBeNull()
   })
 })

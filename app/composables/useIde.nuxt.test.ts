@@ -317,6 +317,29 @@ describe('useIde — runCompile clean-slate orchestration', () => {
   })
 })
 
+describe('useIde — loadSample (async, lazy sample bodies)', () => {
+  it('loads a sample body, formats it into source, and resets to a clean slate', async () => {
+    const ide = useIde()
+    setupSuccessResult() // pre-existing compile artifacts must be blanked
+    ide.activeTab.value = 'play'
+
+    await ide.loadSample('std-skeleton')
+
+    expect(ide.source.value.length).toBeGreaterThan(100)
+    expect(ide.source.value).toContain('Include')
+    expect(ide.status.value).toBe('idle')
+    expect(ide.result.value).toBeNull()
+    expect(ide.activeTab.value).toBe('results')
+  })
+
+  it('is a no-op for an unknown sample id', async () => {
+    const ide = useIde()
+    ide.source.value = 'KEEP ME'
+    await ide.loadSample('no-such-sample')
+    expect(ide.source.value).toBe('KEEP ME')
+  })
+})
+
 describe('useIde — storage failures must not break the IDE', () => {
   // useIde was the one composable with unguarded localStorage access: restore()
   // threw during IdeLayout mount when storage is blocked (Chrome "Block all
