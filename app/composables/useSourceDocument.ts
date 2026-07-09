@@ -1,6 +1,8 @@
 import demoSource from '~/modules/inform6/samples/demo.inf?raw'
 import zilSkeletonSource from '~/modules/languages/zil/samples/skeleton.zil?raw'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
+import { safeSetItem } from '~/utils/safe-storage'
+import { notifyStorageFull } from '~/composables/useStorageNotice'
 
 // The autosave watcher must be registered only once, even though this composable
 // may be called from several components.
@@ -61,12 +63,14 @@ export function useSourceDocument() {
 
   function save() {
     if (!import.meta.client) return
-    try {
-      const snap: RecoverySnapshot = { source: source.value, savedAt: Date.now() }
-      localStorage.setItem(getKey(), JSON.stringify(snap))
+    const snap: RecoverySnapshot = { source: source.value, savedAt: Date.now() }
+    if (safeSetItem(getKey(), JSON.stringify(snap))) {
       savedAt.value = snap.savedAt
-    } catch {
-      // QuotaExceededError — keep editing in memory, don't interrupt
+    } else {
+      // QuotaExceededError — keep editing in memory, don't interrupt; but cue
+      // the author once (this is the crash-recovery snapshot — the "Saved"
+      // indicator must NOT advance when nothing was actually written).
+      notifyStorageFull()
     }
   }
 

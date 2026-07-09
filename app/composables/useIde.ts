@@ -2,6 +2,7 @@ import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { formatI6 } from '~/utils/format-i6'
 import { formatZil } from '~/utils/format-zil'
 import { safeGetItem, safeSetItem } from '~/utils/safe-storage'
+import { notifyStorageFull } from '~/composables/useStorageNotice'
 import { PROFILES, detectProfile, type ProfileId } from '~/modules/inform6/profiles'
 import { sampleById, loadSampleSource } from '~/modules/inform6/samples'
 import { sampleById as zilSampleById } from '~/modules/languages/zil/samples'
@@ -233,14 +234,14 @@ export function useIde() {
 
   function setProfileMode(mode: ProfileMode) {
     profileMode.value = mode
-    if (import.meta.client)
-      safeSetItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.profileMode), mode)
+    if (import.meta.client && !safeSetItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.profileMode), mode))
+      notifyStorageFull()
   }
 
   function setTargetMode(mode: 'auto' | StoryExt) {
     targetMode.value = mode
-    if (import.meta.client)
-      safeSetItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.target), mode)
+    if (import.meta.client && !safeSetItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.target), mode))
+      notifyStorageFull()
   }
 
   /** Load a built-in sample into the editor, prettified for consistent formatting.

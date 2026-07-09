@@ -1,6 +1,15 @@
 export const ZIP_MAX_ENTRIES = 200
 export const ZIP_MAX_TOTAL_BYTES = 5 * 1024 * 1024 // 5 MB of expanded .h text
 
+/**
+ * Cumulative cap across ALL uploaded extensions (per language). They persist
+ * as one localStorage value, and the whole origin typically gets 5-10 MB —
+ * shared with the crash-recovery snapshot and test scripts. Without a total
+ * cap, 2-3 large uploads exhaust the quota and every later persist (including
+ * autosave) fails.
+ */
+export const EXTENSIONS_TOTAL_MAX_BYTES = 4 * 1024 * 1024
+
 export class ZipLimitError extends Error {
   constructor(message: string) {
     super(message)

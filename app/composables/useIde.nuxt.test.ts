@@ -69,6 +69,10 @@ vi.stubGlobal('useTranscript', () => ({
 const _mapReset = vi.fn()
 vi.stubGlobal('useMap', () => ({ reset: _mapReset }))
 
+// Toast sink for the storage-full cue (useStorageNotice → useToast().add).
+const _toastAdd = vi.fn()
+vi.stubGlobal('useToast', () => ({ add: _toastAdd }))
+
 // Import AFTER globals are set up.
 const { useIde } = await import('./useIde')
 
@@ -371,6 +375,26 @@ describe('useIde — storage failures must not break the IDE', () => {
       // The in-memory choice must still take effect for this session.
       expect(ide.profileMode.value).toBe('std')
       expect(ide.targetMode.value).toBe('z8')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('a refused persist surfaces the storage-full cue (once, not per write)', async () => {
+    const spy = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError')
+    })
+    try {
+      // Earlier quota tests in this file may already have fired the
+      // once-per-session cue — reset the latch to observe it cleanly.
+      const { resetStorageNoticeForTests } = await import('./useStorageNotice')
+      resetStorageNoticeForTests()
+      _toastAdd.mockClear()
+      const ide = useIde()
+      ide.setProfileMode('std')
+      ide.setTargetMode('z8')
+      ide.setTargetMode('z5')
+      expect(_toastAdd).toHaveBeenCalledTimes(1)
     } finally {
       spy.mockRestore()
     }

@@ -42,8 +42,14 @@ async function ingest(files: File[]) {
         note.value = `${file.name} is too large (5 MB max).`
         continue
       }
-      addUploaded(file.name, await file.text())
-      added++
+      try {
+        addUploaded(file.name, await file.text())
+        added++
+      } catch (e) {
+        // Cumulative-cap refusal (ZipLimitError) — surface why, like the zip path.
+        note.value = e instanceof ZipLimitError ? e.message : `Could not add ${file.name}.`
+        return
+      }
     }
   }
   note.value = added

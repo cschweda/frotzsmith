@@ -1,4 +1,6 @@
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
+import { safeSetItem } from '~/utils/safe-storage'
+import { notifyStorageFull } from '~/composables/useStorageNotice'
 import {
   type TestScript,
   type PersistedV2,
@@ -51,12 +53,9 @@ export function useTestScripts() {
 
   function persist() {
     if (!import.meta.client) return
-    try {
-      const data: PersistedV2 = { v: 2, buckets: buckets.value }
-      localStorage.setItem(getKey(), JSON.stringify(data))
-    } catch {
-      // QuotaExceededError — keep working in memory
-    }
+    const data: PersistedV2 = { v: 2, buckets: buckets.value }
+    // QuotaExceededError — keep working in memory, but cue the author once.
+    if (!safeSetItem(getKey(), JSON.stringify(data))) notifyStorageFull()
   }
 
   function seedFirst() {

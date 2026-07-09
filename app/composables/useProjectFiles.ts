@@ -9,6 +9,8 @@ import {
 import type { ProfileMode } from '~/composables/useIde'
 import { PROFILES, detectProfile, type ProfileId } from '~/modules/inform6/profiles'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
+import { safeSetItem } from '~/utils/safe-storage'
+import { notifyStorageFull } from '~/composables/useStorageNotice'
 
 /**
  * Reactive model behind the file explorer + editor tabs. The file list mirrors
@@ -92,14 +94,8 @@ export function useProjectFiles() {
 
   function persist() {
     if (!import.meta.client) return
-    try {
-      localStorage.setItem(
-        getKey(),
-        JSON.stringify({ open: panelOpen.value, ...tabs.value }),
-      )
-    } catch {
-      // QuotaExceededError — keep working in memory
-    }
+    // QuotaExceededError — keep working in memory, but cue the author once.
+    if (!safeSetItem(getKey(), JSON.stringify({ open: panelOpen.value, ...tabs.value }))) notifyStorageFull()
   }
 
   function openFile(id: string) {

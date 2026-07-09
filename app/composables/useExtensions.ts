@@ -1,6 +1,9 @@
 import type { Extension } from '~/modules/inform6/extensions'
 import { BUNDLED_EXTENSIONS } from '~/modules/inform6/extensions'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
+import { safeSetItem } from '~/utils/safe-storage'
+import { ZipLimitError, EXTENSIONS_TOTAL_MAX_BYTES } from '~/utils/zip-limits'
+import { notifyStorageFull } from '~/composables/useStorageNotice'
 
 /**
  * Manages Inform 6 extensions: the bundled catalog plus the author's uploaded
@@ -24,11 +27,8 @@ export function useExtensions() {
       uploaded: uploaded.value.map(u => ({ id: u.id, name: u.name, title: u.title, content: u.content })),
       enabled: enabledIds.value,
     }
-    try {
-      localStorage.setItem(getKey(), JSON.stringify(data))
-    } catch {
-      // QuotaExceededError — keep working in memory
-    }
+    // QuotaExceededError → keep working in memory, but tell the author once.
+    if (!safeSetItem(getKey(), JSON.stringify(data))) notifyStorageFull()
   }
 
   function restore() {
@@ -69,10 +69,20 @@ export function useExtensions() {
     persist()
   }
 
-  /** Add (or replace) an uploaded extension from a filename + its `.h` content. */
+  /** Add (or replace) an uploaded extension from a filename + its `.h` content.
+   *  Throws ZipLimitError when the upload would push the cumulative stored
+   *  total past EXTENSIONS_TOTAL_MAX_BYTES (ExtensionsModal surfaces it). */
   function addUploaded(filename: string, content: string): Extension {
     const name = (filename.replace(/\.h$/i, '').replace(/[^A-Za-z0-9_]/g, '_') || 'ext')
     const id = `uploaded:${name}`
+    // Replacing the same id counts its old size out.
+    const otherBytes = uploaded.value.filter(e => e.id !== id).reduce((n, e) => n + e.content.length, 0)
+    if (otherBytes + content.length > EXTENSIONS_TOTAL_MAX_BYTES) {
+      const mb = Math.round(EXTENSIONS_TOTAL_MAX_BYTES / 1024 / 1024)
+      throw new ZipLimitError(
+        `Storing ${filename} would exceed the ${mb} MB total for uploaded extensions — remove one first.`,
+      )
+    }
     const ext: Extension = {
       id,
       name,
