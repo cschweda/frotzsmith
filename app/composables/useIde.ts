@@ -1,6 +1,7 @@
 import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { formatI6 } from '~/utils/format-i6'
 import { formatZil } from '~/utils/format-zil'
+import { safeGetItem, safeSetItem } from '~/utils/safe-storage'
 import { PROFILES, detectProfile, type ProfileId } from '~/modules/inform6/profiles'
 import { sampleById } from '~/modules/inform6/samples'
 import { sampleById as zilSampleById } from '~/modules/languages/zil/samples'
@@ -115,9 +116,9 @@ export function useIde() {
       const targetKey = buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.target)
       // No persisted value → 'auto', so the other language's in-memory choice
       // (e.g. a forced z4) doesn't leak into this language's toolbar.
-      const saved = localStorage.getItem(profileModeKey)
+      const saved = safeGetItem(profileModeKey)
       profileMode.value = saved === 'auto' || saved === 'std' || saved === 'puny' ? saved : 'auto'
-      const t = localStorage.getItem(targetKey)
+      const t = safeGetItem(targetKey)
       targetMode.value =
         t !== null && (t === 'auto' || (profile.value.versionTargets as string[]).includes(t))
           ? (t as 'auto' | StoryExt)
@@ -188,6 +189,7 @@ export function useIde() {
     activeTab.value = 'results'
     const pid = effectiveProfile.value
     await nextPaint()
+    const started = performance.now()
     try {
       const r = await compile(source.value, {
         profileId: pid,
@@ -197,8 +199,20 @@ export function useIde() {
       result.value = r
       usedProfile.value = pid
       status.value = r.ok ? 'success' : 'error'
-    } catch {
-      result.value = null
+    } catch (err: unknown) {
+      // A thrown exception (vs. an ok:false result) means the compiler itself
+      // failed — e.g. the lazy inform6.mjs/wasm fetch rejected. Surface it as a
+      // failed CompileResult so ResultsPanel shows the reason instead of an
+      // empty "0 errors" error state (the ZIL path already does this).
+      const msg = `Compiler failed to run: ${String(err)}`
+      result.value = {
+        ok: false,
+        storyExt: effectiveExt.value,
+        diagnostics: [{ severity: 'fatal', message: msg }],
+        rawStderr: msg,
+        ms: Math.round(performance.now() - started),
+        byteLength: 0,
+      }
       usedProfile.value = pid
       status.value = 'error'
     } finally {
@@ -220,13 +234,13 @@ export function useIde() {
   function setProfileMode(mode: ProfileMode) {
     profileMode.value = mode
     if (import.meta.client)
-      localStorage.setItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.profileMode), mode)
+      safeSetItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.profileMode), mode)
   }
 
   function setTargetMode(mode: 'auto' | StoryExt) {
     targetMode.value = mode
     if (import.meta.client)
-      localStorage.setItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.target), mode)
+      safeSetItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.target), mode)
   }
 
   /** Load a built-in sample into the editor, prettified for consistent formatting. */

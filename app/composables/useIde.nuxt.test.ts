@@ -270,6 +270,22 @@ describe('useIde — runCompile clean-slate orchestration', () => {
     expect(status.value).toBe('error')
   })
 
+  it('runCompile surfaces a thrown compile exception as a failed result', async () => {
+    // Regression: a bare `catch {}` nulled the result, so ResultsPanel rendered
+    // an "error" banner reading "0 errors" with empty diagnostics/raw-output
+    // panes when the compiler module itself failed (e.g. a failed
+    // inform6.mjs/wasm fetch on first compile).
+    _compileMock.mockRejectedValue(new Error('wasm fetch failed'))
+    const { runCompile, status, result } = useIde()
+    await runCompile()
+    expect(status.value).toBe('error')
+    expect(result.value).not.toBeNull()
+    expect(result.value!.ok).toBe(false)
+    expect(result.value!.diagnostics[0]!.severity).toBe('fatal')
+    expect(result.value!.diagnostics[0]!.message).toContain('wasm fetch failed')
+    expect(result.value!.rawStderr).toContain('wasm fetch failed')
+  })
+
   it('runCompile preserves the active test-script selection', async () => {
     // Regression: resetEphemeral used to select('') on every compile, which
     // persisted activeId='' — after a reload the panel reverted to "Script 1".
@@ -298,6 +314,43 @@ describe('useIde — runCompile clean-slate orchestration', () => {
     expect(_compileMock).toHaveBeenCalledTimes(1)
     await runCompile() // dispatched immediately after — e.g. a click queued during a main-thread freeze
     expect(_compileMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useIde — storage failures must not break the IDE', () => {
+  // useIde was the one composable with unguarded localStorage access: restore()
+  // threw during IdeLayout mount when storage is blocked (Chrome "Block all
+  // cookies"), killing the whole IDE, and setProfileMode/setTargetMode threw
+  // an uncaught QuotaExceededError mid-toolbar-click on a full quota.
+
+  it('restore() survives blocked localStorage (getItem throws)', () => {
+    const spy = vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
+      throw new Error('SecurityError')
+    })
+    try {
+      const ide = useIde()
+      expect(() => ide.restore()).not.toThrow()
+      expect(ide.profileMode.value).toBe('auto') // falls back to defaults
+      expect(ide.targetMode.value).toBe('auto')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('setProfileMode / setTargetMode survive a full quota (setItem throws)', () => {
+    const spy = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError')
+    })
+    try {
+      const ide = useIde()
+      expect(() => ide.setProfileMode('std')).not.toThrow()
+      expect(() => ide.setTargetMode('z8')).not.toThrow()
+      // The in-memory choice must still take effect for this session.
+      expect(ide.profileMode.value).toBe('std')
+      expect(ide.targetMode.value).toBe('z8')
+    } finally {
+      spy.mockRestore()
+    }
   })
 })
 
