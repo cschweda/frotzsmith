@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Fixed — 2026-07-09 (later the same day) boot waterfall, honest CI gates, storage cues
+- **Route chunks preload in parallel** — with `ssr: false` the browser
+  discovered each route's chunks serially (entry → route resolve → page chunk
+  → IDE chunk); a postgenerate step (`tools/inject-preloads.mjs`, driven by
+  the client manifest) now injects `modulepreload` hints for every route's
+  full chain into the generated HTML, collapsing the waterfall.
+- **Canonical matches the connected custom domain** — `siteUrl` flipped to
+  `https://frotzsmith.com`; Netlify already serves the `*.netlify.app` alias
+  with a `Link: rel=canonical` header pointing there, and the stale DOM
+  canonical read as "multiple conflicting canonicals" (Lighthouse SEO 92).
+- **The axe-core zero-violation gate is real now** — CI serves the build and
+  runs `@axe-core/cli` on `/`, `/zil/`, and `/technical/`, failing on any
+  violation. Running the full ruleset surfaced four genuine issues
+  (Lighthouse's a11y subset scores 100 and missed them), all fixed: the IDE
+  pages had no `h1` (the toolbar brand now is one), three `/technical/` prose
+  links were color-only (now underlined), and the scrollable code/table
+  regions weren't keyboard-focusable (`tabindex="0"`). CI also compiles all
+  7 ZIL samples per run (`ZIL_SAMPLE_GOLDEN`, previously always skipped),
+  asserts the generated artifacts exist, and drops the README's untrue
+  "offline-capable" claim (no service worker exists — yet).
+- **A full storage quota warns instead of silently eating autosave** — every
+  persist path goes through `safeSetItem` and cues one sticky toast per
+  session on refusal; the "Saved" indicator no longer advances when nothing
+  was written; uploaded extensions get a cumulative 4 MB cap (per-import caps
+  existed, but 2-3 large uploads could exhaust the whole origin quota).
+- **Send-to-Play reports where it stopped** — the feed engine moved to a
+  unit-tested module returning `{ completed, fed, total }`; a partial feed
+  shows "stopped after N of M commands" instead of the old silent stop
+  (previously indistinguishable from the throttled-tab stall).
+
 ### Fixed — 2026-07-09 Inform 6 compiles off the main thread; first paint slims down
 - **Inform 6 compiles in a Web Worker** — with a 60 s wall-clock timeout, a
   fail-fast error channel (`error`/`messageerror`), and an automatic
