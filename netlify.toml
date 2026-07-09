@@ -10,26 +10,11 @@
 [build.environment]
   NODE_VERSION = "22"
 
-# Plausible analytics, first-party proxied (must precede the SPA catch-all —
-# Netlify redirects are first-match). Self-serving the script closes the
-# audit's SRI item (no third-party script execution under our origin) and
-# lets CSP drop plausible.io entirely; /pa/init.js replaces the old inline
-# bootstrap (one less 'unsafe-inline' dependency).
-[[redirects]]
-  from = "/pa/script.js"
-  to = "https://plausible.io/js/pa-2FCOIzY7AvsOrnssGbGde.js"
-  status = 200
-
-[[redirects]]
-  from = "/pa/event"
-  to = "https://plausible.io/api/event"
-  status = 200
-
-# SPA fallback for client-side routing (Frotzsmith is a single-page tool).
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# NOTE on redirects: on Netlify this build runs Nitro's netlify preset, which
+# emits its own `_redirects` catch-all — [[redirects]] blocks here are
+# SHADOWED by it and never match (verified live 2026-07-09; headers below DO
+# apply). Custom rules therefore live in `public/_redirects` (the Plausible
+# first-party proxy), where Nitro appends its catch-all after them.
 
 # Security headers, tuned so the in-browser toolchain actually works:
 #  - X-Frame-Options SAMEORIGIN: the IDE embeds the Parchment player in a

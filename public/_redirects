@@ -1,0 +1,8 @@
+# Plausible analytics, first-party proxied. These live in _redirects (not
+# netlify.toml [[redirects]]): on Netlify the build runs Nitro's netlify
+# preset, which emits its own _redirects catch-all — FILE rules are honored
+# and processed in order, while every toml redirect is shadowed by it
+# (verified live 2026-07-09: toml rules never matched; toml HEADERS work).
+# Nitro appends its catch-all after these lines, so first-match wins here.
+/pa/script.js  https://plausible.io/js/pa-2FCOIzY7AvsOrnssGbGde.js  200
+/pa/event      https://plausible.io/api/event  200
