@@ -102,8 +102,12 @@ export default defineNuxtConfig({
       // drop plausible.io. The bootstrap is a real file (public/pa/init.js),
       // not an inline script.
       script: [
+        // Order matters and mirrors the original inline pattern: the tiny
+        // bootstrap must run BEFORE the async library so the queue shim +
+        // init() config exist when it boots (a deferred bootstrap raced the
+        // async script and analytics silently sent nothing).
+        { src: '/pa/init.js' },
         { src: '/pa/script.js', async: true },
-        { src: '/pa/init.js', defer: true },
       ],
     },
   },
