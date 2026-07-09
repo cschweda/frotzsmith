@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { feedScript } from '~/composables/play-feed'
+
 const { result, playNonce, canPlay, pendingScript } = useIde()
 const { record, reset } = usePlayTranscript()
 const { recordCommand, recordRoom, markNoRoom } = useMap()
@@ -44,83 +46,35 @@ function onFsChange() {
   isFullscreen.value = document.fullscreenElement === container.value
 }
 
-const delay = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
-
-// Dispatch a full key sequence (keydown → keypress → keyup) using the IFRAME's
-// KeyboardEvent realm, with keyCode/which set. GlkOte's line input only submits
-// on the keypress (not keydown alone), so all three are required — validated live.
-function fireKey(target: EventTarget, win: Window, key: string, code: string, keyCode: number) {
-  for (const type of ['keydown', 'keypress', 'keyup']) {
-    const ev = new (win as unknown as { KeyboardEvent: typeof KeyboardEvent }).KeyboardEvent(type, { key, code, bubbles: true, cancelable: true })
-    Object.defineProperty(ev, 'keyCode', { get: () => keyCode })
-    Object.defineProperty(ev, 'which', { get: () => keyCode })
-    target.dispatchEvent(ev)
-  }
-}
-
-/** True when a [MORE]/char prompt is up (GlkOte's pager or a CharInput field). */
-function pagerIsUp(doc: Document): boolean {
-  const more = doc.querySelector('.MorePrompt') as HTMLElement | null
-  if (more && more.style.display !== 'none') return true
-  return !!doc.querySelector('input.CharInput')
-}
-
-// Wait until the game is ready for a typed line. Event-paced via MutationObserver,
-// NOT fixed-interval polling: Chrome throttles chained timers in long-hidden tabs
-// (intensive throttling ≈ one per minute), which used to stall the feed mid-script.
-// Observer callbacks fire on DOM changes regardless of visibility. If a [MORE]/char
-// prompt is up, press a key to advance, then keep waiting; the watchdog timer only
-// bounds a game that never asks for line input again (e.g. it quit).
-function waitForLineInput(doc: Document, win: Window, timeoutMs = 10_000): Promise<HTMLInputElement | null> {
-  return new Promise(resolve => {
-    let done = false
-    let observer: MutationObserver | null = null
-    let watchdog: ReturnType<typeof setTimeout> | null = null
-    const finish = (input: HTMLInputElement | null) => {
-      if (done) return
-      done = true
-      observer?.disconnect()
-      if (watchdog) clearTimeout(watchdog)
-      resolve(input)
-    }
-    const check = () => {
-      const input = doc.querySelector('input.LineInput') as HTMLInputElement | null
-      if (input) return finish(input)
-      if (pagerIsUp(doc)) fireKey(doc, win, ' ', 'Space', 32)
-    }
-    observer = new MutationObserver(check)
-    observer.observe(doc.getElementById('windowport') ?? doc.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['style', 'class'],
-    })
-    watchdog = setTimeout(() => finish(doc.querySelector('input.LineInput') as HTMLInputElement | null), timeoutMs)
-    check() // the input may already be present — don't wait for a mutation
-  })
-}
-
-// Feed a parsed script into the live GlkOte game, one command at a watchable pace.
-async function feedScript(commands: string[]) {
+// The feed engine (pacing, pager auto-advance, watchdog) lives in
+// ~/composables/play-feed — pure and unit-tested. This wrapper resolves the
+// iframe's realm and turns a partial feed into a visible cue instead of the
+// old silent stop (the "throttled tab: it just stopped" failure mode).
+async function runPendingScript(commands: string[]) {
   const ifr = playFrame.value
   const win = ifr?.contentWindow as (Window & { __frotzScriptRunning?: boolean }) | null
   const doc = ifr?.contentDocument
   if (!ifr || !win || !doc) return
-  win.__frotzScriptRunning = true
   try {
-    for (const cmd of commands) {
-      const input = await waitForLineInput(doc, win)
-      if (!input) break
-      input.focus()
-      input.value = cmd
-      fireKey(input, win, 'Enter', 'Enter', 13)
-      // Watchable pace — but only when someone can watch. Hidden tabs skip it:
-      // waitForLineInput already gates on the response having rendered, and a
-      // throttled 420ms timer would stall the whole feed.
-      if (document.visibilityState === 'visible') await delay(420)
+    const outcome = await feedScript(doc, win, commands)
+    if (!outcome.completed) {
+      useToast().add({
+        title: `Send to Play stopped after ${outcome.fed} of ${outcome.total} commands`,
+        description:
+          'The game stopped asking for line input (it may have quit, crashed, or opened a menu). ' +
+          'Press Play to restart it, then send the script again.',
+        color: 'warning',
+        icon: 'i-lucide-octagon-pause',
+      })
     }
-  } finally {
-    win.__frotzScriptRunning = false
+  } catch (err) {
+    // e.g. the iframe navigated away mid-feed — surface it, never reject unhandled.
+    useToast().add({
+      title: 'Send to Play failed',
+      description: String(err),
+      color: 'error',
+      icon: 'i-lucide-octagon-x',
+    })
   }
 }
 
@@ -150,7 +104,7 @@ function onMessage(e: MessageEvent) {
     const cmds = pendingScript.value
     if (cmds && cmds.length) {
       pendingScript.value = null
-      void feedScript(cmds)
+      void runPendingScript(cmds)
     }
   }
 }
