@@ -102,12 +102,12 @@ export default defineNuxtConfig({
       // drop plausible.io. The bootstrap is a real file (public/pa/init.js),
       // not an inline script.
       script: [
-        // Order matters and mirrors the original inline pattern: the tiny
-        // bootstrap must run BEFORE the async library so the queue shim +
-        // init() config exist when it boots (a deferred bootstrap raced the
-        // async script and analytics silently sent nothing).
+        // One entry only: init.js runs the queue shim + init() and then
+        // injects the async library itself. Two head entries raced — unhead's
+        // capo sorting hoists async scripts above blocking ones, so the
+        // library could boot before its config existed and silently send
+        // nothing. Ordering by construction beats ordering by markup.
         { src: '/pa/init.js' },
-        { src: '/pa/script.js', async: true },
       ],
     },
   },
