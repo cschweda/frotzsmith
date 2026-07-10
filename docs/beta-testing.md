@@ -35,5 +35,7 @@ browser/OS — and the source that triggered it, if you can share it.
 
 Compile-and-play a sample from **Source Samples** (both libraries), watch the
 auto-map draw as you explore, capture a playthrough in the Transcript and turn
-it into a Test Script, replay it headlessly, and use **Send to Play** to run a
-script inside the live game.
+it into a Test Script, replay it headlessly, use **Send to Play** to run a
+script inside the live game — and try **the Skein**: play a few commands,
+run + bless the thread in the Skein tab, then change your source, recompile,
+and watch the changed outputs flag red.

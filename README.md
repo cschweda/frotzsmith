@@ -66,7 +66,7 @@ write I6  ──▶  compile (inform6.wasm, client-side)  ──▶  play inline
 
 **Shipped:** client-side compile for **two source languages** — **Inform 6** (Standard Library + PunyInform, auto-detected; z3/z4/z5/z8 targets) and **ZIL** *(alpha)* via ZILF (z3/z5/z8 through the `<VERSION>` directive); a title-strip **I6 ↔ ZIL toggle** with per-language namespaced project state; clickable errors, crash-recovery autosave, **inline play** (Parchment + ZVM), a **live auto-map** drawn as you explore, named **test scripts** (persisted) replayed headlessly with a per-turn **transcript** — or sent into the live game with **Send to Play** — a read-only **Transcript** that captures the commands you type while playing (one-click **Copy to Test Script**), worked samples (21 Inform 6 · 7 ZIL), extensions (drop-in `.h`/`.zip` + a select/deselect picker), Prettify, Open / Save As, a Technical Details page, and privacy-friendly analytics.
 
-**Next:** a Skein-style branching tree with **blessed-output regression diffing** (the test-script transcript is its linear spine).
+**New:** **the Skein** *(v1)* — a branching command tree with **blessed-output regression diffing**: live play and imported test scripts grow the tree; bless a thread, and every compile re-runs blessed threads headlessly, flagging changes red with a blessed-vs-current diff (per-game IndexedDB persistence, `.skein` export).
 
 **Planned:** an online extensions registry, Glulx, and multi-file projects.
 

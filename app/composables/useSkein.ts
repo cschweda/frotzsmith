@@ -126,9 +126,10 @@ export function useSkein() {
   }
 
   // ── runs ──────────────────────────────────────────────────────────────────
-  async function replayPath(leafId: string): Promise<void> {
+  /** @returns true when the run produced turns; false on engine failure. */
+  async function replayPath(leafId: string): Promise<boolean> {
     const story = result.value?.ok ? result.value.storyFile : undefined
-    if (!story) return
+    if (!story) return false
     const commands = pathCommands(tree.value, leafId)
     const ctrl = useReplay().replay(new Uint8Array(story), 'zmachine', commands, {
       timeoutMs: replayBudgetMs(commands.length),
@@ -136,10 +137,24 @@ export function useSkein() {
     try {
       const { turns } = await ctrl.promise
       setTree(applyRun(tree.value, leafId, turns))
-    } catch {
-      // Timeout/cancel/VM error: statuses below the last completed turn stay
-      // stale/error — visible in the tree rather than thrown at the UI.
+      return true
+    } catch (err: unknown) {
+      // Engine failure/timeout: without a cue this looks like "nothing
+      // happened" (found live — a story the ZVM replay chokes on produced
+      // zero signal). Callers aggregate; runToNode toasts directly.
+      lastRunError = String(err instanceof Error ? err.message : err)
+      return false
     }
+  }
+  let lastRunError = ''
+
+  function toastRunFailure(prefix: string) {
+    useToast().add({
+      title: `${prefix} run failed`,
+      description: `${lastRunError} — the headless replay engine could not play this game (the inline player may still work). Try Run again after a recompile, or report it via the bug icon.`,
+      color: 'error',
+      icon: 'i-lucide-octagon-x',
+    })
   }
 
   /** Run the path to one node. */
@@ -148,7 +163,8 @@ export function useSkein() {
     running.value = true
     progress.value = { done: 0, total: 1 }
     try {
-      await replayPath(nodeId)
+      const ok = await replayPath(nodeId)
+      if (!ok) toastRunFailure('Skein')
       progress.value = { done: 1, total: 1 }
     } finally {
       running.value = false
@@ -164,12 +180,14 @@ export function useSkein() {
     running.value = true
     _batchAbort = false
     progress.value = { done: 0, total: leaves.length }
+    let failures = 0
     try {
       for (const [i, leaf] of leaves.entries()) {
         if (_batchAbort) break
-        await replayPath(leaf)
+        if (!(await replayPath(leaf))) failures += 1
         progress.value = { done: i + 1, total: leaves.length }
       }
+      if (failures) toastRunFailure(`Skein: ${failures} of ${leaves.length} thread`)
     } finally {
       running.value = false
       progress.value = null

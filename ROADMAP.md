@@ -53,12 +53,15 @@ client-side, and play it inline. See
   Because ZIL emits Z-code, inline play, the auto-map, test scripts, and the transcript all work
   for it unchanged
 
+- **The Skein** *(v1)* — a branching tree of commands with **blessed-output
+  regression diffing**: live play and imported test scripts grow the tree;
+  bless a thread's outputs, and every compile re-runs blessed threads
+  headlessly, flagging changed nodes red with a blessed-vs-current line diff.
+  Play-to-here, per-game IndexedDB persistence, `.skein` export/import.
+
 ## Planned (v2)
 
 See [`docs/13-v2-roadmap.md`](./docs/13-v2-roadmap.md) for the full assessments.
-
-- **The Skein** — a branching test tree with blessed-output regression diffing (the
-  test-script transcript is its linear spine).
 - **Richer ZIL tooling** — deeper ZIL syntax highlighting / lint beyond the compiler's
   diagnostics, more samples, and a landing-page language picker at `/` (the title-strip
   toggle is the interim).

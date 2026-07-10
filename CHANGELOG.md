@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Added — 2026-07-09 The Skein (v1)
+- **The Skein** — the v2 headline, grown from the test-script spine exactly as
+  designed in Doc 10: a branching tree of commands (each root→node path is a
+  playthrough) with **blessed-output regression diffing**. Live play extends
+  the tree as you type (a cursor walks from the root each session; trying a
+  different command branches the tree); the active test script imports as a
+  thread. Run a thread headlessly, **bless** its outputs as correct — and
+  every successful compile marks blessed nodes stale, then (auto-run on, the
+  default) re-runs the blessed leaves in the replay worker and flags each
+  node green (match) or red (diff), with a line-diff view of blessed vs
+  current. Per-node actions: bless/unbless, run to here, **Play to here**
+  (via Send-to-Play), add command, delete branch. Trees persist per game in
+  **IndexedDB** (they outgrow localStorage) with `.skein` JSON export/import
+  as the canonical backup. Failed runs surface a toast naming the engine
+  error instead of dying silently. Spec:
+  `docs/superpowers/specs/2026-07-09-skein-design.md`.
+
 ### Added — 2026-07-09 Export playable HTML; beta pre-flights
 - **Export playable HTML** — one click on a successful build produces a
   single self-contained `.html`: the vendored Parchment/ZVM player inlined,

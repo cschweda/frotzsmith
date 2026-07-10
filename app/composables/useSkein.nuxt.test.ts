@@ -36,11 +36,18 @@ const _activeScript = ref<{ id: string; name: string; text: string } | undefined
 })
 vi.stubGlobal('useTestScripts', () => ({ activeScript: _activeScript }))
 
-// Scripted replay fake: output per command comes from _outputs.
+// Scripted replay fake: output per command comes from _outputs; set
+// _failNextReplay to make the next run reject (engine failure path).
 let _outputs: Record<string, string> = {}
+let _failNextReplay: string | null = null
 const _replayCalls: string[][] = []
 function fakeReplay(_story: Uint8Array, _target: string, commands: string[]) {
   _replayCalls.push(commands)
+  if (_failNextReplay) {
+    const message = _failNextReplay
+    _failNextReplay = null
+    return { promise: Promise.reject(new Error(message)), cancel: vi.fn() }
+  }
   const turns = [
     { command: '', output: 'BANNER' },
     ...commands.map(c => ({ command: c, output: _outputs[c] ?? `out:${c}` })),
@@ -74,6 +81,7 @@ describe('useSkein', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     _outputs = {}
+    _failNextReplay = null
     _replayCalls.length = 0
     _profile.value = { id: 'i6', stateKey: 'i6', route: '/' }
   })
@@ -148,6 +156,24 @@ describe('useSkein', () => {
     skein.recordPlayCommand('north') // dedupes into the existing node
     skein.recordPlayCommand('west') // branches at the divergence
     expect(Object.keys(skein.tree.value.nodes)).toHaveLength(4)
+  })
+
+  it('a failing run surfaces a toast instead of dying silently', async () => {
+    // Found live: a story the replay engine chokes on produced NO signal at
+    // all — unblessed dots and nothing else. Run failures must be visible.
+    const { result } = bootIde('game-err')
+    compileSuccess(result)
+    const skein = useSkein()
+    await skein.restore()
+    skein.importActiveScript()
+    const leaf = leafOf(skein.tree.value)
+
+    _failNextReplay = 'GlkOte error: boom'
+    await skein.runToNode(leaf)
+    expect(_toastAdd).toHaveBeenCalledTimes(1)
+    const arg = _toastAdd.mock.calls[0]![0] as { title: string; description: string }
+    expect(arg.title).toContain('run failed')
+    expect(arg.description).toContain('boom')
   })
 
   it('buckets are per game: switching story keys swaps trees', async () => {
