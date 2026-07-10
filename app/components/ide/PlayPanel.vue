@@ -3,6 +3,10 @@ import { feedScript } from '~/composables/play-feed'
 
 const { result, playNonce, canPlay, pendingScript } = useIde()
 const { record, reset } = usePlayTranscript()
+// Live play also feeds the Skein: commands walk/extend the tree from a cursor
+// that returns to the root when a fresh game boots. Outputs never come from
+// play — only headless reruns write them (normalized, deterministic).
+const { recordPlayCommand, resetPlayCursor } = useSkein()
 const { recordCommand, recordRoom, markNoRoom } = useMap()
 const colorMode = useColorMode()
 
@@ -95,12 +99,14 @@ function onMessage(e: MessageEvent) {
   if (data.type === 'command' && typeof data.value === 'string') {
     record(data.value)
     recordCommand(data.value)
+    recordPlayCommand(data.value)
   } else if (data.type === 'room' && typeof data.name === 'string') {
     recordRoom(data.name, typeof data.text === 'string' ? data.text : '')
   } else if (data.type === 'no-room') {
     markNoRoom()
   } else if (data.type === 'session-start') {
     reset()
+    resetPlayCursor()
     const cmds = pendingScript.value
     if (cmds && cmds.length) {
       pendingScript.value = null

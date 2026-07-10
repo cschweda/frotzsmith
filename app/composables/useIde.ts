@@ -9,7 +9,7 @@ import { sampleById as zilSampleById } from '~/modules/languages/zil/samples'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 
 export type CompileStatus = 'idle' | 'compiling' | 'success' | 'error'
-export type RightTab = 'results' | 'play' | 'transcript' | 'testscript' | 'map'
+export type RightTab = 'results' | 'play' | 'transcript' | 'testscript' | 'skein' | 'map'
 export type ProfileMode = 'auto' | ProfileId
 
 /**

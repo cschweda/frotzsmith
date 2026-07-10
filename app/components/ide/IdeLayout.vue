@@ -7,10 +7,13 @@ const { panelOpen, togglePanel } = useProjectFiles()
 const mobileView = ref<'editor' | 'output'>('editor')
 
 const { consumeShareFragment } = useShareLink()
+const { restore: restoreSkein } = useSkein()
 onMounted(() => {
   restore()
   // After restore, so the pristine-buffer check sees the real recovered state.
   consumeShareFragment()
+  // Skein bucket for the restored game (async — IndexedDB).
+  void restoreSkein()
 })
 
 const savedLabel = computed(() => (savedAt.value ? 'Recovery saved' : 'Not saved yet'))
