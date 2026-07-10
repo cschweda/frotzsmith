@@ -57,6 +57,8 @@ export const frotzsmith = {
     extensions: 'frotzsmith:extensions',
     explorer: 'frotzsmith:explorer',
     scripts: 'frotzsmith:scripts',
+    /** Skein auto-rerun-on-compile toggle ('on'/'off'; trees live in IndexedDB). */
+    skeinAutoRun: 'frotzsmith:skein-autorun',
   },
 
   // ── Inline play (Parchment) ───────────────────────────────────────────────
