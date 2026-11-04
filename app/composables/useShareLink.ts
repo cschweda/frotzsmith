@@ -1,6 +1,5 @@
 import { encodeShareFragment, decodeShareFragment } from '~/utils/share-link'
-import demoSource from '~/modules/inform6/samples/demo.inf?raw'
-import zilSkeletonSource from '~/modules/languages/zil/samples/skeleton.zil?raw'
+import { isPristine } from '~/utils/pristine'
 
 /**
  * Share the editor's source as a URL — zero backend: the source rides
@@ -14,11 +13,6 @@ import zilSkeletonSource from '~/modules/languages/zil/samples/skeleton.zil?raw'
 export function useShareLink() {
   const { source, loadSource } = useIde()
   const { profile } = useLanguage()
-
-  function isPristine(text: string): boolean {
-    const t = text.trim()
-    return t === '' || t === demoSource.trim() || t === zilSkeletonSource.trim()
-  }
 
   /** Handle an incoming #src= fragment (call once after restore() on mount).
    *  Returns true when a valid fragment for THIS language was recognized. */

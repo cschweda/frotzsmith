@@ -46,6 +46,14 @@ const _inFlight = new Set<Promise<void>>()
  *  to the previous game, so saving it under this key would clobber the
  *  stored skein. */
 let _restoringKey: string | null = null
+/** Bumped by every restore and by replaceTree: a restore whose load lands
+ *  after a newer one (or after a replaceTree) drops its result. */
+let _restoreGen = 0
+/** Bucket whose tree replaceTree just set: the restore that the same load's
+ *  story-key change triggers (its watcher runs a tick later) must not
+ *  overwrite it with storage. Expires after that tick — a later restore of the
+ *  bucket loads normally. */
+let _replacedKey: string | null = null
 /** Bumped on every successful compile; a replay started under an older
  *  build is superseded and its outputs are discarded. */
 let _buildGen = 0
@@ -117,13 +125,36 @@ export function useSkein() {
     scheduleSave()
   }
 
+  /** Replace the whole tree for the current game (a `.skein` import, or
+   *  opening a `.frotzsmith` project): the play cursor goes to the root, any
+   *  in-flight or about-to-start restore of this bucket is superseded, and the
+   *  new tree is saved. */
+  function replaceTree(next: SkeinTree) {
+    _restoreGen += 1
+    _restoringKey = null
+    const key = bucketKey()
+    _replacedKey = key
+    setTimeout(() => {
+      if (_replacedKey === key) _replacedKey = null
+    }, 0)
+    tree.value = next
+    playCursor.value = next.root
+    scheduleSave()
+  }
+
   /** Load the current game's bucket (fresh tree when none is stored). */
   async function restore() {
     const key = bucketKey()
+    // replaceTree already put this bucket's tree in place (opening a project
+    // changes the story key, whose watcher lands here a tick later).
+    const replaced = _replacedKey === key
+    _replacedKey = null
+    if (replaced) return
     _restoringKey = key
+    const gen = ++_restoreGen
     const stored = await getSkeinStore().load(key)
-    // A newer switch superseded this load — its own restore owns the tree.
-    if (bucketKey() !== key) return
+    // A newer switch (or a replaceTree) superseded this load — it owns the tree.
+    if (bucketKey() !== key || gen !== _restoreGen) return
     _restoringKey = null
     tree.value = stored ?? createTree()
     playCursor.value = tree.value.root
@@ -305,8 +336,7 @@ export function useSkein() {
       if (data.lang !== undefined && data.lang !== profile.value.stateKey) return false
       const t = data.tree
       if (!isValidTree(t)) return false
-      setTree(t)
-      playCursor.value = t.root
+      replaceTree(t)
       return true
     } catch {
       return false
@@ -345,6 +375,7 @@ export function useSkein() {
     autoRun,
     setAutoRun,
     restore,
+    replaceTree,
     importActiveScript,
     recordPlayCommand,
     resetPlayCursor,

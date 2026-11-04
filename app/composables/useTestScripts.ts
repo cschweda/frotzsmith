@@ -118,6 +118,15 @@ export function useTestScripts() {
     persist()
   }
 
+  /** Replace the active game's scripts wholesale (opening a `.frotzsmith`
+   *  project), in order, selecting the first. An empty list leaves an empty
+   *  bucket, which ensureBucket reseeds on the next game switch / restore. */
+  function replaceAll(list: { name: string; text: string }[]) {
+    const next: TestScript[] = list.map(s => ({ id: newId(), name: s.name, text: s.text }))
+    setBucket(activeStoryKey.value, { scripts: next, activeId: next[0]?.id ?? '' })
+    persist()
+  }
+
   function rename(id: string, name: string) {
     const key = activeStoryKey.value
     const bucket = buckets.value[key] ?? { scripts: [], activeId: '' }
@@ -156,7 +165,7 @@ export function useTestScripts() {
     })
   })
 
-  return { scripts, activeId, activeScript, add, addFromText, rename, remove, updateText, select, restore }
+  return { scripts, activeId, activeScript, add, addFromText, replaceAll, rename, remove, updateText, select, restore }
 }
 
 function newId(): string {
