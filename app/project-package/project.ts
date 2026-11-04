@@ -158,8 +158,12 @@ function text(path: string, bytes: Uint8Array): string {
 
 export async function readProjectPackage(bytes: Uint8Array): Promise<{
   project: ProjectSnapshot
+  /** Compiled story files left out (they're rebuilt by compiling). */
   ignored: string[]
   hashMismatches: string[]
+  /** The Skein's path when it was present but couldn't be opened (it is kept
+   *  byte-for-byte in `opaque`), else null. */
+  skeinNotOpened: string | null
 }> {
   const container = readContainer(bytes)
   const manifestBytes = container.get(MANIFEST_NAME)
@@ -201,6 +205,7 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
 
   // Skein: the manifest is authoritative; else <stem>.skein when present.
   const ignored: string[] = []
+  let skeinNotOpened: string | null = null
   let skein: SkeinTree | null = null
   let skeinPath = m.skein
   let skeinPathOut: string | undefined
@@ -214,7 +219,7 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
     if (skein) {
       if (skeinPath !== `${stemOf(m.main)}.skein`) skeinPathOut = skeinPath
     } else {
-      ignored.push(skeinPath)
+      skeinNotOpened = skeinPath
       claimed.delete(pathKey(skeinPath)) // falls through to opaque below
     }
   }
@@ -258,7 +263,7 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
   if (skeinPathOut !== undefined) project.skeinPath = skeinPathOut
   if (m.title !== undefined) project.title = m.title
   if (m.created !== undefined) project.created = m.created
-  return { project, ignored, hashMismatches }
+  return { project, ignored, hashMismatches, skeinNotOpened }
 }
 
 /** The tree of a Skein file, or null when it doesn't parse or its shape is wrong. */

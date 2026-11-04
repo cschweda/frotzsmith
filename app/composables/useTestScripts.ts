@@ -133,6 +133,11 @@ export function useTestScripts() {
     persist()
   }
 
+  /** The scripts stored for any game (not just the active one), read-only. */
+  function scriptsFor(key: string): readonly TestScript[] {
+    return buckets.value[key]?.scripts ?? []
+  }
+
   function rename(id: string, name: string) {
     const key = activeStoryKey.value
     const bucket = buckets.value[key] ?? { scripts: [], activeId: '' }
@@ -171,7 +176,7 @@ export function useTestScripts() {
     })
   })
 
-  return { scripts, activeId, activeScript, add, addFromText, replaceAll, rename, remove, updateText, select, restore }
+  return { scripts, activeId, activeScript, add, addFromText, replaceAll, scriptsFor, rename, remove, updateText, select, restore }
 }
 
 function newId(): string {

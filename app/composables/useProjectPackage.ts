@@ -1,9 +1,10 @@
 import { readProjectPackage, writeProjectPackage, type ProjectSnapshot } from '~/project-package/project'
-import { PackageError } from '~/project-package/errors'
+import { PackageError, displayPath } from '~/project-package/errors'
 import { LIMITS } from '~/project-package/container'
 import type { Target } from '~/project-package/manifest'
-import { countNodes, createTree } from '~/composables/skein-tree'
+import { countNodes, createTree, type SkeinTree } from '~/composables/skein-tree'
 import { getExtrasStore, type ProjectExtras } from '~/composables/project-extras-store'
+import { getSkeinStore } from '~/composables/skein-store'
 import { includeNameOf, includePathOf, planUploaded } from '~/composables/useExtensions'
 import { SEED_SCRIPT } from '~/composables/useTestScripts'
 import { safeGetItem, safeSetItem } from '~/utils/safe-storage'
@@ -12,17 +13,37 @@ import { notifyStorageFull } from '~/composables/useStorageNotice'
 import { currentAbout } from '~/utils/about'
 import { isPristine } from '~/utils/pristine'
 import { slugify } from '~/utils/slug'
+import { storyKeyOf, storyTitleOf } from '~/utils/story-title'
 
 /** A package that has been read and checked, waiting for the author to confirm. */
 export interface PendingOpen {
   project: ProjectSnapshot
   ignored: string[]
   hashMismatches: string[]
+  /** The package's Skein path when it couldn't be opened (kept as a hidden file). */
+  skeinNotOpened: string | null
   /** Files kept with the project that the IDE doesn't show. */
   hiddenCount: number
 }
 
 const TARGETS: readonly string[] = ['auto', 'z3', 'z4', 'z5', 'z8']
+
+/** A Skein's content without its node ids (pre-order: depth, command, outputs,
+ *  status), so the same tree compares equal however its ids were minted. */
+function skeinSignature(tree: SkeinTree): string {
+  const out: unknown[] = []
+  const stack: [string, number][] = [[tree.root, 0]]
+  const seen = new Set<string>()
+  while (stack.length) {
+    const [id, depth] = stack.pop()!
+    const n = tree.nodes[id]
+    if (!n || seen.has(id)) continue
+    seen.add(id)
+    out.push([depth, n.command, n.blessedOutput ?? null, n.lastOutput ?? null, n.status])
+    for (let i = n.childIds.length - 1; i >= 0; i--) stack.push([n.childIds[i]!, depth + 1])
+  }
+  return JSON.stringify(out)
+}
 
 /**
  * Download / Open the editor's project as a `.frotzsmith` package.
@@ -44,6 +65,8 @@ export function useProjectPackage() {
   const testScripts = useTestScripts()
   const skein = useSkein()
   const sourceDoc = useSourceDocument()
+  /** Bumped by useIde on every source load (shared state). */
+  const sourceGen = useState<number>('frotz:source-gen', () => 0)
 
   const extrasKey = () => `${profile.value.stateKey}:${ide.activeStoryKey.value}`
   /** Which game the stored extras belong to. useIde clears it on every other
@@ -85,9 +108,10 @@ export function useProjectPackage() {
     // go through notifyStorageFull, so the IDE is never left half-opened.
     // The source first: loadSource resets run state and moves to the opened
     // game's story key, which every later write is keyed by.
-    ide.loadSource(project.main.text) // clears the extras owner…
+    ide.loadSource(project.main.text) // clears the extras owner and record…
     sourceDoc.save() // durable now, not after the autosave debounce
-    if (!safeSetItem(ownerKey(), ide.activeStoryKey.value)) notifyStorageFull() // …which this open re-claims
+    const openedKey = ide.activeStoryKey.value
+    const openedGen = sourceGen.value
     if (lang === 'i6') ide.setProfileMode(project.settings.library ?? 'auto')
     ide.setTargetMode(project.settings.target)
     const unknown = plan ? extensions.replaceUploaded(project.includes, project.extensions) : project.extensions
@@ -107,7 +131,12 @@ export function useProjectPackage() {
     if (project.created !== undefined) extras.created = project.created
     if (project.skeinPath !== undefined) extras.skeinPath = project.skeinPath
     const [saved] = await Promise.all([getExtrasStore().save(extrasKey(), extras), skein.flushSaves()])
+    // …which this open re-claims only once the record is really stored, and
+    // only if no other source was loaded meanwhile — so buildPackage never
+    // reads a record that isn't this project's.
     if (!saved) notifyStorageFull()
+    else if (sourceGen.value === openedGen && ide.activeStoryKey.value === openedKey && !safeSetItem(ownerKey(), openedKey))
+      notifyStorageFull()
   }
 
   /** The manifest `extensions` list: the opened order kept, unknown names kept
@@ -167,7 +196,7 @@ export function useProjectPackage() {
       extensions: extensionNames(extras),
       tests,
       // A root-only tree is "no Skein yet".
-      skein: countNodes(tree) > 1 ? tree : null,
+      skein: countNodes(tree) > 0 ? tree : null,
       settings: lang === 'i6' ? { target, library } : { target },
       opaque: extras?.entries ?? [],
       manifestExtra: extras?.manifestExtra ?? {},
@@ -183,17 +212,54 @@ export function useProjectPackage() {
     return { bytes, filename }
   }
 
-  /** Opening would replace real work: source that isn't empty or a language
-   *  seed, or (given the package) uploaded extensions the open would replace
-   *  with different ones — extensions are per language, not per game. */
-  function needsConfirm(p?: PendingOpen): boolean {
-    if (!isPristine(ide.source.value)) return true
-    if (!p || profile.value.id !== 'i6' || p.project.language !== 'i6') return false
-    const current = extensions.uploaded.value
-    if (current.length === 0) return false
-    const incoming = new Map(p.project.includes.map(f => [`uploaded:${includeNameOf(f.path)}`, f.text]))
-    return current.length !== incoming.size || current.some(u => incoming.get(u.id) !== u.content)
+  /**
+   * What opening `p` would replace that is real work, as phrases for the
+   * confirmation ("the source in the editor", …); empty when nothing is.
+   *  - source that isn't empty or a language seed;
+   *  - uploaded extensions the open would replace with different ones
+   *    (extensions are per language, not per game);
+   *  - in the bucket of the game the package opens UNDER (its story key):
+   *    test scripts other than the starter one, or a Skein with commands,
+   *    that differ from the package's — the open replaces both wholesale.
+   */
+  async function whatOpenReplaces(p?: PendingOpen): Promise<string[]> {
+    const out: string[] = []
+    if (!isPristine(ide.source.value)) out.push('the source in the editor')
+    if (!p || p.project.language !== profile.value.id) return out
+
+    if (profile.value.id === 'i6') {
+      const current = extensions.uploaded.value
+      const incoming = new Map(p.project.includes.map(f => [`uploaded:${includeNameOf(f.path)}`, f.text]))
+      if (current.length > 0 && (current.length !== incoming.size || current.some(u => incoming.get(u.id) !== u.content)))
+        out.push('your uploaded extensions')
+    }
+
+    const lang = p.project.language
+    const key = storyKeyOf(lang, p.project.main.text)
+    const title = displayPath(storyTitleOf(lang, p.project.main.text) || 'Untitled', 80)
+    const isSeed = (s: { name: string; text: string }) => s.name === SEED_SCRIPT.name && s.text === SEED_SCRIPT.text
+    const same = (a: { name: string; text: string }[], b: { name: string; text: string }[]) =>
+      a.length === b.length && a.every((s, i) => s.name === b[i]!.name && s.text === b[i]!.text)
+    const stored = testScripts.scriptsFor(key).filter(s => !isSeed(s))
+    const incoming = p.project.tests.filter(s => !isSeed(s))
+    if (stored.length > 0 && !same(stored, incoming)) out.push(`the test scripts saved for “${title}”`)
+
+    // The live tree when the package lands on the current game; else storage
+    // (after flushing, so a just-made edit is there).
+    let tree = key === ide.activeStoryKey.value ? skein.tree.value : null
+    if (!tree) {
+      await skein.flushSaves()
+      tree = await getSkeinStore().load(`${profile.value.stateKey}:${key}`)
+    }
+    if (tree && countNodes(tree) > 0 && (!p.project.skein || skeinSignature(tree) !== skeinSignature(p.project.skein)))
+      out.push(`the Skein saved for “${title}”`)
+    return out
   }
 
-  return { buildPackage, inspect, apply, needsConfirm }
+  /** Opening would replace real work (see whatOpenReplaces). */
+  async function needsConfirm(p?: PendingOpen): Promise<boolean> {
+    return (await whatOpenReplaces(p)).length > 0
+  }
+
+  return { buildPackage, inspect, apply, needsConfirm, whatOpenReplaces }
 }

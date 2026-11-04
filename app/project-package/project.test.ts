@@ -277,11 +277,32 @@ describe('reading hostile or odd packages', () => {
     expect(project.opaque.map(f => f.path)).toEqual(['g.skein'])
   })
 
-  it('keeps an invalid Skein as opaque and reports it', async () => {
-    const { project, ignored } = await readProjectPackage(pkg(m(), { 'g.inf': 'x', 'g.skein': '{"tree":{}}' }))
+  it('keeps an invalid Skein as opaque and reports it as not opened (not as an ignored story file)', async () => {
+    const { project, ignored, skeinNotOpened } = await readProjectPackage(pkg(m(), { 'g.inf': 'x', 'g.skein': '{"tree":{}}' }))
     expect(project.skein).toBeNull()
-    expect(ignored).toEqual(['g.skein'])
+    expect(ignored).toEqual([])
+    expect(skeinNotOpened).toBe('g.skein')
     expect(project.opaque.map(f => f.path)).toEqual(['g.skein'])
+  })
+
+  it('a valid Skein is not reported; no Skein at all is not reported', async () => {
+    const skein = JSON.stringify({ v: 1, lang: 'i6', storyKey: 'k', tree: snapshot().skein })
+    expect((await readProjectPackage(pkg(m(), { 'g.inf': 'x', 'g.skein': skein }))).skeinNotOpened).toBeNull()
+    expect((await readProjectPackage(pkg(m(), { 'g.inf': 'x' }))).skeinNotOpened).toBeNull()
+  })
+
+  it('a Skein over 10,000 nodes is not opened but is kept (the package still opens)', async () => {
+    const root = { id: 'r', command: '', parentId: null, childIds: [] as string[], status: 'unblessed' }
+    const nodes: Record<string, unknown> = { r: root }
+    for (let i = 0; i < 10_000; i++) {
+      root.childIds.push(`n${i}`)
+      nodes[`n${i}`] = { id: `n${i}`, command: 'z', parentId: 'r', childIds: [], status: 'unblessed' }
+    }
+    const big = JSON.stringify({ v: 1, tree: { root: 'r', nodes } })
+    const { project, skeinNotOpened } = await readProjectPackage(pkg(m({ skein: 'big.skein' }), { 'g.inf': 'x', 'big.skein': big }))
+    expect(project.skein).toBeNull()
+    expect(skeinNotOpened).toBe('big.skein')
+    expect(project.opaque.map(f => f.path)).toEqual(['big.skein'])
   })
 
   it('keeps a __proto__ manifest field as plain data', async () => {

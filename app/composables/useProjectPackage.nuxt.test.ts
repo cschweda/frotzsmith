@@ -195,6 +195,17 @@ describe('useProjectPackage — round trip (RF 2)', () => {
     expect(second.project).toEqual(first.project)
   })
 
+  it('a Skein with a single command is downloaded (only a root-only tree is "no Skein")', async () => {
+    const ide = await boot()
+    ide.loadSource(HAUNTED)
+    await settle() // the story-key switch restores this game's (empty) Skein first
+    useSkein().addCommand(useSkein().tree.value.root, 'xyzzy')
+    await settle()
+    expect(Object.keys(useSkein().tree.value.nodes)).toHaveLength(2)
+    const back = await readProjectPackage((await useProjectPackage().buildPackage()).bytes)
+    expect(back.project.skein).toEqual(useSkein().tree.value)
+  })
+
   it('hidden files survive a page reload and go back into the next download', async () => {
     await boot()
     const original = richSnapshot()
@@ -364,7 +375,7 @@ describe('useProjectPackage — refusals change nothing', () => {
     const half = 'x'.repeat(Math.ceil(EXTENSIONS_TOTAL_MAX_BYTES / 2) + 1)
     const project = { ...richSnapshot(), includes: [{ path: 'a.h', text: half }, { path: 'b.h', text: half }] }
     await expect(
-      useProjectPackage().apply({ project, ignored: [], hashMismatches: [], hiddenCount: 2 }),
+      useProjectPackage().apply({ project, ignored: [], hashMismatches: [], skeinNotOpened: null, hiddenCount: 2 }),
     ).rejects.toBeInstanceOf(ZipLimitError)
     await settle()
     expect(ideState()).toEqual(before)
@@ -394,17 +405,17 @@ describe('useProjectPackage — needsConfirm (RF 3)', () => {
     const ide = await boot()
     expect(ide.source.value.trim()).toBe(demoSource.trim())
     const pkg = useProjectPackage()
-    expect(pkg.needsConfirm()).toBe(false)
+    expect(await pkg.needsConfirm()).toBe(false)
     ide.source.value += '\n! edited\n'
-    expect(pkg.needsConfirm()).toBe(true)
+    expect(await pkg.needsConfirm()).toBe(true)
   })
 
   it('is false on the ZIL skeleton and an empty editor', async () => {
     const ide = await boot('zil')
     const pkg = useProjectPackage()
-    expect(pkg.needsConfirm()).toBe(false)
+    expect(await pkg.needsConfirm()).toBe(false)
     ide.source.value = '  \n'
-    expect(pkg.needsConfirm()).toBe(false)
+    expect(await pkg.needsConfirm()).toBe(false)
   })
 })
 
@@ -417,19 +428,19 @@ describe('useProjectPackage — needsConfirm with uploaded extensions (RF 3)', (
     await boot()
     useExtensions().addUploaded('keep.h', 'mine')
     const pkg = useProjectPackage()
-    expect(pkg.needsConfirm()).toBe(false) // source alone is pristine
-    expect(pkg.needsConfirm(await pending([{ path: 'lamp.h', text: 'x' }]))).toBe(true)
-    expect(pkg.needsConfirm(await pending([{ path: 'keep.h', text: 'changed' }]))).toBe(true)
-    expect(pkg.needsConfirm(await pending([]))).toBe(true) // zero includes vs uploads
-    expect(pkg.needsConfirm(await pending([{ path: 'keep.h', text: 'mine' }, { path: 'b.h', text: '' }]))).toBe(true)
+    expect(await pkg.needsConfirm()).toBe(false) // source alone is pristine
+    expect(await pkg.needsConfirm(await pending([{ path: 'lamp.h', text: 'x' }]))).toBe(true)
+    expect(await pkg.needsConfirm(await pending([{ path: 'keep.h', text: 'changed' }]))).toBe(true)
+    expect(await pkg.needsConfirm(await pending([]))).toBe(true) // zero includes vs uploads
+    expect(await pkg.needsConfirm(await pending([{ path: 'keep.h', text: 'mine' }, { path: 'b.h', text: '' }]))).toBe(true)
   })
 
   it('does not ask when the uploads are the same, or there are none', async () => {
     await boot()
     const pkg = useProjectPackage()
-    expect(pkg.needsConfirm(await pending([{ path: 'lamp.h', text: 'x' }]))).toBe(false)
+    expect(await pkg.needsConfirm(await pending([{ path: 'lamp.h', text: 'x' }]))).toBe(false)
     useExtensions().addUploaded('keep.h', 'mine')
-    expect(pkg.needsConfirm(await pending([{ path: 'sub/keep.h', text: 'mine' }]))).toBe(false)
+    expect(await pkg.needsConfirm(await pending([{ path: 'sub/keep.h', text: 'mine' }]))).toBe(false)
   })
 })
 
@@ -461,5 +472,142 @@ describe('useExtensions.replaceUploaded', () => {
     const half = 'x'.repeat(Math.ceil(EXTENSIONS_TOTAL_MAX_BYTES / 2) + 1)
     expect(() => ext.replaceUploaded([{ path: 'a.h', text: half }, { path: 'b.h', text: half }], [])).toThrow(ZipLimitError)
     expect(JSON.stringify([ext.uploaded.value, ext.enabledFiles.value])).toBe(before)
+  })
+})
+
+describe('useProjectPackage — needsConfirm for the game the package opens under (item 4)', () => {
+  /** Leave work under the 'haunted-house' bucket, then move to a pristine editor. */
+  async function workUnderHaunted(make: () => void | Promise<void>) {
+    const ide = await boot()
+    ide.loadSource(HAUNTED)
+    await settle()
+    await make()
+    await settle()
+    ide.newProject('std') // blank source: pristine
+    await settle()
+    expect(ide.activeStoryKey.value).toBe('untitled')
+  }
+
+  it('asks when that game already has test scripts of its own', async () => {
+    await workUnderHaunted(() => { useTestScripts().addFromText('Mine', 'xyzzy\n') })
+    const pkg = useProjectPackage()
+    const p = await pkg.inspect(await fileOf(richSnapshot()))
+    expect(await pkg.needsConfirm(p)).toBe(true)
+    expect(await pkg.whatOpenReplaces(p)).toEqual(['the test scripts saved for “Haunted House”'])
+  })
+
+  it('asks when that game already has a Skein of its own', async () => {
+    await workUnderHaunted(() => { useSkein().addCommand(useSkein().tree.value.root, 'stale') })
+    const pkg = useProjectPackage()
+    const p = await pkg.inspect(await fileOf(richSnapshot()))
+    expect(await pkg.needsConfirm(p)).toBe(true)
+    expect(await pkg.whatOpenReplaces(p)).toEqual(['the Skein saved for “Haunted House”'])
+  })
+
+  it('names everything an open replaces', async () => {
+    await workUnderHaunted(() => {
+      useTestScripts().addFromText('Mine', 'xyzzy\n')
+      useSkein().addCommand(useSkein().tree.value.root, 'stale')
+    })
+    useIde().source.value = '! my work\n'
+    useExtensions().addUploaded('keep.h', 'mine')
+    const pkg = useProjectPackage()
+    const p = await pkg.inspect(await fileOf(richSnapshot()))
+    expect(await pkg.whatOpenReplaces(p)).toEqual([
+      'the source in the editor',
+      'your uploaded extensions',
+      'the test scripts saved for “Haunted House”',
+      'the Skein saved for “Haunted House”',
+    ])
+  })
+
+  it('does not ask when that game only has the starter script and no Skein', async () => {
+    await workUnderHaunted(() => {})
+    const pkg = useProjectPackage()
+    expect(await pkg.needsConfirm(await pkg.inspect(await fileOf({ ...richSnapshot(), includes: [], extensions: [] })))).toBe(false)
+  })
+
+  it('does not ask when reopening the same package (its scripts and Skein are what is stored)', async () => {
+    await boot()
+    const pkg = useProjectPackage()
+    await pkg.apply(await pkg.inspect(await fileOf(richSnapshot())))
+    await settle()
+    useIde().newProject('std')
+    useExtensions().replaceUploaded([], []) // only the game-scoped stores are under test here
+    await settle()
+    expect(await pkg.whatOpenReplaces(await pkg.inspect(await fileOf({ ...richSnapshot(), includes: [], extensions: [] })))).toEqual([])
+  })
+
+  it('a display-unsafe title is neutralised in the description', async () => {
+    const title = 'Evil\u202Egnp.exe'
+    const src = `Constant Story "${title}";\n`
+    const ide = await boot()
+    ide.loadSource(src)
+    await settle()
+    useTestScripts().addFromText('Mine', 'xyzzy\n')
+    await settle()
+    ide.newProject('std')
+    await settle()
+    const pkg = useProjectPackage()
+    const p = await pkg.inspect(await fileOf({ ...richSnapshot(), main: { name: 'e.inf', text: src }, title, includes: [], extensions: [] }))
+    expect(await pkg.whatOpenReplaces(p)).toEqual(['the test scripts saved for “Evil\ufffdgnp.exe”'])
+  })
+})
+
+/** Every key in the extras IndexedDB store. */
+function extrasKeys(): Promise<IDBValidKey[]> {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open('frotzsmith-extras', 1)
+    open.onupgradeneeded = () => { open.result.createObjectStore('opaque') }
+    open.onerror = () => reject(open.error)
+    open.onsuccess = () => {
+      const req = open.result.transaction('opaque', 'readonly').objectStore('opaque').getAllKeys()
+      req.onsuccess = () => { open.result.close(); resolve(req.result) }
+      req.onerror = () => reject(req.error)
+    }
+  })
+}
+
+describe('useProjectPackage — the extras store holds only the opened project (item 5)', () => {
+  it('opening A then B (different titles) leaves only B’s record', async () => {
+    await boot()
+    const pkg = useProjectPackage()
+    await pkg.apply(await pkg.inspect(await fileOf(richSnapshot())))
+    await settle()
+    expect(await extrasKeys()).toEqual(['i6:haunted-house'])
+    const other = { ...richSnapshot(), main: { name: 'o.inf', text: 'Constant Story "Other Game";\n' }, title: 'Other Game' }
+    await pkg.apply(await pkg.inspect(await fileOf(other)))
+    await settle()
+    expect(await extrasKeys()).toEqual(['i6:other-game'])
+  })
+
+  it('loading another source deletes the record', async () => {
+    await boot()
+    const pkg = useProjectPackage()
+    await pkg.apply(await pkg.inspect(await fileOf(richSnapshot())))
+    await settle()
+    useIde().loadSource('Constant Story "Plain";\n')
+    await settle()
+    expect(await extrasKeys()).toEqual([])
+  })
+
+  it('a failed save leaves the download without extras (never an older record)', async () => {
+    await boot()
+    const pkg = useProjectPackage()
+    await pkg.apply(await pkg.inspect(await fileOf(richSnapshot())))
+    await settle()
+    // Reopen the same game, but the extras write fails.
+    const realPut = IDBObjectStore.prototype.put
+    const put = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, ...args) {
+      if (this.name === 'opaque') throw new DOMException('quota', 'QuotaExceededError')
+      return realPut.apply(this, args)
+    })
+    const changed = { ...richSnapshot(), opaque: [{ path: 'notes/new.md', bytes: new TextEncoder().encode('new') }] }
+    await pkg.apply(await pkg.inspect(await fileOf(changed)))
+    await settle()
+    put.mockRestore()
+    const back = (await readProjectPackage((await pkg.buildPackage()).bytes)).project
+    expect(back.opaque).toEqual([])
+    expect(back.manifestExtra).toEqual({})
   })
 })

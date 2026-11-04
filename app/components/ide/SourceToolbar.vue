@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import type { ProfileId } from '~/modules/inform6/profiles'
 import type { PendingOpen } from '~/composables/useProjectPackage'
-import { PackageError } from '~/project-package/errors'
-import { ZipLimitError } from '~/utils/zip-limits'
-import { formatNameList } from '~/utils/mismatch-list'
+import { formatNameList, mismatchNames } from '~/utils/mismatch-list'
+import { DOWNLOAD_FAILED, OPEN_FAILED, openedNotes, refusalSentence } from '~/utils/package-messages'
 
 const { source, storyBase, loadSource, newProject } = useIde()
 const { togglePanel, panelOpen } = useProjectFiles()
@@ -53,13 +52,14 @@ function onFileChange(event: Event) {
 // .frotzsmith projects: read + check first, ask before replacing real work,
 // then apply. Nothing is compiled or run by opening.
 const pending = shallowRef<PendingOpen | null>(null)
+/** What the pending open would replace, for the confirmation's wording. */
+const replaces = shallowRef<string[]>([])
 const confirmOpen = ref(false)
 
 function fail(err: unknown) {
-  const known = err instanceof PackageError || err instanceof ZipLimitError
   toast.add({
     title: 'Couldn’t open that project',
-    description: known ? err.message : 'That file couldn’t be read as a Frotzsmith project.',
+    description: refusalSentence(err, OPEN_FAILED),
     color: 'error',
     icon: 'i-lucide-circle-alert',
   })
@@ -77,8 +77,10 @@ async function openPackage(file: File) {
 async function openPackageInner(file: File) {
   try {
     const p = await pkg.inspect(file)
-    if (pkg.needsConfirm(p)) {
+    const work = await pkg.whatOpenReplaces(p)
+    if (work.length > 0) {
       pending.value = p
+      replaces.value = work
       confirmOpen.value = true
     } else {
       await applyPending(p)
@@ -95,21 +97,18 @@ async function applyPending(p: PendingOpen) {
     fail(err)
     return
   }
-  const notes: string[] = []
-  if (p.hiddenCount > 0) {
-    notes.push(`${p.hiddenCount} files in this project aren't shown here — they're kept and included when you download it.`)
-  }
-  if (p.ignored.length > 0) notes.push('Compiled story files in the package were ignored — compile to rebuild them.')
+  const notes = openedNotes(p)
   toast.add({
     title: 'Project opened',
     description: notes.join(' ') || undefined,
     color: 'success',
     icon: 'i-lucide-check',
   })
-  if (p.hashMismatches.length > 0) {
+  const changed = mismatchNames(p.hashMismatches)
+  if (changed.length > 0) {
     toast.add({
       title: 'Some files changed after the package was made',
-      description: `These don't match what the package recorded: ${formatNameList(p.hashMismatches)}.`,
+      description: `These don't match what the package recorded: ${formatNameList(changed)}.`,
       color: 'warning',
       icon: 'i-lucide-triangle-alert',
     })
@@ -138,10 +137,10 @@ async function downloadProject() {
     a.download = filename
     a.click()
     setTimeout(() => URL.revokeObjectURL(url), 30_000)
-  } catch {
+  } catch (err) {
     toast.add({
       title: 'Couldn’t download the project',
-      description: 'Something went wrong building the .frotzsmith file.',
+      description: refusalSentence(err, DOWNLOAD_FAILED),
       color: 'error',
       icon: 'i-lucide-circle-alert',
     })
@@ -238,6 +237,7 @@ async function saveAs() {
       v-model:open="confirmOpen"
       :title="pending?.project.title ?? pending?.project.main.name ?? ''"
       :main-name="pending?.project.main.name ?? ''"
+      :replaces="replaces"
       @replace="onReplace"
       @cancel="onCancelOpen"
       @closed="focusOpen"

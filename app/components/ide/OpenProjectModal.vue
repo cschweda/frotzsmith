@@ -1,6 +1,18 @@
 <script setup lang="ts">
 /** Asks before a .frotzsmith package replaces real work. Cancel changes nothing. */
-const props = defineProps<{ title: string; mainName: string }>()
+import { displayPath } from '~/project-package/errors'
+import { joinPhrases } from '~/utils/package-messages'
+
+const props = defineProps<{ title: string; mainName: string; replaces: string[] }>()
+
+// Both names come from the untrusted package: make them display-safe.
+const safeTitle = computed(() => displayPath(props.title, 80))
+const safeMain = computed(() => displayPath(props.mainName, 80))
+const description = computed(() =>
+  props.replaces.length > 0
+    ? `Opening this project replaces ${joinPhrases(props.replaces)}.`
+    : 'Opening this project replaces the project in the editor.',
+)
 const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ replace: []; cancel: []; closed: [] }>()
 
@@ -33,12 +45,12 @@ function replace() {
     v-model:open="open"
     :content="content"
     title="Replace the project in the editor?"
-    description="Opening this project replaces your source, includes, test scripts and Skein."
+    :description="description"
   >
     <template #body>
       <p class="text-sm">
-        <strong>{{ props.title }}</strong>
-        <span class="text-muted"> ({{ props.mainName }})</span>
+        <strong>{{ safeTitle }}</strong>
+        <span class="text-muted"> ({{ safeMain }})</span>
       </p>
     </template>
     <template #footer>
