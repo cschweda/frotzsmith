@@ -11,6 +11,7 @@
  * VM-agnostic (Doc 10 §1.2). Spec:
  * docs/superpowers/specs/2026-07-09-skein-design.md.
  */
+import { exceedsDepth } from '../utils/json-depth'
 
 export type SkeinStatus = 'unblessed' | 'match' | 'diff' | 'stale' | 'error'
 
@@ -196,6 +197,16 @@ const STATUSES: ReadonlySet<string> = new Set<SkeinStatus>(['unblessed', 'match'
  *  depth is edges from the root. */
 export const MAX_SKEIN_NODES = 10_000
 export const MAX_SKEIN_DEPTH = 10_000
+/** Deepest nesting allowed in a `.skein` document (the document is level 1),
+ *  as for the package manifest. A real one is 5 deep. */
+export const SKEIN_FILE_MAX_DEPTH = 64
+
+/**
+ * A node id: what newId() mints, or any short ASCII word — but never a name
+ * starting `__`, which Vue (`__v_isReactive`, `__v_skip`, `__v_raw`, …) and
+ * the object model (`__proto__`) treat specially.
+ */
+const NODE_ID = /^(?!__)[A-Za-z0-9_-]{1,64}$/
 
 /** Structural check for an imported (untrusted) tree: every node well-formed,
  *  every link resolvable, exactly one root, within the size caps — so later
@@ -203,11 +214,12 @@ export const MAX_SKEIN_DEPTH = 10_000
 export function isValidTree(value: unknown): value is SkeinTree {
   if (!value || typeof value !== 'object') return false
   const t = value as Partial<SkeinTree>
-  if (typeof t.root !== 'string' || !t.nodes || typeof t.nodes !== 'object') return false
+  if (typeof t.root !== 'string' || !NODE_ID.test(t.root) || !t.nodes || typeof t.nodes !== 'object') return false
   const nodes = t.nodes as Record<string, Partial<SkeinNode>>
   if (!Object.hasOwn(nodes, t.root)) return false
   if (Object.keys(nodes).length > MAX_SKEIN_NODES) return false
   for (const [id, n] of Object.entries(nodes)) {
+    if (!NODE_ID.test(id)) return false
     if (!n || typeof n !== 'object' || n.id !== id || typeof n.command !== 'string') return false
     if (!Array.isArray(n.childIds) || !n.childIds.every(c => typeof c === 'string' && Object.hasOwn(nodes, c) && nodes[c]?.parentId === id)) return false
     if (typeof n.status !== 'string' || !STATUSES.has(n.status)) return false
@@ -227,6 +239,62 @@ export function isValidTree(value: unknown): value is SkeinTree {
     for (const c of nodes[id]!.childIds!) stack.push([c, depth + 1])
   }
   return visited.size === Object.keys(nodes).length
+}
+
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
+
+/**
+ * The one way an untrusted tree gets in (a package's Skein, a `.skein`
+ * import, an IndexedDB restore): rebuilt into FRESH objects holding only the
+ * known SkeinNode fields, then checked with isValidTree. Unknown fields —
+ * a `__v_isRef`/`value` pair that makes Vue show a different command, or
+ * 20,000-deep junk that breaks JSON and structuredClone — are dropped; ids
+ * that aren't NODE_ID refuse the whole tree. Iterative; returns null when
+ * the tree is unusable.
+ */
+export function sanitizeTree(value: unknown): SkeinTree | null {
+  if (!isRecord(value)) return null
+  const { root, nodes: rawNodes } = value
+  if (typeof root !== 'string' || !NODE_ID.test(root) || !isRecord(rawNodes)) return null
+  const ids = Object.keys(rawNodes)
+  if (ids.length > MAX_SKEIN_NODES) return null
+  const nodes: Record<string, SkeinNode> = {}
+  for (const id of ids) {
+    if (!NODE_ID.test(id)) return null
+    const n = rawNodes[id]
+    if (!isRecord(n)) return null
+    const { command, parentId, childIds, status, blessedOutput, lastOutput } = n
+    if (n.id !== id || typeof command !== 'string') return null
+    if (parentId !== null && typeof parentId !== 'string') return null
+    if (!Array.isArray(childIds) || childIds.length > MAX_SKEIN_NODES) return null
+    if (!childIds.every(c => typeof c === 'string')) return null
+    if (typeof status !== 'string' || !STATUSES.has(status)) return null
+    if (blessedOutput !== undefined && typeof blessedOutput !== 'string') return null
+    if (lastOutput !== undefined && typeof lastOutput !== 'string') return null
+    const node: SkeinNode = { id, command, parentId, childIds: [...(childIds as string[])], status: status as SkeinStatus }
+    if (blessedOutput !== undefined) node.blessedOutput = blessedOutput
+    if (lastOutput !== undefined) node.lastOutput = lastOutput
+    nodes[id] = node
+  }
+  const tree: SkeinTree = { root, nodes }
+  return isValidTree(tree) ? tree : null
+}
+
+/**
+ * A `.skein` document's sanitized tree and its `lang` (unchecked: the caller
+ * decides), or null when it doesn't parse, nests deeper than
+ * SKEIN_FILE_MAX_DEPTH, or its tree is unusable (see sanitizeTree).
+ */
+export function parseSkeinFile(text: string): { lang: unknown; tree: SkeinTree } | null {
+  let doc: unknown
+  try {
+    doc = JSON.parse(text)
+  } catch {
+    return null
+  }
+  if (!isRecord(doc) || exceedsDepth(doc, SKEIN_FILE_MAX_DEPTH)) return null
+  const tree = sanitizeTree(doc.tree)
+  return tree ? { lang: doc.lang, tree } : null
 }
 
 export interface SkeinRow {

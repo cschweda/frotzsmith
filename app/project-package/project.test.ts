@@ -312,3 +312,48 @@ describe('reading hostile or odd packages', () => {
     expect(({} as Record<string, unknown>).x).toBeUndefined()
   })
 })
+
+// F3 / F4: a package's Skein is rebuilt from known fields only.
+describe('a package Skein is sanitized (F3, F4)', () => {
+  const doc = (tree: unknown) => JSON.stringify({ v: 1, lang: 'i6', storyKey: 'k', tree })
+
+  // vue-keys2.ts: these ids crashed the Skein panel and every later open.
+  it.each(['__v_isReactive', '__v_isShallow', '__v_skip', '__proto__'])('a node id %j: not opened, kept as a hidden file', async (bad) => {
+    const tree = { root: 'r', nodes: {
+      r: { id: 'r', command: '', parentId: null, childIds: [bad], status: 'unblessed' },
+      [bad]: { id: bad, command: 'look', parentId: 'r', childIds: [], status: 'unblessed' },
+    } }
+    const r = await readProjectPackage(pkg(m(), { 'g.inf': 'x', 'g.skein': doc(tree) }))
+    expect(r.project.skein).toBeNull()
+    expect(r.skeinNotOpened).toBe('g.skein')
+    expect(r.project.opaque.map(f => f.path)).toEqual(['g.skein'])
+  })
+
+  // vref.ts
+  it('a __v_isRef/value pair is dropped: the opened node is the checked one', async () => {
+    const tree = { root: 'r', nodes: {
+      r: { id: 'r', command: '', parentId: null, childIds: ['a'], status: 'unblessed' },
+      a: { id: 'a', command: 'look', parentId: 'r', childIds: [], status: 'unblessed', __v_isRef: true, value: { command: 'quit' } },
+    } }
+    const r = await readProjectPackage(pkg(m(), { 'g.inf': 'x', 'g.skein': doc(tree) }))
+    expect(r.project.skein!.nodes.a).toEqual({ id: 'a', command: 'look', parentId: 'r', childIds: [], status: 'unblessed' })
+  })
+
+  // deep.ts: the victim could no longer download their project.
+  it('20,000-deep junk in a node field is dropped, and the project downloads', async () => {
+    const D = 20_000
+    const sk = `{"v":1,"tree":{"root":"r","nodes":{"r":{"id":"r","command":"","parentId":null,"childIds":[],"status":"unblessed","x":${'['.repeat(D)}${']'.repeat(D)}}}}}`
+    const r = await readProjectPackage(pkg(m(), { 'g.inf': 'x', 'g.skein': sk }))
+    // Nested past 64 levels: the document is not opened (kept), as for the manifest.
+    expect(r.project.skein).toBeNull()
+    expect(r.skeinNotOpened).toBe('g.skein')
+    const bytes = await writeProjectPackage(r.project, o)
+    expect(readContainer(bytes).get('g.skein')).toBeDefined()
+  })
+
+  it('shallow unknown node fields are dropped', async () => {
+    const tree = { root: 'r', nodes: { r: { id: 'r', command: '', parentId: null, childIds: [], status: 'unblessed', x: [[1]] } } }
+    const r = await readProjectPackage(pkg(m(), { 'g.inf': 'x', 'g.skein': doc(tree) }))
+    expect(r.project.skein).toEqual({ root: 'r', nodes: { r: { id: 'r', command: '', parentId: null, childIds: [], status: 'unblessed' } } })
+  })
+})

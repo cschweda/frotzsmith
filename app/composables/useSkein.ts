@@ -9,9 +9,10 @@ import {
   markAllStale,
   blessedLeaves,
   countNodes,
-  isValidTree,
+  parseSkeinFile,
   type SkeinTree,
 } from './skein-tree'
+import { markRaw } from 'vue'
 import { registerSessionOnce } from './session-once'
 import { getSkeinStore } from './skein-store'
 import { replayBudgetMs } from './useTranscript'
@@ -74,7 +75,10 @@ export function useSkein() {
   )
   const activeStoryKey = useState<string>('frotz:story-key', () => 'untitled')
 
-  const tree = useState<SkeinTree>('frotz:skein-tree', () => createTree())
+  // Held raw (markRaw): every op returns a NEW tree, so a deep proxy buys
+  // nothing — and a deep proxy is what let Vue-reserved keys in an imported
+  // tree change what was shown and replayed (audit F3).
+  const tree = useState<SkeinTree>('frotz:skein-tree', () => markRaw(createTree()))
   /** Where the live-play feed currently sits in the tree. */
   const playCursor = useState<string>('frotz:skein-cursor', () => tree.value.root)
   const running = useState<boolean>('frotz:skein-running', () => false)
@@ -121,7 +125,7 @@ export function useSkein() {
   }
 
   function setTree(next: SkeinTree) {
-    tree.value = next
+    tree.value = markRaw(next)
     scheduleSave()
   }
 
@@ -137,7 +141,7 @@ export function useSkein() {
     setTimeout(() => {
       if (_replacedKey === key) _replacedKey = null
     }, 0)
-    tree.value = next
+    tree.value = markRaw(next)
     playCursor.value = next.root
     scheduleSave()
   }
@@ -156,7 +160,7 @@ export function useSkein() {
     // A newer switch (or a replaceTree) superseded this load — it owns the tree.
     if (bucketKey() !== key || gen !== _restoreGen) return
     _restoringKey = null
-    tree.value = stored ?? createTree()
+    tree.value = markRaw(stored ?? createTree())
     playCursor.value = tree.value.root
   }
 
@@ -179,7 +183,7 @@ export function useSkein() {
     if (!command) return
     const base = pathCommands(tree.value, playCursor.value)
     const { tree: next, leafId } = addPath(tree.value, [...base, command])
-    tree.value = next
+    tree.value = markRaw(next)
     playCursor.value = leafId
     scheduleSave()
   }
@@ -331,16 +335,11 @@ export function useSkein() {
    *  can't replay against this compiler's games) and any structurally broken
    *  tree, which would otherwise throw later inside addPath/pathNodes. */
   function importSkein(json: string): boolean {
-    try {
-      const data = JSON.parse(json) as { v?: number; lang?: unknown; tree?: unknown }
-      if (data.lang !== undefined && data.lang !== profile.value.stateKey) return false
-      const t = data.tree
-      if (!isValidTree(t)) return false
-      replaceTree(t)
-      return true
-    } catch {
-      return false
-    }
+    const data = parseSkeinFile(json) // rebuilt from known fields only
+    if (!data) return false
+    if (data.lang !== undefined && data.lang !== profile.value.stateKey) return false
+    replaceTree(data.tree)
+    return true
   }
 
   // ── session watchers (once per app — see session-once.ts) ─────────────────

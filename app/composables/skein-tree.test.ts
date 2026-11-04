@@ -8,7 +8,11 @@
  * docs/superpowers/specs/2026-07-09-skein-design.md.
  */
 import { describe, it, expect } from 'vitest'
+import { ref, isReactive } from 'vue'
 import {
+  sanitizeTree,
+  parseSkeinFile,
+  SKEIN_FILE_MAX_DEPTH,
   createTree,
   isValidTree,
   addPath,
@@ -324,5 +328,143 @@ describe('flattenRows: the panel\'s row list (iterative, root hidden)', () => {
   it('terminates on a hand-built cyclic tree', () => {
     const t = { root: 'r', nodes: { r: node('r', null, ['X']), X: node('X', 'Y', ['Y']), Y: node('Y', 'X', ['X']) } }
     expect(flattenRows(t, new Set()).length).toBeLessThanOrEqual(2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// F3 / F4: every tree that comes from outside (a package, a .skein import,
+// IndexedDB) is REBUILT into fresh objects holding only the known fields.
+// ---------------------------------------------------------------------------
+
+describe('sanitizeTree: rebuilds an untrusted tree from known fields only', () => {
+  const node = (id: string, parentId: string | null, childIds: string[] = [], extra: object = {}) =>
+    ({ id, command: id === 'r' ? '' : `cmd-${id}`, parentId, childIds, status: 'unblessed', ...extra })
+  const mk = (bad: string) => JSON.parse(JSON.stringify({
+    root: 'r',
+    nodes: { r: node('r', null, [bad, 'k']), [bad]: node(bad, 'r'), k: node('k', 'r') },
+  }))
+
+  it('keeps a good tree, as fresh objects equal to the input', () => {
+    const { tree } = addPath(createTree(), ['north', 'take lamp'])
+    const out = sanitizeTree(tree)!
+    expect(out).toEqual(tree)
+    expect(out).not.toBe(tree)
+    expect(out.nodes).not.toBe(tree.nodes)
+    for (const id of Object.keys(tree.nodes)) {
+      expect(out.nodes[id]).not.toBe(tree.nodes[id])
+      expect(out.nodes[id]!.childIds).not.toBe(tree.nodes[id]!.childIds)
+    }
+  })
+
+  it('keeps blessed and last outputs', () => {
+    const t = mk('a')
+    Object.assign(t.nodes.a, { status: 'match', blessedOutput: 'ok', lastOutput: 'ok' })
+    expect(sanitizeTree(t)!.nodes.a).toEqual({ id: 'a', command: 'cmd-a', parentId: 'r', childIds: [], status: 'match', blessedOutput: 'ok', lastOutput: 'ok' })
+  })
+
+  // vue-keys.ts / vue-keys2.ts: Vue-reserved and prototype names as node ids.
+  it.each(['__v_raw', '__v_isReactive', '__v_skip', '__v_isRef', '__v_isReadonly', '__v_isShallow', '__proto__', '__anything'])(
+    'refuses the reserved node id %j',
+    (bad) => {
+      expect(sanitizeTree(mk(bad))).toBeNull()
+    },
+  )
+
+  it.each(['a b', 'a/b', 'é', 'x'.repeat(65), '', 'a.b', '<script>'])('refuses the node id %j', (bad) => {
+    expect(sanitizeTree(mk(bad))).toBeNull()
+  })
+
+  it('refuses a reserved root id', () => {
+    expect(sanitizeTree({ root: '__v_skip', nodes: { __v_skip: node('__v_skip', null) } })).toBeNull()
+  })
+
+  it.each(['constructor', 'toString', 'hasOwnProperty', 'x'.repeat(64), 'A-b_9'])('accepts the ordinary id %j', (id) => {
+    const t = sanitizeTree(mk(id))!
+    expect(t).not.toBeNull()
+    expect(Object.hasOwn(t.nodes, id)).toBe(true)
+  })
+
+  // vref.ts: a node that validates as `look` but, made reactive, showed and
+  // replayed `quit`.
+  it('drops a __v_isRef / value pair, so the reactive tree shows and replays the checked command', () => {
+    const raw = JSON.parse(JSON.stringify({ root: 'r', nodes: {
+      r: { id: 'r', command: '', parentId: null, childIds: ['a'], status: 'unblessed' },
+      a: { id: 'a', command: 'look', parentId: 'r', childIds: [], status: 'match', blessedOutput: 'ok', lastOutput: 'ok',
+        __v_isRef: true, value: { id: 'a', command: 'quit', parentId: 'a', childIds: ['a'], status: 'match' } },
+    } }))
+    const t = sanitizeTree(raw)!
+    expect(Object.keys(t.nodes.a!).sort()).toEqual(['blessedOutput', 'childIds', 'command', 'id', 'lastOutput', 'parentId', 'status'])
+    const st = ref<SkeinTree | null>(null)
+    st.value = t
+    expect(flattenRows(st.value!, new Set()).map(r => r.node.command)).toEqual(['look'])
+    expect(pathCommands(st.value!, 'a')).toEqual(['look'])
+  })
+
+  // deep.ts: 20,000-deep junk under an unknown node field broke download,
+  // JSON save and structuredClone.
+  it('drops unknown fields, however deep, so the tree stays serialisable', () => {
+    const deep = '['.repeat(20_000) + ']'.repeat(20_000)
+    const raw = JSON.parse(`{"root":"r","nodes":{"r":{"id":"r","command":"","parentId":null,"childIds":[],"status":"unblessed","x":${deep}}}}`)
+    const t = sanitizeTree(raw)!
+    expect(t).toEqual({ root: 'r', nodes: { r: { id: 'r', command: '', parentId: null, childIds: [], status: 'unblessed' } } })
+    expect(() => JSON.stringify(t)).not.toThrow()
+    expect(() => structuredClone(t)).not.toThrow()
+  })
+
+  it.each([
+    ['not an object', 'tree'],
+    ['null', null],
+    ['an array', []],
+    ['no root', { nodes: {} }],
+    ['nodes an array', { root: 'r', nodes: [] }],
+    ['a node that is not an object', { root: 'r', nodes: { r: 'x' } }],
+    ['a non-string command', { root: 'r', nodes: { r: { id: 'r', command: 1, parentId: null, childIds: [], status: 'unblessed' } } }],
+    ['a non-string output', { root: 'r', nodes: { r: { id: 'r', command: '', parentId: null, childIds: [], status: 'unblessed', lastOutput: {} } } }],
+    ['an unknown status', { root: 'r', nodes: { r: { id: 'r', command: '', parentId: null, childIds: [], status: 'bogus' } } }],
+    ['a child id that is not a string', { root: 'r', nodes: { r: { id: 'r', command: '', parentId: null, childIds: [1], status: 'unblessed' } } }],
+    ['a cycle', { root: 'r', nodes: { r: node('r', null, ['X']), X: node('X', 'Y', ['Y']), Y: node('Y', 'X', ['X']) } }],
+  ])('refuses %s', (_label, raw) => {
+    expect(sanitizeTree(raw)).toBeNull()
+  })
+
+  it('refuses more than MAX_SKEIN_NODES nodes before rebuilding them', () => {
+    const nodes: Record<string, unknown> = {}
+    for (let i = 0; i <= MAX_SKEIN_NODES; i++) nodes[`n${i}`] = 0
+    expect(sanitizeTree({ root: 'n0', nodes })).toBeNull()
+  })
+
+  it('a sanitized tree held in a ref is the same plain tree (markRaw-friendly)', () => {
+    const t = sanitizeTree(mk('a'))!
+    expect(isReactive(t)).toBe(false)
+    expect(JSON.parse(JSON.stringify(t))).toEqual(t)
+  })
+})
+
+describe('parseSkeinFile: a .skein document', () => {
+  const good = () => {
+    const { tree } = addPath(createTree(), ['north'])
+    return { v: 1, lang: 'i6', storyKey: 'k', tree }
+  }
+
+  it('parses a good file into a sanitized tree and its lang', () => {
+    const doc = good()
+    const out = parseSkeinFile(JSON.stringify(doc))!
+    expect(out.tree).toEqual(doc.tree)
+    expect(out.lang).toBe('i6')
+  })
+
+  it('refuses JSON that does not parse, is not an object, or has a bad tree', () => {
+    expect(parseSkeinFile('{')).toBeNull()
+    expect(parseSkeinFile('[]')).toBeNull()
+    expect(parseSkeinFile('{"v":1}')).toBeNull()
+  })
+
+  it(`refuses a document nested deeper than ${64} levels, even outside the tree`, () => {
+    expect(SKEIN_FILE_MAX_DEPTH).toBe(64)
+    const at = (depth: number) => JSON.stringify({ ...good(), junk: JSON.parse('['.repeat(depth) + ']'.repeat(depth)) })
+    expect(parseSkeinFile(at(63))).not.toBeNull() // the document (1) + 63 nested arrays = 64 levels
+    expect(parseSkeinFile(at(64))).toBeNull()
+    const huge = JSON.stringify(good()).replace(/}$/, `,"junk":${'['.repeat(200_000)}${']'.repeat(200_000)}}`)
+    expect(parseSkeinFile(huge)).toBeNull()
   })
 })

@@ -1,4 +1,4 @@
-import type { SkeinTree } from './skein-tree'
+import { sanitizeTree, type SkeinTree } from './skein-tree'
 
 /**
  * Skein persistence seam. The real store is IndexedDB — blessed outputs ×
@@ -8,6 +8,8 @@ import type { SkeinTree } from './skein-tree'
  *
  * Contract: `save` NEVER rejects — it resolves false on any failure so the
  * caller can cue the storage notice; `load` resolves null on missing/broken.
+ * Every load goes through sanitizeTree: what is stored is untrusted too (a
+ * tree saved before a fix, or by another tab or version).
  * The `.skein` JSON export (useSkein) remains the canonical backup, mirroring
  * the ".inf is canonical, browser storage is a swap file" doctrine (D10).
  */
@@ -21,7 +23,7 @@ export function createMemorySkeinStore(): SkeinStore {
   return {
     load: async key => {
       const raw = map.get(key)
-      return raw ? (JSON.parse(raw) as SkeinTree) : null
+      return raw ? sanitizeTree(JSON.parse(raw)) : null
     },
     save: async (key, tree) => {
       map.set(key, JSON.stringify(tree))
@@ -53,7 +55,7 @@ export function createIdbSkeinStore(): SkeinStore {
         try {
           return await new Promise<SkeinTree | null>((resolve, reject) => {
             const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(key)
-            req.onsuccess = () => resolve((req.result as SkeinTree | undefined) ?? null)
+            req.onsuccess = () => resolve(req.result === undefined ? null : sanitizeTree(req.result))
             req.onerror = () => reject(req.error ?? new Error('get failed'))
           })
         } finally {

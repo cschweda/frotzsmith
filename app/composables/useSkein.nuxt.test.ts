@@ -9,7 +9,7 @@
  * per game, and export/import round-trips.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ref } from 'vue'
+import { ref, isProxy } from 'vue'
 import { createMemorySkeinStore } from './skein-store'
 import { pathNodes, type SkeinTree } from './skein-tree'
 
@@ -305,6 +305,46 @@ describe('useSkein', () => {
     dangling.tree.nodes[dangling.tree.root].childIds.push('nope')
     expect(skein.importSkein(JSON.stringify(dangling))).toBe(false)
     expect(skein.importSkein(JSON.stringify(good))).toBe(true)
+  })
+
+  // F3: a .skein import is rebuilt from known fields; reserved ids refuse it.
+  it('importSkein refuses Vue-reserved node ids and drops unknown fields', async () => {
+    bootIde('game-import-f3')
+    const skein = useSkein()
+    await skein.restore()
+    const bad = { v: 1, lang: 'i6', tree: { root: 'r', nodes: {
+      r: { id: 'r', command: '', parentId: null, childIds: ['__v_isReactive'], status: 'unblessed' },
+      __v_isReactive: { id: '__v_isReactive', command: 'look', parentId: 'r', childIds: [], status: 'unblessed' },
+    } } }
+    expect(skein.importSkein(JSON.stringify(bad))).toBe(false)
+    const withRef = { v: 1, lang: 'i6', tree: { root: 'r', nodes: {
+      r: { id: 'r', command: '', parentId: null, childIds: ['a'], status: 'unblessed' },
+      a: { id: 'a', command: 'look', parentId: 'r', childIds: [], status: 'unblessed', __v_isRef: true, value: { command: 'quit' } },
+    } } }
+    expect(skein.importSkein(JSON.stringify(withRef))).toBe(true)
+    expect(skein.tree.value.nodes.a).toEqual({ id: 'a', command: 'look', parentId: 'r', childIds: [], status: 'unblessed' })
+    expect(skein.commandsTo('a')).toEqual(['look'])
+  })
+
+  it('the tree is held raw (never a deep reactive proxy)', async () => {
+    bootIde('game-raw')
+    const skein = useSkein()
+    await skein.restore()
+    expect(isProxy(skein.tree.value)).toBe(false)
+    skein.recordPlayCommand('north')
+    expect(isProxy(skein.tree.value)).toBe(false)
+    expect(isProxy(Object.values(skein.tree.value.nodes)[0])).toBe(false)
+  })
+
+  it('restore of a poisoned stored tree starts a fresh tree', async () => {
+    bootIde('game-poison')
+    await _memStore.save('i6:game-poison', { root: 'r', nodes: {
+      r: { id: 'r', command: '', parentId: null, childIds: ['__v_skip'], status: 'unblessed' },
+      __v_skip: { id: '__v_skip', command: 'look', parentId: 'r', childIds: [], status: 'unblessed' },
+    } } as never)
+    const skein = useSkein()
+    await skein.restore()
+    expect(Object.keys(skein.tree.value.nodes)).toHaveLength(1)
   })
 })
 

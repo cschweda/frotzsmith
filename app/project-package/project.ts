@@ -3,7 +3,7 @@
  * Pure: no Vue, no DOM. `readProjectPackage` takes UNTRUSTED bytes and only
  * ever loads text; nothing is compiled, played, or run.
  */
-import { isValidTree, type SkeinTree } from '../composables/skein-tree'
+import { parseSkeinFile, type SkeinTree } from '../composables/skein-tree'
 import { slugify } from '../utils/slug'
 import { LIMITS, MIMETYPE, readContainer, writeContainer } from './container'
 import { PackageError, quotedPath } from './errors'
@@ -266,13 +266,11 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
   return { project, ignored, hashMismatches, skeinNotOpened }
 }
 
-/** The tree of a Skein file, or null when it doesn't parse or its shape is wrong. */
+/** The tree of a Skein file — rebuilt from known fields only (sanitizeTree)
+ *  — or null when it doesn't parse, nests too deeply, or its shape is wrong. */
 function parseSkein(bytes: Uint8Array): SkeinTree | null {
   try {
-    const doc: unknown = JSON.parse(decoder.decode(bytes))
-    if (typeof doc !== 'object' || doc === null) return null
-    const tree = (doc as { tree?: unknown }).tree
-    return isValidTree(tree) ? tree : null
+    return parseSkeinFile(decoder.decode(bytes))?.tree ?? null
   } catch {
     return null
   }

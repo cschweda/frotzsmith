@@ -5,6 +5,7 @@
  */
 import { PackageError, displayPath, quotedPath } from './errors'
 import { pathProblem } from './paths'
+import { exceedsDepth } from '../utils/json-depth'
 
 export const FORMAT = 'frotzsmith-package'
 export const VERSION = '0.1'
@@ -58,22 +59,6 @@ function checkPath(field: string, value: unknown): string {
     throw bad(`This project's manifest names a file with an unsafe name: ${quotedPath(value)}.`)
   }
   return value
-}
-
-/** Deepest array/object nesting in a parsed JSON value, iteratively, stopping
- *  as soon as `limit` is exceeded (a 200k-deep array would otherwise break
- *  structuredClone/JSON.stringify later, far from the cause). */
-function exceedsDepth(value: unknown, limit: number): boolean {
-  const stack: [unknown, number][] = [[value, 1]]
-  while (stack.length) {
-    const [v, depth] = stack.pop()!
-    if (typeof v !== 'object' || v === null) continue
-    if (depth > limit) return true
-    for (const child of Array.isArray(v) ? v : Object.values(v)) {
-      if (typeof child === 'object' && child !== null) stack.push([child, depth + 1])
-    }
-  }
-  return false
 }
 
 export function parseManifest(bytes: Uint8Array): ParsedManifest {
