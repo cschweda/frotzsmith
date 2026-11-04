@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createTree, addPath } from '../composables/skein-tree'
 import { writeContainer, readContainer, LIMITS } from './container'
 import { PackageError } from './errors'
-import { readProjectPackage, writeProjectPackage, type ProjectSnapshot } from './project'
+import { TEST_LIMITS, readProjectPackage, writeProjectPackage, type ProjectSnapshot } from './project'
 
 const enc = new TextEncoder()
 const now = new Date('2026-11-09T09:41:12.000Z')
@@ -355,5 +355,52 @@ describe('a package Skein is sanitized (F3, F4)', () => {
     const tree = { root: 'r', nodes: { r: { id: 'r', command: '', parentId: null, childIds: [], status: 'unblessed', x: [[1]] } } }
     const r = await readProjectPackage(pkg(m(), { 'g.inf': 'x', 'g.skein': doc(tree) }))
     expect(r.project.skein).toEqual({ root: 'r', nodes: { r: { id: 'r', command: '', parentId: null, childIds: [], status: 'unblessed' } } })
+  })
+})
+
+// F13: a package's test scripts land in localStorage, so they are capped.
+describe('test-script caps (F13)', () => {
+  it('the caps are 200 scripts and 1 MiB of script text', () => {
+    expect(TEST_LIMITS).toEqual({ scripts: 200, totalBytes: 1024 * 1024 })
+  })
+
+  const many = (n: number, listed: boolean) => {
+    const files: Record<string, string> = { 'g.inf': 'x' }
+    const tests: { name: string; path: string }[] = []
+    for (let i = 0; i < n; i++) {
+      files[`tests/t${i}.txt`] = 'look\n'
+      if (listed) tests.push({ name: `T${i}`, path: `tests/t${i}.txt` })
+    }
+    return pkg(m(listed ? { tests } : {}), files)
+  }
+
+  it.each([true, false])('opens exactly 200 scripts (listed in the manifest: %s)', async (listed) => {
+    expect((await readProjectPackage(many(200, listed))).project.tests).toHaveLength(200)
+  })
+
+  it.each([true, false])('refuses 201 scripts whole (listed in the manifest: %s)', async (listed) => {
+    expect(await refusal(many(201, listed))).toBe('This project has more test scripts than Frotzsmith can open (200).')
+  })
+
+  it('refuses 1,997 scripts (the audit probe)', async () => {
+    expect(await refusal(many(1997, false))).toMatch(/more test scripts/)
+  })
+
+  it('refuses more than 1 MiB of script text in all', async () => {
+    const big = 'look\n'.repeat(Math.ceil((512 * 1024 + 1) / 5)) // > 512 KiB each
+    expect(await refusal(pkg(m(), { 'g.inf': 'x', 'tests/a.txt': big, 'tests/b.txt': big })))
+      .toBe('This project’s test scripts are larger than Frotzsmith can keep (1 MB in all).')
+    // 1 MiB exactly is fine.
+    const half = 'x'.repeat(512 * 1024)
+    expect((await readProjectPackage(pkg(m(), { 'g.inf': 'x', 'tests/a.txt': half, 'tests/b.txt': half }))).project.tests).toHaveLength(2)
+  })
+
+  it('the writer refuses the same, so a download always reopens', async () => {
+    const s = snapshot()
+    const tests = Array.from({ length: 201 }, (_, i) => ({ name: `T${i}`, text: 'look\n' }))
+    await expect(writeProjectPackage({ ...s, tests }, o)).rejects.toThrow(/more than 200 test scripts/)
+    await expect(writeProjectPackage({ ...s, tests: tests.slice(0, 200) }, o)).resolves.toBeInstanceOf(Uint8Array)
+    const big = [{ name: 'a', text: 'x'.repeat(1024 * 1024 + 1) }]
+    await expect(writeProjectPackage({ ...s, tests: big }, o)).rejects.toThrow(/1 MB/)
   })
 })

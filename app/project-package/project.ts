@@ -29,6 +29,10 @@ export interface ProjectSnapshot {
   created?: string
 }
 
+/** Test scripts are kept in localStorage: a package may bring at most this
+ *  many, with at most this much script text (UTF-8) in all (audit F13). */
+export const TEST_LIMITS = Object.freeze({ scripts: 200, totalBytes: 1024 * 1024 })
+
 const COMPILED = /\.(z3|z4|z5|z8|ulx|blb|zblorb)$/i
 const MiB = 1024 * 1024
 const encoder = new TextEncoder()
@@ -86,6 +90,14 @@ export async function writeProjectPackage(
     for (let n = 2; used.has(pathKey(skeinPath)); n++) skeinPath = `${stemOf(want)}-${n}.skein`
     const storyKey = slugify(p.title ?? '') || 'untitled'
     add(skeinPath, encoder.encode(JSON.stringify({ v: 1, lang: p.language, storyKey, tree: p.skein })))
+  }
+
+  // Never write more scripts than the reader opens (TEST_LIMITS).
+  if (p.tests.length > TEST_LIMITS.scripts) {
+    throw new PackageError('too-many-tests', `Frotzsmith can’t save more than ${TEST_LIMITS.scripts} test scripts in one project.`)
+  }
+  if (p.tests.reduce((n, t) => n + encoder.encode(t.text).length, 0) > TEST_LIMITS.totalBytes) {
+    throw new PackageError('tests-too-large', 'Frotzsmith can’t save more than 1 MB of test scripts in one project.')
   }
 
   // Tests last, so a generated name steps around any file already present.
@@ -238,6 +250,13 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
     } else {
       opaque.push({ path, bytes: data })
     }
+  }
+
+  if (tests.length > TEST_LIMITS.scripts) {
+    throw new PackageError('too-many-tests', `This project has more test scripts than Frotzsmith can open (${TEST_LIMITS.scripts}).`)
+  }
+  if (tests.reduce((n, t) => n + encoder.encode(t.text).length, 0) > TEST_LIMITS.totalBytes) {
+    throw new PackageError('tests-too-large', 'This project’s test scripts are larger than Frotzsmith can keep (1 MB in all).')
   }
 
   // Integrity: reported, never refused.
