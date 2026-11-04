@@ -8,7 +8,10 @@
 // built sw.js as text (no Workbox import) and fails the build on any of it.
 //
 // The desktop build (FROTZSMITH_DESKTOP=1) has no worker at all; there the
-// check is that neither sw.js nor the web manifest was emitted.
+// check is that neither sw.js nor the web manifest was emitted. The kill-switch
+// build (FROTZSMITH_SW_KILL=1, docs/06-security.md §9.1) ships the
+// self-destroying worker instead; there the check is that sw.js is that worker
+// and precaches nothing.
 //
 // Usage: node tools/check-sw.mjs [publicDir=.output/public]
 import { existsSync, readFileSync } from 'node:fs'
@@ -26,6 +29,9 @@ const REQUIRED = [
 
 /** Never precached: not the app's own files, or fetched only on demand (ZILF). */
 const FORBIDDEN = ['zilf/', 'pa/', 'og-image', '200.html', '404.html']
+
+/** A precache URL without a leading slash (Workbox emits them relative, but a `/zilf/…` must not slip by). */
+const bare = (url) => url.replace(/^\/+/, '')
 
 /** The play iframe's per-load query params: without these ignored, offline Play misses the cache. */
 const IGNORED_PARAMS = ['story', 'theme', 'n']
@@ -46,9 +52,12 @@ export function checkServiceWorker(publicDir) {
 
   const urls = precachedUrls(sw)
   for (const url of urls) {
-    const bad = FORBIDDEN.find((prefix) => url.startsWith(prefix))
+    const bad = FORBIDDEN.find((prefix) => bare(url).startsWith(prefix))
     if (bad) problems.push(`sw.js precaches ${url} (nothing under "${bad}" may be precached)`)
   }
+  // The app shell: the navigation fallback is bound to it (createHandlerBoundToURL('/') throws
+  // when '/' is not precached, and the worker fails to install).
+  if (!urls.includes('/')) problems.push('sw.js does not precache / (the navigation fallback needs it)')
   for (const url of REQUIRED) {
     if (!urls.includes(url)) problems.push(`sw.js does not precache ${url}`)
   }
@@ -76,6 +85,17 @@ export function checkServiceWorker(publicDir) {
     if (!/CacheableResponsePlugin\(\{statuses:\[200\]\}\)/.test(options)) {
       problems.push(`sw.js's ZILF route (cache "${ZILF_CACHE}") does not cache status 200 only`)
     }
+    // The route itself: from the registerRoute( before the cache name to the cache name.
+    const start = sw.lastIndexOf('registerRoute(', zilf)
+    const route = start === -1 ? '' : sw.slice(start, zilf)
+    if (!/\.pathname\)/.test(route)) {
+      problems.push(
+        `sw.js's ZILF route (cache "${ZILF_CACHE}") does not match on the URL's pathname (a RegExp matches the full URL)`,
+      )
+    }
+    if (!/new \w+\.CacheFirst\(\{$/.test(route)) {
+      problems.push(`sw.js's ZILF route (cache "${ZILF_CACHE}") is not CacheFirst`)
+    }
   }
 
   return problems
@@ -88,22 +108,55 @@ export function checkNoServiceWorker(publicDir) {
     .map((name) => `${name} is present in the desktop build (${publicDir}); it must have no service worker`)
 }
 
-/** The check for the build mode: the desktop build has no worker, the web build a correct one. */
-export function checkBuild(publicDir, { desktop }) {
-  return desktop ? checkNoServiceWorker(publicDir) : checkServiceWorker(publicDir)
+/**
+ * Problems with the kill-switch build's sw.js (FROTZSMITH_SW_KILL=1): it must be vite-plugin-pwa's
+ * self-destroying worker — takes over at once, unregisters, deletes the caches, reloads its pages —
+ * and precache nothing.
+ */
+export function checkSelfDestroyingWorker(publicDir) {
+  const file = join(publicDir, 'sw.js')
+  if (!existsSync(file)) return [`sw.js is missing from ${publicDir} (the kill switch needs it to replace installed workers)`]
+  const sw = readFileSync(file, 'utf8')
+  const problems = []
+  const parts = [
+    [/addEventListener\(\s*['"]install['"][\s\S]*?skipWaiting\(\)/, 'take over at once (install → skipWaiting)'],
+    [/addEventListener\(\s*['"]activate['"]/, 'act on activate'],
+    [/registration\.unregister\(\)/, 'unregister itself'],
+    [/caches\.delete\(/, 'delete the caches'],
+    [/\.navigate\(/, 'reload its pages'],
+  ]
+  for (const [pattern, what] of parts) {
+    if (!pattern.test(sw)) problems.push(`the kill-switch sw.js is not self-destroying: it does not ${what}`)
+  }
+  if (/precacheAndRoute|registerRoute|workbox/.test(sw) || precachedUrls(sw).length) {
+    problems.push('the kill-switch sw.js still precaches or routes (it must only remove itself)')
+  }
+  return problems
+}
+
+/**
+ * The check for the build mode: the desktop build has no worker, the kill-switch build the
+ * self-destroying one, the web build a correct one.
+ */
+export function checkBuild(publicDir, { desktop, kill = false }) {
+  if (desktop) return checkNoServiceWorker(publicDir)
+  return kill ? checkSelfDestroyingWorker(publicDir) : checkServiceWorker(publicDir)
 }
 
 const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())
 if (isMain) {
   const publicDir = resolve(process.argv[2] ?? '.output/public')
   const desktop = process.env.FROTZSMITH_DESKTOP === '1'
-  const problems = checkBuild(publicDir, { desktop })
+  const kill = process.env.FROTZSMITH_SW_KILL === '1'
+  const problems = checkBuild(publicDir, { desktop, kill })
   if (problems.length) {
     for (const problem of problems) console.error(`check-sw: ${problem}`)
     process.exit(1)
   }
   if (desktop) {
     console.log('check-sw: OK — desktop build has no service worker or web manifest')
+  } else if (kill) {
+    console.log('check-sw: OK — kill-switch build: sw.js is the self-destroying worker, nothing precached')
   } else {
     const count = precachedUrls(readFileSync(join(publicDir, 'sw.js'), 'utf8')).length
     console.log(`check-sw: OK — ${count} precached entries, ZILF cached at runtime (${ZILF_CACHE})`)

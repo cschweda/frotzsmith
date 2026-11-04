@@ -10,9 +10,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { checkBuild, checkServiceWorker } from './check-sw.mjs'
+import { checkBuild, checkSelfDestroyingWorker, checkServiceWorker } from './check-sw.mjs'
 
 const REQUIRED = [
+  '/',
   'index.html',
   'zil/index.html',
   'technical/index.html',
@@ -62,7 +63,16 @@ describe('checkServiceWorker', () => {
     expect(checkServiceWorker(dir)).toEqual([expect.stringMatching(/sw\.js is missing/)])
   })
 
-  it.each(['zilf/r5262550/_framework/dotnet.js', 'pa/init.js', 'og-image.png', '200.html', '404.html'])(
+  it.each([
+    'zilf/r5262550/_framework/dotnet.js',
+    '/zilf/r5262550/_framework/dotnet.js',
+    'pa/init.js',
+    '/pa/init.js',
+    'og-image.png',
+    '/og-image.png',
+    '200.html',
+    '/404.html',
+  ])(
     'reports a precached %s',
     (url) => {
       writeSw(swText([...REQUIRED, url]))
@@ -101,6 +111,28 @@ describe('checkServiceWorker', () => {
     expect(checkServiceWorker(dir)).toEqual([expect.stringContaining('200')])
   })
 
+  it('reports a worker without the "/" app shell (the navigation fallback needs it)', () => {
+    writeSw(swText(REQUIRED.filter((u) => u !== '/')))
+    expect(checkServiceWorker(dir)).toEqual([expect.stringContaining('does not precache /')])
+  })
+
+  it('reports a ZILF route that is not CacheFirst', () => {
+    writeSw(swText(REQUIRED, { route: ZILF_ROUTE.replace('CacheFirst', 'StaleWhileRevalidate') }))
+    expect(checkServiceWorker(dir)).toEqual([expect.stringContaining('CacheFirst')])
+  })
+
+  it('reports a ZILF route that matches a RegExp on the full URL, not the pathname', () => {
+    writeSw(
+      swText(REQUIRED, {
+        route: ZILF_ROUTE.replace(
+          '(({url:e})=>/^\\/zilf\\/r[^/]+\\/_framework\\//.test(e.pathname))',
+          '/\\/zilf\\/r[^/]+\\/_framework\\//',
+        ),
+      }),
+    )
+    expect(checkServiceWorker(dir)).toEqual([expect.stringContaining('pathname')])
+  })
+
   it('reports a ZILF route with no cacheable-response rule', () => {
     writeSw(
       swText(REQUIRED, {
@@ -111,7 +143,75 @@ describe('checkServiceWorker', () => {
   })
 })
 
+/** vite-plugin-pwa's self-destroying sw.js (selfDestroying: true), as it writes it. */
+const KILL_SW = `
+self.addEventListener('install', (e) => {
+  self.skipWaiting();
+});
+self.addEventListener('activate', (e) => {
+  self.registration.unregister()
+    .then(() => self.clients.matchAll())
+    .then((clients) => {
+      clients.forEach((client) => {
+        if (client instanceof WindowClient)
+          client.navigate(client.url);
+      });
+      return Promise.resolve();
+    })
+    .then(() => {
+      self.caches.keys().then((cacheNames) => {
+        Promise.all(
+          cacheNames.map((cacheName) => {
+            return self.caches.delete(cacheName);
+          }),
+        );
+      })
+    });
+});
+    `
+
+describe('checkSelfDestroyingWorker', () => {
+  it('passes the self-destroying worker', () => {
+    writeSw(KILL_SW)
+    expect(checkSelfDestroyingWorker(dir)).toEqual([])
+  })
+
+  it('reports a missing sw.js (installed workers would never be replaced)', () => {
+    expect(checkSelfDestroyingWorker(dir)).toEqual([expect.stringMatching(/sw\.js is missing/)])
+  })
+
+  it('reports the normal precaching worker', () => {
+    writeSw(swText())
+    const problems = checkSelfDestroyingWorker(dir)
+    expect(problems).toContainEqual(expect.stringContaining('unregister itself'))
+    expect(problems).toContainEqual(expect.stringContaining('still precaches'))
+  })
+
+  it.each([
+    ['self.skipWaiting();', 'take over at once'],
+    ['self.registration.unregister()', 'unregister itself'],
+    ['self.caches.delete(cacheName)', 'delete the caches'],
+    ['client.navigate(client.url);', 'reload its pages'],
+  ])('reports a worker without %s', (part, what) => {
+    writeSw(KILL_SW.replace(part, ''))
+    expect(checkSelfDestroyingWorker(dir)).toEqual([expect.stringContaining(what)])
+  })
+})
+
 describe('checkBuild', () => {
+  it('kill mode checks for the self-destroying worker', () => {
+    writeSw(swText())
+    expect(checkBuild(dir, { desktop: false, kill: true })).not.toEqual([])
+    writeSw(KILL_SW)
+    expect(checkBuild(dir, { desktop: false, kill: true })).toEqual([])
+    // The web check would reject it.
+    expect(checkBuild(dir, { desktop: false })).not.toEqual([])
+  })
+
+  it('desktop mode wins over kill mode (the desktop build has no worker at all)', () => {
+    expect(checkBuild(dir, { desktop: true, kill: true })).toEqual([])
+  })
+
   it('web mode checks the worker', () => {
     expect(checkBuild(dir, { desktop: false })).toEqual([expect.stringMatching(/sw\.js is missing/)])
     writeSw(swText())
