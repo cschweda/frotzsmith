@@ -40,6 +40,12 @@ function nuxtClientMetaPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [nuxtClientMetaPlugin()],
+  define: {
+    __FROTZSMITH_VERSION__: JSON.stringify('0.1.0-test'),
+    __FROTZSMITH_COMMIT__: JSON.stringify('abc1234'),
+    __FROTZSMITH_COMMIT_DATE__: JSON.stringify('2026-11-04'),
+    __FROTZSMITH_DESKTOP__: 'false',
+  },
   test: {
     environment: 'node',
     include: ['app/**/*.{test,spec}.ts', 'tools/*.{test,spec}.ts'],

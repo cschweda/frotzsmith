@@ -2,9 +2,16 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { frotzsmith } from './frotzsmith.config'
 import { ifvmsThisFix } from './tools/ifvms-this-fix.mjs'
+import { buildCommit, frotzsmithVersion } from './tools/version.mjs'
 
 // All app-wide constants live in frotzsmith.config.ts (single source of truth).
 const SITE_URL = frotzsmith.siteUrl
+
+// One version number (desktop/package.json) and the commit being built, for About.
+const VERSION = frotzsmithVersion()
+const COMMIT = buildCommit()
+// The Electron desktop build sets FROTZSMITH_DESKTOP=1.
+const DESKTOP = process.env.FROTZSMITH_DESKTOP === '1'
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-06-01',
@@ -23,6 +30,12 @@ export default defineNuxtConfig({
   // replay died with "reading 'e'". Applied to both the worker and the client
   // graphs (see tools/ifvms-this-fix.mjs).
   vite: {
+    define: {
+      __FROTZSMITH_VERSION__: JSON.stringify(VERSION),
+      __FROTZSMITH_COMMIT__: JSON.stringify(COMMIT?.commit ?? 'unknown'),
+      __FROTZSMITH_COMMIT_DATE__: JSON.stringify(COMMIT?.date ?? ''),
+      __FROTZSMITH_DESKTOP__: JSON.stringify(DESKTOP),
+    },
     plugins: [ifvmsThisFix()],
     worker: {
       format: 'es',
