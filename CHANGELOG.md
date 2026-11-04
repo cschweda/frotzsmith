@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Security — 2026-11-04 .frotzsmith hardening (red/blue audit)
+- **A project can no longer replace a library file.** An include named like a
+  Standard Library or PunyInform file (`VerbLib.h`, `Parser.h`, `puny.h`, …,
+  any case) refuses the whole project; uploading such a file yourself is
+  refused with a clear message; and the compiler now writes the library after
+  your extensions, so the library always wins unless you explicitly chose to
+  replace it. Opening a project that adds or turns on any extension always
+  asks first and names each one.
+- **Skeins are rebuilt on every load** (project, `.skein` import, browser
+  storage), keeping only the fields Frotzsmith knows; node ids are checked.
+  A booby-trapped Skein can no longer crash the panel, replay a different
+  command from the one shown, or stop you downloading your project.
+- **Stricter project files.** Archive comments, Unicode Path/Comment extra
+  fields, links and special files from any host, a file that is also a
+  folder, data after a compressed stream, Windows device names (`CON`,
+  `nul.txt`, …), names Windows or macOS can't hold, and invisible or
+  look-alike characters are all refused; names that differ only by case or
+  compatibility form (`ß`/`ss`, `ﬀ`/`ff`) count as the same. Downloads refuse
+  the same, so a download always reopens.
+- **Safer messages.** File names in messages are cleaned of invisible and
+  layout-changing characters, shortened, and quoted; hidden files a project
+  carries are named when you open and download it.
+- **Limits.** At most 200 test scripts and 1 MB of script text per project; a
+  `.skein` import is capped at 8 MB and asks before replacing a Skein; opening
+  a plain source file asks before replacing edited source.
+- A game titled "Constructor" (or similar) no longer breaks its test scripts.
+
 ### Added — 2026-11-04 .frotzsmith projects
 - **Download project / Open project.** The toolbar's **Download project** saves
   the whole project — source, uploaded includes, test scripts and the Skein —
