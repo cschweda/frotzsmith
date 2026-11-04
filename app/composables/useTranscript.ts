@@ -10,6 +10,9 @@ export function replayBudgetMs(commandCount: number): number {
 // Module-level so Stop still works after the Test Script panel remounts
 // (tab switches v-if the panel away mid-run; a per-closure fn went stale).
 let cancelFn: (() => void) | null = null
+/** Bumped by reset(): a run started before it (an older build / game) must
+ *  neither write its turns nor report "Stopped" into the fresh transcript. */
+let runGen = 0
 
 /** Owns the current transcript run: state, progress, cancellation. */
 export function useTranscript() {
@@ -33,25 +36,32 @@ export function useTranscript() {
     turns.value = []
     ms.value = null
     progress.value = { done: 0, total: commands.length }
+    const gen = runGen
 
     try {
       const ctrl = replay(new Uint8Array(story), 'zmachine', commands, {
-        onProgress: (done, total) => (progress.value = { done, total }),
+        onProgress: (done, total) => {
+          if (gen === runGen) progress.value = { done, total }
+        },
         timeoutMs: replayBudgetMs(commands.length),
       })
       cancelFn = ctrl.cancel
       const res = await ctrl.promise
+      if (gen !== runGen) return
       turns.value = res.turns
       ms.value = res.ms
     } catch (e) {
+      if (gen !== runGen) return
       if (e instanceof ReplayCancelledError) error.value = `Stopped after ${progress.value?.done ?? 0} commands.`
       else if (e instanceof ReplayTimeoutError)
         error.value = `Timed out after ${progress.value?.done ?? 0} of ${progress.value?.total ?? 0} commands (${Math.round(e.timeoutMs / 1000)}s limit).`
       else error.value = e instanceof Error ? e.message : 'Replay failed.'
     } finally {
-      running.value = false
-      progress.value = null
-      cancelFn = null
+      if (gen === runGen) {
+        running.value = false
+        progress.value = null
+        cancelFn = null
+      }
     }
   }
 
@@ -59,7 +69,13 @@ export function useTranscript() {
     cancelFn?.()
   }
 
+  /** New build / new game: stop any run in flight (it replays the old story)
+   *  and blank the transcript. */
   function reset() {
+    runGen += 1
+    cancelFn?.()
+    cancelFn = null
+    running.value = false
     turns.value = []
     ms.value = null
     error.value = null

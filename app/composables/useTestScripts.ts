@@ -1,6 +1,7 @@
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 import { safeSetItem } from '~/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
+import { registerSessionOnce } from '~/composables/session-once'
 import {
   type TestScript,
   type PersistedV2,
@@ -16,8 +17,6 @@ interface Bucket {
   scripts: TestScript[]
   activeId: string
 }
-
-let watching = false
 
 /**
  * Named test scripts scoped per-game via `activeStoryKey`.
@@ -149,17 +148,13 @@ export function useTestScripts() {
     persist()
   }
 
-  if (import.meta.client && !watching) {
-    watching = true
-    // Detached scope so these session-long watchers survive component unmount
-    // (see useSourceDocument for the failure mode).
-    effectScope(true).run(() => {
-      watch(buckets, persist, { deep: true })
-      watch(activeStoryKey, newKey => {
-        ensureBucket(newKey)
-      })
+  // Session-long watchers, once per app (see session-once.ts).
+  registerSessionOnce('test-scripts', () => {
+    watch(buckets, persist, { deep: true })
+    watch(activeStoryKey, newKey => {
+      ensureBucket(newKey)
     })
-  }
+  })
 
   return { scripts, activeId, activeScript, add, addFromText, rename, remove, updateText, select, restore }
 }

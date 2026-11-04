@@ -128,9 +128,10 @@ describe('useTestScripts — bucket isolation when activeStoryKey switches', () 
     sk.value = 'game2'
     await nextTick()
 
-    // scripts recomputes — game2 bucket is empty
+    // game2 gets its own bucket — seeded with a fresh default script by the
+    // activeStoryKey watcher (ensureBucket), never game1's scripts.
     const { scripts: g2Scripts } = useTestScripts()
-    expect(g2Scripts.value).toHaveLength(0)
+    expect(g2Scripts.value.map(s => s.name)).toEqual(['Script 1'])
   })
 
   it('adding a script to game2 does not affect the game1 bucket', async () => {
@@ -164,10 +165,10 @@ describe('useTestScripts — bucket isolation when activeStoryKey switches', () 
     select(scripts.value[0]!.id)
     expect(activeScript.value?.name).toBe('Script Alpha')
 
-    // Switch key — no active script in the new (empty) bucket
+    // Switch key — the new bucket's own seeded default is active, not Alpha.
     sk.value = 'game-b'
     await nextTick()
-    expect(activeScript.value).toBeUndefined()
+    expect(activeScript.value?.name).toBe('Script 1')
   })
 })
 

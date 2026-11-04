@@ -11,6 +11,7 @@ import { PROFILES, detectProfile, type ProfileId } from '~/modules/inform6/profi
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 import { safeSetItem } from '~/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
+import { registerSessionOnce } from '~/composables/session-once'
 
 /**
  * Reactive model behind the file explorer + editor tabs. The file list mirrors
@@ -163,13 +164,18 @@ export function useProjectFiles() {
   }
 
   // Reactively close tabs whose backing file leaves the bundle (extension
-  // disabled/removed, or the active library switched).
-  watch(validIds, ids => {
-    const next = reconcileOpen(tabs.value, ids)
-    if (next.activeId !== tabs.value.activeId || next.openTabs.length !== tabs.value.openTabs.length) {
-      tabs.value = next
-      persist()
-    }
+  // disabled/removed, or the active library switched). Registered once per
+  // app: useProjectFiles() runs inside useIde(), which runCompile and other
+  // non-setup paths call — a bare watch() there leaked one never-disposed
+  // watcher (re-running detectProfile on every keystroke) per compile.
+  registerSessionOnce('project-files', () => {
+    watch(validIds, ids => {
+      const next = reconcileOpen(tabs.value, ids)
+      if (next.activeId !== tabs.value.activeId || next.openTabs.length !== tabs.value.openTabs.length) {
+        tabs.value = next
+        persist()
+      }
+    })
   })
 
   return {

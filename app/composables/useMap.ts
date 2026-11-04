@@ -3,9 +3,7 @@ import {
   emptyGraph, addStep, layout as computeLayout, parseDirection, connectedDirs, parseObjects, parseExits,
   type Dir, type MapGraph,
 } from './map-graph'
-
-// Register the cross-game reset watcher exactly once (see the note in useMap).
-let mapWatchRegistered = false
+import { registerSessionOnce } from './session-once'
 
 export function useMap() {
   // Read the active story key directly (do NOT call useIde() — avoid re-entrancy).
@@ -97,16 +95,11 @@ export function useMap() {
 
   const layout = computed(() => computeLayout(graph.value))
 
-  // Reset when the active story changes (matches usePlayTranscript scoping).
-  // Register ONCE — useMap() is also called from runCompile (non-setup) and from
-  // several components; a per-call watch would leak/duplicate. Mirror whatever
-  // approach usePlayTranscript uses; a module-level flag is the simplest. Shared
-  // useState means the first closure's reset() still clears the shared state.
-  if (import.meta.client && !mapWatchRegistered) {
-    mapWatchRegistered = true
-    // Detached scope so the watcher survives component unmount (session-long).
-    effectScope(true).run(() => watch(activeStoryKey, reset))
-  }
+  // Reset when the active story changes. Once per app — useMap() is also
+  // called from runCompile (non-setup) and from several components; a
+  // per-call watch would leak/duplicate. Shared useState means the first
+  // closure's reset() still clears the shared state.
+  registerSessionOnce('map', () => watch(activeStoryKey, reset))
 
   return {
     graph, currentRoom, roomText, roomObjects, roomExits, layout, mapMode,

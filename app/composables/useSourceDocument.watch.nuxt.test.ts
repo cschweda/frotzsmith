@@ -40,3 +40,51 @@ describe('useSourceDocument — autosave watcher survives component unmount', ()
     expect(JSON.parse(raw!).source).toContain('After Nav')
   })
 })
+
+describe('useSourceDocument — language switch', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    localStorage.clear()
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  async function boot() {
+    const { useLanguage } = await import('./useLanguage')
+    vi.stubGlobal('useLanguage', useLanguage)
+    const { useSourceDocument } = await import('./useSourceDocument')
+    return { useLanguage, useSourceDocument }
+  }
+
+  it('flushes the pending save under the OLD language before switching buffers', async () => {
+    const { useLanguage, useSourceDocument } = await boot()
+    const doc = useSourceDocument()
+    doc.source.value = 'Constant Story "Typed Just Now";'
+    await nextTick() // watcher schedules the 1 s debounce…
+    vi.advanceTimersByTime(300) // …and the user switches language before it fires
+
+    useLanguage().setLanguage('zil')
+    useSourceDocument().restore()
+    vi.advanceTimersByTime(1100)
+
+    const i6 = JSON.parse(localStorage.getItem('frotzsmith:i6:recovery')!)
+    expect(i6.source).toContain('Typed Just Now')
+    const zil = localStorage.getItem('frotzsmith:zil:recovery')
+    expect(zil === null || !JSON.parse(zil).source.includes('Typed Just Now')).toBe(true)
+  })
+
+  it('blocked storage still reseeds the new language instead of keeping the old buffer', async () => {
+    const { useLanguage, useSourceDocument } = await boot()
+    const doc = useSourceDocument()
+    expect(doc.source.value).toContain('Constant Story')
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError')
+    })
+    useLanguage().setLanguage('zil')
+    useSourceDocument().restore()
+    spy.mockRestore()
+    expect(doc.source.value).toContain('WEST-OF-HOUSE')
+  })
+})

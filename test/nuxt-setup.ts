@@ -15,7 +15,7 @@
  * We do NOT provide composable globals like useCompiler, useTranscript, useIde,
  * etc. — each test file provides the specific stubs it needs via vi.stubGlobal.
  */
-import { ref, computed, watch, watchEffect, readonly, nextTick, effectScope } from 'vue'
+import { ref, toRef, computed, watch, watchEffect, readonly, nextTick, effectScope } from 'vue'
 import { vi, beforeEach } from 'vitest'
 import { slugify, storyBaseName } from '../app/utils/slug'
 
@@ -31,11 +31,15 @@ if (typeof window !== 'undefined') {
     _stateMap.clear()
   })
 
+  // Like real Nuxt (`toRef(nuxtApp.payload.state, key)`), every call returns a
+  // NEW ref wrapper over the same stored value. Returning the stored ref itself
+  // once hid a production bug: a WeakSet-of-refs "register once" guard matched
+  // in tests but never in the app, so session watchers piled up.
   vi.stubGlobal('useState', function <T>(key: string, init?: () => T) {
     if (!_stateMap.has(key)) {
       _stateMap.set(key, ref<T | undefined>(init?.()) as ReturnType<typeof ref>)
     }
-    return _stateMap.get(key)
+    return toRef(_stateMap.get(key)!, 'value')
   })
 
   vi.stubGlobal('computed', computed)

@@ -4,9 +4,14 @@ import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 import { safeSetItem } from '~/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
 
-// The autosave watcher must be registered only once, even though this composable
-// may be called from several components.
-let watching = false
+import { registerSessionOnce } from '~/composables/session-once'
+
+// Debounced autosave, module-level so every caller shares one timer. The key is
+// captured when the save is SCHEDULED: by the time a language switch runs
+// restore(), the profile already points at the new language, and a save keyed
+// at fire time would file the old buffer under the wrong language.
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+let pendingKey: string | null = null
 
 interface RecoverySnapshot {
   source: string
@@ -29,16 +34,20 @@ export function useSourceDocument() {
     profile.value.id === 'zil' ? zilSkeletonSource : demoSource,
   )
   const savedAt = useState<number | null>('frotz:savedAt', () => null)
-  let timer: ReturnType<typeof setTimeout> | null = null
 
   /** Namespaced localStorage key for the active language (e.g. frotzsmith:i6:recovery). */
   function getKey(): string {
     return buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.recovery)
   }
 
+  const seedFor = () => (profile.value.id === 'zil' ? zilSkeletonSource : demoSource)
+
   /** Restore the recovery snapshot, if any, on first client mount. */
   function restore() {
     if (!import.meta.client) return
+    // Typing then switching language inside the 1 s debounce: write the
+    // pending edit (under ITS language) before the buffer is replaced.
+    flushPendingSave()
     try {
       const raw = localStorage.getItem(getKey())
       if (raw) {
@@ -53,18 +62,22 @@ export function useSourceDocument() {
         // `source` still holds the OTHER language's text — both directions need
         // the explicit reseed (a zil-only branch here once leaked the ZIL
         // skeleton into the I6 editor, where autosave then persisted it).
-        source.value = profile.value.id === 'zil' ? zilSkeletonSource : demoSource
+        source.value = seedFor()
         savedAt.value = null
       }
     } catch {
-      // corrupt snapshot — ignore, keep the default
+      // Corrupt snapshot or blocked storage: start from this language's seed.
+      // (Keeping the buffer would show the OTHER language's source here after
+      // a switch — and autosave would then persist it under this key.)
+      source.value = seedFor()
+      savedAt.value = null
     }
   }
 
-  function save() {
+  function save(key = getKey()) {
     if (!import.meta.client) return
     const snap: RecoverySnapshot = { source: source.value, savedAt: Date.now() }
-    if (safeSetItem(getKey(), JSON.stringify(snap))) {
+    if (safeSetItem(key, JSON.stringify(snap))) {
       savedAt.value = snap.savedAt
     } else {
       // QuotaExceededError — keep editing in memory, don't interrupt; but cue
@@ -76,17 +89,30 @@ export function useSourceDocument() {
 
   /** Debounced save ~1s after the last keystroke. */
   function scheduleSave() {
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(save, 1000)
+    if (saveTimer) clearTimeout(saveTimer)
+    const key = getKey()
+    pendingKey = key
+    saveTimer = setTimeout(() => {
+      saveTimer = null
+      pendingKey = null
+      save(key)
+    }, 1000)
   }
 
-  if (import.meta.client && !watching) {
-    watching = true
-    // Detached scope: the first caller is a component (IdeLayout), and a bare
-    // watch() would bind to its effect scope and die on unmount (any navigation)
-    // while `watching` stays true — silently killing autosave for the session.
-    effectScope(true).run(() => watch(source, scheduleSave))
+  /** Write a scheduled-but-unfired save now, under the key it was scheduled for. */
+  function flushPendingSave() {
+    if (!saveTimer || !pendingKey) return
+    clearTimeout(saveTimer)
+    const key = pendingKey
+    saveTimer = null
+    pendingKey = null
+    save(key)
   }
+
+  // Detached, once-per-app: the first caller is a component (IdeLayout), and a
+  // bare watch() would die with it on unmount (any navigation), silently
+  // killing autosave for the session.
+  registerSessionOnce('source-autosave', () => watch(source, scheduleSave))
 
   return { source, savedAt, restore, save }
 }

@@ -29,6 +29,10 @@ export function useIde() {
   const result = useState<CompileResult | null>('frotz:result', () => null)
   const activeTab = useState<RightTab>('frotz:tab', () => 'results')
   const jumpSignal = useState<{ line: number; nonce: number } | null>('frotz:jump', () => null)
+  /** Which pane the single-pane (mobile) layout shows. Shared so actions
+   *  elsewhere can bring the right pane forward — e.g. tapping a diagnostic
+   *  must show the editor it scrolls. Ignored by the desktop two-pane layout. */
+  const mobileView = useState<'editor' | 'output'>('frotz:mobile-view', () => 'editor')
 
   const profileMode = useState<ProfileMode>('frotz:profile-mode', () => 'auto')
   const detectedProfile = computed(() => detectProfile(source.value))
@@ -96,6 +100,13 @@ export function useIde() {
    *  a second full freeze). */
   const lastCompileEnd = useState<number>('frotz:last-compile-end', () => 0)
 
+  /** Bumped whenever the editor moves to a different source (sample, opened
+   *  file, new project, language switch). An in-flight compile or sample load
+   *  captures it and drops its result if it changed — otherwise a slow ZIL
+   *  compile (5-9 s) would land its story into the NEXT game and Play / the
+   *  Skein would run the wrong build. */
+  const sourceGen = useState<number>('frotz:source-gen', () => 0)
+
   // Send-to-Play: a parsed script queued to feed into the live Parchment game.
   const pendingScript = useState<string[] | null>('frotz:pending-script', () => null)
 
@@ -155,6 +166,7 @@ export function useIde() {
    *  slate — no stale results, transcript, map, or running Parchment game. The
    *  PlayPanel tears its iframe down when `result` goes null. */
   function resetForNewSource() {
+    sourceGen.value += 1
     resetEphemeral()
     result.value = null
     status.value = 'idle'
@@ -189,14 +201,21 @@ export function useIde() {
     resetEphemeral()
     activeTab.value = 'results'
     const pid = effectiveProfile.value
+    const gen = sourceGen.value
     await nextPaint()
     const started = performance.now()
+    // The source moved on while this compile ran: its result belongs to a
+    // game that is no longer in the editor (resetForNewSource already put
+    // status back to idle).
+    const superseded = () => sourceGen.value !== gen
     try {
+      if (superseded()) return
       const r = await compile(source.value, {
         profileId: pid,
         ext: effectiveExt.value,
         extensions: enabledFiles.value,
       })
+      if (superseded()) return
       result.value = r
       usedProfile.value = pid
       status.value = r.ok ? 'success' : 'error'
@@ -205,6 +224,7 @@ export function useIde() {
       // failed — e.g. the lazy inform6.mjs/wasm fetch rejected. Surface it as a
       // failed CompileResult so ResultsPanel shows the reason instead of an
       // empty "0 errors" error state (the ZIL path already does this).
+      if (superseded()) return
       const msg = `Compiler failed to run: ${String(err)}`
       result.value = {
         ok: false,
@@ -217,11 +237,13 @@ export function useIde() {
       usedProfile.value = pid
       status.value = 'error'
     } finally {
-      if (import.meta.client) lastCompileEnd.value = performance.now()
+      // Only a compile whose result landed arms the freeze-click debounce.
+      if (import.meta.client && !superseded()) lastCompileEnd.value = performance.now()
     }
   }
 
   function jumpTo(line: number) {
+    mobileView.value = 'editor'
     jumpSignal.value = { line, nonce: (jumpSignal.value?.nonce ?? 0) + 1 }
   }
 
@@ -260,8 +282,13 @@ export function useIde() {
     // I6 path.
     const s = sampleById(id)
     if (!s) return
+    // The body is a lazy chunk: a second sample click, another load, or a
+    // language switch during the fetch must win over this one.
+    const gen = sourceGen.value
+    const lang = profile.value.id
     const src = await loadSampleSource(id)
     if (src === null) return // chunk failed to load — keep the current source
+    if (sourceGen.value !== gen || profile.value.id !== lang) return
     source.value = formatI6(src)
     // Commit the new game's bucket key AFTER source is set so storyKey reflects the sample.
     activeStoryKey.value = storyKey.value
@@ -323,6 +350,7 @@ export function useIde() {
     result,
     activeTab,
     jumpSignal,
+    mobileView,
     profileMode,
     detectedProfile,
     effectiveProfile,

@@ -321,6 +321,53 @@ describe('useIde — runCompile clean-slate orchestration', () => {
   })
 })
 
+describe('useIde — superseded compiles', () => {
+  /** A compile the test resolves by hand. */
+  function deferredCompile() {
+    let resolve!: (v: unknown) => void
+    _compileMock.mockImplementationOnce(() => new Promise(r => { resolve = r }))
+    return (ok = true) => resolve({
+      ok,
+      storyFile: ok ? new Uint8Array([9]) : undefined,
+      storyExt: 'z5' as const,
+      diagnostics: [],
+      rawStderr: '',
+      ms: 1,
+      byteLength: 1,
+    })
+  }
+
+  beforeEach(() => vi.clearAllMocks())
+
+  it('a compile that finishes after a new source loads is discarded', async () => {
+    const ide = useIde()
+    const finish = deferredCompile()
+    const pending = ide.runCompile()
+    await new Promise(r => setTimeout(r, 150)) // past nextPaint, compile in flight
+    ide.loadSource('Constant Story "Other Game";')
+    finish()
+    await pending
+    expect(ide.result.value).toBeNull()
+    expect(ide.status.value).toBe('idle')
+    expect(ide.usedProfile.value).toBeNull()
+  })
+
+  it('a superseded compile does not swallow the next real compile click', async () => {
+    const ide = useIde()
+    const finish = deferredCompile()
+    const pending = ide.runCompile()
+    await new Promise(r => setTimeout(r, 150))
+    ide.loadSource('Constant Story "Other Game";')
+    finish()
+    await pending
+    _compileMock.mockResolvedValueOnce({
+      ok: true, storyFile: new Uint8Array([1]), storyExt: 'z5', diagnostics: [], rawStderr: '', ms: 1, byteLength: 1,
+    })
+    await ide.runCompile() // immediately after — must NOT hit the 500 ms freeze-click debounce
+    expect(ide.status.value).toBe('success')
+  })
+})
+
 describe('useIde — loadSample (async, lazy sample bodies)', () => {
   it('loads a sample body, formats it into source, and resets to a clean slate', async () => {
     const ide = useIde()

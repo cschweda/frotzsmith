@@ -1,7 +1,5 @@
 import { appendCommand, toScriptText } from './play-transcript'
-
-// Register the cross-game reset watcher exactly once (mirrors useMap / useTestScripts).
-let playTranscriptWatchRegistered = false
+import { registerSessionOnce } from './session-once'
 
 /**
  * The Play transcript: the read-only, in-memory log of commands the player typed
@@ -26,16 +24,12 @@ export function usePlayTranscript() {
   // game doesn't show the prior game's captured commands.
   // useIde() is safe here: usePlayTranscript is not called during useIde's
   // initialization (only inside runCompile), so there is no circular call chain.
-  if (import.meta.client && !playTranscriptWatchRegistered) {
-    playTranscriptWatchRegistered = true
-    // Detached scope so the watcher survives component unmount (session-long).
-    effectScope(true).run(() => {
-      const { activeStoryKey } = useIde()
-      watch(activeStoryKey, () => {
-        commands.value = []
-      })
+  registerSessionOnce('play-transcript', () => {
+    const { activeStoryKey } = useIde()
+    watch(activeStoryKey, () => {
+      commands.value = []
     })
-  }
+  })
 
   return { commands, count, text, record, reset }
 }
