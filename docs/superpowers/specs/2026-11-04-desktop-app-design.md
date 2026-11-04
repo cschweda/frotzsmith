@@ -155,13 +155,43 @@ pnpm — not worth switching for).
   versioned `/zilf/r<rev>/` path (immutable caching), update `useZilfWasm`/the worker protocol,
   and add golden tests for a multi-file game (one test that an un-inserted file is ignored).
 - ZILF diagnostics name the file; clicking one opens that file's tab.
-- **Builder check:** how a project file named like a bundled `zillib` file (e.g. `parser.zil`)
-  resolves — decide shadow vs. error, and document it.
+- Name clashes with `zillib` files follow §5.3b.
 - The website gains the same: extra `.zil` files in a project (from a package, or uploaded)
   appear in the explorer and are passed to the compile, as `.h` files are for I6.
 - In a `.frotzsmith` package the extra files sit at their relative paths; `main` names the
   root; nothing else records the links — the `INSERT-FILE` lines are the single source of
   truth.
+
+### 5.3b Name clashes with canonical library files (author's decision; both languages)
+
+A project file whose name matches a **canonical library file** — the I6 Standard Library or
+PunyInform `.h` files (`parser.h`, `verblib.h`, `grammar.h`, `puny.h`, …) for the active
+library, or a bundled `zillib` file for ZIL — compared **case-insensitively**, never silently
+wins or loses.
+
+- **When it's detected:** whenever such a file enters a project — added/uploaded, a folder
+  opened, a `.frotzsmith` imported, or a file renamed to a clashing name — and again before a
+  compile if a clash exists without a recorded choice (e.g. after switching I6 library).
+- **The warning** names the file and the library file it clashes with and offers:
+  1. **Rename mine** (default; suggests a free name such as `parser-custom.h`) — the project
+     file is renamed and the library's version is used;
+  2. **Use mine instead of the library's** — for an advanced author who deliberately edited a
+     library file: the project file **replaces** the library file of that name for this
+     project's compiles. ("The user knows best.")
+  3. Cancel (desktop/web open or import: the file isn't added; existing folder: nothing
+     compiles until resolved).
+- **The choice is recorded** in the manifest as data — e.g. `"libraryOverrides": ["parser.h"]`
+  — and in the web project state, so the warning isn't repeated each compile. A package or
+  folder carrying an override recorded by someone else still shows the warning once on import
+  (the importing author confirms it), since a replaced library file changes what the game does.
+- **While an override is active** it stays visible: the explorer marks the file ("replaces
+  library `parser.h`"), the read-only library tab of that name says it's overridden, and the
+  Results output notes the override on each compile. Removing the override (or the file)
+  restores the library's version.
+- Mechanism (builder): for I6, the compile mounts the overriding file in place of the library
+  file of that name; for ZIL, place it so ZILF's `INSERT-FILE` resolution picks it over the
+  embedded `zillib` copy (or, if ZILF can't be made to, report before building on). Golden
+  tests cover both: override on → the author's file is compiled; off → the library's.
 
 ### 5.4 File associations (electron-builder `fileAssociations`, as Drafter)
 
@@ -288,7 +318,8 @@ against Drafter's strategy):
 ## 8. Decided by the author
 
 Desktop app like Drafter · offline + real files is the why · project = folder · double-click a
-bare `.inf`/`.zil` opens its whole folder · **multi-file ZIL in v1** · `.frotzsmith` exists and works on **both** web and
+bare `.inf`/`.zil` opens its whole folder · **multi-file ZIL in v1** · library-name clashes warn, offering rename or a deliberate,
+recorded override · `.frotzsmith` exists and works on **both** web and
 desktop · nothing runs automatically from an opened file · `.frotzsmith` import/export and
 native menus are in v1 · `desktop/` folder (not a workspace restructure) · publish like Drafter
 with auto-updates, Mac held back with a README note · one version number with update checks on
