@@ -12,6 +12,9 @@ const VERSION = frotzsmithVersion()
 const COMMIT = buildCommit()
 // The Electron desktop build sets FROTZSMITH_DESKTOP=1.
 const DESKTOP = process.env.FROTZSMITH_DESKTOP === '1'
+// The service worker's kill switch: a deploy built with FROTZSMITH_SW_KILL=1 ships a worker that
+// unregisters itself, deletes every cache and reloads its pages (docs/06-security.md §9.1).
+const SW_KILL = process.env.FROTZSMITH_SW_KILL === '1'
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-06-01',
@@ -32,6 +35,9 @@ export default defineNuxtConfig({
   // tools/check-sw.mjs checks the generated sw.js after every build.
   pwa: {
     registerType: 'prompt',
+    // The one path that reloads pages without the author: removing the worker for good. A
+    // rollback alone can't (a 404 for sw.js leaves installed workers serving their precache).
+    selfDestroying: SW_KILL,
     client: { registerPlugin: false, installPrompt: false, periodicSyncForUpdates: 0 },
     devOptions: { enabled: false },
     manifest: {
@@ -92,6 +98,18 @@ export default defineNuxtConfig({
       clientsClaim: true,
       skipWaiting: false,
     },
+  },
+
+  // Nothing reloads by itself (only the author's Reload does, after the pending saves are written).
+  // Nuxt's defaults would: its hourly check for a newer build (checkOutdatedBuildInterval) has the
+  // next in-app navigation reload the page, and a chunk that fails to load reloads it too
+  // (emitRouteChunkError: 'automatic'). The hourly check is off — the service worker plugin asks
+  // for a new version instead, which only raises the offer — and a chunk error is handled by
+  // plugins/service-worker.client.ts (`app:chunkError` shows the offer). The app manifest stays
+  // on: the route-rules middleware reads it.
+  experimental: {
+    checkOutdatedBuildInterval: false,
+    emitRouteChunkError: 'manual',
   },
 
   // The replay engine runs in a module Worker (`{ type: 'module' }`, see

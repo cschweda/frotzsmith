@@ -106,6 +106,40 @@ export async function fetchNewest(
   }
 }
 
+/** How often a long-lived tab asks the server for a new version: hourly. */
+export const POLL_MS = 60 * 60 * 1000
+
+/**
+ * Asks for a new version every `ms`, so a tab left open for days still learns of a deploy (and of
+ * the FROTZSMITH_SW_KILL worker, docs/06-security.md §9.1). A new worker it finds installs and
+ * waits, and the page's registration raises the offer (`needRefresh`); this never reloads and
+ * never applies anything. A failed check (offline, the server down) is skipped quietly until the
+ * next one. Returns a function that stops it.
+ */
+export function startUpdatePolling(
+  getRegistration: () => Promise<Pick<RegistrationLike, 'update'> | undefined>,
+  {
+    ms = POLL_MS,
+    every = (fn: () => void, delay: number) => setInterval(fn, delay),
+    stop = (id: ReturnType<typeof setInterval>) => clearInterval(id),
+  }: {
+    ms?: number
+    every?: (fn: () => void, delay: number) => ReturnType<typeof setInterval>
+    stop?: (id: ReturnType<typeof setInterval>) => void
+  } = {},
+): () => void {
+  const id = every(() => {
+    void (async () => {
+      try {
+        await (await getRegistration())?.update()
+      } catch {
+        // Offline, or the server didn't answer: the next poll tries again.
+      }
+    })()
+  }, ms)
+  return () => stop(id)
+}
+
 async function check(deps: CheckDeps, report: (state: CheckState) => void): Promise<CheckState> {
   if (deps.offered()) return { status: 'ready' }
   if (!deps.serviceWorker) return { status: 'unavailable' }

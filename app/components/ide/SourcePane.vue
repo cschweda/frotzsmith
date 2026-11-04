@@ -12,6 +12,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirro
 import { bracketMatching, indentOnInput } from '@codemirror/language'
 import { i6Theme } from '~/modules/inform6/editor/i6-theme'
 import { i6Lint } from '~/modules/inform6/editor/i6-lint'
+import { applyingUpdate } from '~/update/state'
 
 const { activeId, activeFile, readFile, writeActive, openFile, files } = useProjectFiles()
 const { jumpSignal, runCompile } = useIde()
@@ -20,10 +21,15 @@ const colorMode = useColorMode()
 
 const host = ref<HTMLElement | null>(null)
 const themeComp = new Compartment()
+// Read-only: a library file always; any file while an update the author chose is being applied
+// (update/state.ts `applyingUpdate`), so nothing is typed after the saves are written for the reload.
+const lockComp = new Compartment()
 const states = new Map<string, EditorState>()
 let view: EditorView | null = null
 
 const isDark = () => colorMode.value === 'dark'
+const isEditable = (id: string) => files.value.find(f => f.id === id)?.editable ?? false
+const lock = (id: string) => EditorState.readOnly.of(!isEditable(id) || applyingUpdate.value)
 
 // Build a fresh state for a file: editable files get lint + write-back; read-only
 // files (library, bundled extensions) are locked and unlinted to avoid noise.
@@ -31,7 +37,7 @@ function makeState(id: string): EditorState {
   // Editability + display name come from the store's file list (single source of
   // truth), so the editor never re-derives the rule the explorer already owns.
   const meta = files.value.find(f => f.id === id)
-  const editable = meta?.editable ?? false
+  const editable = isEditable(id)
   const name = meta?.name ?? 'file'
   const exts: Extension[] = [
     lineNumbers(),
@@ -43,7 +49,7 @@ function makeState(id: string): EditorState {
     indentOnInput(),
     EditorView.lineWrapping,
     profile.value.editorMode(),
-    EditorState.readOnly.of(!editable),
+    lockComp.of(lock(id)),
     EditorView.contentAttributes.of({
       'aria-label': `${name}${editable ? '' : ', read-only'} — ${profile.value.label} editor`,
     }),
@@ -76,7 +82,10 @@ function showFile(id: string) {
   // Re-apply the current theme: cached states carry the theme they were built
   // with, so a dark/light toggle made while another file was active would
   // otherwise render this swapped-in file with a stale theme.
-  view.dispatch({ effects: themeComp.reconfigure(i6Theme(isDark())) })
+  // Likewise the lock: an update may have started applying since the state was cached.
+  view.dispatch({
+    effects: [themeComp.reconfigure(i6Theme(isDark())), lockComp.reconfigure(lock(id))],
+  })
 }
 
 onMounted(() => {
@@ -116,6 +125,11 @@ watch(
   () => colorMode.value,
   () => view?.dispatch({ effects: themeComp.reconfigure(i6Theme(isDark())) }),
 )
+
+// An update the author chose starts (or stops) applying: lock (or unlock) the editor at once.
+watch(applyingUpdate, () => view?.dispatch({ effects: lockComp.reconfigure(lock(activeId.value)) }), {
+  flush: 'sync',
+})
 
 // A clicked diagnostic targets the source — make sure it's the active file first.
 watch(jumpSignal, sig => {

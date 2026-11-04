@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { checkMessage, createUpdateCheck, fetchNewest, type RegistrationLike } from './check'
+import {
+  checkMessage,
+  createUpdateCheck,
+  fetchNewest,
+  POLL_MS,
+  startUpdatePolling,
+  type RegistrationLike,
+} from './check'
 import { UPDATE_READY } from './flow'
 
 class FakeWorker extends EventTarget {
@@ -129,5 +136,40 @@ describe('checkMessage', () => {
     expect(checkMessage({ status: 'error' }, '0.1.0')).toBe('Couldn’t check for updates — are you offline?')
     expect(checkMessage({ status: 'unavailable' }, '0.1.0')).toBe('This copy can’t check for updates.')
     expect(checkMessage({ status: 'ready' }, '0.1.0')).toBe(UPDATE_READY)
+  })
+})
+
+describe('startUpdatePolling', () => {
+  it('asks the registration for a new version every hour', async () => {
+    const r = reg()
+    const stop = startUpdatePolling(async () => r)
+    expect(POLL_MS).toBe(60 * 60 * 1000)
+    await vi.advanceTimersByTimeAsync(POLL_MS - 1)
+    expect(r.update).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(r.update).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(POLL_MS)
+    expect(r.update).toHaveBeenCalledTimes(2)
+    stop()
+    await vi.advanceTimersByTimeAsync(POLL_MS * 3)
+    expect(r.update).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps polling after a failed check (offline, or sw.js gone)', async () => {
+    const r = reg({}, async () => {
+      throw new Error('offline')
+    })
+    const stop = startUpdatePolling(async () => r)
+    await vi.advanceTimersByTimeAsync(POLL_MS * 2)
+    expect(r.update).toHaveBeenCalledTimes(2)
+    stop()
+  })
+
+  it('does nothing without a registration', async () => {
+    const getRegistration = vi.fn(async () => undefined)
+    const stop = startUpdatePolling(getRegistration)
+    await vi.advanceTimersByTimeAsync(POLL_MS)
+    expect(getRegistration).toHaveBeenCalledTimes(1)
+    stop()
   })
 })

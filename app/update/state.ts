@@ -12,8 +12,23 @@ export const needRefresh = ref(false)
  */
 export const replaced = ref(false)
 
-/** The new version is being fetched and is taking over: the editor is read-only meanwhile. */
+/**
+ * The new version is being fetched and is taking over: the source editor is read-only meanwhile
+ * (SourcePane.vue), so nothing typed is lost to the reload.
+ */
 export const applyingUpdate = ref(false)
+
+/**
+ * A chunk of the app failed to load (Nuxt's `app:chunkError`, with `emitRouteChunkError: 'manual'`
+ * in nuxt.config.ts). Under the service worker that means another tab let a new version take over
+ * and its clean-up removed this version's files. Nuxt would reload the page on the next
+ * navigation, without the pending saves written; instead the tab is told it was replaced and the
+ * offer is shown, so the reload is the author's, through Reload.
+ */
+export function noteChunkError(): void {
+  replaced.value = true
+  needRefresh.value = true
+}
 
 let updater: () => Promise<void> = async () => {}
 let beforeReload: () => Promise<void> = async () => {}

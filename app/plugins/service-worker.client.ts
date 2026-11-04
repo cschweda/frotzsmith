@@ -1,9 +1,10 @@
 import { registerSW } from 'virtual:pwa-register'
-import { fetchNewest } from '~/update/check'
+import { fetchNewest, startUpdatePolling } from '~/update/check'
 import {
   createControllerWatch,
   flushBeforeReload,
   needRefresh,
+  noteChunkError,
   replaced,
   setBeforeReload,
   setUpdater,
@@ -30,6 +31,11 @@ export default defineNuxtPlugin((nuxtApp) => {
 
   // This load is the one an update the author chose reloaded into: the toast says so, once.
   if (takeUpdated(sessionStore())) justUpdated.value = true
+
+  // A chunk that fails to load means this version's files are gone (another tab let a new version
+  // take over): the offer is shown instead of the reload Nuxt would do on its own
+  // (nuxt.config.ts `experimental.emitRouteChunkError: 'manual'`).
+  nuxtApp.hook('app:chunkError', () => noteChunkError())
 
   // The pending saves are written before any reload into a new version. The composables are
   // reached only then, in the app's context (a click is outside it): calling them here, before the
@@ -77,6 +83,11 @@ export default defineNuxtPlugin((nuxtApp) => {
     // decides what a take-over means here.
     onNeedReload() {},
   })
+
+  // A tab left open still hears of a new deploy: hourly, the registration asks for it. What it
+  // finds only raises the offer above (onNeedRefresh); nothing here reloads. (Nuxt's own hourly
+  // check is off, nuxt.config.ts `experimental.checkOutdatedBuildInterval`: it reloads by itself.)
+  startUpdatePolling(() => navigator.serviceWorker.getRegistration())
 
   setUpdater(async () => {
     // Another tab let the new version take over: it is this page's on a reload.

@@ -71,6 +71,8 @@ export default defineConfig({
     alias: {
       '~~': fileURLToPath(new URL('.', import.meta.url)),
       '~': fileURLToPath(new URL('./app', import.meta.url)),
+      // vite-plugin-pwa's virtual module exists only in a Nuxt build (see the stub).
+      'virtual:pwa-register': fileURLToPath(new URL('./test/pwa-register-stub.ts', import.meta.url)),
     },
   },
 })

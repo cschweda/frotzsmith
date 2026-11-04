@@ -3,6 +3,7 @@ import {
   createControllerWatch,
   flushBeforeReload,
   needRefresh,
+  noteChunkError,
   replaced,
   setBeforeReload,
 } from './state'
@@ -69,5 +70,18 @@ describe('flushBeforeReload', () => {
       throw new Error('nope')
     })
     await expect(flushBeforeReload()).resolves.toBeUndefined()
+  })
+})
+
+describe('noteChunkError', () => {
+  beforeEach(() => {
+    needRefresh.value = false
+    replaced.value = false
+  })
+
+  it('shows the offer, as a tab another tab replaced, instead of reloading', () => {
+    noteChunkError()
+    expect(replaced.value).toBe(true)
+    expect(needRefresh.value).toBe(true)
   })
 })

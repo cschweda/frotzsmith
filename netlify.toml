@@ -53,9 +53,12 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# EXCEPT Nuxt's app manifest: it is unfingerprinted and polled to detect new
-# deploys / recover from stale-chunk errors — immutable-caching it broke that
-# for long-lived sessions. (Later rules override earlier ones on Netlify.)
+# EXCEPT Nuxt's app manifest: it is unfingerprinted (builds/latest.json, and
+# builds/meta/<id>.json read by the route-rules middleware), so it must never
+# be immutable-cached. Nuxt's own polling of it to detect new deploys is OFF
+# (nuxt.config.ts experimental.checkOutdatedBuildInterval: false — it reloads
+# the page by itself); the service worker finds new deploys and only offers
+# them. (Later rules override earlier ones on Netlify.)
 [[headers]]
   for = "/_nuxt/builds/*"
   [headers.values]
