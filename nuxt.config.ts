@@ -142,6 +142,19 @@ export default defineNuxtConfig({
   // which is the LCP waterfall Lighthouse flags as the network-dependency tree.
   hooks: {
     'build:manifest': (manifest) => {
+      // Never preload Web Worker chunks into the page. Nuxt 4.6 began emitting
+      // <link rel=modulepreload> for them (~234 KB gz of compiler/replay
+      // workers on every first visit) — but a Worker fetches its own script,
+      // so the page-level preload can't help it. The worker URLs come from
+      // `new Worker(new URL(...))` in code, not from this manifest, so turning
+      // their hints off changes nothing else. tools/inject-preloads.mjs fails
+      // the build if one comes back.
+      for (const chunk of Object.values(manifest)) {
+        if (/\.worker-[^/]*\.js$/.test(chunk.file ?? '')) {
+          chunk.preload = false
+          chunk.prefetch = false
+        }
+      }
       mkdirSync('.nuxt', { recursive: true })
       writeFileSync('.nuxt/client-manifest.json', JSON.stringify(manifest, null, 2))
     },

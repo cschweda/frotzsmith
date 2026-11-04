@@ -87,6 +87,25 @@ export function resolveOutDir(root, exists = existsSync) {
   throw new Error('no generated output found (looked in dist/ and .output/public/)')
 }
 
+/**
+ * Worker chunks that the page modulepreloads. A Web Worker fetches its own
+ * script, so a page-level preload is pure critical-path waste — and Nuxt 4.6
+ * started emitting them (see the build:manifest hook in nuxt.config.ts).
+ * Only <link rel=modulepreload> tags count; a worker URL inside a script
+ * doesn't.
+ * @param {string} html
+ * @returns {string[]} the preloaded worker hrefs
+ */
+export function workerPreloads(html) {
+  const out = []
+  for (const tag of html.match(/<link\b[^>]*>/g) ?? []) {
+    if (!/rel="modulepreload"/.test(tag)) continue
+    const href = /href="([^"]+)"/.exec(tag)?.[1]
+    if (href && /\.worker-[^/]*\.js$/.test(href)) out.push(href)
+  }
+  return out
+}
+
 // ─── runner ───────────────────────────────────────────────────────────────
 // Route table: generated HTML file → its page component's manifest key.
 const ROUTES = {
@@ -112,6 +131,13 @@ if (isMain) {
       }
     })
     const out = injectPreloads(html, chunks, { lowPriority })
+    const workers = workerPreloads(out)
+    if (workers.length) {
+      throw new Error(
+        `inject-preloads: ${htmlPath} modulepreloads worker chunk(s) ${workers.join(', ')} — `
+        + 'workers fetch their own scripts; check the build:manifest hook in nuxt.config.ts',
+      )
+    }
     writeFileSync(abs, out)
     const status = out === html ? 'already present' : 'injected'
     console.log(

@@ -7,7 +7,7 @@
  * LCP waterfall back.
  */
 import { describe, it, expect } from 'vitest'
-import { collectChunks, injectPreloads, resolveOutDir } from './inject-preloads.mjs'
+import { collectChunks, injectPreloads, resolveOutDir, workerPreloads } from './inject-preloads.mjs'
 
 // Shaped like Nuxt's build:manifest payload: keys are module ids, `imports`
 // are keys, `file`/`css` are emitted names.
@@ -101,5 +101,24 @@ describe('resolveOutDir', () => {
 
   it('throws when neither output exists', () => {
     expect(() => resolveOutDir('/r', () => false)).toThrow(/output/)
+  })
+})
+
+describe('workerPreloads', () => {
+  // Nuxt 4.6 began emitting <link rel=modulepreload> for the app's Web Worker
+  // chunks — ~234 KB gz on the critical path that a page-level preload can't
+  // even feed to a Worker. The build must refuse that.
+  it('finds a preloaded worker chunk', () => {
+    const html =
+      '<head><link rel="modulepreload" as="script" crossorigin href="/_nuxt/Dd.js">' +
+      '<link rel="modulepreload" as="script" crossorigin href="/_nuxt/inform6.worker-BENn4TJY.js"></head>'
+    expect(workerPreloads(html)).toEqual(['/_nuxt/inform6.worker-BENn4TJY.js'])
+  })
+
+  it('ignores ordinary chunks and a worker merely mentioned in a script', () => {
+    const html =
+      '<head><link rel="modulepreload" crossorigin href="/_nuxt/Dd.js"></head>' +
+      '<script>new Worker("/_nuxt/replay.worker-x.js")</script>'
+    expect(workerPreloads(html)).toEqual([])
   })
 })
