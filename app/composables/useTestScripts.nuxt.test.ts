@@ -213,3 +213,24 @@ describe('useTestScripts — localStorage persistence round-trip', () => {
     expect(scripts.value.length).toBeGreaterThanOrEqual(1)
   })
 })
+
+// F7 (redteam ctor.ts): a game titled "Constructor" made ensureBucket/add throw.
+describe('useTestScripts — prototype-named games (F7)', () => {
+  it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])('the game %j gets its own seeded bucket and can add, rename and replace', async (key) => {
+    const sk = getActiveStoryKey()
+    sk.value = 'plain-game'
+    const t = useTestScripts()
+    sk.value = key
+    await nextTick()
+    expect(t.scripts.value.map(s => s.name)).toEqual(['Script 1'])
+    t.add('Mine')
+    expect(t.scripts.value.map(s => s.name)).toEqual(['Script 1', 'Mine'])
+    t.rename(t.scripts.value[1]!.id, 'Renamed')
+    t.replaceAll([{ name: 'A', text: 'look' }])
+    expect(t.scriptsFor(key).map(s => s.name)).toEqual(['A'])
+    expect(({} as Record<string, unknown>).scripts).toBeUndefined()
+    // …and it persisted as an ordinary key.
+    const stored = JSON.parse(localStorage.getItem('frotzsmith:i6:scripts') ?? '{}')
+    expect(Object.hasOwn(stored.buckets, key)).toBe(true)
+  })
+})
