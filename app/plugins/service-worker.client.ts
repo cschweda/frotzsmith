@@ -1,4 +1,5 @@
 import { registerSW } from 'virtual:pwa-register'
+import { fetchNewest } from '~/update/check'
 import {
   createControllerWatch,
   flushBeforeReload,
@@ -83,10 +84,14 @@ export default defineNuxtPlugin((nuxtApp) => {
       void reload(true)
       return away()
     }
-    // TODO(Task 4): fetch the newest version on the server first, not only the one waiting when
-    // the offer appeared — `await fetchNewest(() => navigator.serviceWorker.getRegistration())`
-    // (app/update/check.ts), then re-check `replaced` (another tab may have let it take over
-    // meanwhile) before applying.
+    // The newest version on the server, not only the one waiting when the offer appeared
+    // (update/check.ts says why).
+    await fetchNewest(() => navigator.serviceWorker.getRegistration())
+    // Another tab may have let it take over meanwhile.
+    if (replaced.value) {
+      void reload(true)
+      return away()
+    }
     watch.apply()
     await skipWaiting(true)
     fallback = setTimeout(() => void reload(false), TAKEOVER_MS)
