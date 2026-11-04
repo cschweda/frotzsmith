@@ -59,7 +59,8 @@ A `.frotzsmith` file is untrusted input, read entirely in the browser.
 - **Container rules:** first entry `mimetype` (stored, exact content); entries stored or deflated only; UTF-8 `/`-separated paths with no `..`, `.`, empty segments, leading `/`, backslash, drive letters or control characters; no symlinks; no case-insensitive duplicates. The manifest is <= 1 MiB JSON.
 - **Source only:** everything read is treated as text. Compiled stories (`.z3 .z4 .z5 .z8 .ulx .blb .zblorb`) are ignored, never written.
 - **Nothing runs:** opening loads text into the editor, extensions, test scripts and Skein. It does not compile, play, replay or run the Skein, and no imported string is evaluated.
-- **Refusal is whole:** any violation (wrong language, over the uploaded-extension budget, a cyclic Skein, a bad path, a plain `.zip`) refuses the entire package with one sentence; every check runs before the first write, so nothing is ever half-applied. Opening over existing work asks first.
+- **Refusal is whole:** any violation (wrong language, over the uploaded-extension budget, a bad path, a manifest nested deeper than 64 levels, a plain `.zip`) refuses the entire package with one sentence; every check runs before the first write, so nothing is ever half-applied. Opening over existing work — edited source, different uploaded extensions, or test scripts / a Skein already saved for the game the package opens as — asks first, and the dialog names what would be replaced.
+- **A Skein that can't be opened is kept, not refused:** a Skein that doesn't parse, isn't a single tree (cyclic, orphaned), or is over 10,000 nodes / 10,000 levels deep is not loaded; it is kept byte-for-byte as a hidden file, written back on the next download, and the user is told "The project's Skein couldn't be opened".
 
 ## 7. localStorage hygiene
 

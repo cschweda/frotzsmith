@@ -19,7 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   loads text — nothing compiles, plays or runs.
 - Files the editor has no place for (extra files, unknown manifest fields)
   are kept and written back on the next download, so open, edit, download
-  loses nothing. A package for the other language, a plain `.zip`, a hostile
+  loses nothing — as long as you stay in the opened project. They are tied
+  to that project: loading another source (another file, a sample, New), or
+  editing the title so the game changes and reloading, drops them from the
+  next download, and so does a browser without IndexedDB once the page is
+  reloaded. A package for the other language, a plain `.zip`, a hostile
   or oversized archive, or one whose includes don't fit the browser's
   extension budget is refused whole, with a one-sentence reason.
 
