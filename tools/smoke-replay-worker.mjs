@@ -9,12 +9,15 @@
 // while all tests stayed green (see tools/ifvms-this-fix.mjs). Only executing
 // the built artifact catches that class of bug.
 //
-// Usage: node tools/smoke-replay-worker.mjs [publicDir=.output/public]
+// Usage: node tools/smoke-replay-worker.mjs [publicDir]
+//   publicDir defaults to wherever this generate wrote the site: dist/ on
+//   Netlify (its preset), .output/public elsewhere — see resolveOutDir.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { resolveOutDir } from './inject-preloads.mjs'
 
-const publicDir = resolve(process.argv[2] ?? '.output/public')
+const publicDir = process.argv[2] ? resolve(process.argv[2]) : resolveOutDir(process.cwd())
 const nuxtDir = join(publicDir, '_nuxt')
 const chunks = readdirSync(nuxtDir).filter(f => /^replay\.worker-.*\.js$/.test(f))
 if (chunks.length !== 1) {

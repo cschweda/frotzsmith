@@ -84,7 +84,7 @@ export function resolveOutDir(root, exists = existsSync) {
   for (const dir of ['dist', '.output/public']) {
     if (exists(`${resolve(root, dir)}/index.html`)) return resolve(root, dir)
   }
-  throw new Error('inject-preloads: no generated output found (looked in dist/ and .output/public/)')
+  throw new Error('no generated output found (looked in dist/ and .output/public/)')
 }
 
 // ─── runner ───────────────────────────────────────────────────────────────

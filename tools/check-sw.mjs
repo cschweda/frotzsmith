@@ -13,9 +13,12 @@
 // self-destroying worker instead; there the check is that sw.js is that worker
 // and precaches nothing.
 //
-// Usage: node tools/check-sw.mjs [publicDir=.output/public]
+// Usage: node tools/check-sw.mjs [publicDir]
+//   publicDir defaults to wherever this generate wrote the site: dist/ on
+//   Netlify (its preset), .output/public elsewhere — see resolveOutDir.
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { resolveOutDir } from './inject-preloads.mjs'
 
 /** Precached in every good build. */
 const REQUIRED = [
@@ -145,7 +148,7 @@ export function checkBuild(publicDir, { desktop, kill = false }) {
 
 const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())
 if (isMain) {
-  const publicDir = resolve(process.argv[2] ?? '.output/public')
+  const publicDir = process.argv[2] ? resolve(process.argv[2]) : resolveOutDir(process.cwd())
   const desktop = process.env.FROTZSMITH_DESKTOP === '1'
   const kill = process.env.FROTZSMITH_SW_KILL === '1'
   const problems = checkBuild(publicDir, { desktop, kill })
