@@ -232,6 +232,86 @@ describe('useProjectPackage — round trip (RF 2)', () => {
   })
 })
 
+describe('useProjectPackage — hidden files belong to the opened game only', () => {
+  async function openRich(p = richSnapshot()) {
+    await boot()
+    const pkg = useProjectPackage()
+    await pkg.apply(await pkg.inspect(await fileOf(p)))
+    await settle()
+    return pkg
+  }
+  function expectNoExtras(project: ProjectSnapshot) {
+    expect(project.opaque).toEqual([])
+    expect(project.manifestExtra).toEqual({})
+    expect(project.created).not.toBe('2026-01-02T03:04:05.000Z')
+    expect(project.skeinPath).toBeUndefined()
+    expect(project.main.name).not.toBe('haunted.inf')
+    expect(project.extensions).not.toContain('com.other:thing')
+    expect(project.tests.some(t => t.extra)).toBe(false)
+  }
+
+  it('open → edit → download still keeps them', async () => {
+    const pkg = await openRich()
+    useIde().source.value += '! an edit\n'
+    await settle()
+    const back = await readProjectPackage((await pkg.buildPackage()).bytes)
+    expect(back.project.opaque).toEqual(richSnapshot().opaque)
+    expect(back.project.manifestExtra).toEqual(richSnapshot().manifestExtra)
+  })
+
+  it('a same-titled .inf loaded afterwards does not inherit them', async () => {
+    const pkg = await openRich()
+    useIde().loadSource(`${HAUNTED}! another game, same title\n`)
+    await settle()
+    expect(useIde().activeStoryKey.value).toBe('haunted-house')
+    expectNoExtras((await readProjectPackage((await pkg.buildPackage()).bytes)).project)
+    await boot() // nor after a reload
+    expectNoExtras((await readProjectPackage((await useProjectPackage().buildPackage()).bytes)).project)
+  })
+
+  it('an untitled package does not leak into New Project (same "untitled" key)', async () => {
+    const p = { ...richSnapshot(), main: { name: 'haunted.inf', text: '[ Main; ];\n' } }
+    delete p.title
+    const pkg = await openRich(p)
+    expect(useIde().activeStoryKey.value).toBe('untitled')
+    useIde().newProject('std')
+    await settle()
+    expect(useIde().activeStoryKey.value).toBe('untitled')
+    expectNoExtras((await readProjectPackage((await pkg.buildPackage()).bytes)).project)
+  })
+
+  it('a same-titled sample loaded afterwards does not inherit them', async () => {
+    const pkg = await openRich()
+    await useIde().loadSample('std-haunted-house')
+    await settle()
+    expect(useIde().activeStoryKey.value).toBe('haunted-house')
+    expectNoExtras((await readProjectPackage((await pkg.buildPackage()).bytes)).project)
+  })
+})
+
+describe('useProjectPackage — a package with no test scripts', () => {
+  it("downloads with none, though the IDE shows its starter script", async () => {
+    await boot()
+    const p = { ...richSnapshot(), tests: [] }
+    const pkg = useProjectPackage()
+    await pkg.apply(await pkg.inspect(await fileOf(p)))
+    await settle()
+    expect(useTestScripts().scripts.value.map(s => s.name)).toEqual(['Script 1'])
+    expect((await readProjectPackage((await pkg.buildPackage()).bytes)).project.tests).toEqual([])
+    await boot()
+    expect((await readProjectPackage((await useProjectPackage().buildPackage()).bytes)).project.tests).toEqual([])
+  })
+
+  it('a script the author adds afterwards is downloaded', async () => {
+    await boot()
+    const pkg = useProjectPackage()
+    await pkg.apply(await pkg.inspect(await fileOf({ ...richSnapshot(), tests: [] })))
+    await settle()
+    useTestScripts().addFromText('Mine', 'look\n')
+    expect((await readProjectPackage((await pkg.buildPackage()).bytes)).project.tests.map(t => t.name)).toEqual(['Script 1', 'Mine'])
+  })
+})
+
 describe('useProjectPackage — refusals change nothing', () => {
   it('a ZIL package on the Inform 6 editor is refused by inspect (RF 4)', async () => {
     const ide = await boot()
@@ -296,6 +376,8 @@ describe('useProjectPackage — refusals change nothing', () => {
     const clash = { ...richSnapshot(), includes: [{ path: 'a/lamp.h', text: '1' }, { path: 'b/lamp.h', text: '2' }] }
     const err = await useProjectPackage().inspect(await fileOf(clash)).catch(e => e)
     expect(err).toBeInstanceOf(PackageError)
+    expect(err.code).toBe('include-name-clash')
+    expect(err.message).toBe("This project has two include files the browser editor can't keep apart: a/lamp.h and b/lamp.h.")
     await settle()
     expect(ideState()).toEqual(before)
   })
@@ -323,6 +405,31 @@ describe('useProjectPackage — needsConfirm (RF 3)', () => {
     expect(pkg.needsConfirm()).toBe(false)
     ide.source.value = '  \n'
     expect(pkg.needsConfirm()).toBe(false)
+  })
+})
+
+describe('useProjectPackage — needsConfirm with uploaded extensions (RF 3)', () => {
+  async function pending(includes: { path: string; text: string }[]) {
+    return useProjectPackage().inspect(await fileOf({ ...richSnapshot(), includes, extensions: [] }))
+  }
+
+  it('asks over a pristine source when the open would replace different uploads', async () => {
+    await boot()
+    useExtensions().addUploaded('keep.h', 'mine')
+    const pkg = useProjectPackage()
+    expect(pkg.needsConfirm()).toBe(false) // source alone is pristine
+    expect(pkg.needsConfirm(await pending([{ path: 'lamp.h', text: 'x' }]))).toBe(true)
+    expect(pkg.needsConfirm(await pending([{ path: 'keep.h', text: 'changed' }]))).toBe(true)
+    expect(pkg.needsConfirm(await pending([]))).toBe(true) // zero includes vs uploads
+    expect(pkg.needsConfirm(await pending([{ path: 'keep.h', text: 'mine' }, { path: 'b.h', text: '' }]))).toBe(true)
+  })
+
+  it('does not ask when the uploads are the same, or there are none', async () => {
+    await boot()
+    const pkg = useProjectPackage()
+    expect(pkg.needsConfirm(await pending([{ path: 'lamp.h', text: 'x' }]))).toBe(false)
+    useExtensions().addUploaded('keep.h', 'mine')
+    expect(pkg.needsConfirm(await pending([{ path: 'sub/keep.h', text: 'mine' }]))).toBe(false)
   })
 })
 

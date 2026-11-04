@@ -4,7 +4,10 @@ import { LIMITS } from '~/project-package/container'
 import type { Target } from '~/project-package/manifest'
 import { countNodes, createTree } from '~/composables/skein-tree'
 import { getExtrasStore, type ProjectExtras } from '~/composables/project-extras-store'
-import { includePathOf, planUploaded } from '~/composables/useExtensions'
+import { includeNameOf, includePathOf, planUploaded } from '~/composables/useExtensions'
+import { SEED_SCRIPT } from '~/composables/useTestScripts'
+import { safeGetItem, safeSetItem } from '~/utils/safe-storage'
+import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
 import { currentAbout } from '~/utils/about'
 import { isPristine } from '~/utils/pristine'
@@ -43,6 +46,10 @@ export function useProjectPackage() {
   const sourceDoc = useSourceDocument()
 
   const extrasKey = () => `${profile.value.stateKey}:${ide.activeStoryKey.value}`
+  /** Which game the stored extras belong to. useIde clears it on every other
+   *  source load (Open .inf, sample, share link, New), so a later project with
+   *  the same title — or none — never inherits an opened package's hidden files. */
+  const ownerKey = () => buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.extrasOwner)
 
   /** Every check an open needs, before anything changes. Throws the refusal. */
   function check(project: ProjectSnapshot) {
@@ -78,8 +85,9 @@ export function useProjectPackage() {
     // go through notifyStorageFull, so the IDE is never left half-opened.
     // The source first: loadSource resets run state and moves to the opened
     // game's story key, which every later write is keyed by.
-    ide.loadSource(project.main.text)
+    ide.loadSource(project.main.text) // clears the extras owner…
     sourceDoc.save() // durable now, not after the autosave debounce
+    if (!safeSetItem(ownerKey(), ide.activeStoryKey.value)) notifyStorageFull() // …which this open re-claims
     if (lang === 'i6') ide.setProfileMode(project.settings.library ?? 'auto')
     ide.setTargetMode(project.settings.target)
     const unknown = plan ? extensions.replaceUploaded(project.includes, project.extensions) : project.extensions
@@ -93,6 +101,9 @@ export function useProjectPackage() {
       testExtras: project.tests.flatMap(t => (t.extra ? [{ name: t.name, extra: t.extra }] : [])),
       extensions: { order: project.extensions.slice(), unknown },
     }
+    // The IDE never leaves a game without a script: the seed it adds back must
+    // not appear in a download of a project that had none.
+    if (project.tests.length === 0) extras.noTests = true
     if (project.created !== undefined) extras.created = project.created
     if (project.skeinPath !== undefined) extras.skeinPath = project.skeinPath
     const [saved] = await Promise.all([getExtrasStore().save(extrasKey(), extras), skein.flushSaves()])
@@ -126,7 +137,8 @@ export function useProjectPackage() {
     const scripts = testScripts.scripts.value.map(s => ({ name: s.name, text: s.text }))
     const tree = skein.tree.value
 
-    const extras = await getExtrasStore().load(key)
+    const owned = safeGetItem(ownerKey()) === ide.activeStoryKey.value
+    const extras = owned ? await getExtrasStore().load(key) : null
 
     const mainExt = lang === 'i6' ? '.inf' : '.zil'
     const main = extras?.main?.toLowerCase().endsWith(mainExt) ? extras.main : `${slugify(title ?? '') || 'story'}${mainExt}`
@@ -136,7 +148,12 @@ export function useProjectPackage() {
     // since opening loses its extra fields — accepted: the IDE has no way to
     // show or carry them through a rename.
     const pool = [...(extras?.testExtras ?? [])]
-    const tests: ProjectSnapshot['tests'] = scripts.map(s => {
+    const onlySeed =
+      extras?.noTests === true &&
+      scripts.length === 1 &&
+      scripts[0]!.name === SEED_SCRIPT.name &&
+      scripts[0]!.text === SEED_SCRIPT.text
+    const tests: ProjectSnapshot['tests'] = (onlySeed ? [] : scripts).map(s => {
       const i = pool.findIndex(x => x.name === s.name)
       if (i === -1) return s
       const [hit] = pool.splice(i, 1)
@@ -166,9 +183,16 @@ export function useProjectPackage() {
     return { bytes, filename }
   }
 
-  /** Opening would replace real work (anything but empty or a language seed). */
-  function needsConfirm(): boolean {
-    return !isPristine(ide.source.value)
+  /** Opening would replace real work: source that isn't empty or a language
+   *  seed, or (given the package) uploaded extensions the open would replace
+   *  with different ones — extensions are per language, not per game. */
+  function needsConfirm(p?: PendingOpen): boolean {
+    if (!isPristine(ide.source.value)) return true
+    if (!p || profile.value.id !== 'i6' || p.project.language !== 'i6') return false
+    const current = extensions.uploaded.value
+    if (current.length === 0) return false
+    const incoming = new Map(p.project.includes.map(f => [`uploaded:${includeNameOf(f.path)}`, f.text]))
+    return current.length !== incoming.size || current.some(u => incoming.get(u.id) !== u.content)
   }
 
   return { buildPackage, inspect, apply, needsConfirm }

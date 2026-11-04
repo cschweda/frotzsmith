@@ -25,6 +25,8 @@ export interface ProjectExtras {
   /** The manifest `extensions` list as opened, and the names in it that match
    *  no extension here (kept, in place, on the next Download). */
   extensions?: { order: string[]; unknown: string[] }
+  /** The package had no test scripts (the IDE's seed script is dropped on Download). */
+  noTests?: boolean
 }
 
 export interface ExtrasStore {

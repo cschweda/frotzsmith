@@ -13,6 +13,12 @@ import {
   migrateScriptStore,
 } from './test-scripts'
 
+/** The starter script an empty game gets (a bucket is never left empty). */
+export const SEED_SCRIPT: Readonly<{ name: string; text: string }> = {
+  name: 'Script 1',
+  text: '! One command per line, or separate with periods.\nlook\n',
+}
+
 interface Bucket {
   scripts: TestScript[]
   activeId: string
@@ -60,8 +66,8 @@ export function useTestScripts() {
   function seedFirst() {
     const first: TestScript = {
       id: newId(),
-      name: 'Script 1',
-      text: '! One command per line, or separate with periods.\nlook\n',
+      name: SEED_SCRIPT.name,
+      text: SEED_SCRIPT.text,
     }
     setBucket(activeStoryKey.value, { scripts: [first], activeId: first.id })
   }
@@ -72,8 +78,8 @@ export function useTestScripts() {
     if (!bucket || bucket.scripts.length === 0) {
       const first: TestScript = {
         id: newId(),
-        name: 'Script 1',
-        text: '! One command per line, or separate with periods.\nlook\n',
+        name: SEED_SCRIPT.name,
+        text: SEED_SCRIPT.text,
       }
       setBucket(key, { scripts: [first], activeId: first.id })
     } else {

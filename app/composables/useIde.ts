@@ -1,7 +1,7 @@
 import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { formatI6 } from '~/utils/format-i6'
 import { formatZil } from '~/utils/format-zil'
-import { safeGetItem, safeSetItem } from '~/utils/safe-storage'
+import { safeGetItem, safeRemoveItem, safeSetItem } from '~/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
 import { PROFILES, detectProfile, type ProfileId } from '~/modules/inform6/profiles'
 import { sampleById, loadSampleSource } from '~/modules/inform6/samples'
@@ -266,6 +266,15 @@ export function useIde() {
       notifyStorageFull()
   }
 
+  /** A different source is being loaded: hidden files kept from an opened
+   *  `.frotzsmith` project no longer belong to the editor's game, even when
+   *  the new one has the same title (useProjectPackage re-claims them after
+   *  its own loadSource). Not part of resetForNewSource — that also runs on a
+   *  language-switch restore, which keeps the same game. */
+  function releaseExtras() {
+    if (import.meta.client) safeRemoveItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.extrasOwner))
+  }
+
   /** Load a built-in sample into the editor, prettified for consistent formatting.
    *  Async: I6 sample bodies live in per-sample lazy chunks (loadSampleSource). */
   async function loadSample(id: string): Promise<void> {
@@ -277,6 +286,7 @@ export function useIde() {
       activeStoryKey.value = storyKey.value
       setTargetMode(s.target)
       resetForNewSource()
+      releaseExtras()
       return
     }
     // I6 path.
@@ -297,6 +307,7 @@ export function useIde() {
     setProfileMode('auto')
     setTargetMode(s.target ?? 'auto')
     resetForNewSource()
+    releaseExtras()
   }
 
   /** Load arbitrary source text (e.g. an opened .inf file) into the editor. */
@@ -305,6 +316,7 @@ export function useIde() {
     // Commit the new game's bucket key AFTER source is set so storyKey reflects the loaded file.
     activeStoryKey.value = storyKey.value
     resetForNewSource()
+    releaseExtras()
   }
 
   /** Start a fresh project: a blank editor with the chosen library forced. */
@@ -316,6 +328,7 @@ export function useIde() {
     // and persisting 'std' into the ZIL storage bucket is a state smell.
     if (profile.value.id === 'i6') setProfileMode(library)
     resetForNewSource()
+    releaseExtras()
   }
 
   /** Clear all Parchment autosave entries from localStorage so the next Play boots
