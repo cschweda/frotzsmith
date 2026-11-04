@@ -48,6 +48,14 @@ jobs:
           grep -q 'rel="modulepreload"' .output/public/index.html
       # The README's axe-core zero-violation gate, for real: serve the build
       # and fail on any violation on the three routes (full default ruleset).
+      # @axe-core/cli resolves `chromedriver@latest` once, at lock time
+      # (yarn.lock pins 150.x), while the runner's Chrome keeps updating — a
+      # mismatch fails the gate with "session not created" (2026-11-04: Chrome
+      # 156 vs driver 150). browser-driver-manager installs a matched Chrome
+      # for Testing + chromedriver pair and writes ~/.browser-driver-manager/.env,
+      # which @axe-core/cli reads, so the gate no longer depends on the runner.
+      - name: Install matched Chrome + chromedriver for axe
+        run: npx -y browser-driver-manager install chrome
       - name: Accessibility gate (axe-core, zero violations)
         run: |
           npx serve -l 8080 .output/public &
