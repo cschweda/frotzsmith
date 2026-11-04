@@ -137,7 +137,7 @@ function exportSkein() {
   setTimeout(() => URL.revokeObjectURL(url), 30_000)
 }
 
-const fileInput = ref<HTMLInputElement | null>(null)
+const fileInput = shallowRef<HTMLInputElement | null>(null)
 async function onImportFile(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return

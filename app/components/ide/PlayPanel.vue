@@ -12,8 +12,8 @@ const colorMode = useColorMode()
 
 // The compiled story plays in a Parchment iframe (pure-JS ZVM). We hand the
 // in-memory story bytes to it as a same-origin blob URL via ?story=.
-const container = ref<HTMLElement | null>(null)
-const playFrame = ref<HTMLIFrameElement | null>(null)
+const container = shallowRef<HTMLElement | null>(null)
+const playFrame = shallowRef<HTMLIFrameElement | null>(null)
 const isFullscreen = ref(false)
 const src = ref<string | null>(null)
 let blobUrl: string | null = null

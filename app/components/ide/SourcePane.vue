@@ -19,7 +19,7 @@ const { jumpSignal, runCompile } = useIde()
 const { profile } = useLanguage()
 const colorMode = useColorMode()
 
-const host = ref<HTMLElement | null>(null)
+const host = shallowRef<HTMLElement | null>(null)
 const themeComp = new Compartment()
 // Read-only: a library file always; any file while an update the author chose is being applied
 // (update/state.ts `applyingUpdate`), so nothing is typed after the saves are written for the reload.

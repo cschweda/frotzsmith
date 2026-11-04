@@ -20,7 +20,7 @@ function create() {
 }
 
 // Open a local .inf into the editor.
-const fileInput = ref<HTMLInputElement | null>(null)
+const fileInput = shallowRef<HTMLInputElement | null>(null)
 function openFile() {
   fileInput.value?.click()
 }

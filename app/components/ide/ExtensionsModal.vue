@@ -4,7 +4,7 @@ import { makeZipEntryFilter, ZipLimitError, ZIP_MAX_TOTAL_BYTES } from '~/utils/
 const { all, isEnabled, toggle, addUploaded, removeUploaded, enabledCount } = useExtensions()
 
 const open = ref(false)
-const fileInput = ref<HTMLInputElement | null>(null)
+const fileInput = shallowRef<HTMLInputElement | null>(null)
 const dragging = ref(false)
 const note = ref('')
 

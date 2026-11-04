@@ -8,7 +8,7 @@ import { tags } from '@lezer/highlight'
 const { activeScript, activeId, updateText } = useTestScripts()
 const colorMode = useColorMode()
 
-const host = ref<HTMLElement | null>(null)
+const host = shallowRef<HTMLElement | null>(null)
 const themeComp = new Compartment()
 let view: EditorView | null = null
 const isDark = () => colorMode.value === 'dark'

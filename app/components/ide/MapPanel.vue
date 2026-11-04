@@ -86,7 +86,7 @@ function zoomBy(factor: number, cx?: number, cy?: number) {
 }
 
 // ─── SVG element ref & coordinate conversion ───────────────────────────────
-const svgEl = ref<SVGSVGElement | null>(null)
+const svgEl = shallowRef<SVGSVGElement | null>(null)
 const dragging = ref(false)
 
 /**
