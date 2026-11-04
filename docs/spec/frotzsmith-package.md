@@ -33,8 +33,8 @@ A **writer** is software that creates or updates a package; a **reader** is soft
 - A package **MUST** be a ZIP archive as defined by the PKWARE APPNOTE (version 6.3.10 or later), without encryption, spanning, or multiple disks.
 - Entries **MUST** be stored (method 0) or deflated (method 8). Readers **MUST** support both. Writers **SHOULD** deflate text.
 - The archive's first entry **MUST** be named `mimetype`, stored (method 0), with no extra field, containing exactly the ASCII bytes `application/vnd.frotzsmith.package+zip` with no line ending. (This lets a reader recognise a package from its first bytes, as EPUB does.)
-- Path names **MUST** be UTF-8 and the writer **MUST** set general-purpose bit 11. Paths **MUST** use `/` as the separator, **MUST NOT** begin with `/`, **MUST NOT** contain an empty segment, a `.` segment, or a `..` segment, a backslash, a drive letter (`C:`), NUL, or any C0/C1 control character, and **MUST NOT** be longer than 255 bytes per segment or 1,024 bytes in total. No two paths may be equal ignoring case (they would collide when unpacked on many systems).
-- Archives **MUST NOT** contain symbolic links, directories as entries with data, or entries whose stored and uncompressed sizes or CRC-32 disagree with their headers.
+- Path names **MUST** be UTF-8 and the writer **MUST** set general-purpose bit 11. Paths **MUST** use `/` as the separator, **MUST NOT** begin with `/`, **MUST NOT** contain an empty segment, a `.` segment, or a `..` segment, a backslash, a drive letter (`C:`), NUL, or any C0/C1 control character, and **MUST NOT** be longer than 255 bytes per segment or 1,024 bytes in total. No two paths **MUST** be equal ignoring case (they would collide when unpacked on many systems); paths are compared by applying Unicode NFC normalization and then the default lowercase mapping (in JavaScript, `s.normalize('NFC').toLowerCase()`).
+- Archives **MUST NOT** contain symbolic links, directories as entries with data, or entries whose stored and uncompressed sizes or CRC-32 disagree with their headers. Each local file header **MUST** agree with its central-directory entry, and an entry whose real inflated size differs from its declared size **MUST** be refused.
 - The file extension is `.frotzsmith`. The media type is `application/vnd.frotzsmith.package+zip` (not yet registered with IANA; see §13).
 
 ## 3. Layout
@@ -50,7 +50,7 @@ tests/                         optional: test scripts, one per file (§6)
 
 `<stem>` is the main file's name without its extension. Readers **MUST** ignore files and folders they don't recognise, and **MUST** keep them (§1.1); writers that update a package **MUST** keep them unless the user asks to remove them.
 
-**Compiled stories MUST NOT be written** into a package, and readers **MUST** ignore any they find: files ending `.z3`, `.z4`, `.z5`, `.z8`, `.ulx`, `.blb`, or `.zblorb`. A reader does not keep them either, and should tell the user it skipped them.
+**Compiled stories MUST NOT be written** into a package, and readers **MUST** ignore any they find: files ending `.z3`, `.z4`, `.z5`, `.z8`, `.ulx`, `.blb`, or `.zblorb`. A reader does not keep them either, and should tell the user it skipped them. An ignored entry is still an entry: it **MUST** obey §2's path rules, it counts toward every limit in §12, and it is not listed in `files`.
 
 ## 4. The manifest: `frotzsmith.json`
 
@@ -106,7 +106,7 @@ Readers **MUST** ignore unknown fields; writers **MUST** keep unknown fields the
 ## 5. The main file and include files
 
 - The main file **MUST** be UTF-8 text with no NUL byte. For `language: "i6"` its extension **MUST** be `.inf`; for `"zil"`, `.zil`.
-- An Inform 6 project's include files are UTF-8 text files ending `.h`, which **MAY** sit at any path in the package. A reader keeps each as an include file of the project.
+- An Inform 6 project's include files are UTF-8 text files ending `.h`, which **MAY** sit at any path in the package. A reader keeps each as an include file of the project. Includes are Inform 6 only: in a project whose `language` is `"zil"`, a `.h` file is an unrecognised file (§3), kept and not an include.
 - Line endings **SHOULD** be LF; readers **MUST** accept CRLF.
 - A reader that understands only the main file **MAY** open a package by reading `frotzsmith.json`'s `main` and that file alone; that is a conforming **minimal reader** (§10).
 
@@ -114,8 +114,8 @@ Readers **MUST** ignore unknown fields; writers **MUST** keep unknown fields the
 
 A **test script** is a list of commands to type into the game, one per file as plain UTF-8 text.
 
-- Each script is a file under `tests/` ending `.txt`. The file name is the script's name made into a slug (lower case, letters and digits, other runs replaced by `-`); where two names give the same slug, a writer adds `-2`, `-3`, and so on.
-- The manifest's `tests` entry gives the script's display `name` and `path`. The manifest is authoritative for names and order; readers **MUST NOT** rely on the file name.
+- Each script is a file under `tests/` ending `.txt`. A writer derives the file name `tests/<slug>.txt` from the script's name: NFKD-normalize it, strip combining diacritics and apostrophes (`'` and `’`), lower-case it, replace each run of characters outside ASCII `a`–`z` and `0`–`9` with `-`, and trim leading and trailing `-`; an empty slug becomes `script`. Where two names give the same slug, the writer adds `-2`, `-3`, and so on.
+- The manifest's `tests` entry gives the script's display `name` and `path`. The manifest's `tests` entries (name, path) are authoritative for names and order; readers **MUST NOT** rely on file names.
 - A `.txt` file under `tests/` that the manifest does not list is still a test script: a reader opens it, naming it by its file name without the extension.
 
 ## 7. The Skein: `<stem>.skein`
@@ -127,6 +127,8 @@ The Skein is the tree of commands and the game's replies recorded from play, kep
 ```
 
 `v` is the version of this file (currently 1). `lang` is `"i6"` or `"zil"`. `storyKey` identifies the story the Skein was recorded against. `tree` is the Skein's nodes.
+
+The manifest's `skein` field is authoritative for where the Skein is. When it is absent, a reader uses `<stem>.skein` if that file is present. A writer that writes a Skein **MUST** set `skein`.
 
 A reader that cannot make sense of the file (it does not parse, or its shape is wrong) **MUST NOT** refuse the package: it keeps the file as an unrecognised file (§3) and tells the user it was not opened. A reader **MUST NOT** run a Skein when it opens a package (§12).
 
@@ -153,7 +155,7 @@ See §8.
 Packages come from other people; readers **MUST** treat every byte as untrusted.
 
 - **Nothing runs.** Opening a package only loads text. A reader **MUST NOT** compile, play, replay, or run a Skein or test script as a result of opening one; the user does those, afterwards, on purpose.
-- **Archive bombs and size:** readers **MUST** check the following before inflating anything, and refuse a package beyond them: archive at most 32 MiB; at most 2,000 entries; each entry at most 8 MiB uncompressed; at most 32 MiB uncompressed in total; compression ratio per entry at most 200:1. A reader **MUST** also refuse an entry whose real inflated size differs from its declared size.
+- **Archive bombs and size:** readers **MUST** check the following against the central directory's declared sizes before inflating anything, and refuse a package beyond them (each local header **MUST** agree with its central-directory entry): archive at most 32 MiB; at most 2,000 entries; each entry at most 8 MiB uncompressed; at most 32 MiB uncompressed in total; compression ratio per entry at most 200:1. A reader **MUST** also refuse an entry whose real inflated size differs from its declared size. Ignored compiled stories (§3) count toward all of these limits.
 - **Paths:** readers **MUST** refuse (not repair) any path breaking §2's rules, and **MUST NOT** follow links when unpacking.
 - **All or nothing:** on any violation a reader refuses the **whole** package with one sentence saying why. It **MUST NOT** apply part of a package, and **MUST NOT** change the user's existing work when it refuses. A reader **MUST** ask before replacing existing work with a package.
 - **Text:** include files, scripts, the Skein, and the manifest are text. Parse JSON with bounded, linear-time code; cap nesting depth; never execute or render anything in a package as markup.
