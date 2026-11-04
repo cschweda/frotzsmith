@@ -113,6 +113,45 @@ describe('round trip', () => {
   })
 })
 
+describe('skein path and test extras', () => {
+  const treeA = () => addPath(createTree(), ['a']).tree
+  const sk = (tree: unknown) => JSON.stringify({ v: 1, lang: 'i6', storyKey: 'k', tree })
+
+  it('keeps a manifest skein path and survives a stray <stem>.skein (open, save, reopen)', async () => {
+    const first = await readProjectPackage(
+      pkg(m({ skein: 'other.skein' }), { 'g.inf': 'x', 'g.skein': 'junk', 'other.skein': sk(treeA()) }),
+    )
+    expect(first.project.skeinPath).toBe('other.skein')
+    const again = await readProjectPackage(await writeProjectPackage(first.project, o))
+    expect(again.project.skein).toEqual(first.project.skein)
+    expect(again.project.opaque.map(f => f.path)).toEqual(['g.skein'])
+    expect(again.project.opaque[0]!.bytes).toEqual(enc.encode('junk'))
+  })
+
+  it('steps around an invalid G.skein kept as opaque when a Skein is recorded', async () => {
+    const first = await readProjectPackage(pkg(m(), { 'g.inf': 'x', 'G.skein': '{"tree":{}}' }))
+    const withSkein = { ...first.project, skein: treeA() }
+    const bytes = await writeProjectPackage(withSkein, o)
+    expect([...readContainer(bytes).keys()]).toEqual(expect.arrayContaining(['G.skein', 'g-2.skein']))
+    const again = await readProjectPackage(bytes)
+    expect(again.project.skein).toEqual(withSkein.skein)
+    expect(again.project.opaque.map(f => f.path)).toEqual(['G.skein'])
+    const third = await readProjectPackage(await writeProjectPackage(again.project, o))
+    expect(third.project.skein).toEqual(withSkein.skein)
+  })
+
+  it('keeps unknown fields inside tests[] entries', async () => {
+    const man = m({ tests: [{ name: 'T', path: 'tests/t.txt', 'com.example.note': 'keep me' }] })
+    const first = await readProjectPackage(pkg(man, { 'g.inf': 'x', 'tests/t.txt': 'go\n' }))
+    expect(first.project.tests[0]!.extra).toEqual({ 'com.example.note': 'keep me' })
+    const again = await readProjectPackage(await writeProjectPackage(first.project, o))
+    expect(again.project.tests).toEqual(first.project.tests)
+    const files = readContainer(await writeProjectPackage(first.project, o))
+    const out = JSON.parse(new TextDecoder().decode(files.get('frotzsmith.json')!))
+    expect(out.tests[0]['com.example.note']).toBe('keep me')
+  })
+})
+
 describe('writer limits', () => {
   it('refuses a project the reader would refuse', async () => {
     const big = 'x'.repeat(LIMITS.entryBytes + 1)

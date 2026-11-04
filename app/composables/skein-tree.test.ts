@@ -10,6 +10,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   createTree,
+  isValidTree,
   addPath,
   pathNodes,
   pathCommands,
@@ -211,4 +212,12 @@ describe('removeSubtree', () => {
     const { tree } = treeWith(['a'])
     expect(removeSubtree(tree, tree.root)).toBe(tree)
   })
+})
+
+describe('isValidTree: prototype keys are not nodes', () => {
+  for (const root of ['constructor', '__proto__', 'toString']) {
+    it(`rejects root "${root}" with no own nodes`, () => {
+      expect(isValidTree(JSON.parse(`{"root":"${root}","nodes":{}}`))).toBe(false)
+    })
+  }
 })

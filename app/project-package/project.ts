@@ -18,8 +18,10 @@ export interface ProjectSnapshot {
   main: { name: string; text: string }
   includes: { path: string; text: string }[]
   extensions: string[]
-  tests: { name: string; text: string }[]
+  tests: { name: string; text: string; extra?: Record<string, unknown> }[]
   skein: SkeinTree | null
+  /** Where the Skein was in the package, when not the default `<stem>.skein`. */
+  skeinPath?: string
   settings: { target: Target; library?: Library }
   title?: string
   opaque: { path: string; bytes: Uint8Array }[]
@@ -73,25 +75,32 @@ export async function writeProjectPackage(
     add(inc.path, encoder.encode(inc.text))
   }
 
+  const keptOpaque = p.opaque.filter(f => !COMPILED.test(f.path))
+  for (const f of keptOpaque) add(f.path, f.bytes)
+
+  // The Skein keeps its old path when free, else steps around what's there.
   let skeinPath: string | undefined
   if (p.skein) {
-    skeinPath = `${stemOf(p.main.name)}.skein`
+    const want = p.skeinPath ?? `${stemOf(p.main.name)}.skein`
+    skeinPath = want
+    for (let n = 2; used.has(pathKey(skeinPath)); n++) skeinPath = `${stemOf(want)}-${n}.skein`
     const storyKey = slugify(p.title ?? '') || 'untitled'
     add(skeinPath, encoder.encode(JSON.stringify({ v: 1, lang: p.language, storyKey, tree: p.skein })))
   }
 
-  const keptOpaque = p.opaque.filter(f => !COMPILED.test(f.path))
-  for (const f of keptOpaque) add(f.path, f.bytes)
-
   // Tests last, so a generated name steps around any file already present.
-  const tests: { name: string; path: string }[] = []
+  const tests: Record<string, unknown>[] = []
   for (const t of p.tests) {
     const slug = slugify(t.name) || 'script'
     let path = `tests/${slug}.txt`
     for (let n = 2; used.has(pathKey(path)); n++) path = `tests/${slug}-${n}.txt`
     checkText(path, t.text)
     add(path, encoder.encode(t.text))
-    tests.push({ name: t.name, path })
+    const entry: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(t.extra ?? {})) setOwn(entry, k, v)
+    setOwn(entry, 'name', t.name)
+    setOwn(entry, 'path', path)
+    tests.push(entry)
   }
 
   const files: Record<string, string> = {}
@@ -182,12 +191,19 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
   const mainText = text(m.main, mainBytes)
 
   const tests: { name: string; text: string }[] = []
-  for (const t of m.tests) tests.push({ name: t.name, text: text(t.path, claim(t.path, 'test')) })
+  for (const t of m.tests) {
+    const test: { name: string; text: string; extra?: Record<string, unknown> } = {
+      name: t.name, text: text(t.path, claim(t.path, 'test')),
+    }
+    if (t.extra) test.extra = t.extra
+    tests.push(test)
+  }
 
   // Skein: the manifest is authoritative; else <stem>.skein when present.
   const ignored: string[] = []
   let skein: SkeinTree | null = null
   let skeinPath = m.skein
+  let skeinPathOut: string | undefined
   if (skeinPath === undefined) {
     const guess = pathKey(`${stemOf(m.main)}.skein`)
     skeinPath = [...container.keys()].find(k => pathKey(k) === guess && !claimed.has(pathKey(k)))
@@ -195,7 +211,9 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
   if (skeinPath !== undefined) {
     const skeinBytes = claim(skeinPath, 'skein')
     skein = parseSkein(skeinBytes)
-    if (!skein) {
+    if (skein) {
+      if (skeinPath !== `${stemOf(m.main)}.skein`) skeinPathOut = skeinPath
+    } else {
       ignored.push(skeinPath)
       claimed.delete(pathKey(skeinPath)) // falls through to opaque below
     }
@@ -237,6 +255,7 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
     opaque,
     manifestExtra: m.extra,
   }
+  if (skeinPathOut !== undefined) project.skeinPath = skeinPathOut
   if (m.title !== undefined) project.title = m.title
   if (m.created !== undefined) project.created = m.created
   return { project, ignored, hashMismatches }

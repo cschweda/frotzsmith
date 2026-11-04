@@ -32,7 +32,7 @@ export interface ParsedManifest {
   target: Target
   library?: Library
   extensions: string[]
-  tests: { name: string; path: string }[]
+  tests: { name: string; path: string; extra?: Record<string, unknown> }[]
   skein?: string
   files?: Record<string, string>
   /** Unknown fields (and `library` for ZIL), verbatim. */
@@ -121,7 +121,15 @@ export function parseManifest(bytes: Uint8Array): ParsedManifest {
       if (!isPlainObject(t) || typeof t.name !== 'string') {
         throw bad('This project\'s manifest has a test without a name.')
       }
-      out.tests.push({ name: t.name, path: checkPath('test path', t.path) })
+      const entry: { name: string; path: string; extra?: Record<string, unknown> } = {
+        name: t.name, path: checkPath('test path', t.path),
+      }
+      for (const [k, val] of Object.entries(t)) {
+        if (k === 'name' || k === 'path') continue
+        entry.extra ??= {}
+        setOwn(entry.extra, k, val)
+      }
+      out.tests.push(entry)
     }
   }
   if (doc.skein !== undefined) out.skein = checkPath('skein path', doc.skein)

@@ -193,14 +193,14 @@ export function isValidTree(value: unknown): value is SkeinTree {
   const t = value as Partial<SkeinTree>
   if (typeof t.root !== 'string' || !t.nodes || typeof t.nodes !== 'object') return false
   const nodes = t.nodes as Record<string, Partial<SkeinNode>>
-  if (!nodes[t.root]) return false
+  if (!Object.hasOwn(nodes, t.root)) return false
   for (const [id, n] of Object.entries(nodes)) {
     if (!n || typeof n !== 'object' || n.id !== id || typeof n.command !== 'string') return false
-    if (!Array.isArray(n.childIds) || !n.childIds.every(c => typeof c === 'string' && nodes[c]?.parentId === id)) return false
+    if (!Array.isArray(n.childIds) || !n.childIds.every(c => typeof c === 'string' && Object.hasOwn(nodes, c) && nodes[c]?.parentId === id)) return false
     if (typeof n.status !== 'string' || !STATUSES.has(n.status)) return false
     if (n.blessedOutput !== undefined && typeof n.blessedOutput !== 'string') return false
     if (n.lastOutput !== undefined && typeof n.lastOutput !== 'string') return false
-    if (id === t.root ? n.parentId !== null : typeof n.parentId !== 'string' || !nodes[n.parentId]) return false
+    if (id === t.root ? n.parentId !== null : typeof n.parentId !== 'string' || !Object.hasOwn(nodes, n.parentId)) return false
   }
   return true
 }
