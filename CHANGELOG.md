@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Added — 2026-11-04 Offline website, versioning, update checks
+- **The website works offline.** A Workbox service worker (`@vite-pwa/nuxt`)
+  precaches the app's own files — both IDEs, `/technical`, the `_nuxt/`
+  chunks and workers (the Inform 6 compiler's wasm among them), the
+  Parchment player under `play/`, the demo story, fonts and icons. After one
+  visit Frotzsmith opens, compiles Inform 6, plays, and runs test scripts with
+  no connection; any reload offline falls back to the app shell. With a web
+  manifest and icons it can be **installed as an app**.
+- **ZIL offline after one online use.** The ~13 MB ZILF runtime
+  (`/zilf/r<rev>/_framework/*`) is not precached — a visitor who never opens
+  ZIL downloads none of it — but is cached on first use (CacheFirst, cache
+  `frotzsmith-zilf`, only 200 responses). Once it's there, ZIL compiles
+  offline too; offline with an empty cache, a ZIL compile ends promptly with
+  a compile error rather than hanging.
+- **Updates wait for you.** A new deploy shows *"A new version of Frotzsmith
+  is ready"* with **Reload** / **Later**; nothing reloads by itself, in any
+  tab. Reload writes the pending source autosave and Skein saves first, shows
+  "Getting the newest version…", and the new version opens with
+  "Frotzsmith is up to date." Other open tabs keep their offer until their
+  own author chooses.
+- **One version number** — `desktop/package.json` (`0.1.0`, mirrored in the
+  root `package.json`), with the build commit and date baked in. The footer's
+  **About · v0.1.0** opens an About dialog (version, build, license, source)
+  with **Check for updates**, which looks for the newest deploy and offers it
+  — it never applies it unasked. The Technical page shows the version too.
+- `postgenerate` runs `tools/check-sw.mjs`, which fails the build if the
+  worker would precache ZILF, `/pa/`, the social image or the hosting
+  fallbacks, or loses the ZILF runtime cache. Netlify serves `sw.js` and the
+  manifest `no-cache`, so browsers see a new deploy promptly.
+
 ### Fixed — 2026-11-04 Review batch: replay restored, races, keyboard & mobile
 - **Headless replay works in production again.** Every Test Script **Run**
   and Skein run/auto-run on the live site died with "GlkOte error … reading

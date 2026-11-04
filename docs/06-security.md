@@ -65,6 +65,17 @@ Where Frotzsmith itself renders any of this (Transcript, Results), it uses text 
 
 Even as a static site, ship a CSP via `netlify.toml` headers: restrict `script-src`/`connect-src` appropriately. WASM may require `'wasm-unsafe-eval'` (or `'unsafe-eval'` depending on instantiation path) in `script-src` — documented as the one necessary relaxation, scoped as tightly as the chosen instantiation allows. No `connect-src` to third parties (the app makes no API calls).
 
+### 9.1 Service worker (offline website)
+
+The website registers a Workbox service worker (`@vite-pwa/nuxt`, configured under `pwa` in `nuxt.config.ts`) so it works offline after the first visit. Its scope is deliberately small:
+
+- **Precache: the app's own files only** — the pages, the `_nuxt/` chunks and workers (the Inform 6 compiler's wasm among them), the Parchment player under `play/`, the demo story, fonts and icons. Explicitly excluded: `zilf/**`, `pa/**`, `og-image.*`, `200.html`, `404.html`. Precached entries are revisioned by Workbox; outdated caches are cleaned up on activation.
+- **One runtime cache: `frotzsmith-zilf`.** Requests whose path is `/zilf/r<rev>/_framework/*` (the ZILF .NET runtime, ~13 MB) are served **CacheFirst** and stored only on a **200** response — never a 404, an error or an opaque response, so a bad fetch can't poison the compiler for good. The path carries the ZILF revision, so CacheFirst can't serve a stale runtime after an upgrade. Nothing is downloaded until ZIL is used.
+- **Never cached:** `/pa/` (the first-party Plausible proxy — pageviews stay live and offline visits simply aren't counted) and **any third-party response** — the app makes no cross-origin requests (CSP `connect-src 'self' blob:`, §9), and the one runtime route keeps only status 200, which an opaque cross-origin response never has.
+- **Updates never apply without the author.** `registerType: 'prompt'`, `skipWaiting: false`: a new worker installs and waits. The page offers *"A new version of Frotzsmith is ready"* (**Reload** / **Later**); only the author's **Reload** tells the waiting worker to take over, and only that tab reloads, after its pending saves are written. Other tabs keep their offer. `sw.js` and `manifest.webmanifest` are served `no-cache` (`netlify.toml`), so a deploy is noticed, not stuck behind an HTTP cache.
+- `tools/check-sw.mjs` (run by `postgenerate`) reads the built `sw.js` and fails the build if any excluded path is precached or the ZILF runtime cache goes missing.
+- The desktop build (`FROTZSMITH_DESKTOP=1`) ships no service worker, no manifest and no registration code.
+
 ## 10. Summary
 
 The static, client-only architecture is the biggest security win — there's almost nothing to attack remotely. The real work is (a) sandboxing/timeouts so untrusted source and story files can't hang or exhaust the tab, and (b) treating all compiler and game text as untrusted plain text in the DOM. Both are well-understood and cheap to get right.

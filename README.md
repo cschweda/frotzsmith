@@ -20,6 +20,8 @@ Frotzsmith mirrors the working rhythm of the classic Inform 7 IDE — source on 
 
 A second source language, **ZIL** — Infocom's original MDL/Lisp-like language — lives at `/zil/`. It compiles with the modern [**ZILF**](https://foss.heptapod.net/zilf/zilf/) toolchain (ZILF + ZAPF, C#/.NET) built to WebAssembly and run **in a Web Worker**, so the ~5 s compile no longer blocks the UI (with an automatic main-thread fallback if the worker can't boot), with `zillib` embedded and the `<VERSION>` directive targeting z3/z5/z8. Because ZIL emits the same Z-code, everything downstream — inline play, the auto-map, test scripts, the transcript — works for ZIL unchanged. The heavy .NET bundle downloads and **pre-warms in the background when the ZIL page opens** (so the first compile behaves like a warm one, ~5 s) — Inform 6 users never download it.
 
+**It works offline.** After your first visit the whole app — both IDEs, the Inform 6 compiler, the player, the Technical page — is kept by a service worker, so Frotzsmith opens, compiles Inform 6 and plays with no connection at all; your browser can also **install it as an app** (it has a web manifest and icons). ZIL joins in once its compiler has been downloaded online one time — opening `/zil/` or compiling there does it — after which ZIL compiles offline too. A new deploy never takes over on its own: Frotzsmith says *"A new version of Frotzsmith is ready"* and waits for you to press **Reload** (your unsaved edits are written first). **About** in the footer shows the version you're running (`v0.1.0`) and has **Check for updates**.
+
 A power-user testing layer runs arbitrarily long command scripts (`n. examine rock. lift rock.`) through a headless replay engine and shows the per-turn transcript. Playing by hand also records every command you type into a read-only **Transcript**, and one click turns that captured playthrough into a reusable **Test Script** — the linear spine from which a full branching Skein with blessed-output regression diffing later grows.
 
 ## Why
@@ -59,6 +61,7 @@ write I6  ──▶  compile (inform6.wasm, client-side)  ──▶  play inline
 | Accessibility | WCAG 2.1 AA, axe-core zero-violation gate, fully responsive |
 | Package manager | Yarn 1.22 |
 | Runtime | Node 22 |
+| Offline | Workbox service worker via `@vite-pwa/nuxt` — app precached, ZILF cached on first use, updates only on the author's Reload; installable (web manifest) |
 | Analytics | Plausible (privacy-friendly, cookieless) |
 | Hosting | Netlify (static; publishes `dist`) |
 
