@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { frotzsmith } from '~~/frotzsmith.config'
+import { currentAbout } from '~/utils/about'
 
 useHead({
   title: 'Technical Details — Frotzsmith',
   link: [{ rel: 'canonical', href: `${frotzsmith.siteUrl}/technical/` }],
   meta: [{ property: 'og:url', content: `${frotzsmith.siteUrl}/technical/` }],
 })
+
+const about = currentAbout()
+const build = [about.commit, about.date].filter(Boolean).join(' · ')
+const showBuild = !!about.commit && about.commit !== 'unknown'
 
 const colorMode = useColorMode()
 function toggleTheme() {
@@ -108,6 +113,9 @@ const resources = [
     <main class="mx-auto max-w-4xl space-y-12 px-6 py-10">
       <section class="space-y-3">
         <h1 class="text-3xl font-bold tracking-tight">Technical Details</h1>
+        <p class="text-muted text-sm" data-version>
+          Frotzsmith v{{ about.version }}<template v-if="showBuild"> · {{ build }}</template>
+        </p>
         <p class="text-muted max-w-2xl">
           Frotzsmith compiles and runs <strong class="text-default">Inform 6</strong> and
           <strong class="text-default">ZIL</strong> entirely in the browser — no server touches your source

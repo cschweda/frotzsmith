@@ -257,6 +257,8 @@ const drawerOpen = computed({
         Roadmap
       </a>
 
+      <AboutModal />
+
       <NuxtLink
         to="/technical"
         class="hover:text-primary flex items-center gap-1.5 font-semibold"
@@ -266,5 +268,7 @@ const drawerOpen = computed({
         Technical
       </NuxtLink>
     </footer>
+
+    <UpdatePrompt />
   </div>
 </template>
