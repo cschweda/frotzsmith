@@ -10,6 +10,7 @@ import {
   blessedLeaves,
   countNodes,
   parseSkeinFile,
+  SKEIN_FILE_MAX_BYTES,
   type SkeinTree,
 } from './skein-tree'
 import { markRaw } from 'vue'
@@ -335,11 +336,22 @@ export function useSkein() {
    *  can't replay against this compiler's games) and any structurally broken
    *  tree, which would otherwise throw later inside addPath/pathNodes. */
   function importSkein(json: string): boolean {
-    const data = parseSkeinFile(json) // rebuilt from known fields only
-    if (!data) return false
-    if (data.lang !== undefined && data.lang !== profile.value.stateKey) return false
-    replaceTree(data.tree)
+    const tree = readSkeinImport(json)
+    if (!tree) return false
+    replaceTree(tree)
     return true
+  }
+
+  /** The tree a `.skein` file would import — checked, rebuilt from known
+   *  fields only, nothing applied — or null (too large, another language's,
+   *  or broken). The panel uses it to ask before replacing a Skein. */
+  function readSkeinImport(json: string): SkeinTree | null {
+    // A UTF-16 length over the cap means more bytes than that too.
+    if (json.length > SKEIN_FILE_MAX_BYTES) return null
+    const data = parseSkeinFile(json)
+    if (!data) return null
+    if (data.lang !== undefined && data.lang !== profile.value.stateKey) return null
+    return data.tree
   }
 
   // ── session watchers (once per app — see session-once.ts) ─────────────────
@@ -389,5 +401,6 @@ export function useSkein() {
     commandsTo,
     exportSkein,
     importSkein,
+    readSkeinImport,
   }
 }

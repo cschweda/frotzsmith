@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { flattenRows, type SkeinRow, type SkeinStatus } from '~/composables/skein-tree'
+import { flattenRows, SKEIN_FILE_MAX_BYTES, type SkeinRow, type SkeinStatus, type SkeinTree } from '~/composables/skein-tree'
 import { lineDiff } from '~/utils/line-diff'
 
 const skein = useSkein()
@@ -117,13 +117,49 @@ function exportSkein() {
 }
 
 const fileInput = shallowRef<HTMLInputElement | null>(null)
+/** A checked import waiting for "Replace" (this game already has a Skein). */
+const pendingImport = shallowRef<{ tree: SkeinTree; name: string; storyKey: string; lang: string } | null>(null)
+const confirmImport = ref(false)
+const importButton = ref<{ $el?: HTMLElement } | null>(null)
+/** The dialog doesn't restore focus itself: put it back on Import. */
+async function focusImport() {
+  await nextTick()
+  importButton.value?.$el?.focus()
+}
 async function onImportFile(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  note.value = skein.importSkein(await file.text())
-    ? 'Skein imported.'
-    : 'That file is not a valid .skein export.'
   if (fileInput.value) fileInput.value.value = ''
+  if (!file) return
+  // Capped like a package entry, before reading it into memory.
+  if (file.size > SKEIN_FILE_MAX_BYTES) {
+    note.value = 'That .skein file is larger than Frotzsmith can import (8 MB).'
+    return
+  }
+  const tree = skein.readSkeinImport(await file.text())
+  if (!tree) {
+    note.value = 'That file is not a valid .skein export.'
+    return
+  }
+  if (skein.nodeCount.value > 0) {
+    pendingImport.value = { tree, name: file.name, storyKey: activeStoryKey.value, lang: profile.value.id }
+    confirmImport.value = true
+    return
+  }
+  skein.replaceTree(tree)
+  note.value = 'Skein imported.'
+}
+function onConfirmImport() {
+  const p = pendingImport.value
+  confirmImport.value = false
+  pendingImport.value = null
+  // Only into the game the import was started for.
+  if (!p || activeStoryKey.value !== p.storyKey || profile.value.id !== p.lang) return
+  skein.replaceTree(p.tree)
+  note.value = 'Skein imported.'
+}
+function onCancelImport() {
+  confirmImport.value = false
+  pendingImport.value = null
 }
 
 /** ARIA tree keyboard nav: Up/Down move, Left collapses/goes up, Right
@@ -202,8 +238,19 @@ function onTreeKeydown(event: KeyboardEvent) {
       />
       <span class="text-muted ml-auto text-xs">{{ skein.nodeCount.value }} node{{ skein.nodeCount.value === 1 ? '' : 's' }}</span>
       <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-download" title="Export .skein" @click="exportSkein" />
-      <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-upload" title="Import .skein" @click="fileInput?.click()" />
+      <UButton ref="importButton" size="xs" color="neutral" variant="ghost" icon="i-lucide-upload" title="Import .skein" @click="fileInput?.click()" />
       <input ref="fileInput" type="file" accept=".skein,application/json" class="hidden" @change="onImportFile">
+      <OpenProjectModal
+        v-model:open="confirmImport"
+        :title="pendingImport?.name ?? ''"
+        :replaces="[]"
+        heading="Replace this game’s Skein?"
+        :description="`Importing replaces the Skein saved for this game (${skein.nodeCount.value} node${skein.nodeCount.value === 1 ? '' : 's'}), including its blessed outputs.`"
+        confirm-label="Replace"
+        @replace="onConfirmImport"
+        @cancel="onCancelImport"
+        @closed="focusImport"
+      />
     </div>
 
     <p v-if="note" class="text-muted shrink-0 px-3 pt-2 text-xs" aria-live="polite">{{ note }}</p>

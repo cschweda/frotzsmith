@@ -11,7 +11,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ref, isProxy } from 'vue'
 import { createMemorySkeinStore } from './skein-store'
-import { pathNodes, type SkeinTree } from './skein-tree'
+import { pathNodes, SKEIN_FILE_MAX_BYTES, type SkeinTree } from './skein-tree'
+import { LIMITS } from '~/project-package/container'
 
 // One shared memory store across useSkein instances (per-file module mock).
 const _memStore = createMemorySkeinStore()
@@ -305,6 +306,27 @@ describe('useSkein', () => {
     dangling.tree.nodes[dangling.tree.root].childIds.push('nope')
     expect(skein.importSkein(JSON.stringify(dangling))).toBe(false)
     expect(skein.importSkein(JSON.stringify(good))).toBe(true)
+  })
+
+  // F12: a .skein import is capped like a package entry, and can be checked
+  // without being applied (the panel asks before replacing a Skein).
+  it('readSkeinImport checks without applying; both refuse a file over 8 MB', async () => {
+    expect(SKEIN_FILE_MAX_BYTES).toBe(LIMITS.entryBytes)
+    bootIde('game-import-f12')
+    const skein = useSkein()
+    await skein.restore()
+    skein.recordPlayCommand('north')
+    const json = skein.exportSkein()
+    skein.recordPlayCommand('east')
+    const before = skein.tree.value
+    const tree = skein.readSkeinImport(json)
+    expect(tree).not.toBeNull()
+    expect(skein.tree.value).toBe(before) // nothing applied
+    expect(skein.readSkeinImport(JSON.stringify({ ...JSON.parse(json), lang: 'zil' }))).toBeNull()
+    const huge = json.replace(/}\s*$/, `,"pad":"${'x'.repeat(SKEIN_FILE_MAX_BYTES)}"}`)
+    expect(skein.readSkeinImport(huge)).toBeNull()
+    expect(skein.importSkein(huge)).toBe(false)
+    expect(skein.tree.value).toBe(before)
   })
 
   // F3: a .skein import is rebuilt from known fields; reserved ids refuse it.

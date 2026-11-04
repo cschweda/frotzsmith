@@ -200,6 +200,8 @@ export const MAX_SKEIN_DEPTH = 10_000
 /** Deepest nesting allowed in a `.skein` document (the document is level 1),
  *  as for the package manifest. A real one is 5 deep. */
 export const SKEIN_FILE_MAX_DEPTH = 64
+/** Largest `.skein` file imported — the package's per-entry cap (8 MiB). */
+export const SKEIN_FILE_MAX_BYTES = 8 * 1024 * 1024
 
 /**
  * A node id: what newId() mints, or any short ASCII word — but never a name

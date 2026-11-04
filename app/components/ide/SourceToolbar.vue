@@ -3,6 +3,7 @@ import type { ProfileId } from '~/modules/inform6/profiles'
 import type { PendingOpen } from '~/composables/useProjectPackage'
 import { formatNameList, mismatchNames } from '~/utils/mismatch-list'
 import { DOWNLOAD_FAILED, OPEN_FAILED, openedNotes, refusalSentence } from '~/utils/package-messages'
+import { isPristine } from '~/utils/pristine'
 
 const { source, storyBase, loadSource, newProject } = useIde()
 const { togglePanel, panelOpen } = useProjectFiles()
@@ -43,10 +44,36 @@ function onFileChange(event: Event) {
     void openPackage(file)
   } else if (file) {
     const reader = new FileReader()
-    reader.onload = () => loadSource(String(reader.result ?? ''))
+    reader.onload = () => openPlain(file.name, String(reader.result ?? ''))
     reader.readAsText(file)
   }
   input.value = '' // allow re-opening the same file later
+}
+
+// A plain source file replaces the editor's text: ask first unless the
+// editor holds nothing the author wrote (or the same text).
+const pendingPlain = shallowRef<{ name: string; text: string } | null>(null)
+const confirmPlain = ref(false)
+function openPlain(name: string, text: string) {
+  if (isPristine(source.value) || text === source.value) {
+    loadSource(text)
+    void focusOpen()
+    return
+  }
+  pendingPlain.value = { name, text }
+  confirmPlain.value = true
+}
+function onReplacePlain() {
+  const p = pendingPlain.value
+  confirmPlain.value = false
+  pendingPlain.value = null
+  if (p) loadSource(p.text)
+  void focusOpen()
+}
+function onCancelPlain() {
+  confirmPlain.value = false
+  pendingPlain.value = null
+  void focusOpen()
 }
 
 // .frotzsmith projects: read + check first, ask before replacing real work,
@@ -240,6 +267,18 @@ async function saveAs() {
       :replaces="replaces"
       @replace="onReplace"
       @cancel="onCancelOpen"
+      @closed="focusOpen"
+    />
+
+    <OpenProjectModal
+      v-model:open="confirmPlain"
+      :title="pendingPlain?.name ?? ''"
+      :replaces="['the source in the editor']"
+      heading="Replace the source in the editor?"
+      description="Opening this file replaces the source in the editor."
+      confirm-label="Replace"
+      @replace="onReplacePlain"
+      @cancel="onCancelPlain"
       @closed="focusOpen"
     />
 
