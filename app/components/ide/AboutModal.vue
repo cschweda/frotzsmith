@@ -15,6 +15,8 @@ const hasCommit = computed(() => !!about.commit && about.commit !== 'unknown')
 const build = computed(() => [about.commit, about.date].filter(Boolean).join(' · '))
 const message = computed(() => checkMessage(check.state.value, about.version))
 const ready = computed(() => check.state.value.status === 'ready')
+// While a check runs the button stays enabled (disabling it would drop a keyboard user's focus to
+// the page): it says it is busy, and a second press is the same check (createUpdateCheck's run()).
 const busy = computed(
   () => check.state.value.status === 'checking' || check.state.value.status === 'fetching',
 )
@@ -69,8 +71,9 @@ function take() {
         <UButton
           color="neutral"
           variant="outline"
-          icon="i-lucide-refresh-cw"
-          :disabled="busy"
+          :icon="busy ? 'i-lucide-loader-circle' : 'i-lucide-refresh-cw'"
+          :ui="{ leadingIcon: busy ? 'motion-safe:animate-spin' : '' }"
+          :aria-busy="busy"
           @click="runUpdateCheck"
         >
           Check for updates

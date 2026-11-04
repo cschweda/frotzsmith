@@ -1,4 +1,3 @@
-import { ref } from 'vue'
 import { isDesktopBuild } from '~/utils/about'
 import { createUpdateCheck } from './check'
 import { later, useUpdateFlow } from './prompt'
@@ -6,9 +5,6 @@ import { needRefresh } from './state'
 
 // Check for updates, in the page: the one check for the visit, and what a found update does. A
 // found update becomes the offer the app already has: Reload goes through its flow.
-
-/** Whether the Check for updates dialog is open. */
-export const updateCheckOpen = ref(false)
 
 let check: ReturnType<typeof createUpdateCheck> | undefined
 
