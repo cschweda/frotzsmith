@@ -375,7 +375,7 @@ describe('useProjectPackage — refusals change nothing', () => {
     const half = 'x'.repeat(Math.ceil(EXTENSIONS_TOTAL_MAX_BYTES / 2) + 1)
     const project = { ...richSnapshot(), includes: [{ path: 'a.h', text: half }, { path: 'b.h', text: half }] }
     await expect(
-      useProjectPackage().apply({ project, ignored: [], hashMismatches: [], skeinNotOpened: null, hiddenCount: 2 }),
+      useProjectPackage().apply({ project, ignored: [], hashMismatches: [], skeinNotOpened: null, hiddenCount: 2, hiddenNames: [], extensions: [] }),
     ).rejects.toBeInstanceOf(ZipLimitError)
     await settle()
     expect(ideState()).toEqual(before)
@@ -389,6 +389,30 @@ describe('useProjectPackage — refusals change nothing', () => {
     expect(err).toBeInstanceOf(PackageError)
     expect(err.code).toBe('include-name-clash')
     expect(err.message).toBe("This project has two include files the browser editor can't keep apart: “a/lamp.h” and “b/lamp.h”.")
+    await settle()
+    expect(ideState()).toEqual(before)
+  })
+
+  // F1 (redteam i6override.mjs): a package could replace VerbLib.h, Parser.h…
+  // for every later game.
+  it.each(['VerbLib.h', 'ext/parser.h', 'Grammar.H', 'puny.h', 'globals.h'])('an include named like a library file (%s) is refused whole', async (path) => {
+    await boot()
+    const before = ideState()
+    const evil = { ...richSnapshot(), includes: [{ path, text: '! evil' }], extensions: [path] }
+    const err = await useProjectPackage().inspect(await fileOf(evil)).catch(e => e)
+    expect(err).toBeInstanceOf(PackageError)
+    expect(err.code).toBe('library-name-clash')
+    await settle()
+    expect(ideState()).toEqual(before)
+  })
+
+  it('apply re-checks the library names too', async () => {
+    await boot()
+    const before = ideState()
+    const pkg = useProjectPackage()
+    const p = await pkg.inspect(await fileOf(richSnapshot()))
+    const tampered = { ...p, project: { ...p.project, includes: [{ path: 'VerbLib.h', text: '! evil' }] } }
+    await expect(pkg.apply(tampered)).rejects.toBeInstanceOf(PackageError)
     await settle()
     expect(ideState()).toEqual(before)
   })
@@ -435,12 +459,30 @@ describe('useProjectPackage — needsConfirm with uploaded extensions (RF 3)', (
     expect(await pkg.needsConfirm(await pending([{ path: 'keep.h', text: 'mine' }, { path: 'b.h', text: '' }]))).toBe(true)
   })
 
-  it('does not ask when the uploads are the same, or there are none', async () => {
+  it('does not name the uploads as replaced when they are the same', async () => {
     await boot()
     const pkg = useProjectPackage()
-    expect(await pkg.needsConfirm(await pending([{ path: 'lamp.h', text: 'x' }]))).toBe(false)
+    expect(await pkg.whatOpenReplaces(await pending([{ path: 'lamp.h', text: 'x' }]))).toEqual([])
     useExtensions().addUploaded('keep.h', 'mine')
-    expect(await pkg.needsConfirm(await pending([{ path: 'sub/keep.h', text: 'mine' }]))).toBe(false)
+    expect(await pkg.whatOpenReplaces(await pending([{ path: 'sub/keep.h', text: 'mine' }]))).toEqual([])
+  })
+
+  // F1: a package that installs or enables any extension always asks first —
+  // extensions are used by every Inform 6 game in this browser.
+  it('always asks when the package installs or enables an extension, even over nothing', async () => {
+    await boot()
+    const pkg = useProjectPackage()
+    const p = await pending([{ path: 'lamp.h', text: 'x' }])
+    expect(p.extensions).toEqual(['lamp.h'])
+    expect(await pkg.needsConfirm(p)).toBe(true)
+    // Enabling a bundled one counts too.
+    const bundled = await pkg.inspect(await fileOf({ ...richSnapshot(), includes: [], extensions: ['ordinals'] }))
+    expect(bundled.extensions).toEqual(['ordinals'])
+    expect(await pkg.needsConfirm(bundled)).toBe(true)
+    // No extensions at all: nothing to ask about.
+    const none = await pkg.inspect(await fileOf({ ...richSnapshot(), includes: [], extensions: ['com.other:thing'] }))
+    expect(none.extensions).toEqual([])
+    expect(await pkg.needsConfirm(none)).toBe(false)
   })
 })
 
@@ -609,5 +651,36 @@ describe('useProjectPackage — the extras store holds only the opened project (
     const back = (await readProjectPackage((await pkg.buildPackage()).bytes)).project
     expect(back.opaque).toEqual([])
     expect(back.manifestExtra).toEqual({})
+  })
+})
+
+// F1 + F15: what the open dialog and the toasts can name.
+describe('useProjectPackage — the extensions and hidden files an open brings', () => {
+  it('inspect lists the extensions it installs or enables, and the hidden files it carries', async () => {
+    await boot()
+    const p = await useProjectPackage().inspect(await fileOf(richSnapshot()))
+    expect(p.extensions).toEqual(['ext/lamp.h', 'Rope.h', 'ordinals'])
+    expect(p.hiddenNames).toEqual(['notes/ideas.md', 'art/cover.png'])
+    expect(p.hiddenCount).toBe(2)
+  })
+
+  it('an unopened Skein is not listed as a hidden file (it has its own line)', async () => {
+    await boot()
+    const snap = { ...richSnapshot(), skein: null, skeinPath: undefined, opaque: [{ path: 'haunted.skein', bytes: new TextEncoder().encode('{') }] }
+    const p = await useProjectPackage().inspect(await fileOf(snap))
+    expect(p.skeinNotOpened).toBe('haunted.skein')
+    expect(p.hiddenNames).toEqual([])
+  })
+
+  it('buildPackage reports the hidden files it wrote back', async () => {
+    await boot()
+    const pkg = useProjectPackage()
+    await pkg.apply(await pkg.inspect(await fileOf(richSnapshot())))
+    await settle()
+    expect((await pkg.buildPackage()).hidden).toEqual(['notes/ideas.md', 'art/cover.png'])
+    await boot()
+    useIde().loadSource(HAUNTED + '! other\n')
+    await settle()
+    expect((await useProjectPackage().buildPackage()).hidden).toEqual([])
   })
 })

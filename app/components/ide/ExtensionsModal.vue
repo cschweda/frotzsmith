@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { makeZipEntryFilter, ZipLimitError, ZIP_MAX_TOTAL_BYTES } from '~/utils/zip-limits'
+import { makeZipEntryFilter, ZIP_MAX_TOTAL_BYTES } from '~/utils/zip-limits'
+import { refusalSentence } from '~/utils/package-messages'
 
 const { all, isEnabled, toggle, addUploaded, removeUploaded, enabledCount } = useExtensions()
 
@@ -34,7 +35,8 @@ async function ingest(files: File[]) {
       try {
         added += await addZip(file)
       } catch (e) {
-        note.value = e instanceof ZipLimitError ? e.message : 'Could not read that .zip.'
+        // A size cap (ZipLimitError) or a library-named file (PackageError).
+        note.value = refusalSentence(e, 'Could not read that .zip.')
         return
       }
     } else if (lower.endsWith('.h')) {
@@ -46,8 +48,9 @@ async function ingest(files: File[]) {
         addUploaded(file.name, await file.text())
         added++
       } catch (e) {
-        // Cumulative-cap refusal (ZipLimitError) — surface why, like the zip path.
-        note.value = e instanceof ZipLimitError ? e.message : `Could not add ${file.name}.`
+        // Cumulative-cap refusal (ZipLimitError) or a file named like a
+        // library file (PackageError) — surface why, like the zip path.
+        note.value = refusalSentence(e, `Could not add ${file.name}.`)
         return
       }
     }

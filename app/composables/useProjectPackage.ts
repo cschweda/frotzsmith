@@ -1,4 +1,4 @@
-import { readProjectPackage, writeProjectPackage, type ProjectSnapshot } from '~/project-package/project'
+import { COMPILED, readProjectPackage, writeProjectPackage, type ProjectSnapshot } from '~/project-package/project'
 import { PackageError, displayPath } from '~/project-package/errors'
 import { LIMITS } from '~/project-package/container'
 import type { Target } from '~/project-package/manifest'
@@ -6,6 +6,7 @@ import { countNodes, createTree, type SkeinTree } from '~/composables/skein-tree
 import { getExtrasStore, type ProjectExtras } from '~/composables/project-extras-store'
 import { getSkeinStore } from '~/composables/skein-store'
 import { includeNameOf, includePathOf, planUploaded } from '~/composables/useExtensions'
+import { BUNDLED_EXTENSIONS } from '~/modules/inform6/extensions'
 import { SEED_SCRIPT } from '~/composables/useTestScripts'
 import { safeGetItem, safeSetItem } from '~/utils/safe-storage'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
@@ -24,6 +25,12 @@ export interface PendingOpen {
   skeinNotOpened: string | null
   /** Files kept with the project that the IDE doesn't show. */
   hiddenCount: number
+  /** Their paths, without an unopened Skein (it has its own note). */
+  hiddenNames: string[]
+  /** The extensions opening installs (include paths) or enables (bundled
+   *  names). They reach every Inform 6 game in this browser, so the open
+   *  always asks first when there are any (audit F1). */
+  extensions: string[]
 }
 
 const TARGETS: readonly string[] = ['auto', 'z3', 'z4', 'z5', 'z8']
@@ -95,8 +102,19 @@ export function useProjectPackage() {
       throw new PackageError('too-large', 'This project is larger than Frotzsmith can open (32 MB).')
     }
     const read = await readProjectPackage(new Uint8Array(await file.arrayBuffer()))
-    check(read.project)
-    return { ...read, hiddenCount: read.project.opaque.length }
+    const plan = check(read.project)
+    const extensions = plan
+      ? [
+          ...plan.uploaded.map(u => u.title),
+          ...BUNDLED_EXTENSIONS.filter(b => plan.enabledIds.includes(b.id)).map(b => b.name),
+        ]
+      : []
+    return {
+      ...read,
+      hiddenCount: read.project.opaque.length,
+      hiddenNames: read.project.opaque.map(f => f.path).filter(path => path !== read.skeinNotOpened),
+      extensions,
+    }
   }
 
   async function apply(p: PendingOpen): Promise<void> {
@@ -153,7 +171,8 @@ export function useProjectPackage() {
     return [...new Set([...order, ...enabled.filter(n => !order.includes(n))])]
   }
 
-  async function buildPackage(): Promise<{ bytes: Uint8Array; filename: string }> {
+  /** `hidden`: the files written back that the IDE doesn't show (F15). */
+  async function buildPackage(): Promise<{ bytes: Uint8Array; filename: string; hidden: string[] }> {
     const lang = profile.value.id
     const key = extrasKey()
     const filename = `${ide.storyBase.value}.frotzsmith`
@@ -209,7 +228,9 @@ export function useProjectPackage() {
       generator: `Frotzsmith ${currentAbout().version}`,
       now: new Date(),
     })
-    return { bytes, filename }
+    // The writer drops compiled stories; everything else opaque goes back in.
+    const hidden = snapshot.opaque.map(f => f.path).filter(path => !COMPILED.test(path))
+    return { bytes, filename, hidden }
   }
 
   /**
@@ -256,8 +277,10 @@ export function useProjectPackage() {
     return out
   }
 
-  /** Opening would replace real work (see whatOpenReplaces). */
+  /** Opening would replace real work (see whatOpenReplaces), or install or
+   *  enable an extension — which every Inform 6 game then uses (F1). */
   async function needsConfirm(p?: PendingOpen): Promise<boolean> {
+    if (p && p.extensions.length > 0) return true
     return (await whatOpenReplaces(p)).length > 0
   }
 

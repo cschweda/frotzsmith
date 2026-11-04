@@ -45,11 +45,15 @@ export async function runI6Compile(source: string, opts: CompileOpts): Promise<C
 
   mkdir('/lib')
   mkdir(libProfile.includePath)
+  // Mount enabled extensions so `Include "name";` resolves to name.h — FIRST,
+  // then the library over them, so an extension named like a library file
+  // can never replace it (audit F1)… unless the author explicitly chose to
+  // override that file, which is written last.
+  const exts = opts.extensions ?? []
+  const mount = (e: { name: string; content: string }) => m.FS.writeFile(`${libProfile.includePath}/${e.name}.h`, e.content)
+  for (const e of exts) if (!e.overridesLibrary) mount(e)
   for (const file of PROFILE_FILES[libProfile.id]) m.FS.writeFile(file.path, file.content)
-  // Mount enabled extensions so `Include "name";` resolves to name.h.
-  for (const extFile of opts.extensions ?? []) {
-    m.FS.writeFile(`${libProfile.includePath}/${extFile.name}.h`, extFile.content)
-  }
+  for (const e of exts) if (e.overridesLibrary) mount(e)
 
   mkdir('/work')
   m.FS.writeFile('/work/story.inf', source)

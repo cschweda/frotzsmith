@@ -2,7 +2,7 @@
 import type { ProfileId } from '~/modules/inform6/profiles'
 import type { PendingOpen } from '~/composables/useProjectPackage'
 import { formatNameList, mismatchNames } from '~/utils/mismatch-list'
-import { DOWNLOAD_FAILED, OPEN_FAILED, openedNotes, refusalSentence } from '~/utils/package-messages'
+import { DOWNLOAD_FAILED, OPEN_FAILED, downloadedNote, openDialogNotes, openedNotes, refusalSentence } from '~/utils/package-messages'
 import { isPristine } from '~/utils/pristine'
 
 const { source, storyBase, loadSource, newProject } = useIde()
@@ -81,6 +81,8 @@ function onCancelPlain() {
 const pending = shallowRef<PendingOpen | null>(null)
 /** What the pending open would replace, for the confirmation's wording. */
 const replaces = shallowRef<string[]>([])
+/** The extensions it adds and the hidden files it carries, named in the dialog. */
+const openNotes = shallowRef<string[]>([])
 const confirmOpen = ref(false)
 
 function fail(err: unknown) {
@@ -105,9 +107,12 @@ async function openPackageInner(file: File) {
   try {
     const p = await pkg.inspect(file)
     const work = await pkg.whatOpenReplaces(p)
-    if (work.length > 0) {
+    // Always ask when the package installs or enables an extension: every
+    // Inform 6 game in this browser uses it, not just this one.
+    if (work.length > 0 || p.extensions.length > 0) {
       pending.value = p
       replaces.value = work
+      openNotes.value = openDialogNotes(p)
       confirmOpen.value = true
     } else {
       await applyPending(p)
@@ -124,7 +129,7 @@ async function applyPending(p: PendingOpen) {
     fail(err)
     return
   }
-  const notes = openedNotes(p)
+  const notes = openedNotes(p) // names the extensions added and the hidden files
   toast.add({
     title: 'Project opened',
     description: notes.join(' ') || undefined,
@@ -157,13 +162,16 @@ function onCancelOpen() {
 
 async function downloadProject() {
   try {
-    const { bytes, filename } = await pkg.buildPackage()
+    const { bytes, filename, hidden } = await pkg.buildPackage()
     const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/vnd.frotzsmith.package+zip' }))
     const a = document.createElement('a')
     a.href = url
     a.download = filename
     a.click()
     setTimeout(() => URL.revokeObjectURL(url), 30_000)
+    // Files the IDE doesn't show still ride along: say which (F15).
+    const note = downloadedNote(hidden)
+    if (note) toast.add({ title: 'Project downloaded', description: note, color: 'neutral', icon: 'i-lucide-package' })
   } catch (err) {
     toast.add({
       title: 'Couldn’t download the project',
@@ -265,6 +273,7 @@ async function saveAs() {
       :title="pending?.project.title ?? pending?.project.main.name ?? ''"
       :main-name="pending?.project.main.name ?? ''"
       :replaces="replaces"
+      :notes="openNotes"
       @replace="onReplace"
       @cancel="onCancelOpen"
       @closed="focusOpen"

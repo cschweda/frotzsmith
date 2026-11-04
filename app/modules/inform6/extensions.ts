@@ -17,6 +17,10 @@ export interface Extension {
   library: ProfileId | 'any'
   content: string
   origin: 'bundled' | 'uploaded'
+  /** An upload the author explicitly chose to let replace the library file of
+   *  the same name. Without it the compile writes the library after the
+   *  extension, so the library wins (audit F1). Never set from a package. */
+  overridesLibrary?: true
 }
 
 /** A small curated catalog. Each entry is self-contained and compiles cleanly. */

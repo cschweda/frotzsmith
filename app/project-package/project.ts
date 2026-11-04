@@ -33,7 +33,8 @@ export interface ProjectSnapshot {
  *  many, with at most this much script text (UTF-8) in all (audit F13). */
 export const TEST_LIMITS = Object.freeze({ scripts: 200, totalBytes: 1024 * 1024 })
 
-const COMPILED = /\.(z3|z4|z5|z8|ulx|blb|zblorb)$/i
+/** Compiled stories: never written, ignored on read (spec §3). */
+export const COMPILED = /\.(z3|z4|z5|z8|ulx|blb|zblorb)$/i
 const MiB = 1024 * 1024
 const encoder = new TextEncoder()
 const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
