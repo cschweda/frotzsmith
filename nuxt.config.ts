@@ -1,6 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { frotzsmith } from './frotzsmith.config'
+import { ifvmsThisFix } from './tools/ifvms-this-fix.mjs'
 
 // All app-wide constants live in frotzsmith.config.ts (single source of truth).
 const SITE_URL = frotzsmith.siteUrl
@@ -16,9 +17,16 @@ export default defineNuxtConfig({
   // The replay engine runs in a module Worker (`{ type: 'module' }`, see
   // useReplay) whose import chain code-splits (e.g. the lazily-loaded glkapi).
   // Code-splitting needs an ESM worker bundle; Vite's default 'iife' can't do it.
+  //
+  // ifvmsThisFix: ifvms has one top-level `this.e` that Rollup's CommonJS
+  // wrapper turns into a crash in the production build — every headless
+  // replay died with "reading 'e'". Applied to both the worker and the client
+  // graphs (see tools/ifvms-this-fix.mjs).
   vite: {
+    plugins: [ifvmsThisFix()],
     worker: {
       format: 'es',
+      plugins: () => [ifvmsThisFix()],
     },
   },
 

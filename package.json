@@ -12,7 +12,7 @@
     "dev": "nuxt dev",
     "build": "nuxt build",
     "generate": "nuxt generate",
-    "postgenerate": "node tools/inject-preloads.mjs",
+    "postgenerate": "node tools/inject-preloads.mjs && node tools/smoke-replay-worker.mjs",
     "preview": "nuxt preview",
     "a11y": "axe http://localhost:8080/ http://localhost:8080/zil/ http://localhost:8080/technical/ --exit",
     "postinstall": "nuxt prepare",

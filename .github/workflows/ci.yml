@@ -29,6 +29,8 @@ jobs:
         env:
           ZIL_SAMPLE_GOLDEN: 1
       - run: yarn typecheck
+      # postgenerate also runs tools/smoke-replay-worker.mjs: the BUILT replay
+      # worker must replay demo.z5 (Node goldens can't see bundler-only bugs).
       - run: yarn generate
       # The static output must actually contain the payloads the app needs —
       # a Nitro preset or asset-copy regression would otherwise pass CI and

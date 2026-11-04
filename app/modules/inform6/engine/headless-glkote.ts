@@ -12,6 +12,12 @@
  */
 type Accept = (event: unknown) => void
 
+/** Per-turn cap on captured buffer text. A game that prints in a loop without
+ *  asking for input would otherwise grow the worker's buffer until the
+ *  wall-clock replay budget runs out (up to 2 min of unbounded output). */
+export const MAX_TURN_OUTPUT_CHARS = 256 * 1024
+export const TRUNCATED_NOTICE = `\n[… output truncated — more than ${MAX_TURN_OUTPUT_CHARS / 1024} KB in one turn]\n`
+
 interface Turn {
   buffer: string
   grid: string
@@ -23,6 +29,7 @@ export class HeadlessGlkOte {
   private accept: Accept | null = null
   private gen = 0
   private buffer = ''
+  private truncated = false
   private grid = ''
   private lineWindow: number | null = null
   private pending: ((turn: Turn) => void) | null = null
@@ -149,7 +156,19 @@ export class HeadlessGlkOte {
   private takeBuffer(): string {
     const b = this.buffer
     this.buffer = ''
+    this.truncated = false
     return b
+  }
+
+  private append(text: string) {
+    if (this.truncated) return
+    const room = MAX_TURN_OUTPUT_CHARS - this.buffer.length
+    if (text.length <= room) {
+      this.buffer += text
+      return
+    }
+    this.buffer += text.slice(0, Math.max(0, room)) + TRUNCATED_NOTICE
+    this.truncated = true
   }
 
   private absorbContent(content: NonNullable<Parameters<HeadlessGlkOte['update']>[0]['content']>) {
@@ -157,7 +176,7 @@ export class HeadlessGlkOte {
       // Buffer window: paragraphs in `text[]`; each paragraph's `content` is a
       // run array (see runText). An empty paragraph `{}` is a blank line.
       if (win.text) {
-        for (const para of win.text) this.buffer += runText(para.content) + '\n'
+        for (const para of win.text) this.append(runText(para.content) + '\n')
       }
       // Grid window (status line): lines in `lines[]`.
       if (win.lines) {

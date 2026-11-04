@@ -29,8 +29,8 @@ There is no remote attacker surface (no server). The realistic risks are **self-
 
 - Story files are untrusted by definition (the author may paste/import someone else's `.inf`, or compile experimental code).
 - Interpreters (ZVM/Quixe via Parchment) run in the browser sandbox; the Z-machine/Glulx VMs cannot escape to the host.
-- **Headless replay runs in a Web Worker** where feasible, so an infinite game loop or huge output doesn't lock the main thread; enforce a per-run turn cap and wall-clock timeout (configurable), reported cleanly.
-- Output volume is bounded (cap transcript length with a "truncated" notice) to prevent memory blowups from a game that prints forever.
+- **Headless replay runs in a Web Worker** (one fresh worker per run, terminated afterwards), so an infinite game loop or huge output doesn't lock the main thread. Each run has a wall-clock budget of 15 s + 250 ms per command, capped at 2 minutes (`replayBudgetMs`); overruns terminate the worker and are reported cleanly. There is no separate turn cap — a run executes exactly the script's commands.
+- Output volume is bounded: each turn's captured text is capped at 256 KB with a visible "output truncated" notice (`MAX_TURN_OUTPUT_CHARS` in `headless-glkote.ts`), so a game that prints forever can't grow the worker's memory until the timeout.
 
 ## 4. XSS / output handling
 
