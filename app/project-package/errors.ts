@@ -15,9 +15,11 @@ export class PackageError extends Error {
   }
 }
 
-/** Bidi controls and other format characters that could make a name display misleadingly. */
+/** Control, bidi, zero-width and BOM characters that could make a name display
+ *  misleadingly, plus LONE surrogates. With the `u` flag a valid surrogate pair
+ *  is one code point outside the \u{D800}-\u{DFFF} range, so emoji survive. */
 // eslint-disable-next-line no-control-regex
-const UNSAFE_DISPLAY = /[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩﻿\ud800-\udfff]/g
+const UNSAFE_DISPLAY = /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff\u{d800}-\u{dfff}]/gu
 
 /**
  * A package path made safe to quote inside a user-facing sentence: control,
@@ -25,7 +27,7 @@ const UNSAFE_DISPLAY = /[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩﻿\ud80
  * shortened. Never use the result as a path.
  */
 export function displayPath(path: string, max = 80): string {
-  const clean = path.replace(UNSAFE_DISPLAY, '�')
+  const clean = path.replace(UNSAFE_DISPLAY, '\ufffd')
   const chars = Array.from(clean)
   return chars.length > max ? `${chars.slice(0, max).join('')}…` : clean
 }

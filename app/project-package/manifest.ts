@@ -10,6 +10,8 @@ export const FORMAT = 'frotzsmith-package'
 export const VERSION = '0.1'
 export const MANIFEST_NAME = 'frotzsmith.json'
 export const MANIFEST_MAX_BYTES = 1024 * 1024
+/** Deepest array/object nesting allowed (spec §12); the manifest object is depth 1. */
+export const MANIFEST_MAX_DEPTH = 64
 
 export type Language = 'i6' | 'zil'
 export type Target = 'auto' | 'z3' | 'z4' | 'z5' | 'z8'
@@ -58,6 +60,22 @@ function checkPath(field: string, value: unknown): string {
   return value
 }
 
+/** Deepest array/object nesting in a parsed JSON value, iteratively, stopping
+ *  as soon as `limit` is exceeded (a 200k-deep array would otherwise break
+ *  structuredClone/JSON.stringify later, far from the cause). */
+function exceedsDepth(value: unknown, limit: number): boolean {
+  const stack: [unknown, number][] = [[value, 1]]
+  while (stack.length) {
+    const [v, depth] = stack.pop()!
+    if (typeof v !== 'object' || v === null) continue
+    if (depth > limit) return true
+    for (const child of Array.isArray(v) ? v : Object.values(v)) {
+      if (typeof child === 'object' && child !== null) stack.push([child, depth + 1])
+    }
+  }
+  return false
+}
+
 export function parseManifest(bytes: Uint8Array): ParsedManifest {
   if (bytes.length > MANIFEST_MAX_BYTES) throw bad('This project\'s manifest (frotzsmith.json) is larger than 1 MB.')
   if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
@@ -70,6 +88,7 @@ export function parseManifest(bytes: Uint8Array): ParsedManifest {
     throw bad("This project's manifest (frotzsmith.json) isn't valid JSON text.")
   }
   if (!isPlainObject(doc)) throw bad("This project's manifest (frotzsmith.json) isn't a JSON object.")
+  if (exceedsDepth(doc, MANIFEST_MAX_DEPTH)) throw bad("This project's manifest (frotzsmith.json) is nested too deeply.")
 
   if (doc.format !== FORMAT) {
     throw bad(`That file isn't a Frotzsmith project: its manifest's format isn't "${FORMAT}".`)

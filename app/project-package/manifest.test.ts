@@ -36,3 +36,24 @@ describe('sha256', () => {
     expect(await sha256(enc.encode('abc'))).toBe('sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad')
   })
 })
+
+describe('parseManifest: nesting depth (spec §12)', () => {
+  const nest = (n: number) => '['.repeat(n) + ']'.repeat(n)
+  const withExtra = (json: string) => enc.encode(JSON.stringify(base).slice(0, -1) + `,"x":${json}}`)
+
+  it('refuses a 200,000-deep array with one sentence', () => {
+    expect(() => parseManifest(withExtra(nest(200_000)))).toThrow(
+      "This project's manifest (frotzsmith.json) is nested too deeply.",
+    )
+  })
+  it('refuses depth 65 (the manifest object is depth 1)', () => {
+    expect(() => parseManifest(withExtra(nest(64)))).toThrow(/nested too deeply/)
+  })
+  it('accepts depth 64', () => {
+    expect(parseManifest(withExtra(nest(63))).extra.x).toBeDefined()
+  })
+  it('counts objects too', () => {
+    const deepObj = '{"a":'.repeat(70) + '1' + '}'.repeat(70)
+    expect(() => parseManifest(withExtra(deepObj))).toThrow(/nested too deeply/)
+  })
+})
