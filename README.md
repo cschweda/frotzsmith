@@ -11,6 +11,7 @@
 [![WCAG 2.1 AA](https://img.shields.io/badge/a11y-WCAG%202.1%20AA-success.svg)](https://www.w3.org/WAI/WCAG21/quickref/)
 [![Status](https://img.shields.io/badge/status-alpha-orange.svg)](./docs/00-master-design.md)
 [![CI](https://github.com/cschweda/frotzsmith/actions/workflows/ci.yml/badge.svg)](https://github.com/cschweda/frotzsmith/actions/workflows/ci.yml)
+[![Netlify Status](https://api.netlify.com/api/v1/badges/f7f3b0b2-d202-491f-8123-e7a1630ef904/deploy-status)](https://app.netlify.com/projects/frotzsmith/deploys)
 
 > **Status — Inform 6 beta · ZIL alpha.** Write **Inform 6** (at `/`) or **ZIL** (at `/zil/`) and compile to a Z-machine story file entirely in the browser — I6 via `inform6.wasm` (Standard Library or PunyInform, auto-detected), ZIL via the **ZILF** compiler built to .NET WebAssembly. Then **play it inline** via Parchment + the pure-JS ZVM, watch a **live auto-map** draw as you explore, **capture your playthrough and replay command scripts headlessly**, load worked samples (21 for Inform 6, 7 for ZIL), and pull in your own extensions. A title-strip toggle flips between the two languages, each with its own namespaced project state. See [ROADMAP.md](./ROADMAP.md) for what's next and [CHANGELOG.md](./CHANGELOG.md) for what's shipped; design docs live in [`docs/`](./docs).
 
