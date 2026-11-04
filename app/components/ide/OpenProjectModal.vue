@@ -2,7 +2,16 @@
 /** Asks before a .frotzsmith package replaces real work. Cancel changes nothing. */
 const props = defineProps<{ title: string; mainName: string }>()
 const open = defineModel<boolean>('open', { required: true })
-const emit = defineEmits<{ replace: []; cancel: [] }>()
+const emit = defineEmits<{ replace: []; cancel: []; closed: [] }>()
+
+// Reka would return focus to whatever was focused before the picker (the editor);
+// the toolbar puts it on Open instead.
+const content = {
+  onCloseAutoFocus: (e: Event) => {
+    e.preventDefault()
+    emit('closed')
+  },
+}
 
 function cancel() {
   emit('cancel')
@@ -22,6 +31,7 @@ function replace() {
 <template>
   <UModal
     v-model:open="open"
+    :content="content"
     title="Replace the project in the editor?"
     description="Opening this project replaces your source, includes, test scripts and Skein."
   >

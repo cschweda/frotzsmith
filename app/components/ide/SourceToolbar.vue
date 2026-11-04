@@ -3,6 +3,7 @@ import type { ProfileId } from '~/modules/inform6/profiles'
 import type { PendingOpen } from '~/composables/useProjectPackage'
 import { PackageError } from '~/project-package/errors'
 import { ZipLimitError } from '~/utils/zip-limits'
+import { formatNameList } from '~/utils/mismatch-list'
 
 const { source, storyBase, loadSource, newProject } = useIde()
 const { togglePanel, panelOpen } = useProjectFiles()
@@ -26,6 +27,13 @@ function create() {
 
 // Open a local .inf into the editor.
 const fileInput = shallowRef<HTMLInputElement | null>(null)
+const openButton = ref<{ $el?: HTMLElement } | null>(null)
+/** The file picker's modal opens asynchronously, so nothing restores focus for
+ *  us: put it back on Open so keyboard users never land on <body>. */
+async function focusOpen() {
+  await nextTick()
+  openButton.value?.$el?.focus()
+}
 function openFile() {
   fileInput.value?.click()
 }
@@ -58,6 +66,15 @@ function fail(err: unknown) {
 }
 
 async function openPackage(file: File) {
+  try {
+    await openPackageInner(file)
+  } finally {
+    // A confirmation dialog takes focus itself and returns it on close.
+    if (!confirmOpen.value) await focusOpen()
+  }
+}
+
+async function openPackageInner(file: File) {
   try {
     const p = await pkg.inspect(file)
     if (pkg.needsConfirm(p)) {
@@ -92,7 +109,7 @@ async function applyPending(p: PendingOpen) {
   if (p.hashMismatches.length > 0) {
     toast.add({
       title: 'Some files changed after the package was made',
-      description: `These don't match what the package recorded: ${p.hashMismatches.join(', ')}.`,
+      description: `These don't match what the package recorded: ${formatNameList(p.hashMismatches)}.`,
       color: 'warning',
       icon: 'i-lucide-triangle-alert',
     })
@@ -103,11 +120,13 @@ function onReplace() {
   const p = pending.value
   confirmOpen.value = false
   pending.value = null
-  if (p) void applyPending(p)
+  if (p) void applyPending(p).finally(focusOpen)
+  else void focusOpen()
 }
 function onCancelOpen() {
   confirmOpen.value = false
   pending.value = null
+  void focusOpen()
 }
 
 async function downloadProject() {
@@ -178,7 +197,7 @@ async function saveAs() {
     <input ref="fileInput" type="file" :accept="`.${profile.fileExt},.txt,.h,.frotzsmith`" class="hidden" @change="onFileChange" />
 
     <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
-      <UButton color="neutral" variant="subtle" size="sm" icon="i-lucide-folder-open" @click="openFile">
+      <UButton ref="openButton" color="neutral" variant="subtle" size="sm" icon="i-lucide-folder-open" @click="openFile">
         Open
       </UButton>
       <UButton
@@ -221,6 +240,7 @@ async function saveAs() {
       :main-name="pending?.project.main.name ?? ''"
       @replace="onReplace"
       @cancel="onCancelOpen"
+      @closed="focusOpen"
     />
 
     <UModal v-model:open="open" title="New project" description="Start with a blank editor for the chosen library.">
