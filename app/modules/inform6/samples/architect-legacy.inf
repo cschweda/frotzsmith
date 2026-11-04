@@ -140,6 +140,7 @@ Global passage_drained = false;   ! P6: both waters moving: the passage is dry
 Global mirror_facing  = 3;        ! P7: 0 north, 1 east, 2 south, 3 west
 Global stairs_open    = false;    ! P7: crystal taken, stairs down revealed
 Global shift_step     = 1;        ! P8: Shifting Room position, 0-6 (see there)
+Global shift_stilled  = false;    ! P8: once passed, the Shifting Room stands still
 Global resonance_done = false;    ! P8: the stones have sung; north is open
 
 Array compass_names --> "north" "east" "south" "west";
@@ -728,7 +729,7 @@ Object blueprint "blueprint of Quillon House"
   with name 'blueprint' 'plan' 'mended' 'house' 'quillon',
        description "A cross-section of Quillon House, drawn with a
            draughtsman's tenderness. You can see the garden, the hall and the
-           five rooms in their proper widths; below the drawing room a stair,
+           four rooms in their proper widths; below the drawing room a stair,
            below the stair a shaft, and beside the shaft, inked boldly, a
            SPIRAL. Beneath that the drawing fades into faint pencil -- vast
            chambers, waterways, a mirror -- as if Quill had not quite dared
@@ -988,7 +989,7 @@ Person -> foreman "Foreman"
            if (AskedAbout('counter', 'shifting', 'door', 'arch', 'room'))
                "~Patience. Same as the garden. Same as everything he built.~";
            if (AskedAbout('inspector', 'woman', 'forms'))
-               "~Her? Been here since the spring before last. Nice woman.
+               "~Her? Been here three seasons now. Nice woman.
                Can't find the form for any of it.~";
            if (AskedAbout('messenger', 'figure'))
                "~Comes and goes. I've never seen the face.~";
@@ -1325,10 +1326,12 @@ Room vault_antechamber "Vault Antechamber"
        sounds "Nothing at all. The silence has a texture, like felt.",
        u_to mirror_gallery,
        e_to messengers_alcove,
-       ! Entering the Shifting Room always starts its cycle afresh, so the
-       ! puzzle behaves the same way every time (and the walkthrough's four
-       ! WAITs always work).
+       ! Entering the Shifting Room starts its cycle afresh, so the puzzle
+       ! behaves the same way every time (and the walkthrough's four WAITs
+       ! always work) -- until you have passed through it, after which the
+       ! room stands still with the way north open.
        n_to [;
+           if (shift_stilled) return shifting_room;
            shift_step = 1;
            StartDaemon(shifting_room);
            return shifting_room;
@@ -1400,10 +1403,22 @@ Object -> coded_note "folded note"
 !   WAIT 1, 2, 3, 4  : steps 3, 4, 5, 6 -> counter 13, arch north, OPEN
 !   WAIT again       : the cycle starts over at step 1
 !
-! The daemon stops itself as soon as the player is somewhere else.
+! The daemon stops itself as soon as the player is somewhere else. Once you
+! have gone north through the open shutter, shift_stilled is set and the
+! room stays as it was then -- arch north, way open -- on every later visit.
 
 Room shifting_room "Shifting Room"
   with description [;
+           if (shift_stilled) {
+               print "A circular room whose walls have, at last, kept still.
+                   The iron-framed arch that travelled round them stands to
+                   the north, and the stone shutter behind it lies sunk in
+                   the floor: the way north is open. The brass counter high
+                   on the wall rests at ";
+               PrintCounter();
+               ", as if the room has finished with you. The plain doorway
+               south stays obligingly put.";
+           }
            print "A circular room whose walls will not keep still. A single
                iron-framed arch travels round them like the hand of a clock,
                a quarter turn at a time, and the stone closes seamlessly
@@ -1418,10 +1433,16 @@ Room shifting_room "Shifting Room"
            " The plain doorway south, by which you came, stays obligingly
            put.";
        ],
-       sounds "Stone grinding on stone, patiently, like a mill that has
-           all the time in the world.",
+       sounds [;
+           if (shift_stilled) "Nothing now. The grinding has stopped.";
+           "Stone grinding on stone, patiently, like a mill that has all the
+           time in the world.";
+       ],
        before [;
-         Wait: "You stand still and let the room do the moving.";
+         Wait:
+           if (shift_stilled) "You wait, but nothing moves: the room has
+               stilled, its arch standing north and the way open.";
+           "You stand still and let the room do the moving.";
        ],
        daemon [;
            if (location ~= self) { StopDaemon(self); rfalse; }
@@ -1445,7 +1466,10 @@ Room shifting_room "Shifting Room"
            ".";
        ],
        n_to [;
-           if (shift_step == 6) return resonance_chamber;
+           if (shift_step == 6) {
+               shift_stilled = true;
+               return resonance_chamber;
+           }
            print "The stone shutter to the north is shut. The counter shows ",
                fibonacci-->shift_step, ", and the arch stands to the ",
                (string) ArchDirection(), ".^";
@@ -1505,6 +1529,13 @@ Object -> pedestal "basalt pedestal"
   with name 'black' 'basalt' 'pedestal',
        description "A pedestal of black basalt with a shallow, cupped top,
            about the size of a fist.",
+       ! PUT CRYSTAL IN PEDESTAL means the same as PUT ... ON: the cupped top
+       ! is a hollow, so let either preposition work. The library sends the
+       ! object being put somewhere a Receive action first.
+       before [;
+         Receive:
+           if (receive_action == ##Insert) <<PutOn noun self>>;
+       ],
   has  static scenery supporter;
 
 ! --- 17. Final Chamber  (the win) ------------------------------------------
@@ -1642,3 +1673,7 @@ Verb 'join' 'combine' 'assemble' 'mend' 'reassemble' 'repair'
     * 'blueprint' 'halves'/'pieces'     -> Join
     * noun                              -> Join
     * noun 'to'/'with'/'and' noun       -> Join;
+
+! TURN DIAL TO 8 / TURN DIAL TO SPIRAL: the same as SET ... TO ...
+Extend 'turn'
+    * noun 'to' special                 -> SetTo;

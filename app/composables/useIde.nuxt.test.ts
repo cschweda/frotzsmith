@@ -27,6 +27,8 @@ import { useProjectFiles } from './useProjectFiles'
 import { useTestScripts } from './useTestScripts'
 import { usePlayTranscript } from './usePlayTranscript'
 import { useLanguage } from './useLanguage'
+import { loadSampleSource } from '~/modules/inform6/samples'
+import { formatI6 } from '~/utils/format-i6'
 
 // Stub usePlayTranscript global — usePlayTranscript calls useIde() inside
 // if (import.meta.client), which would recurse into the composable tree when
@@ -381,6 +383,17 @@ describe('useIde — loadSample (async, lazy sample bodies)', () => {
     expect(ide.status.value).toBe('idle')
     expect(ide.result.value).toBeNull()
     expect(ide.activeTab.value).toBe('results')
+  })
+
+  it('a sample marked format: false loads byte-identical to its file', async () => {
+    // The Architect's Legacy is hand-laid-out teaching material: the
+    // formatter must not reflow it on load.
+    const ide = useIde()
+    const raw = await loadSampleSource('std-architect-legacy')
+    expect(raw).not.toBeNull()
+    expect(formatI6(raw!), 'precondition: the formatter would change it').not.toBe(raw)
+    await ide.loadSample('std-architect-legacy')
+    expect(ide.source.value).toBe(raw)
   })
 
   it('is a no-op for an unknown sample id', async () => {

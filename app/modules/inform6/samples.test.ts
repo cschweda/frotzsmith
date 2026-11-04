@@ -98,6 +98,11 @@ describe('SAMPLES – special cases', () => {
     expect(sampleById('std-architect-legacy')!.target).toBe('z5')
   })
 
+  it('only std-architect-legacy opts out of load-time formatting', () => {
+    const unformatted = SAMPLES.filter(s => s.format === false).map(s => s.id)
+    expect(unformatted).toEqual(['std-architect-legacy'])
+  })
+
   it('only puny-haunted-house and std-architect-legacy have an explicit target', () => {
     const withTarget = SAMPLES.filter(s => s.target !== undefined).map(s => s.id)
     expect(withTarget.sort()).toEqual(['puny-haunted-house', 'std-architect-legacy'])

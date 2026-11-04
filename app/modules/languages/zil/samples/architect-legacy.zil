@@ -138,6 +138,7 @@ A Frotzsmith sample: a longer game in three chapters.">
 <GLOBAL MIRROR-FACING 3>        ;"P7: 0 north, 1 east, 2 south, 3 west"
 <GLOBAL STAIRS-OPEN <>>         ;"P7: crystal taken, stairs down revealed"
 <GLOBAL SHIFT-STEP 1>           ;"P8: Shifting Room position, 0-6 (see there)"
+<GLOBAL SHIFT-STILLED <>>       ;"P8: once passed, the Shifting Room stands still"
 <GLOBAL RESONANCE-DONE <>>      ;"P8: the stones have sung; north is open"
 
 ;"Lookup tables. GET counts from 0, so <GET ,FIBONACCI 6> is 13."
@@ -746,6 +747,7 @@ chime.")
 <OBJECT FLOOR-PANEL
     (DESC "floor panel")
     (SYNONYM PANEL FLOOR FLOORBOARDS STAIRCASE STAIR STAIRS STEPS)
+    (ADJECTIVE FLOOR)
     (IN DRAWING-ROOM)
     (FLAGS NDESCBIT)
     (ACTION FLOOR-PANEL-F)>
@@ -950,7 +952,7 @@ has inked a careful mark -- but the tear runs straight through it.")
     (FLAGS TAKEBIT READBIT)
     (GENERIC BLUEPRINT-GENERIC-F)
     (TEXT "A cross-section of Quillon House, drawn with a draughtsman's
-tenderness. You can see the garden, the hall and the five rooms in their proper
+tenderness. You can see the garden, the hall and the four rooms in their proper
 widths; below the drawing room a stair, below the stair a shaft, and beside the
 shaft, inked boldly, a SPIRAL. Beneath that the drawing fades into faint pencil
 -- vast chambers, waterways, a mirror -- as if Quill had not quite dared to
@@ -1040,7 +1042,7 @@ light. You step out again, feeling foolish." CR>
 <OBJECT LIFT-CAGE
     (DESC "lift cage")
     (SYNONYM LIFT CAGE GATE ELEVATOR CRYSTALS CABLES PIPES KEYHOLE)
-    (ADJECTIVE BRASS COPPER)
+    (ADJECTIVE LIFT BRASS COPPER)
     (IN LIFT-LANDING)
     (FLAGS NDESCBIT OPENABLEBIT LOCKEDBIT)
     (ACTION LIFT-CAGE-F)>
@@ -1285,7 +1287,7 @@ said you must point it where the day starts.\"" CR>)
            <TELL "\"Patience. Same as the garden. Same as everything he
 built.\"" CR>)
           (<ABOUT? ,W?INSPECTOR ,W?WOMAN ,W?FORMS>
-           <TELL "\"Her? Been here since the spring before last. Nice woman.
+           <TELL "\"Her? Been here three seasons now. Nice woman.
 Can't find the form for any of it.\"" CR>)
           (<ABOUT? ,W?MESSENGER ,W?FIGURE>
            <TELL "\"Comes and goes. I've never seen the face.\"" CR>)
@@ -1476,7 +1478,8 @@ carry it all alone." CR>)>
           (<VERB? TAKE>
            <TELL "It weighs as much as a small carriage." CR>)>>
 
-;"DEVICEBIT makes TURN ON / TURN OFF / SWITCH work; the library keeps ONBIT.
+;"DEVICEBIT makes TURN ON / TURN OFF work (and SWITCH ON / OFF, section 8);
+  the library keeps ONBIT.
   We intercept TURN-ON to add our own text and to check the springs."
 <OBJECT PUMP
     (DESC "electric pump")
@@ -1700,10 +1703,13 @@ north, and a low alcove east.")
 <ROUTINE VAULT-ANTECHAMBER-F (RARG)
     <COND (<==? .RARG ,M-ENTER> <BEGIN-CHAPTER 3>)>>
 
-;"Entering the Shifting Room always starts its cycle afresh, so the puzzle
-  behaves the same way every time (and the walkthrough's four WAITs always
-  work). DEQUEUE first, so the interrupt can never be queued twice."
+;"Entering the Shifting Room starts its cycle afresh, so the puzzle behaves
+  the same way every time (and the walkthrough's four WAITs always work) --
+  until you have passed through it, after which the room stands still with
+  the way north open. DEQUEUE first, so the interrupt can never be queued
+  twice."
 <ROUTINE ENTER-SHIFTING-ROOM ()
+    <COND (,SHIFT-STILLED <RETURN ,SHIFTING-ROOM>)>
     <SETG SHIFT-STEP 1>
     <DEQUEUE ,I-SHIFTING-ROOM>
     <QUEUE ,I-SHIFTING-ROOM -1>
@@ -1712,6 +1718,7 @@ north, and a low alcove east.")
 <OBJECT FORMULA-WALL
     (DESC "formula wall")
     (SYNONYM FORMULA FORMULAS FORMULAE EQUATION EQUATIONS WALL WALLS)
+    (ADJECTIVE FORMULA)
     (IN VAULT-ANTECHAMBER)
     (FLAGS NDESCBIT READBIT)
     (ACTION FORMULA-WALL-F)>
@@ -1802,6 +1809,10 @@ for." CR>)>>
     WAIT 1, 2, 3, 4  : steps 3, 4, 5, 6 -> counter 13, arch north, OPEN
     WAIT again       : the cycle starts over at step 1
 
+  Once you have gone north through the open shutter, SHIFT-STILLED is set
+  and the room stays as it was then -- arch north, way open -- on every
+  later visit.
+
   <QUEUE ,I-SHIFTING-ROOM -1> (in ENTER-SHIFTING-ROOM) asks zillib's CLOCKER
   to call the routine at the end of every turn; -1 means 'until dequeued'.
   The interrupt dequeues itself as soon as the player is somewhere else."
@@ -1809,15 +1820,21 @@ for." CR>)>>
 <ROOM SHIFTING-ROOM
     (DESC "Shifting Room")
     (IN ROOMS)
-    (SOUNDS "Stone grinding on stone, patiently, like a mill that has all the
-time in the world.")
     (SOUTH TO VAULT-ANTECHAMBER)
     (NORTH PER SHIFT-NORTH-F)
     (FLAGS LIGHTBIT)
     (ACTION SHIFTING-ROOM-F)>
 
 <ROUTINE SHIFTING-ROOM-F (RARG)
-    <COND (<==? .RARG ,M-LOOK>
+    <COND (<AND <==? .RARG ,M-LOOK> ,SHIFT-STILLED>
+           <TELL "A circular room whose walls have, at last, kept still. The
+iron-framed arch that travelled round them stands to the north, and the stone
+shutter behind it lies sunk in the floor: the way north is open. The brass
+counter high on the wall rests at ">
+           <PRINT-COUNTER>
+           <TELL ", as if the room has finished with you. The plain doorway
+south stays obligingly put." CR>)
+          (<==? .RARG ,M-LOOK>
            <TELL "A circular room whose walls will not keep still. A single
 iron-framed arch travels round them like the hand of a clock, a quarter turn at
 a time, and the stone closes seamlessly behind it as it goes. High on the wall a
@@ -1836,9 +1853,21 @@ put." CR>)
             the main loop does not. So when we replace WAIT's message here we
             must run the CLOCKER ourselves, or the room would never move."
           (<AND <==? .RARG ,M-BEG> <VERB? WAIT>>
-           <TELL "You stand still and let the room do the moving." CR>
+           <COND (,SHIFT-STILLED
+                  <TELL "You wait, but nothing moves: the room has stilled, its
+arch standing north and the way open." CR>)
+                 (ELSE
+                  <TELL "You stand still and let the room do the moving." CR>)>
            <CLOCKER>
-           <RTRUE>)>>
+           <RTRUE>)
+          ;"What you hear depends on the room's state, so (like the Flooded
+            Passage) it answers LISTEN itself instead of a SOUNDS property."
+          (<AND <==? .RARG ,M-BEG> <VERB? LISTEN>>
+           <COND (,SHIFT-STILLED
+                  <TELL "Nothing now. The grinding has stopped." CR>)
+                 (ELSE
+                  <TELL "Stone grinding on stone, patiently, like a mill that
+has all the time in the world." CR>)>)>>
 
 ;"The interrupt routine. Returning true tells CLOCKER that it printed
   something (which also stops a multi-turn WAIT early)."
@@ -1866,7 +1895,9 @@ the counter, it seems, is not yet satisfied." CR>)
     <RTRUE>>
 
 <ROUTINE SHIFT-NORTH-F ()
-    <COND (<==? ,SHIFT-STEP 6> ,RESONANCE-CHAMBER)
+    <COND (<==? ,SHIFT-STEP 6>
+           <SETG SHIFT-STILLED T>
+           ,RESONANCE-CHAMBER)
           (ELSE
            <TELL "The stone shutter to the north is shut. The counter shows "
                  N <GET ,FIBONACCI ,SHIFT-STEP> ", and the arch stands to the "
@@ -2069,6 +2100,19 @@ where it lies." CR>)>>
 
 <ROUTINE V-TURN ()
     <TELL "Nothing obvious happens." CR>>
+
+;"TURN DIAL TO 8 / TURN DIAL TO SPIRAL: the same as SET ... TO ..."
+<SYNTAX TURN OBJECT TO OBJECT = V-SET-TO>
+
+;"SWITCH ON / SWITCH OFF. In zillib SWITCH is a VERB-SYNONYM of FLIP (FLIP
+  PUMP toggles it), so new SYNTAX lines go on FLIP and SWITCH inherits them.
+  They send zillib's own TURN-ON and TURN-OFF actions, so PUMP-F sees the same
+  action whichever words were typed. KLUDGEBIT is the trick zillib uses for
+  TURN PUMP ON: ON is parsed as a second, ignored object."
+<SYNTAX FLIP ON OBJECT (FIND DEVICEBIT) (TOUCH) = V-TURN-ON>
+<SYNTAX FLIP OBJECT (FIND DEVICEBIT) (TOUCH) ON OBJECT (FIND KLUDGEBIT) = V-TURN-ON>
+<SYNTAX FLIP OFF OBJECT (FIND DEVICEBIT) (TOUCH) = V-TURN-OFF>
+<SYNTAX FLIP OBJECT (FIND DEVICEBIT) (TOUCH) OFF OBJECT (FIND KLUDGEBIT) = V-TURN-OFF>
 
 ;"SET DIAL TO 8 / SET DIAL TO SPIRAL."
 <SYNTAX SET OBJECT = V-SET>

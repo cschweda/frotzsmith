@@ -50,6 +50,19 @@ const PARSER_FAILURES = [
   "That's not something you can",
 ]
 
+/** Assert that no turn after the boot turn hit a parser failure. */
+function expectNoParserFailures(turns: { command?: string; output: string }[]) {
+  for (const t of turns.slice(1)) {
+    for (const phrase of PARSER_FAILURES) {
+      expect(t.output, `parser failure at "${t.command}":\n${t.output}`).not.toContain(phrase)
+    }
+  }
+}
+
+/** A slice of the shared walkthrough, from `from` up to (not including) `to`. */
+const walk = (from: string, to?: string) =>
+  walkthrough.slice(walkthrough.indexOf(from), to ? walkthrough.indexOf(to) : undefined)
+
 describe.skipIf(!process.env['ZIL_SAMPLE_GOLDEN'])(
   "The Architect's Legacy (ZIL sample) — shared walkthrough (ZIL_SAMPLE_GOLDEN=1 to enable)",
   { timeout: 120_000 },
@@ -97,11 +110,8 @@ describe.skipIf(!process.env['ZIL_SAMPLE_GOLDEN'])(
       // Every command was accepted by the VM (boot turn + one per command).
       expect(turns).toHaveLength(walkthrough.length + 1)
 
-      for (const t of turns.slice(1)) {
-        for (const phrase of PARSER_FAILURES) {
-          expect(t.output, `walkthrough drift at "${t.command}":\n${t.output}`).not.toContain(phrase)
-        }
-      }
+      // Walkthrough drift: a command the parser no longer understands.
+      expectNoParserFailures(turns)
 
       const last = turns.at(-1)!
       expect(last.command).toBe('read blueprint')
@@ -118,6 +128,60 @@ describe.skipIf(!process.env['ZIL_SAMPLE_GOLDEN'])(
       const right = ['north', 'east', 'ring bell', 'strike chime', 'blow horn', 'down']
       const ok = await runReplay(fresh(), 'zmachine', right)
       expect(ok.turns.at(-1)!.output).toContain('Cellar Stairs')
+    })
+
+    it('a wrong note mid-sequence is refused and resets the chord', async () => {
+      // bell (right), horn (wrong: the chime comes second), chime (now alone).
+      const commands = ['north', 'east', 'ring bell', 'blow horn', 'strike chime', 'down']
+      const { turns } = await runReplay(fresh(), 'zmachine', commands)
+      expect(turns).toHaveLength(commands.length + 1)
+      expect(turns[4]!.output).toContain('collapses into a discord')
+      expect(turns[5]!.output).toContain('It was not the note it was waiting for')
+      expect(turns.at(-1)!.output).not.toContain('Cellar Stairs')
+    })
+
+    // Phrasings beyond the walkthrough that the sample promises to understand.
+    it('understands noun-noun names, TURN DIAL TO, SWITCH ON/OFF and the stilled Shifting Room', async () => {
+      const at = (cmd: string) => walkthrough.indexOf(cmd)
+      const commands = [
+        ...walkthrough.slice(0, at('set dial to 8')),
+        'turn dial to 8',
+        ...walkthrough.slice(at('take journal'), at('down')),
+        'x floor panel',
+        ...walkthrough.slice(at('down'), at('set dial to spiral')),
+        'x lift cage',
+        'turn dial to spiral',
+        ...walkthrough.slice(at('pull lever'), at('turn wheel')),
+        'switch on pump',
+        'switch off pump',
+        'turn wheel',
+        'switch on pump',
+        ...walkthrough.slice(at('turn on pump') + 1, at('take crystal') + 2),
+        'x formula wall',
+        ...walkthrough.slice(at('take crystal') + 2, at('put crystal on pedestal')),
+        // Back through the Shifting Room after passing it: it has stilled.
+        'south', 'wait', 'listen', 'north',
+        ...walkthrough.slice(at('put crystal on pedestal')),
+      ]
+      const { turns } = await runReplay(fresh(), 'zmachine', commands)
+      expect(turns).toHaveLength(commands.length + 1)
+      expectNoParserFailures(turns)
+      const out = (cmd: string) => turns.find((t) => t.command === cmd)!.output
+      expect(out('turn dial to 8')).toContain('satisfied click')
+      expect(out('x floor panel')).toContain('floorboards')
+      expect(out('x lift cage')).toContain('A brass cage')
+      expect(out('turn dial to spiral')).toContain('clicks round to the spiral')
+      expect(out('switch off pump')).toContain('falls silent')
+      expect(turns.filter((t) => t.command === 'switch on pump').at(-1)!.output).toContain(
+        'flooded no longer',
+      )
+      expect(out('x formula wall')).toContain('Checked. A.Q.')
+      const back = turns.findLastIndex((t) => t.command === 'south')
+      expect(turns[back]!.output).toContain('kept still')
+      expect(turns[back + 1]!.output).toContain('the room has stilled')
+      expect(turns[back + 1]!.output).not.toContain('grinding')
+      expect(turns[back + 2]!.output).toContain('The grinding has stopped')
+      expect(turns.at(-1)!.output).toContain('The work continues')
     })
   },
 )

@@ -82,8 +82,29 @@ const walkthrough = readFileSync(WALKTHROUGH, 'utf8')
   .map(l => l.trim())
   .filter(l => l.length > 0)
 
-/** Phrases that mean the parser rejected a walkthrough command. */
-const PARSER_FAILURES = ["I don't understand", "You can't see", "That's not a verb"]
+/** The Standard Library's messages for a command the parser rejected or
+ *  could not resolve (lib/std/english.h, Miscellany 27-48). */
+const PARSER_FAILURES = [
+  "I didn't understand that sentence.",
+  'I only understood you as far as',
+  "I didn't understand that number.",
+  "I didn't understand the way that finished.",
+  "You can't see",
+  "That's not a verb",
+  'Which do you mean',
+  'Who do you mean',
+  'What do you want to',
+  "I'm not sure what",
+]
+
+/** Replay `commands` and assert that none of them hit a parser failure. */
+function expectNoParserFailures(turns: { command?: string; output: string }[]) {
+  for (const t of turns.slice(1)) {
+    for (const phrase of PARSER_FAILURES) {
+      expect(t.output, `parser failure at "${t.command}":\n${t.output}`).not.toContain(phrase)
+    }
+  }
+}
 
 describe("The Architect's Legacy (I6 sample) — shared walkthrough", () => {
   let story: Uint8Array
@@ -105,11 +126,8 @@ describe("The Architect's Legacy (I6 sample) — shared walkthrough", () => {
     // Every command was accepted by the VM (boot turn + one per command).
     expect(turns).toHaveLength(walkthrough.length + 1)
 
-    for (const t of turns.slice(1)) {
-      for (const phrase of PARSER_FAILURES) {
-        expect(t.output, `walkthrough drift at "${t.command}":\n${t.output}`).not.toContain(phrase)
-      }
-    }
+    // Walkthrough drift: a command the parser no longer understands.
+    expectNoParserFailures(turns)
 
     const last = turns.at(-1)!
     expect(last.command).toBe('read blueprint')
@@ -126,5 +144,43 @@ describe("The Architect's Legacy (I6 sample) — shared walkthrough", () => {
     const right = ['north', 'east', 'ring bell', 'strike chime', 'blow horn', 'down']
     const ok = await runReplay(fresh(), 'zmachine', right)
     expect(ok.turns.at(-1)!.output).toContain('Cellar Stairs')
+  }, 60_000)
+
+  it('a wrong note mid-sequence is refused and resets the chord', async () => {
+    // bell (right), horn (wrong: the chime comes second), chime (now alone).
+    const commands = ['north', 'east', 'ring bell', 'blow horn', 'strike chime', 'down']
+    const { turns } = await runReplay(fresh(), 'zmachine', commands)
+    expect(turns).toHaveLength(commands.length + 1)
+    expect(turns[4]!.output).toContain('collapses into a discord')
+    expect(turns[5]!.output).toContain('It was not the note it was waiting for')
+    expect(turns.at(-1)!.output).not.toContain('Cellar Stairs')
+  }, 60_000)
+
+  // Phrasings beyond the walkthrough that the sample promises to understand.
+  it('understands TURN DIAL TO, PUT ... IN PEDESTAL and the stilled Shifting Room', async () => {
+    const walk = (from: string, to?: string) =>
+      walkthrough.slice(walkthrough.indexOf(from), to ? walkthrough.indexOf(to) : undefined)
+    const commands = [
+      ...walk('north', 'set dial to 8'),
+      'turn dial to 8',
+      ...walk('take journal', 'set dial to spiral'),
+      'turn dial to spiral',
+      ...walk('pull lever', 'put crystal on pedestal'),
+      // Back through the Shifting Room after passing it: it has stilled.
+      'south', 'wait', 'north',
+      'put crystal in pedestal',
+      'strike fork', 'north', 'read blueprint',
+    ]
+    const { turns } = await runReplay(fresh(), 'zmachine', commands)
+    expectNoParserFailures(turns)
+    const out = (cmd: string) => turns.find(t => t.command === cmd)!.output
+    expect(out('turn dial to 8')).toContain('satisfied click')
+    expect(out('turn dial to spiral')).toContain('clicks round to the spiral')
+    const back = turns.findLastIndex(t => t.command === 'south')
+    expect(turns[back]!.output).toContain('kept still')
+    expect(turns[back + 1]!.output).toContain('the room has stilled')
+    expect(turns[back + 1]!.output).not.toContain('grinding')
+    expect(out('put crystal in pedestal')).toContain('on the basalt pedestal')
+    expect(turns.at(-1)!.output).toContain('The work continues')
   }, 60_000)
 })
