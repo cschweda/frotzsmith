@@ -1,6 +1,7 @@
 import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { parseZilDiagnostics } from '~/modules/zil/zil-diagnostics'
 import { cachedAsync } from '~/utils/cached-async'
+import { createWorkerRpc, timedOutResult } from './worker-rpc'
 import zilSkeletonSource from '~/modules/languages/zil/samples/skeleton.zil?raw'
 import { ZILF_FRAMEWORK_BASE } from '~~/frotzsmith.config'
 
@@ -16,21 +17,23 @@ import { ZILF_FRAMEWORK_BASE } from '~~/frotzsmith.config'
  *
  * Worker + main-thread fallback strategy (ADR-013):
  *   PRIMARY  — Worker path: compile off the main thread, best UX.
- *   FALLBACK — Main-thread path: runs if the Worker fails to load or times out
- *              (covers the Vite dev-server worker-transform hang AND any env
- *              where the Worker never starts). The fallback boots the same
- *              .NET WASM runtime on the main thread; the UI shows "Compiling…"
- *              throughout (~5–9 s is acceptable for an alpha feature).
+ *   FALLBACK — Main-thread path: runs if the Worker can't load or answers
+ *              with an error (covers the Vite dev-server worker-transform hang
+ *              AND any env where the Worker never starts). The fallback boots
+ *              the same .NET WASM runtime on the main thread; the UI shows
+ *              "Compiling…" throughout (~5–9 s is acceptable for an alpha).
  *   CACHING  — Once the worker proves unusable (_workerFailed = true), every
  *              subsequent compile in the session skips the Worker entirely.
  *
- * Failure modes (real compiles; the background warm-up never latches):
- * - Worker construction fails  → _workerFailed, main-thread fallback.
- * - Worker sends { error }     → _workerFailed, main-thread fallback.
- * - Worker fires error/messageerror (script failed to load / bad message)
- *                              → terminate worker, _workerFailed, main-thread
- *                                fallback immediately (no 60 s wait).
- * - Worker times out (>60 s)   → terminate worker, _workerFailed, main-thread.
+ * Failure modes (shared with the I6 client via worker-rpc.ts):
+ * - Worker can't be built, or fires error/messageerror (script failed to
+ *   load / bad message)        → _workerFailed latch, main-thread fallback
+ *                                immediately (no 60 s wait).
+ * - Worker sends { error }     → main-thread fallback for THIS compile only.
+ * - Worker times out (>60 s)   → worker terminated, "timed out" result; no
+ *                                main-thread retry (it would freeze the tab).
+ *                                A compile queued behind the warm-up starts
+ *                                its clock when the warm-up finishes (capped).
  * - Main-thread boot/compile error → ok: false with a clear Diagnostic.
  */
 
@@ -49,11 +52,17 @@ import { ZILF_FRAMEWORK_BASE } from '~~/frotzsmith.config'
  */
 const WORKER_ENABLED: boolean = true
 
-/** ms to wait for a Worker compile before falling back to the main thread.
- *  Generous: the FIRST compile includes the ~7.5 MB .NET download + runtime
- *  boot (seconds) plus the ~5–9 s compile; an overrun terminates the worker,
- *  sets _workerFailed, and re-compiles on the main thread. */
+/** Wall-clock budget for a Worker compile. Generous: the FIRST compile
+ *  includes the ~7.5 MB .NET download + runtime boot (seconds) plus the ~5–9 s
+ *  compile. An overrun terminates the worker and reports "timed out" — it is
+ *  NOT retried on the main thread (that would freeze the tab instead). */
 const WORKER_TIMEOUT_MS = 60_000
+
+/** A real compile queued behind the background warm-up waits at most this
+ *  long for it before its own WORKER_TIMEOUT_MS clock starts — the warm-up's
+ *  download + ~20 s first-compile JIT must not count against the author's
+ *  compile, but a hung warm-up must not hold it forever either. */
+const WARMUP_GRACE_MS = 120_000
 
 // ─── shared types ─────────────────────────────────────────────────────────────
 
@@ -151,120 +160,29 @@ function buildResultFromPayload(
 
 // ─── Worker path ──────────────────────────────────────────────────────────────
 
-/** Module-level worker instance — created on first compile, reused thereafter. */
-let _worker: Worker | null = null
-
 /**
- * Once set to true, the worker is considered unusable for this session and every
- * compile goes directly to the main-thread fallback.
+ * Once set to true, the worker is considered unusable for this session (it
+ * can't be built, or its script fails to load) and every compile goes directly
+ * to the main-thread fallback. Error replies and timeouts do NOT latch.
  */
 let _workerFailed = false
 
-function getWorker(): Worker {
-  if (!_worker) {
-    // Vite bundles the worker file as a separate chunk when it sees the
-    // `new Worker(new URL(...), { type: 'module' })` pattern.
-    _worker = new Worker(
-      new URL('../modules/zil/zilf.worker.ts', import.meta.url),
-      { type: 'module' },
-    )
-  }
-  return _worker
-}
+const rpc = createWorkerRpc<CompilePayload>({
+  // Vite bundles the worker file as a separate chunk when it sees the
+  // `new Worker(new URL(...), { type: 'module' })` pattern.
+  spawn: () => new Worker(new URL('../modules/zil/zilf.worker.ts', import.meta.url), { type: 'module' }),
+  parse: (data) =>
+    'error' in data
+      ? { kind: 'error', message: String(data.error) }
+      : { kind: 'ok', value: data as unknown as CompilePayload },
+  // Boot/compile breadcrumbs from the worker ({ stage }) carry no requestId.
+  onUntagged: (data) => {
+    if ('stage' in data) console.debug('[zilf-worker] stage:', data.stage)
+  },
+})
 
-/** Monotonic id so a late response from an aborted compile can't be mistaken
- *  for the current one (the worker is reused across compiles). */
-let _requestSeq = 0
-
-/**
- * Attempt a compile via the Web Worker.
- * Returns the raw payload on success, or null if the worker failed / timed out.
- * A null result triggers the main-thread fallback; whether it also latches
- * _workerFailed is governed by opts.latch (real compiles latch, the background
- * warm-up must not).
- */
-function tryWorkerCompile(
-  source: string,
-  version: number,
-  opts: { timeoutMs?: number | null; latch?: boolean } = {},
-): Promise<CompilePayload | null> {
-  const { timeoutMs = WORKER_TIMEOUT_MS, latch = true } = opts
-  return new Promise<CompilePayload | null>((resolve) => {
-    let worker: Worker
-    try {
-      worker = getWorker()
-    } catch {
-      // Worker construction failed (e.g. Vite dev transform hang, wrong env).
-      if (latch) _workerFailed = true
-      resolve(null)
-      return
-    }
-
-    const requestId = ++_requestSeq
-
-    const finish = (payload: CompilePayload | null) => {
-      if (timer !== null) clearTimeout(timer)
-      worker.removeEventListener('message', handler)
-      worker.removeEventListener('error', onWorkerError)
-      worker.removeEventListener('messageerror', onWorkerError)
-      resolve(payload)
-    }
-
-    const timer =
-      timeoutMs === null
-        ? null
-        : setTimeout(() => {
-            // Terminate the stuck worker; next getWorker() call creates a fresh one.
-            try {
-              worker.terminate()
-              _worker = null
-            } catch {
-              /* ignore — the worker may already be dead */
-            }
-            if (latch) _workerFailed = true
-            finish(null)
-          }, timeoutMs)
-
-    const handler = (event: MessageEvent) => {
-      const data = event.data as (CompilePayload | { error: string } | { stage: string }) & {
-        requestId?: number
-      }
-      if ('stage' in data) {
-        // Boot/compile breadcrumbs from the worker — keep listening.
-        console.debug('[zilf-worker] stage:', data.stage)
-        return
-      }
-      if (data.requestId !== requestId) return // stale response from a prior compile
-      if ('error' in data) {
-        // Worker surfaced a boot or runtime error — fall back to main thread.
-        if (latch) _workerFailed = true
-        finish(null)
-        return
-      }
-      finish(data)
-    }
-
-    /** The worker script itself failed (load/parse error) or a message failed
-     *  to deserialize — no compile response will ever arrive, so fail fast
-     *  instead of waiting out the timeout. Drop the dead worker so a later
-     *  attempt constructs a fresh one (and gets a fresh, fast error signal). */
-    const onWorkerError = () => {
-      try {
-        worker.terminate()
-        _worker = null
-      } catch {
-        /* ignore */
-      }
-      if (latch) _workerFailed = true
-      finish(null)
-    }
-
-    worker.addEventListener('message', handler)
-    worker.addEventListener('error', onWorkerError)
-    worker.addEventListener('messageerror', onWorkerError)
-    worker.postMessage({ source, version, requestId })
-  })
-}
+/** The background warm-up compile while it's in flight (see warmZilCompiler). */
+let _warmPending: Promise<unknown> | null = null
 
 // ─── Main-thread fallback ─────────────────────────────────────────────────────
 
@@ -324,8 +242,8 @@ let _warmKicked = false
  * legitimately exceed WORKER_TIMEOUT_MS (download + boot + first compile);
  * a timer here would terminate the SHARED worker — killing any real compile
  * queued behind it — and latch _workerFailed, silently degrading every later
- * compile to the main-thread freeze. A truly broken worker is discovered
- * (and latched) by the first real compile's own timeout.
+ * compile to the main-thread freeze. A real compile queued behind it waits
+ * for it (up to WARMUP_GRACE_MS) before starting its own timeout clock.
  */
 export function warmZilCompiler(): void {
   if (!import.meta.client || _warmKicked) return
@@ -336,7 +254,16 @@ export function warmZilCompiler(): void {
   const conn = (navigator as { connection?: { saveData?: boolean; effectiveType?: string } }).connection
   if (conn?.saveData || conn?.effectiveType?.includes('2g')) return
   _warmKicked = true
-  void tryWorkerCompile(zilSkeletonSource, 3, { timeoutMs: null, latch: false })
+  const warm: Promise<void> = rpc
+    .call({ source: zilSkeletonSource, version: 3 }, { timeoutMs: null })
+    .then((outcome) => {
+      // Only a worker that can't load at all says anything about later compiles.
+      if (outcome.kind === 'unavailable') _workerFailed = true
+    })
+  _warmPending = warm
+  void warm.finally(() => {
+    if (_warmPending === warm) _warmPending = null
+  })
 }
 
 // ─── composable ───────────────────────────────────────────────────────────────
@@ -357,12 +284,20 @@ export function useZilfWasm() {
     const storyExt = versionToExt(version)
 
     // ── Worker path (primary — see WORKER_ENABLED) ─────────────────────────
-    if (WORKER_ENABLED && !_workerFailed) {
-      const payload = await tryWorkerCompile(source, version)
-      if (payload !== null) {
-        return buildResultFromPayload(payload, storyExt, started)
-      }
-      // Worker failed or timed out — fall through to main-thread.
+    if (WORKER_ENABLED && !_workerFailed && typeof Worker !== 'undefined') {
+      // Queued behind the warm-up (single-threaded worker): start this
+      // compile's clock when the warm-up finishes, capped by the grace period.
+      const clockStartsAfter = _warmPending
+        ? Promise.race([_warmPending, new Promise(r => setTimeout(r, WARMUP_GRACE_MS))])
+        : undefined
+      const outcome = await rpc.call(
+        { source, version },
+        { timeoutMs: WORKER_TIMEOUT_MS, clockStartsAfter },
+      )
+      if (outcome.kind === 'ok') return buildResultFromPayload(outcome.value, storyExt, started)
+      if (outcome.kind === 'timeout') return timedOutResult(storyExt, outcome.ms)
+      if (outcome.kind === 'unavailable') _workerFailed = true
+      // unavailable / error reply — fall through to main-thread.
     }
 
     // ── Main-thread fallback ───────────────────────────────────────────────

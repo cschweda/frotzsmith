@@ -94,17 +94,29 @@ describe('useI6Wasm — worker enabled, fallback to main thread', () => {
     expect(result.ms).toBe(42)
   })
 
-  it('after a worker failure, later compiles skip the Worker and still resolve', async () => {
-    const { spy } = makeWorkerSpy('reply-error')
+  it('an error reply falls back for that compile only — the worker stays in use', async () => {
+    // One bad compile must not demote the whole session to main-thread mode.
+    const { spy, instances } = makeWorkerSpy('reply-error')
     vi.stubGlobal('Worker', spy)
 
     const { useI6Wasm } = await import('~/composables/useI6Wasm')
     const r1 = await useI6Wasm().compile('a', { profileId: 'std' })
     const r2 = await useI6Wasm().compile('b', { profileId: 'std' })
 
-    expect(r1.ok).toBe(true)
+    expect(r1.ok).toBe(true) // main-thread fallback
     expect(r2.ok).toBe(true)
-    expect(spy).toHaveBeenCalledTimes(1) // _workerFailed caches the fallback decision
+    expect(spy).toHaveBeenCalledTimes(1) // same worker reused…
+    expect(instances[0]!.posted).toHaveLength(2) // …and asked again
+  })
+
+  it('a worker that cannot load latches main-thread mode for the session', async () => {
+    const { spy } = makeWorkerSpy('error-event')
+    vi.stubGlobal('Worker', spy)
+
+    const { useI6Wasm } = await import('~/composables/useI6Wasm')
+    await useI6Wasm().compile('a', { profileId: 'std' })
+    await useI6Wasm().compile('b', { profileId: 'std' })
+    expect(spy).toHaveBeenCalledTimes(1) // _workerFailed: no second construction
   })
 
   it('without a Worker global (node/SSR), compile goes straight to the main path', async () => {

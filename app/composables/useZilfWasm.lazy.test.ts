@@ -92,8 +92,8 @@ describe('useZilfWasm — worker enabled, error fallback to main thread', () => 
     expect(instances[0]!.posted[0]).toMatchObject({ version: 3, requestId: expect.any(Number) })
   })
 
-  it('after a worker failure, later compiles skip the Worker and still resolve', async () => {
-    const { spy } = makeFailingWorkerSpy()
+  it('an error reply falls back for that compile only — the worker stays in use', async () => {
+    const { spy, instances } = makeFailingWorkerSpy()
     vi.stubGlobal('Worker', spy)
 
     const { useZilfWasm } = await import('~/composables/useZilfWasm')
@@ -102,7 +102,18 @@ describe('useZilfWasm — worker enabled, error fallback to main thread', () => 
 
     expect(r1.ok).toBe(false)
     expect(r2.ok).toBe(false)
-    expect(spy).toHaveBeenCalledTimes(1) // _workerFailed caches the fallback decision
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(instances[0]!.posted).toHaveLength(2)
+  })
+
+  it('a worker that cannot load latches main-thread mode for the session', async () => {
+    const { spy } = makeWorkerSpy('error-event')
+    vi.stubGlobal('Worker', spy)
+
+    const { useZilfWasm } = await import('~/composables/useZilfWasm')
+    await useZilfWasm().compile('source-a', 3)
+    await useZilfWasm().compile('source-b', 5)
+    expect(spy).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -185,15 +196,25 @@ describe('useZilfWasm — warm-up must not sabotage real compiles', () => {
       expect(instances[0]!.terminate).not.toHaveBeenCalled()
 
       // …and a real compile must still attempt the worker path (no latch).
-      const p = mod.useZilfWasm().compile('src', 3)
+      let settled = false
+      const p = mod.useZilfWasm().compile('src', 3).then((r) => {
+        settled = true
+        return r
+      })
       await vi.advanceTimersByTimeAsync(0)
       expect(instances[0]!.posted).toHaveLength(2) // warm-up + real compile
 
-      // The real compile still owns its own timeout: a genuinely dead worker
-      // is terminated and latched by IT, and the compile resolves via fallback.
+      // Queued behind the warm-up, its 60 s clock doesn't start until the
+      // warm-up finishes — or the 120 s grace period runs out.
       await vi.advanceTimersByTimeAsync(61_000)
+      expect(settled).toBe(false)
+
+      // Grace (120 s) + its own budget (60 s): a genuinely dead worker is
+      // terminated and reported as a timeout — not re-run on the main thread.
+      await vi.advanceTimersByTimeAsync(120_000)
       const r = await p
       expect(r.ok).toBe(false)
+      expect(r.rawStderr).toMatch(/timed out after 60 s/)
       expect(instances[0]!.terminate).toHaveBeenCalledTimes(1)
     } finally {
       vi.useRealTimers()
