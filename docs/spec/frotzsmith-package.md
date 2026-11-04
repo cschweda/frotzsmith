@@ -33,7 +33,7 @@ A **writer** is software that creates or updates a package; a **reader** is soft
 - A package **MUST** be a ZIP archive as defined by the PKWARE APPNOTE (version 6.3.10 or later), without encryption, spanning, or multiple disks.
 - Entries **MUST** be stored (method 0) or deflated (method 8). Readers **MUST** support both. Writers **SHOULD** deflate text.
 - The archive's first entry **MUST** be named `mimetype`, stored (method 0), with no extra field, containing exactly the ASCII bytes `application/vnd.frotzsmith.package+zip` with no line ending. (This lets a reader recognise a package from its first bytes, as EPUB does.)
-- Path names **MUST** be UTF-8 and the writer **MUST** set general-purpose bit 11. Paths **MUST** use `/` as the separator, **MUST NOT** begin with `/`, **MUST NOT** contain an empty segment, a `.` segment, or a `..` segment, a backslash, a drive letter (`C:`), NUL, or any C0/C1 control character, and **MUST NOT** be longer than 255 bytes per segment or 1,024 bytes in total. No two paths **MUST** be equal ignoring case (they would collide when unpacked on many systems); paths are compared by applying Unicode NFC normalization and then the default lowercase mapping (in JavaScript, `s.normalize('NFC').toLowerCase()`).
+- Path names **MUST** be UTF-8 and the writer **MUST** set general-purpose bit 11. Paths **MUST** use `/` as the separator, **MUST NOT** begin with `/`, **MUST NOT** contain an empty segment, a `.` segment, or a `..` segment, a backslash, a drive letter (`C:`), NUL, or any C0/C1 control character, and **MUST NOT** be longer than 255 bytes per segment or 1,024 bytes in total. Two paths **MUST NOT** be equal ignoring case (they would collide when unpacked on many systems); paths are compared after Unicode NFC normalization and the default lowercase mapping (in JavaScript, `s.normalize('NFC').toLowerCase()`).
 - Archives **MUST NOT** contain symbolic links, directories as entries with data, or entries whose stored and uncompressed sizes or CRC-32 disagree with their headers. Each local file header **MUST** agree with its central-directory entry, and an entry whose real inflated size differs from its declared size **MUST** be refused.
 - The file extension is `.frotzsmith`. The media type is `application/vnd.frotzsmith.package+zip` (not yet registered with IANA; see §13).
 
@@ -43,7 +43,7 @@ A **writer** is software that creates or updates a package; a **reader** is soft
 mimetype                       required, first, stored
 frotzsmith.json                required: the manifest (§4)
 <main file>                    required: the game's source (§5), named in the manifest
-*.h                            optional: include files, at any path (§5)
+*.h                            optional: include files for Inform 6 projects, at any path (§5)
 tests/                         optional: test scripts, one per file (§6)
 <stem>.skein                   optional: the Skein (§7)
 ```
@@ -96,7 +96,7 @@ A UTF-8 JSON object (RFC 8259), with no byte-order mark, at most 1 MiB.
 | `extensions` | **MAY** | An array of the names of the include files the project enables. A name is either one an application supplies itself (bundled) or the path of a `.h` file in the package. |
 | `tests` | **MAY** | An array of `{ "name", "path" }`: each test script's display name and its path (§6). The array's order is the display order. |
 | `skein` | **MAY** | The path of the Skein file (§7). |
-| `files` | **SHOULD** | A map from path to `"sha256:<64 lowercase hex>"` of that file's bytes, for integrity, covering every entry except `mimetype` and `frotzsmith.json`. A reader **SHOULD** warn (not refuse) when a file's hash differs. |
+| `files` | **SHOULD** | A map from path to `"sha256:<64 lowercase hex>"` of that file's bytes, for integrity, covering every kept entry except `mimetype` and `frotzsmith.json`. A reader **SHOULD** warn (not refuse) when a file's hash differs. |
 | `libraryOverrides` | reserved | Reserved for a later version of this specification. Writers **MUST NOT** use this name for anything else; readers **MUST** keep it like any unknown field. |
 
 Every path the manifest names (`main`, each `tests[].path`, `skein`) **MUST** obey §2's path rules and **MUST** exist in the package. A reader refuses the package if one does not. The manifest is **data only**: a reader never executes a field, never fetches a URL named in one, and never uses a field to decide where on disk to write.
@@ -115,7 +115,7 @@ Readers **MUST** ignore unknown fields; writers **MUST** keep unknown fields the
 A **test script** is a list of commands to type into the game, one per file as plain UTF-8 text.
 
 - Each script is a file under `tests/` ending `.txt`. A writer derives the file name `tests/<slug>.txt` from the script's name: NFKD-normalize it, strip combining diacritics and apostrophes (`'` and `’`), lower-case it, replace each run of characters outside ASCII `a`–`z` and `0`–`9` with `-`, and trim leading and trailing `-`; an empty slug becomes `script`. Where two names give the same slug, the writer adds `-2`, `-3`, and so on.
-- The manifest's `tests` entry gives the script's display `name` and `path`. The manifest's `tests` entries (name, path) are authoritative for names and order; readers **MUST NOT** rely on file names.
+- The manifest's `tests` entry gives the script's display `name` and `path`. For scripts listed in `tests`, the manifest entries (name, path) are authoritative for names and order; readers **MUST NOT** rely on those scripts' file names.
 - A `.txt` file under `tests/` that the manifest does not list is still a test script: a reader opens it, naming it by its file name without the extension.
 
 ## 7. The Skein: `<stem>.skein`
