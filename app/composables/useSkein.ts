@@ -40,6 +40,8 @@ import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 /** Debounced saves, one timer PER BUCKET — a save for game B must never
  *  cancel game A's still-pending save. */
 const _saveTimers = new Map<string, { timer: ReturnType<typeof setTimeout>, run: () => Promise<void> }>()
+/** Saves that have fired but not yet settled; `flushSaves` waits for these too. */
+const _inFlight = new Set<Promise<void>>()
 /** Bucket whose IndexedDB load is in flight: the in-memory tree still belongs
  *  to the previous game, so saving it under this key would clobber the
  *  stored skein. */
@@ -95,7 +97,9 @@ export function useSkein() {
     const snapshot = tree.value
     const run = () => {
       _saveTimers.delete(key)
-      return persist(key, snapshot)
+      const p = persist(key, snapshot).finally(() => _inFlight.delete(p))
+      _inFlight.add(p)
+      return p
     }
     _saveTimers.set(key, { timer: setTimeout(run, 500), run })
   }
@@ -104,7 +108,8 @@ export function useSkein() {
   async function flushSaves(): Promise<void> {
     const pending = [..._saveTimers.values()]
     for (const p of pending) clearTimeout(p.timer)
-    await Promise.all(pending.map(p => p.run()))
+    const started = pending.map(p => p.run())
+    await Promise.allSettled([...started, ..._inFlight])
   }
 
   function setTree(next: SkeinTree) {

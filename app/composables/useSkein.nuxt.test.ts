@@ -8,7 +8,7 @@
  * capture walks/extends a cursor that resets on session start, buckets are
  * per game, and export/import round-trips.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ref } from 'vue'
 import { createMemorySkeinStore } from './skein-store'
 import { pathNodes, type SkeinTree } from './skein-tree'
@@ -322,5 +322,48 @@ describe('useSkein — flushSaves', () => {
     await skein.flushSaves()
     const saved = await _memStore.load(`${_profile.value.stateKey}:game-flush`)
     expect(Object.values(saved!.nodes).map(n => n.command)).toContain('north')
+  })
+})
+
+describe('useSkein — flushSaves (timers)', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it('saves each pending bucket exactly once and cancels the timers', async () => {
+    vi.useFakeTimers()
+    const save = vi.spyOn(_memStore, 'save')
+    const { key } = bootIde('flush-a')
+    const skein = useSkein()
+    skein.recordPlayCommand('north')
+    key.value = 'flush-b'
+    skein.recordPlayCommand('east')
+    save.mockClear()
+    await skein.flushSaves()
+    const keys = save.mock.calls.map(c => c[0])
+    expect(keys.filter(k => k.endsWith(':flush-a'))).toHaveLength(1)
+    expect(keys.filter(k => k.endsWith(':flush-b'))).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(save).toHaveBeenCalledTimes(2)
+  })
+
+  it('waits for a save that already fired', async () => {
+    vi.useFakeTimers()
+    let release!: (ok: boolean) => void
+    vi.spyOn(_memStore, 'save').mockImplementation(
+      () => new Promise<boolean>((r) => { release = r }),
+    )
+    bootIde('flush-inflight')
+    const skein = useSkein()
+    skein.recordPlayCommand('north')
+    await vi.advanceTimersByTimeAsync(500) // timer fires; save hangs
+    let done = false
+    const p = skein.flushSaves().then(() => { done = true })
+    await vi.advanceTimersByTimeAsync(10)
+    expect(done).toBe(false)
+    release(true)
+    await p
+    expect(done).toBe(true)
   })
 })
