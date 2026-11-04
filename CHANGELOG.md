@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Added — 2026-11-04 .frotzsmith projects
+- **Download project / Open project.** The toolbar's **Download project** saves
+  the whole project — source, uploaded includes, test scripts and the Skein —
+  as one `.frotzsmith` file (a ZIP with a readable `frotzsmith.json`
+  manifest; compiled stories are never included). **Open** now accepts
+  `.frotzsmith` too. If the editor holds work, you are asked "Replace the
+  project in the editor?" first; **Cancel** changes nothing. Opening only
+  loads text — nothing compiles, plays or runs.
+- Files the editor has no place for (extra files, unknown manifest fields)
+  are kept and written back on the next download, so open, edit, download
+  loses nothing. A package for the other language, a plain `.zip`, a hostile
+  or oversized archive, or one whose includes don't fit the browser's
+  extension budget is refused whole, with a one-sentence reason.
+
 ### Added — 2026-11-04 Offline website, versioning, update checks
 - **The website works offline.** A Workbox service worker (`@vite-pwa/nuxt`)
   precaches the app's own files — both IDEs, `/technical`, the `_nuxt/`

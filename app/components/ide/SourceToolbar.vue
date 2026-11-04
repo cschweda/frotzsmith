@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import type { ProfileId } from '~/modules/inform6/profiles'
+import type { PendingOpen } from '~/composables/useProjectPackage'
+import { PackageError } from '~/project-package/errors'
+import { ZipLimitError } from '~/utils/zip-limits'
 
 const { source, storyBase, loadSource, newProject } = useIde()
 const { togglePanel, panelOpen } = useProjectFiles()
 const { profile } = useLanguage()
 const { copyShareLink } = useShareLink()
+const pkg = useProjectPackage()
+const toast = useToast()
 function onShare() {
   void copyShareLink() // outcome lands in a toast either way
 }
@@ -27,12 +32,101 @@ function openFile() {
 function onFileChange(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  if (file) {
+  if (file && file.name.toLowerCase().endsWith('.frotzsmith')) {
+    void openPackage(file)
+  } else if (file) {
     const reader = new FileReader()
     reader.onload = () => loadSource(String(reader.result ?? ''))
     reader.readAsText(file)
   }
   input.value = '' // allow re-opening the same file later
+}
+
+// .frotzsmith projects: read + check first, ask before replacing real work,
+// then apply. Nothing is compiled or run by opening.
+const pending = shallowRef<PendingOpen | null>(null)
+const confirmOpen = ref(false)
+
+function fail(err: unknown) {
+  const known = err instanceof PackageError || err instanceof ZipLimitError
+  toast.add({
+    title: 'Couldn’t open that project',
+    description: known ? err.message : 'That file couldn’t be read as a Frotzsmith project.',
+    color: 'error',
+    icon: 'i-lucide-circle-alert',
+  })
+}
+
+async function openPackage(file: File) {
+  try {
+    const p = await pkg.inspect(file)
+    if (pkg.needsConfirm(p)) {
+      pending.value = p
+      confirmOpen.value = true
+    } else {
+      await applyPending(p)
+    }
+  } catch (err) {
+    fail(err)
+  }
+}
+
+async function applyPending(p: PendingOpen) {
+  try {
+    await pkg.apply(p)
+  } catch (err) {
+    fail(err)
+    return
+  }
+  const notes: string[] = []
+  if (p.hiddenCount > 0) {
+    notes.push(`${p.hiddenCount} files in this project aren't shown here — they're kept and included when you download it.`)
+  }
+  if (p.ignored.length > 0) notes.push('Compiled story files in the package were ignored — compile to rebuild them.')
+  toast.add({
+    title: 'Project opened',
+    description: notes.join(' ') || undefined,
+    color: 'success',
+    icon: 'i-lucide-check',
+  })
+  if (p.hashMismatches.length > 0) {
+    toast.add({
+      title: 'Some files changed after the package was made',
+      description: `These don't match what the package recorded: ${p.hashMismatches.join(', ')}.`,
+      color: 'warning',
+      icon: 'i-lucide-triangle-alert',
+    })
+  }
+}
+
+function onReplace() {
+  const p = pending.value
+  confirmOpen.value = false
+  pending.value = null
+  if (p) void applyPending(p)
+}
+function onCancelOpen() {
+  confirmOpen.value = false
+  pending.value = null
+}
+
+async function downloadProject() {
+  try {
+    const { bytes, filename } = await pkg.buildPackage()
+    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/vnd.frotzsmith.package+zip' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 30_000)
+  } catch {
+    toast.add({
+      title: 'Couldn’t download the project',
+      description: 'Something went wrong building the .frotzsmith file.',
+      color: 'error',
+      icon: 'i-lucide-circle-alert',
+    })
+  }
 }
 
 // Save As… — a real save dialog where supported (Chromium), else a download.
@@ -81,11 +175,21 @@ async function saveAs() {
     <UIcon name="i-lucide-file-code-2" class="text-muted size-4" />
     <span class="text-muted text-xs font-semibold uppercase tracking-wide">Source</span>
 
-    <input ref="fileInput" type="file" :accept="`.${profile.fileExt},.txt,.h`" class="hidden" @change="onFileChange" />
+    <input ref="fileInput" type="file" :accept="`.${profile.fileExt},.txt,.h,.frotzsmith`" class="hidden" @change="onFileChange" />
 
     <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
       <UButton color="neutral" variant="subtle" size="sm" icon="i-lucide-folder-open" @click="openFile">
         Open
+      </UButton>
+      <UButton
+        color="neutral"
+        variant="subtle"
+        size="sm"
+        icon="i-lucide-package"
+        title="Download this project as a .frotzsmith file — source, includes, test scripts and Skein"
+        @click="downloadProject"
+      >
+        Download project
       </UButton>
 
       <UButton color="neutral" variant="subtle" size="sm" icon="i-lucide-save" @click="saveAs">
@@ -110,6 +214,14 @@ async function saveAs() {
            embedded in the WASM bundle, so hide it outside I6. -->
       <ExtensionsModal v-if="profile.id === 'i6'" />
     </div>
+
+    <OpenProjectModal
+      v-model:open="confirmOpen"
+      :title="pending?.project.title ?? pending?.project.main.name ?? ''"
+      :main-name="pending?.project.main.name ?? ''"
+      @replace="onReplace"
+      @cancel="onCancelOpen"
+    />
 
     <UModal v-model:open="open" title="New project" description="Start with a blank editor for the chosen library.">
       <template #body>

@@ -51,6 +51,16 @@ Where Frotzsmith itself renders any of this (Transcript, Results), it uses text 
 
 - Project import: parse JSON in a try/catch, validate required fields and types against the `ProjectExport` shape, reject unknown shapes with a clear message, treat `source`/`scripts` strictly as text. Never `eval`, never construct functions from imported strings.
 
+### 6.1 Project packages (`.frotzsmith`)
+
+A `.frotzsmith` file is untrusted input, read entirely in the browser.
+
+- **Limits, checked before inflating:** archive <= 32 MiB; <= 2,000 entries; each entry <= 8 MiB and total <= 32 MiB uncompressed; compression ratio per entry <= 200:1. Sizes declared in the headers are verified against the actual bytes; CRC mismatches are refused.
+- **Container rules:** first entry `mimetype` (stored, exact content); entries stored or deflated only; UTF-8 `/`-separated paths with no `..`, `.`, empty segments, leading `/`, backslash, drive letters or control characters; no symlinks; no case-insensitive duplicates. The manifest is <= 1 MiB JSON.
+- **Source only:** everything read is treated as text. Compiled stories (`.z3 .z4 .z5 .z8 .ulx .blb .zblorb`) are ignored, never written.
+- **Nothing runs:** opening loads text into the editor, extensions, test scripts and Skein. It does not compile, play, replay or run the Skein, and no imported string is evaluated.
+- **Refusal is whole:** any violation (wrong language, over the uploaded-extension budget, a cyclic Skein, a bad path, a plain `.zip`) refuses the entire package with one sentence; every check runs before the first write, so nothing is ever half-applied. Opening over existing work asks first.
+
 ## 7. localStorage hygiene
 
 - Namespaced keys (`frotzsmith:*`) to avoid collisions.
