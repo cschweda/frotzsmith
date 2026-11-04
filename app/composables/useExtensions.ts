@@ -4,7 +4,7 @@ import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 import { safeSetItem } from '~/utils/safe-storage'
 import { ZipLimitError, EXTENSIONS_TOTAL_MAX_BYTES } from '~/utils/zip-limits'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
-import { PackageError, displayPath } from '~/project-package/errors'
+import { PackageError, quotedPath } from '~/project-package/errors'
 import { pathProblem } from '~/project-package/paths'
 
 /** The Include name a packaged `.h` file mounts under: its file name without
@@ -50,7 +50,7 @@ export function planUploaded(
     if (other !== undefined) {
       throw new PackageError(
         'include-name-clash',
-        `This project has two include files the browser editor can't keep apart: ${displayPath(other)} and ${displayPath(f.path)}.`,
+        `This project has two include files the browser editor can't keep apart: ${quotedPath(other)} and ${quotedPath(f.path)}.`,
       )
     }
     byId.set(id, f.path)

@@ -388,7 +388,7 @@ describe('useProjectPackage — refusals change nothing', () => {
     const err = await useProjectPackage().inspect(await fileOf(clash)).catch(e => e)
     expect(err).toBeInstanceOf(PackageError)
     expect(err.code).toBe('include-name-clash')
-    expect(err.message).toBe("This project has two include files the browser editor can't keep apart: a/lamp.h and b/lamp.h.")
+    expect(err.message).toBe("This project has two include files the browser editor can't keep apart: “a/lamp.h” and “b/lamp.h”.")
     await settle()
     expect(ideState()).toEqual(before)
   })

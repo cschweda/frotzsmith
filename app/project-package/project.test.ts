@@ -195,7 +195,7 @@ describe('reading hostile or odd packages', () => {
   })
 
   it('refuses a missing main with the exact sentence', async () => {
-    expect(await refusal(pkg(m(), {}))).toBe("The project's manifest points at a file that isn't in it: g.inf.")
+    expect(await refusal(pkg(m(), {}))).toBe("The project's manifest points at a file that isn't in it: “g.inf”.")
   })
 
   it('refuses a .zil main for an i6 project', async () => {
@@ -203,12 +203,12 @@ describe('reading hostile or odd packages', () => {
   })
 
   it('refuses invalid UTF-8 in main', async () => {
-    expect(await refusal(pkg(m(), { 'g.inf': new Uint8Array([0xff, 0xfe, 0x41]) }))).toMatch(/g\.inf isn't valid UTF-8/)
+    expect(await refusal(pkg(m(), { 'g.inf': new Uint8Array([0xff, 0xfe, 0x41]) }))).toMatch(/“g\.inf” isn't valid UTF-8/)
   })
 
   it('refuses NUL in a test', async () => {
     const bytes = pkg(m(), { 'g.inf': 'x', 'tests/a.txt': 'a\u0000' })
-    expect(await refusal(bytes)).toMatch(/tests\/a\.txt contains a NUL/)
+    expect(await refusal(bytes)).toMatch(/“tests\/a\.txt” contains a NUL/)
   })
 
   it('refuses a newer major version with the exact sentence', async () => {
@@ -223,7 +223,7 @@ describe('reading hostile or odd packages', () => {
   it('refuses a manifest path that is unsafe or missing', async () => {
     expect(await refusal(pkg(m({ skein: '../x' }), { 'g.inf': 'x' }))).toMatch(/unsafe name/)
     expect(await refusal(pkg(m({ tests: [{ name: 'a', path: 'tests/a.txt' }] }), { 'g.inf': 'x' })))
-      .toBe("The project's manifest points at a file that isn't in it: tests/a.txt.")
+      .toBe("The project's manifest points at a file that isn't in it: “tests/a.txt”.")
   })
 
   it('refuses wrong field types without crashing', async () => {

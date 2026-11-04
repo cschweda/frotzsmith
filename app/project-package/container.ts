@@ -20,7 +20,7 @@
  * Any violation throws a `PackageError` whose message is one plain sentence.
  */
 import { Inflate, deflateSync } from 'fflate'
-import { PackageError, displayPath } from './errors'
+import { PackageError, quotedPath } from './errors'
 import { pathKey, pathProblem } from './paths'
 
 export const MIMETYPE = 'application/vnd.frotzsmith.package+zip'
@@ -91,53 +91,53 @@ const fail = {
     new PackageError('bad-mimetype', "That file isn't a valid Frotzsmith project: its mimetype entry is wrong."),
   damaged: () => new PackageError('damaged', 'This project file is damaged or incomplete.'),
   damagedEntry: (p: string) =>
-    new PackageError('damaged', `This project file is damaged: ${displayPath(p)} can't be read.`),
+    new PackageError('damaged', `This project file is damaged: ${quotedPath(p)} can't be read.`),
   ambiguous: () =>
     new PackageError('ambiguous', 'This project file is damaged: its table of contents is ambiguous.'),
   tooLarge: () => new PackageError('too-large', 'This project is larger than Frotzsmith can open (32 MB).'),
   tooMany: () => new PackageError('too-many-entries', 'This project has more files than Frotzsmith can open (2,000).'),
   entryTooLarge: (p: string) =>
-    new PackageError('entry-too-large', `This project contains a file larger than Frotzsmith can open (8 MB): ${displayPath(p)}.`),
+    new PackageError('entry-too-large', `This project contains a file larger than Frotzsmith can open (8 MB): ${quotedPath(p)}.`),
   totalTooLarge: () =>
     new PackageError('total-too-large', 'This project is larger than Frotzsmith can open (32 MB) once unpacked.'),
   ratio: (p: string) =>
-    new PackageError('ratio', `This project contains a suspiciously compressed file: ${displayPath(p)}.`),
+    new PackageError('ratio', `This project contains a suspiciously compressed file: ${quotedPath(p)}.`),
   zip64: () => new PackageError('zip64', 'This project uses ZIP64, which Frotzsmith doesn’t support.'),
   multiDisk: () =>
     new PackageError('multi-disk', 'This project is split across several files, which Frotzsmith doesn’t support.'),
   encrypted: () => new PackageError('encrypted', 'This project is encrypted, which Frotzsmith doesn’t support.'),
   method: (p: string) =>
-    new PackageError('unsupported-method', `This project uses a compression method Frotzsmith doesn’t support: ${displayPath(p)}.`),
+    new PackageError('unsupported-method', `This project uses a compression method Frotzsmith doesn’t support: ${quotedPath(p)}.`),
   unsafePath: (p: string) =>
-    new PackageError('unsafe-path', `This project contains a file with an unsafe name: ${displayPath(p)}.`),
+    new PackageError('unsafe-path', `This project contains a file with an unsafe name: ${quotedPath(p)}.`),
   badName: () => new PackageError('unsafe-path', 'This project contains a file whose name isn’t valid text.'),
   duplicate: (a: string, b: string) =>
     new PackageError(
       'duplicate-path',
-      `This project contains two files whose names differ only in case: ${displayPath(a, 40)} and ${displayPath(b, 40)}.`,
+      `This project contains two files whose names differ only in case: ${quotedPath(a, 40)} and ${quotedPath(b, 40)}.`,
     ),
   symlink: (p: string) =>
-    new PackageError('symlink', `This project contains a symbolic link, which Frotzsmith doesn’t allow: ${displayPath(p)}.`),
+    new PackageError('symlink', `This project contains a symbolic link, which Frotzsmith doesn’t allow: ${quotedPath(p)}.`),
   special: (p: string) =>
-    new PackageError('special-file', `This project contains something that isn’t an ordinary file: ${displayPath(p)}.`),
+    new PackageError('special-file', `This project contains something that isn’t an ordinary file: ${quotedPath(p)}.`),
   directoryWithData: (p: string) =>
-    new PackageError('directory-with-data', `This project contains a folder entry with data in it: ${displayPath(p)}.`),
+    new PackageError('directory-with-data', `This project contains a folder entry with data in it: ${quotedPath(p)}.`),
   headerMismatch: (p: string) =>
-    new PackageError('header-mismatch', `This project file is damaged: the headers for ${displayPath(p)} disagree.`),
+    new PackageError('header-mismatch', `This project file is damaged: the headers for ${quotedPath(p)} disagree.`),
   sizeMismatch: (p: string) =>
-    new PackageError('size-mismatch', `This project file is damaged: ${displayPath(p)} isn’t the size its header says.`),
+    new PackageError('size-mismatch', `This project file is damaged: ${quotedPath(p)} isn’t the size its header says.`),
   crcMismatch: (p: string) =>
-    new PackageError('crc-mismatch', `This project file is damaged: ${displayPath(p)} failed its checksum.`),
+    new PackageError('crc-mismatch', `This project file is damaged: ${quotedPath(p)} failed its checksum.`),
   trailingData: (p: string) =>
-    new PackageError('trailing-data', `This project file is damaged: ${displayPath(p)} has extra data after its end.`),
+    new PackageError('trailing-data', `This project file is damaged: ${quotedPath(p)} has extra data after its end.`),
   comment: () =>
     new PackageError('archive-comment', 'This project file has a comment at its end, which Frotzsmith doesn’t allow.'),
   unicodeExtra: (p: string) =>
-    new PackageError('unicode-extra', `This project contains a file with a second, hidden name, which Frotzsmith doesn’t allow: ${displayPath(p)}.`),
+    new PackageError('unicode-extra', `This project contains a file with a second, hidden name, which Frotzsmith doesn’t allow: ${quotedPath(p)}.`),
   pathConflict: (file: string, folder: string) =>
     new PackageError(
       'path-conflict',
-      `This project contains a file and a folder with the same name: ${displayPath(file, 40)} and ${displayPath(folder, 40)}.`,
+      `This project contains a file and a folder with the same name: ${quotedPath(file, 40)} and ${quotedPath(folder, 40)}.`,
     ),
 }
 
@@ -532,14 +532,14 @@ export function writeContainer(entries: ContainerEntry[]): Uint8Array {
   const seen = new Map<string, string>([[pathKey('mimetype'), 'mimetype']])
   for (const e of entries) {
     if (pathProblem(e.path) !== null) {
-      throw new PackageError('unsafe-path', `Frotzsmith can’t save a file with an unsafe name: ${displayPath(e.path)}.`)
+      throw new PackageError('unsafe-path', `Frotzsmith can’t save a file with an unsafe name: ${quotedPath(e.path)}.`)
     }
     const key = pathKey(e.path)
     const prior = seen.get(key)
     if (prior !== undefined) {
       throw new PackageError(
         'duplicate-path',
-        `Frotzsmith can’t save two files whose names differ only in case: ${displayPath(prior, 40)} and ${displayPath(e.path, 40)}.`,
+        `Frotzsmith can’t save two files whose names differ only in case: ${quotedPath(prior, 40)} and ${quotedPath(e.path, 40)}.`,
       )
     }
     seen.set(key, e.path)
@@ -549,7 +549,7 @@ export function writeContainer(entries: ContainerEntry[]): Uint8Array {
   if (conflict) {
     throw new PackageError(
       'path-conflict',
-      `Frotzsmith can’t save a file and a folder with the same name: ${displayPath(conflict[0], 40)} and ${displayPath(conflict[1], 40)}.`,
+      `Frotzsmith can’t save a file and a folder with the same name: ${quotedPath(conflict[0], 40)} and ${quotedPath(conflict[1], 40)}.`,
     )
   }
   if (entries.length + 1 >= 0xffff) throw new PackageError('too-many-entries', 'This project has too many files to save.')

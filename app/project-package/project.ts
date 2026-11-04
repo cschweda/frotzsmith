@@ -6,7 +6,7 @@
 import { isValidTree, type SkeinTree } from '../composables/skein-tree'
 import { slugify } from '../utils/slug'
 import { LIMITS, MIMETYPE, readContainer, writeContainer } from './container'
-import { PackageError, displayPath } from './errors'
+import { PackageError, quotedPath } from './errors'
 import {
   FORMAT, MANIFEST_MAX_BYTES, MANIFEST_NAME, VERSION, parseManifest, serializeManifest, setOwn, sha256,
   type Language, type Library, type Target,
@@ -44,7 +44,7 @@ function stemOf(path: string): string {
 
 function checkText(path: string, text: string): void {
   if (text.includes('\u0000')) {
-    throw new PackageError('nul-in-text', `Frotzsmith can’t save ${displayPath(path)}: it contains a NUL character.`)
+    throw new PackageError('nul-in-text', `Frotzsmith can’t save ${quotedPath(path)}: it contains a NUL character.`)
   }
 }
 
@@ -130,7 +130,7 @@ export async function writeProjectPackage(
   if (all.length + 1 > LIMITS.entries) throw tooBig('the limit is 2,000 files')
   let total = encoder.encode(MIMETYPE).length
   for (const e of all) {
-    if (e.bytes.length > LIMITS.entryBytes) throw tooBig(`${displayPath(e.path)} is larger than the 8 MB limit for one file`)
+    if (e.bytes.length > LIMITS.entryBytes) throw tooBig(`${quotedPath(e.path)} is larger than the 8 MB limit for one file`)
     total += e.bytes.length
   }
   if (total > LIMITS.totalBytes) throw tooBig()
@@ -148,10 +148,10 @@ function text(path: string, bytes: Uint8Array): string {
   try {
     s = decoder.decode(bytes)
   } catch {
-    throw new PackageError('bad-text', `This project's file ${displayPath(path)} isn't valid UTF-8 text.`)
+    throw new PackageError('bad-text', `This project's file ${quotedPath(path)} isn't valid UTF-8 text.`)
   }
   if (s.includes('\u0000')) {
-    throw new PackageError('nul-in-text', `This project's file ${displayPath(path)} contains a NUL character, so it isn't text.`)
+    throw new PackageError('nul-in-text', `This project's file ${quotedPath(path)} contains a NUL character, so it isn't text.`)
   }
   return s
 }
@@ -174,14 +174,14 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
 
   // Lookup by exact path (the manifest's spelling is authoritative).
   const missing = (path: string) =>
-    new PackageError('missing-file', `The project's manifest points at a file that isn't in it: ${displayPath(path)}.`)
+    new PackageError('missing-file', `The project's manifest points at a file that isn't in it: ${quotedPath(path)}.`)
   const claimed = new Map<string, string>() // pathKey -> purpose
   const claim = (path: string, purpose: string): Uint8Array => {
     const data = container.get(path)
     if (!data || path === MANIFEST_NAME) throw missing(path)
     const key = pathKey(path)
     if (claimed.has(key)) {
-      throw new PackageError('shared-file', `The project's manifest uses one file for two purposes: ${displayPath(path)}.`)
+      throw new PackageError('shared-file', `The project's manifest uses one file for two purposes: ${quotedPath(path)}.`)
     }
     claimed.set(key, purpose)
     return data
@@ -190,7 +190,7 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
   const mainExt = m.language === 'i6' ? '.inf' : '.zil'
   const mainBytes = claim(m.main, 'main')
   if (!m.main.toLowerCase().endsWith(mainExt)) {
-    throw new PackageError('bad-main', `This ${m.language === 'i6' ? 'Inform 6' : 'ZIL'} project's main file must end ${mainExt}, not ${displayPath(m.main)}.`)
+    throw new PackageError('bad-main', `This ${m.language === 'i6' ? 'Inform 6' : 'ZIL'} project's main file must end ${mainExt}, not ${quotedPath(m.main)}.`)
   }
   const mainText = text(m.main, mainBytes)
 

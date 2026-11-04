@@ -15,19 +15,35 @@ export class PackageError extends Error {
   }
 }
 
-/** Control, bidi, zero-width and BOM characters that could make a name display
- *  misleadingly, plus LONE surrogates. With the `u` flag a valid surrogate pair
- *  is one code point outside the \u{D800}-\u{DFFF} range, so emoji survive. */
-// eslint-disable-next-line no-control-regex
-const UNSAFE_DISPLAY = /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff\u{d800}-\u{dfff}]/gu
+/**
+ * Characters that could make a quoted name display misleadingly: controls
+ * (Cc), format characters (Cf: bidi controls, zero-width characters, the BOM,
+ * soft hyphen, tags, invisible operators …), line and paragraph separators
+ * (Zl, Zp), private-use (Co) and unassigned (Cn) code points, the Hangul
+ * fillers that render as blank space, and LONE surrogates. With the `u` flag a
+ * valid surrogate pair is one code point outside \u{D800}-\u{DFFF}, so emoji
+ * survive.
+ */
+const UNSAFE_DISPLAY = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Co}\p{Cn}\u115f\u1160\u3164\uffa0\u{d800}-\u{dfff}]/gu
+/** A run of combining marks after the first `MAX_MARKS`. */
+const MAX_MARKS = 2
+const EXCESS_MARKS = new RegExp(`(?<=\\p{M}{${MAX_MARKS}})\\p{M}+`, 'gu')
+/** Default length (in code points) a displayed name is cut to. */
+export const DISPLAY_MAX = 60
 
 /**
- * A package path made safe to quote inside a user-facing sentence: control,
- * bidi and lone-surrogate characters become U+FFFD and long names are
- * shortened. Never use the result as a path.
+ * A package path made safe to quote inside a user-facing sentence: invisible,
+ * bidi, separator and lone-surrogate characters become U+FFFD, combining marks
+ * are capped at two per character, and long names are shortened to `max`
+ * code points plus "…". Never use the result as a path.
  */
-export function displayPath(path: string, max = 80): string {
-  const clean = path.replace(UNSAFE_DISPLAY, '\ufffd')
+export function displayPath(path: string, max = DISPLAY_MAX): string {
+  const clean = path.replace(UNSAFE_DISPLAY, '\ufffd').replace(EXCESS_MARKS, '')
   const chars = Array.from(clean)
   return chars.length > max ? `${chars.slice(0, max).join('')}…` : clean
+}
+
+/** `displayPath` in curly quotes, so a name can't read as part of the sentence around it. */
+export function quotedPath(path: string, max = DISPLAY_MAX): string {
+  return `“${displayPath(path, max)}”`
 }

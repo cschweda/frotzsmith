@@ -3,7 +3,7 @@
  * validated, typed shape, and serialising one back. The manifest is data only:
  * nothing in it is executed, fetched, or used to decide where to write.
  */
-import { PackageError, displayPath } from './errors'
+import { PackageError, displayPath, quotedPath } from './errors'
 import { pathProblem } from './paths'
 
 export const FORMAT = 'frotzsmith-package'
@@ -55,7 +55,7 @@ export function setOwn(target: object, key: string, value: unknown): void {
 function checkPath(field: string, value: unknown): string {
   if (typeof value !== 'string') throw bad(`This project's manifest has a ${field} that isn't text.`)
   if (pathProblem(value) !== null) {
-    throw bad(`This project's manifest names a file with an unsafe name: ${displayPath(value)}.`)
+    throw bad(`This project's manifest names a file with an unsafe name: ${quotedPath(value)}.`)
   }
   return value
 }
