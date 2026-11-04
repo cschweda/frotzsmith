@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type SkeinNode, type SkeinStatus } from '~/composables/skein-tree'
+import { flattenRows, type SkeinRow, type SkeinStatus } from '~/composables/skein-tree'
 import { lineDiff } from '~/utils/line-diff'
 
 const skein = useSkein()
@@ -12,29 +12,8 @@ const addingUnder = ref<string | null>(null)
 const newCommand = ref('')
 const note = ref('')
 
-interface Row {
-  node: SkeinNode
-  depth: number
-  hasChildren: boolean
-  expanded: boolean
-}
-
 /** DFS flatten of the tree (root hidden), honoring collapse state. */
-const rows = computed<Row[]>(() => {
-  const out: Row[] = []
-  const walk = (id: string, depth: number) => {
-    const node = skein.tree.value.nodes[id]
-    if (!node) return
-    if (id !== skein.tree.value.root) {
-      const expanded = !collapsed.value.has(id)
-      out.push({ node, depth, hasChildren: node.childIds.length > 0, expanded })
-      if (!expanded) return
-    }
-    for (const child of node.childIds) walk(child, id === skein.tree.value.root ? 0 : depth + 1)
-  }
-  walk(skein.tree.value.root, 0)
-  return out
-})
+const rows = computed<SkeinRow[]>(() => flattenRows(skein.tree.value, collapsed.value))
 
 const selected = computed(() => (selectedId.value ? skein.tree.value.nodes[selectedId.value] : undefined))
 const selectedDiff = computed(() => {
