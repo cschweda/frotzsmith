@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { compileShortcutLabel } from '~/utils/shortcut'
+
 const { source, status, canPlay, runCompile, playStory } = useIde()
+const shortcut = compileShortcutLabel()
 const { profile } = useLanguage()
 
 defineProps<{ actions?: boolean }>()
@@ -44,7 +47,7 @@ const meta = computed(() => {
         <kbd
           v-if="status !== 'compiling'"
           class="ml-1 hidden rounded bg-black/20 px-1.5 py-0.5 text-[10px] font-semibold sm:inline"
-          >⌘B</kbd
+          >{{ shortcut }}</kbd
         >
       </UButton>
 

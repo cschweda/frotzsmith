@@ -5,6 +5,7 @@
  * into `#src=…&lang=…`, TypeScript-playground style.
  */
 import { describe, it, expect } from 'vitest'
+import { deflateSync, strToU8 } from 'fflate'
 import { encodeShareFragment, decodeShareFragment, SHARE_FRAGMENT_MAX_CHARS } from './share-link'
 
 const I6_SOURCE = `Constant Story "SHARED";
@@ -69,4 +70,19 @@ describe('decode is tolerant — never throws on hostile fragments', () => {
       expect(decodeShareFragment(bad)).toBeNull()
     })
   }
+})
+
+describe('decode limits', () => {
+  it('rejects a payload larger than any link we would encode', () => {
+    const frag = encodeShareFragment(I6_SOURCE, 'i6')!
+    const huge = frag.replace('src=', `src=${'A'.repeat(SHARE_FRAGMENT_MAX_CHARS)}`)
+    expect(decodeShareFragment(huge)).toBeNull()
+  })
+
+  it('rejects a deflate bomb that inflates past the source cap', () => {
+    const bomb = deflateSync(strToU8(' '.repeat(5_000_000)), { level: 9 })
+    const b64 = btoa(String.fromCharCode(...bomb)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+    expect(b64.length).toBeLessThan(SHARE_FRAGMENT_MAX_CHARS) // small on the wire…
+    expect(decodeShareFragment(`src=${b64}&lang=i6`)).toBeNull() // …but refused
+  })
 })

@@ -112,4 +112,14 @@ describe('copyShareLink', () => {
     expect(writeText).not.toHaveBeenCalled()
     expect(_toastAdd).toHaveBeenCalledTimes(1)
   })
+
+  it('a blocked clipboard surfaces an error toast instead of an unhandled rejection', async () => {
+    const writeText = vi.fn().mockRejectedValue(new DOMException('denied', 'NotAllowedError'))
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    _source.value = 'Constant Story "SHARE ME";'
+
+    expect(await useShareLink().copyShareLink()).toBe(false)
+    expect(_toastAdd).toHaveBeenCalledTimes(1)
+    expect((_toastAdd.mock.calls[0]![0] as { color: string }).color).toBe('error')
+  })
 })

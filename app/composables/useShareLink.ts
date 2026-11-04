@@ -51,7 +51,11 @@ export function useShareLink() {
         actions: [
           {
             label: 'Replace editor contents',
-            onClick: () => loadSource(decoded.source),
+            // The toast can outlive a route change; only load into the
+            // language the link was made for.
+            onClick: () => {
+              if (profile.value.id === decoded.lang) loadSource(decoded.source)
+            },
           },
         ],
       })
@@ -72,7 +76,18 @@ export function useShareLink() {
       return false
     }
     const url = `${window.location.origin}${profile.value.route}#${frag}`
-    await navigator.clipboard.writeText(url)
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      // Denied permission, insecure context, or an unfocused document.
+      useToast().add({
+        title: 'Could not copy the share link',
+        description: 'The browser blocked clipboard access. Click into the page and try again.',
+        color: 'error',
+        icon: 'i-lucide-unlink',
+      })
+      return false
+    }
     useToast().add({
       title: 'Share link copied',
       description: 'Anyone opening it gets this source in their editor — the code travels inside the link; nothing is uploaded.',

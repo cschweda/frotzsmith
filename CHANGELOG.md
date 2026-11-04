@@ -9,6 +9,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Fixed — 2026-11-04 Review batch: replay restored, races, keyboard & mobile
+- **Headless replay works in production again.** Every Test Script **Run**
+  and Skein run/auto-run on the live site died with "GlkOte error … reading
+  'e'" — not "some games", all of them. Cause: one top-level `this.e` in
+  ifvms (`zvm/opcodes.js`) that Rollup's CommonJS wrapper turns into an
+  unassigned-variable dereference; Node tests and `nuxt dev` both masked it.
+  A build plugin (`tools/ifvms-this-fix.mjs`) rewrites it to its CommonJS
+  value and fails the build if an ifvms upgrade moves it, and
+  `postgenerate` now **executes the built replay worker** against `demo.z5`
+  (`tools/smoke-replay-worker.mjs`) — so CI *and* the Netlify build refuse
+  to ship a broken replay worker.
+- **Stale compiles are discarded.** A compile still running when you load a
+  sample / open a file / switch language no longer lands its story in the
+  new game (Play and the Skein ran the wrong build). Overlapping sample
+  loads resolve last-click-wins.
+- **Session watchers register once per app** (`registerSessionOnce`): one
+  watcher leaked per compile (the editor slowed over a session), and the
+  Skein's watchers ran 3× per compile. The test harness's `useState` now
+  returns a fresh ref per call like real Nuxt, which is what hid this.
+- **Skein:** a recompile mid-run cancels the in-flight replay and re-runs on
+  the new build (no old-build verdicts); Cancel terminates the worker;
+  recompiling drops every previous output, so blessing can't certify the old
+  build's text; per-bucket save timers and guarded restores stop one game's
+  tree overwriting another's; `.skein` import rejects another language's
+  file and structurally broken trees. Deleting a branch offers **Undo**.
+- **Compile timeouts no longer freeze the tab.** A worker timeout now
+  reports "Compile timed out" instead of re-running the source on the main
+  thread, and doesn't demote the session to main-thread mode; an error reply
+  falls back for that compile only. A ZIL compile queued behind the
+  pre-warm starts its clock when the warm-up ends. Both compile clients now
+  share `worker-rpc.ts` (the duplicated worker code is gone).
+- **No lost edits on a language switch** — the pending autosave is flushed
+  under its own language first; blocked storage reseeds the right starter.
+- Test-script runs are cancelled by a recompile instead of writing old turns
+  into the fresh transcript. Headless output is capped at 256 KB per turn
+  (as `docs/06-security.md` promised).
+- Share links: a blocked clipboard shows an error toast; oversized / deflate-
+  bomb links are refused on decode; the "replace editor" toast only loads
+  into the language it was made for.
+- **Keyboard & a11y:** the Skein tree is a single tab stop with focus on the
+  real treeitem; arrow keys no longer hijack (and auto-save) the inline
+  "new command" box; Enter works on row buttons; Home/End; focus returns to
+  the row after adding. ⌘B / Ctrl+B compiles from anywhere (hint is
+  platform-correct); Results announces a one-line summary instead of reading
+  the whole panel; the Extensions drop zone takes Space and announces
+  results; the test-script editor no longer traps Tab.
+- **Mobile & map:** `h-dvh` layout (iOS toolbar no longer hides the bottom),
+  a Compile button on the pane switch, tapping a diagnostic shows the
+  editor, the file drawer closes on pick. The map pans by touch, pinch-
+  zooms, and wheel/trackpad zoom is proportional (a gentle swipe no longer
+  zooms all the way).
+- CSS preloads carry `crossorigin` (they were ignored and the sheet fetched
+  twice); download blob URLs are revoked after the download starts.
+
 ### Added — 2026-07-09 The Skein (v1)
 - **The Skein** — the v2 headline, grown from the test-script spine exactly as
   designed in Doc 10: a branching tree of commands (each root→node path is a

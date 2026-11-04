@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { EditorState, Compartment, type Extension } from '@codemirror/state'
 import { EditorView, keymap, highlightActiveLine, drawSelection, placeholder } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
+import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { StreamLanguage, HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 
@@ -51,7 +51,9 @@ function makeState(text: string): EditorState {
     placeholder('north. examine lamp. take lamp. inventory…'),
     EditorView.contentAttributes.of({ 'aria-label': 'Test script commands' }),
     themeComp.of(theme(isDark())),
-    keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap]),
+    // No indentWithTab: a test script is one command per line, so Tab should
+    // move focus out of the editor rather than trap keyboard users in it.
+    keymap.of([...defaultKeymap, ...historyKeymap]),
     EditorView.updateListener.of(u => {
       if (u.docChanged && activeScript.value) updateText(activeScript.value.id, u.state.doc.toString())
     }),

@@ -102,7 +102,8 @@ async function onDrop(event: DragEvent) {
           role="button"
           tabindex="0"
           @click="pick"
-          @keydown.enter="pick"
+          @keydown.enter.prevent="pick"
+          @keydown.space.prevent="pick"
           @dragover.prevent="dragging = true"
           @dragleave.prevent="dragging = false"
           @drop.prevent="onDrop"
@@ -113,7 +114,7 @@ async function onDrop(event: DragEvent) {
             <code class="frotz-code">.zip</code> of them)
           </p>
         </div>
-        <p v-if="note" class="text-muted text-xs">{{ note }}</p>
+        <p class="text-muted text-xs" role="status">{{ note }}</p>
 
         <ul class="divide-default divide-y">
           <li v-for="ext in all" :key="ext.id" class="flex items-start gap-3 py-2.5">

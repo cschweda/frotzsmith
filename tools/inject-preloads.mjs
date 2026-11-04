@@ -64,7 +64,10 @@ export function injectPreloads(html, { js, css }, opts = {}) {
   }
   for (const file of css) {
     if (html.includes(`/_nuxt/${file}`)) continue
-    links.push(`<link rel="preload" as="style" href="/_nuxt/${file}">`)
+    // crossorigin must match how Vite later loads the sheet (it sets
+    // crossorigin on its <link rel=stylesheet>); a mismatched preload is
+    // ignored and the CSS is downloaded twice.
+    links.push(`<link rel="preload" as="style" crossorigin href="/_nuxt/${file}">`)
   }
   if (!links.length) return html
   return html.replace(marker, `${links.join('')}${marker}`)

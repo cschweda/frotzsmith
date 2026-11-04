@@ -112,47 +112,100 @@ function clientToSvg(clientX: number, clientY: number): { x: number; y: number }
 }
 
 // ─── Wheel zoom ────────────────────────────────────────────────────────────
+/**
+ * Zoom proportional to the scroll distance. A trackpad sends dozens of tiny
+ * deltas per gesture; a fixed 10% step per event zoomed a gentle swipe all the
+ * way in/out. Pixel-mode deltas scale ~0.1% per px (a mouse notch ≈ 100 px ≈
+ * 10%, as before); line-mode (Firefox mice) counts ~16 px a line. Trackpad pinch arrives
+ * as ctrl+wheel with small deltas — the same formula handles it. Horizontal
+ * scroll (two-finger sideways) pans.
+ */
 function onWheel(e: WheelEvent) {
   // @wheel.prevent on the SVG calls e.preventDefault() before this handler,
-  // so the page does not scroll. We just need to zoom toward the cursor.
+  // so the page does not scroll.
+  const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1
+  const dy = e.deltaY * unit
+  const dx = e.deltaX * unit
+  if (Math.abs(dx) > Math.abs(dy) && !e.ctrlKey) {
+    const el = svgEl.value
+    if (!el) return
+    const v = view.value
+    view.value = { ...v, x: v.x + (dx / el.getBoundingClientRect().width) * v.w }
+    auto.value = false
+    return
+  }
+  if (!dy) return
+  const factor = Math.exp(Math.max(-200, Math.min(200, dy)) * (e.ctrlKey ? 0.01 : 0.001))
   const { x, y } = clientToSvg(e.clientX, e.clientY)
-  zoomBy(e.deltaY < 0 ? 0.9 : 1.1, x, y)
+  zoomBy(factor, x, y)
 }
 
-// ─── Drag pan ─────────────────────────────────────────────────────────────
-let lastPx = 0
-let lastPy = 0
+// ─── Drag pan + pinch zoom (pointer events: mouse, pen and touch) ──────────
+/** Active pointers (client coords). One → pan; two → pinch-zoom + pan.
+ *  The SVG sets `touch-action: none`, otherwise the browser claims the touch
+ *  gesture for page scrolling and fires pointercancel mid-drag. */
+const pointers = new Map<number, { x: number; y: number }>()
+let pinchDist = 0
+let lastMid = { x: 0, y: 0 }
 
-function onPointerDown(e: PointerEvent) {
-  if (e.button !== 0) return  // left-click only
-  dragging.value = true
-  lastPx = e.clientX
-  lastPy = e.clientY
-  // Capture so pointermove/pointerup still fire if the cursor leaves the SVG.
-  svgEl.value?.setPointerCapture(e.pointerId)
+function pinchState() {
+  const [a, b] = [...pointers.values()]
+  return {
+    dist: Math.hypot(a!.x - b!.x, a!.y - b!.y),
+    mid: { x: (a!.x + b!.x) / 2, y: (a!.y + b!.y) / 2 },
+  }
 }
 
-function onPointerMove(e: PointerEvent) {
-  if (!dragging.value) return
+function panByClient(dxPx: number, dyPx: number) {
   const el = svgEl.value
   if (!el) return
   const rect = el.getBoundingClientRect()
   const v = view.value
-
-  // Convert the client-pixel delta to SVG-unit delta, then subtract:
-  // dragging right (+dx pixels) should reveal content to the left, so
-  // view.x decreases — the natural "grab and pull" direction.
-  const svgDx = ((e.clientX - lastPx) / rect.width) * v.w
-  const svgDy = ((e.clientY - lastPy) / rect.height) * v.h
-
-  view.value = { ...v, x: v.x - svgDx, y: v.y - svgDy }
+  // Dragging right (+dx px) reveals content to the left: view.x decreases.
+  view.value = { ...v, x: v.x - (dxPx / rect.width) * v.w, y: v.y - (dyPx / rect.height) * v.h }
   auto.value = false
-  lastPx = e.clientX
-  lastPy = e.clientY
 }
 
-function onPointerUp() {
-  dragging.value = false
+function onPointerDown(e: PointerEvent) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return // left-click only
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+  // Capture so pointermove/pointerup still fire if the pointer leaves the SVG.
+  svgEl.value?.setPointerCapture(e.pointerId)
+  dragging.value = true
+  if (pointers.size === 2) {
+    const p = pinchState()
+    pinchDist = p.dist
+    lastMid = p.mid
+  }
+}
+
+function onPointerMove(e: PointerEvent) {
+  const prev = pointers.get(e.pointerId)
+  if (!prev) return
+  const cur = { x: e.clientX, y: e.clientY }
+  pointers.set(e.pointerId, cur)
+
+  if (pointers.size === 1) {
+    panByClient(cur.x - prev.x, cur.y - prev.y)
+    return
+  }
+  if (pointers.size === 2) {
+    const p = pinchState()
+    panByClient(p.mid.x - lastMid.x, p.mid.y - lastMid.y)
+    if (pinchDist > 0 && p.dist > 0) {
+      const pivot = clientToSvg(p.mid.x, p.mid.y)
+      zoomBy(pinchDist / p.dist, pivot.x, pivot.y)
+    }
+    pinchDist = p.dist
+    lastMid = p.mid
+  }
+}
+
+function onPointerUp(e: PointerEvent) {
+  pointers.delete(e.pointerId)
+  dragging.value = pointers.size > 0
+  // Lifting one finger of a pinch: the remaining one continues as a pan.
+  pinchDist = 0
 }
 
 // ─── Keep current room on-screen (when in manual zoom/pan mode) ────────────
@@ -396,7 +449,7 @@ const hoveredHasUnexplored = computed(() => hoveredExits.value.some(x => x.unexp
     <template v-else>
       <svg
         ref="svgEl"
-        class="h-full w-full select-none"
+        class="h-full w-full touch-none select-none"
         :class="dragging ? 'cursor-grabbing' : 'cursor-grab'"
         :viewBox="viewBox"
         preserveAspectRatio="xMidYMid meet"

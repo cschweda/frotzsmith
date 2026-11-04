@@ -43,8 +43,10 @@ function boot() {
 
 // Full-screen the play area (the whole game, not the IDE chrome).
 function toggleFullscreen() {
-  if (document.fullscreenElement) document.exitFullscreen()
-  else container.value?.requestFullscreen?.()
+  // Both return promises that reject when the browser refuses (permissions
+  // policy, iOS Safari on non-video elements) — not worth an unhandled error.
+  if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+  else void container.value?.requestFullscreen?.()?.catch(() => {})
 }
 function onFsChange() {
   isFullscreen.value = document.fullscreenElement === container.value

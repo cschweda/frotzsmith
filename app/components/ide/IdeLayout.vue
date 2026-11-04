@@ -1,10 +1,27 @@
 <script setup lang="ts">
 import { frotzsmith } from '~~/frotzsmith.config'
+import { isCompileShortcut } from '~/utils/shortcut'
 
-const { restore, savedAt, activeProfile, profileMode, result, effectiveExt } = useIde()
+const { restore, savedAt, activeProfile, profileMode, result, effectiveExt, mobileView, runCompile, status } = useIde()
 const { profile: langProfile } = useLanguage()
-const { panelOpen, togglePanel } = useProjectFiles()
-const mobileView = ref<'editor' | 'output'>('editor')
+const { panelOpen, togglePanel, activeId } = useProjectFiles()
+
+/** Mobile has no Compile button in the Source pane (it lives in the Output
+ *  title strip) — the pane switch carries one, and shows the results. */
+function compileFromMobile() {
+  mobileView.value = 'output'
+  void runCompile()
+}
+
+// ⌘B / Ctrl+B compiles from anywhere in the IDE, not only inside CodeMirror
+// (whose own Mod-b binding handles — and preventDefaults — editor focus).
+function onGlobalKeydown(e: KeyboardEvent) {
+  if (e.defaultPrevented || !isCompileShortcut(e)) return
+  e.preventDefault()
+  void runCompile()
+}
+onMounted(() => window.addEventListener('keydown', onGlobalKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
 
 const { consumeShareFragment } = useShareLink()
 const { restore: restoreSkein } = useSkein()
@@ -65,6 +82,13 @@ onMounted(() => {
 })
 onBeforeUnmount(() => viewportMq?.removeEventListener('change', syncViewport))
 
+// Picking a file in the mobile drawer should show it, not leave the drawer
+// covering the editor.
+watch(activeId, () => {
+  if (!isDesktop.value && panelOpen.value) togglePanel()
+  if (!isDesktop.value) mobileView.value = 'editor'
+})
+
 // Drawer is open only on mobile; closing it (backdrop/Esc) routes through
 // togglePanel so the closed state persists (not just an in-memory ref write).
 const drawerOpen = computed({
@@ -76,7 +100,9 @@ const drawerOpen = computed({
 </script>
 
 <template>
-  <div class="flex h-screen flex-col bg-default text-default">
+  <!-- h-dvh, not h-screen: iOS Safari's 100vh is taller than the visible
+       area, which hid the status bar and editor bottom under its toolbar. -->
+  <div class="flex h-dvh flex-col bg-default text-default">
     <IdeToolbar />
 
     <!-- Mobile pane switch -->
@@ -103,6 +129,15 @@ const drawerOpen = computed({
       >
         Output
       </button>
+      <UButton
+        color="primary"
+        icon="i-lucide-hammer"
+        :loading="status === 'compiling'"
+        :disabled="status === 'compiling'"
+        aria-label="Compile"
+        title="Compile"
+        @click="compileFromMobile"
+      />
     </div>
 
     <!-- Explorer + two-pane shell -->

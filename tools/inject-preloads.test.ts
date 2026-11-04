@@ -61,7 +61,7 @@ describe('injectPreloads', () => {
     const out = injectPreloads(HTML, { js: ['page-index.js', 'ide.js'], css: ['IdeLayout.css'] })
     expect(out).toContain('<link rel="modulepreload" crossorigin href="/_nuxt/page-index.js">')
     expect(out).toContain('<link rel="modulepreload" crossorigin href="/_nuxt/ide.js">')
-    expect(out).toContain('<link rel="preload" as="style" href="/_nuxt/IdeLayout.css">')
+    expect(out).toContain('<link rel="preload" as="style" crossorigin href="/_nuxt/IdeLayout.css">')
     expect(out.indexOf('page-index.js')).toBeLessThan(out.indexOf('</head>'))
   })
 

@@ -54,7 +54,8 @@ export function useHtmlExport() {
       a.href = url
       a.download = `${storyBase.value}.html`
       a.click()
-      URL.revokeObjectURL(url)
+      // Revoking synchronously can cancel the download in some Safari/Firefox builds.
+      setTimeout(() => URL.revokeObjectURL(url), 30_000)
       return true
     } catch (err: unknown) {
       useToast().add({

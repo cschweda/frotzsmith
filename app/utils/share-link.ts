@@ -19,6 +19,11 @@ export type ShareLang = 'i6' | 'zil'
  *  caller tells the author to Save As / export instead. */
 export const SHARE_FRAGMENT_MAX_CHARS = 32_000
 
+/** Largest source a decoded link may yield. A link we'd never have encoded
+ *  (oversized payload, or a deflate bomb) is rejected instead of inflated
+ *  into an arbitrarily large string in the opener's tab. */
+export const SHARE_SOURCE_MAX_CHARS = 4_000_000
+
 function toBase64Url(bytes: Uint8Array): string {
   let binary = ''
   const CHUNK = 0x8000
@@ -56,10 +61,12 @@ export function decodeShareFragment(hash: string): { source: string; lang: Share
   const src = params.get('src')
   const lang = params.get('lang')
   if (!src || (lang !== 'i6' && lang !== 'zil')) return null
+  if (src.length > SHARE_FRAGMENT_MAX_CHARS) return null
   const bytes = fromBase64Url(src)
   if (!bytes) return null
   try {
-    return { source: strFromU8(inflateSync(bytes)), lang }
+    const source = strFromU8(inflateSync(bytes))
+    return source.length > SHARE_SOURCE_MAX_CHARS ? null : { source, lang }
   } catch {
     return null
   }

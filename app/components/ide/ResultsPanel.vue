@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { useHtmlExport } from '~/composables/useHtmlExport'
 
+import { compileShortcutLabel } from '~/utils/shortcut'
+
 const { result, status, storyBase, jumpTo, playStory } = useIde()
+const shortcut = compileShortcutLabel()
 const { exportHtml, exporting } = useHtmlExport()
 function onExportHtml() {
   void exportHtml() // outcome surfaces via toast on failure
@@ -13,6 +16,16 @@ const errorCount = computed(
 const warningCount = computed(
   () => result.value?.diagnostics.filter(d => d.severity === 'warning').length ?? 0,
 )
+
+/** What a screen reader hears after a compile: one short line — not the whole
+ *  panel (banner, every diagnostic and the raw compiler output). */
+const announcement = computed(() => {
+  if (status.value === 'compiling') return 'Compiling…'
+  if (status.value === 'idle' || !result.value) return ''
+  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
+  const counts = `${plural(errorCount.value, 'error')}, ${plural(warningCount.value, 'warning')}`
+  return status.value === 'success' ? `Compiled successfully — ${counts}.` : `Compile failed — ${counts}.`
+})
 
 function fmtBytes(n: number) {
   return n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`
@@ -37,12 +50,14 @@ function downloadStory() {
   a.href = url
   a.download = `${storyBase.value}.${r.storyExt}`
   a.click()
-  URL.revokeObjectURL(url)
+  // Revoking synchronously can cancel the download in some Safari/Firefox builds.
+  setTimeout(() => URL.revokeObjectURL(url), 30_000)
 }
 </script>
 
 <template>
-  <div class="h-full overflow-auto p-4 sm:p-6" aria-live="polite">
+  <div class="h-full overflow-auto p-4 sm:p-6">
+    <p class="sr-only" role="status">{{ announcement }}</p>
     <!-- Idle -->
     <div
       v-if="status === 'idle'"
@@ -51,7 +66,7 @@ function downloadStory() {
       <UIcon name="i-lucide-hammer" class="size-10 text-primary" />
       <p class="text-lg font-semibold">Ready to forge</p>
       <p class="text-muted max-w-xs text-sm">
-        Press <kbd class="rounded bg-elevated px-1.5 py-0.5 text-xs font-semibold">⌘B</kbd> or
+        Press <kbd class="rounded bg-elevated px-1.5 py-0.5 text-xs font-semibold">{{ shortcut }}</kbd> or
         <span class="font-medium text-default">Compile</span> to build your story file.
       </p>
     </div>
