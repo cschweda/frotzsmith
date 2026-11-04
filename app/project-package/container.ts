@@ -66,6 +66,11 @@ const S_IFREG = 0o100000
 const S_IFDIR = 0o040000
 const S_IFLNK = 0o120000
 
+/** Info-ZIP Unicode Path and Unicode Comment extra fields: a second name (or
+ *  comment) that some unzippers show instead of the entry's real one. */
+const EXTRA_UNICODE_PATH = 0x7075
+const EXTRA_UNICODE_COMMENT = 0x6375
+
 /** DOS date 1980-01-01, time 00:00 — fixed so output is deterministic. */
 const DOS_DATE = (0 << 9) | (1 << 5) | 1
 const DOS_TIME = 0
@@ -123,6 +128,59 @@ const fail = {
     new PackageError('size-mismatch', `This project file is damaged: ${displayPath(p)} isn’t the size its header says.`),
   crcMismatch: (p: string) =>
     new PackageError('crc-mismatch', `This project file is damaged: ${displayPath(p)} failed its checksum.`),
+  trailingData: (p: string) =>
+    new PackageError('trailing-data', `This project file is damaged: ${displayPath(p)} has extra data after its end.`),
+  comment: () =>
+    new PackageError('archive-comment', 'This project file has a comment at its end, which Frotzsmith doesn’t allow.'),
+  unicodeExtra: (p: string) =>
+    new PackageError('unicode-extra', `This project contains a file with a second, hidden name, which Frotzsmith doesn’t allow: ${displayPath(p)}.`),
+  pathConflict: (file: string, folder: string) =>
+    new PackageError(
+      'path-conflict',
+      `This project contains a file and a folder with the same name: ${displayPath(file, 40)} and ${displayPath(folder, 40)}.`,
+    ),
+}
+
+/**
+ * Walk an extra field's records (id, length, data). Returns 'damaged' when the
+ * records don't fill it exactly, 'unicode' when one is an Info-ZIP Unicode Path
+ * or Unicode Comment field (a second name other unzippers would show), else null.
+ */
+function extraProblem(extra: Uint8Array): 'damaged' | 'unicode' | null {
+  const dv = new DataView(extra.buffer, extra.byteOffset, extra.byteLength)
+  let p = 0
+  while (p < extra.length) {
+    if (p + 4 > extra.length) return 'damaged'
+    const id = dv.getUint16(p, true)
+    const len = dv.getUint16(p + 2, true)
+    if (p + 4 + len > extra.length) return 'damaged'
+    if (id === EXTRA_UNICODE_PATH || id === EXTRA_UNICODE_COMMENT) return 'unicode'
+    p += 4 + len
+  }
+  return null
+}
+
+/**
+ * The first file whose name is also a folder of another entry (`a` next to
+ * `a/b`, compared by pathKey), as [file, folder], else null. Unpacked, one of
+ * the two can't be created — or a link-following extractor could be steered.
+ */
+export function findPathConflict(entries: { name: string; isDir: boolean }[]): [string, string] | null {
+  const folders = new Map<string, string>() // pathKey -> the entry that makes it a folder
+  for (const e of entries) {
+    const segments = (e.isDir ? e.name.slice(0, -1) : e.name).split('/')
+    const upTo = e.isDir ? segments.length : segments.length - 1
+    for (let i = 1; i <= upTo; i++) {
+      const key = pathKey(segments.slice(0, i).join('/'))
+      if (!folders.has(key)) folders.set(key, e.name)
+    }
+  }
+  for (const e of entries) {
+    if (e.isDir) continue
+    const folder = folders.get(pathKey(e.name))
+    if (folder !== undefined) return [e.name, folder]
+  }
+  return null
 }
 
 // ---------------------------------------------------------------------------
@@ -195,6 +253,9 @@ export function readContainer(bytes: Uint8Array): Map<string, Uint8Array> {
   // tricks, no hidden ZIP64 records, no unexplained bytes.
   if (cdOffset + cdSize !== eocd) throw fail.damaged()
   if (count === 0) throw fail.notAPackage()
+  // Our writer never writes a comment, and other unzippers can find a whole
+  // second archive inside one (a different set of files from the one we open).
+  if (u16(eocd + 20) !== 0) throw fail.comment()
 
   // --- Phase 1b: walk the central directory (structure only) -----------------
   interface RawCentral {
@@ -206,6 +267,7 @@ export function readContainer(bytes: Uint8Array): Map<string, Uint8Array> {
     usize: number
     nameBytes: Uint8Array
     extraLen: number
+    extra: Uint8Array
     diskStart: number
     externalAttrs: number
     offset: number
@@ -228,6 +290,7 @@ export function readContainer(bytes: Uint8Array): Map<string, Uint8Array> {
       usize: u32(p + 24),
       nameBytes: bytes.subarray(p + CENTRAL_LEN, p + CENTRAL_LEN + nameLen),
       extraLen,
+      extra: bytes.subarray(p + CENTRAL_LEN + nameLen, p + CENTRAL_LEN + nameLen + extraLen),
       diskStart: u16(p + 34),
       externalAttrs: u32(p + 38),
       offset: u32(p + 42),
@@ -264,13 +327,17 @@ export function readContainer(bytes: Uint8Array): Map<string, Uint8Array> {
 
     const isDir = name.endsWith('/')
     if (pathProblem(isDir ? name.slice(0, -1) : name) !== null) throw fail.unsafePath(name)
+    const extra = extraProblem(r.extra)
+    if (extra === 'damaged') throw fail.damagedEntry(name)
+    if (extra === 'unicode') throw fail.unicodeExtra(name)
 
-    if (r.versionMadeBy >>> 8 === HOST_UNIX) {
-      const type = (r.externalAttrs >>> 16) & S_IFMT
-      if (type === S_IFLNK) throw fail.symlink(name)
-      if (type !== 0 && type !== S_IFREG && type !== S_IFDIR) throw fail.special(name)
-      if (type === S_IFDIR && !isDir) throw fail.special(name)
-    }
+    // Unix mode bits are read whatever host made the entry: a desktop
+    // extractor or another unzipper may honour them regardless. A type of 0
+    // (no type recorded, e.g. MS-DOS attributes only) is an ordinary file.
+    const type = (r.externalAttrs >>> 16) & S_IFMT
+    if (type === S_IFLNK) throw fail.symlink(name)
+    if (type !== 0 && type !== S_IFREG && type !== S_IFDIR) throw fail.special(name)
+    if (type === S_IFDIR && !isDir) throw fail.special(name)
 
     if (isDir) {
       if (r.csize !== 0 || r.usize !== 0) throw fail.directoryWithData(name)
@@ -300,6 +367,8 @@ export function readContainer(bytes: Uint8Array): Map<string, Uint8Array> {
     })
   }
   if (total > LIMITS.totalBytes) throw fail.totalTooLarge()
+  const conflict = findPathConflict(entries)
+  if (conflict) throw fail.pathConflict(conflict[0], conflict[1])
 
   // --- Phase 2: local headers agree and tile the archive exactly -------------
   for (let i = 0; i < entries.length; i++) {
@@ -329,6 +398,9 @@ export function readContainer(bytes: Uint8Array): Map<string, Uint8Array> {
       throw fail.headerMismatch(e.name)
     }
     if (i === 0 && lextraLen !== 0) throw fail.badMimetype()
+    const lextra = extraProblem(bytes.subarray(off + LOCAL_LEN + lnameLen, dataStart))
+    if (lextra === 'damaged') throw fail.damagedEntry(e.name)
+    if (lextra === 'unicode') throw fail.unicodeExtra(e.name)
 
     const dataEnd = dataStart + e.csize
     if (dataEnd > cdOffset) throw fail.damagedEntry(e.name)
@@ -413,7 +485,32 @@ function inflateBounded(data: Uint8Array, expected: number, name: string): Uint8
     if (!overflow) throw fail.damagedEntry(name)
   }
   if (overflow) throw fail.sizeMismatch(name)
-  return length === expected ? out : out.subarray(0, length)
+  if (length !== expected) return out.subarray(0, length)
+  // The stream must end exactly at the entry's last byte (spec §2: no gaps).
+  // A valid DEFLATE stream always needs its last byte, so if it still
+  // inflates completely without it, bytes followed the stream's end.
+  if (data.length > 0 && inflatesWhole(data.subarray(0, data.length - 1), expected)) throw fail.trailingData(name)
+  return out
+}
+
+/** Whether `data` is a complete DEFLATE stream of exactly `expected` bytes. */
+function inflatesWhole(data: Uint8Array, expected: number): boolean {
+  let length = 0
+  let overflow = false
+  const inflater = new Inflate((chunk) => {
+    length += chunk.length
+    if (length > expected) overflow = true
+  })
+  try {
+    if (data.length === 0) inflater.push(new Uint8Array(0), true)
+    for (let i = 0; i < data.length && !overflow; i += INFLATE_CHUNK) {
+      const end = Math.min(data.length, i + INFLATE_CHUNK)
+      inflater.push(data.subarray(i, end), end === data.length)
+    }
+  } catch {
+    return false
+  }
+  return !overflow && length === expected
 }
 
 // ---------------------------------------------------------------------------
@@ -447,6 +544,13 @@ export function writeContainer(entries: ContainerEntry[]): Uint8Array {
     }
     seen.set(key, e.path)
     if (e.bytes.length >= 0xffffffff) throw new PackageError('too-large', 'This project is too large to save.')
+  }
+  const conflict = findPathConflict(entries.map(e => ({ name: e.path, isDir: false })))
+  if (conflict) {
+    throw new PackageError(
+      'path-conflict',
+      `Frotzsmith can’t save a file and a folder with the same name: ${displayPath(conflict[0], 40)} and ${displayPath(conflict[1], 40)}.`,
+    )
   }
   if (entries.length + 1 >= 0xffff) throw new PackageError('too-many-entries', 'This project has too many files to save.')
 

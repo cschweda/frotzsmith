@@ -10,8 +10,19 @@ describe('pathProblem', () => {
     'café.h',
     'a'.repeat(255),
     'C/x.h',
-    'x/C:/y.h',
     'with space.h',
+    // Near-misses of the Windows device names are ordinary names.
+    'CONSOLE.h',
+    'icon.h',
+    'com10.h',
+    'lpt.h',
+    'auxiliary/x.h',
+    'notes/nul-hypothesis.txt',
+    // Emoji (a surrogate pair, a variation selector) and accented letters are fine.
+    '🐉.h',
+    'ok\u2764\ufe0f.txt',
+    '.hidden',
+    'a b/c d.h',
   ])('accepts %j', (p) => {
     expect(pathProblem(p)).toBeNull()
   })
@@ -39,6 +50,66 @@ describe('pathProblem', () => {
     ['256-byte segment', 'a'.repeat(256)],
     ['256-byte multibyte segment', 'é'.repeat(128)],
     ['1025-byte path', `${'a'.repeat(200)}/`.repeat(5) + 'a'.repeat(20)],
+    // Windows can't hold these (F9): reserved device names in any segment,
+    // with or without an extension, in any case.
+    ['CON', 'CON'],
+    ['con.txt', 'con.txt'],
+    ['AUX in a folder', 'notes/AUX.h'],
+    ['NUL', 'NUL'],
+    ['PRN', 'prn.inf'],
+    ['COM1', 'COM1.inf'],
+    ['COM0', 'com0'],
+    ['LPT9', 'LPT9'],
+    ['COM superscript one', 'COM\u00b9'],
+    ['LPT superscript three', 'lpt\u00b3.h'],
+    ['CONIN$', 'CONIN$'],
+    ['CONOUT$', 'conout$.txt'],
+    ['device name as a folder', 'CON/x.h'],
+    ['device name with spaces before the dot', 'CON .h'],
+    ['device name with two extensions', 'nul.tar.gz'],
+    // Trailing dot / space, leading space, in any segment.
+    ['trailing dot', 'file.'],
+    ['trailing space', 'file '],
+    ['trailing dot in a folder', 'dir./x'],
+    ['leading space', ' lead'],
+    ['leading space in a folder', 'a/ b'],
+    // Characters Windows forbids.
+    ['colon', 'notes/a:b'],
+    ['stream syntax', 'x:stream'],
+    ['colon in a folder', 'x/C:/y.h'],
+    ['less-than', 'a<b'],
+    ['greater-than', 'a>b'],
+    ['pipe', 'a|b'],
+    ['question mark', 'a?b'],
+    ['asterisk', 'a*b'],
+    ['double quote', 'a"b'],
+    // Invisible / bidi / format / private-use / separator characters.
+    ['right-to-left override', '\u202eexe.txt'],
+    ['zero-width space', 'file\u200b.inf'],
+    ['zero-width joiner', 'a\u200db'],
+    ['BOM', '\ufeffx'],
+    ['soft hyphen', 'a\u00adb'],
+    ['word joiner', 'a\u2060b'],
+    ['invisible times', 'a\u2062b'],
+    ['Arabic letter mark', 'a\u061cb'],
+    ['line separator', 'a\u2028b'],
+    ['paragraph separator', 'a\u2029b'],
+    ['tag character', 'a\u{e0041}b'],
+    ['interlinear annotation', 'a\ufff9b'],
+    ['Mongolian vowel separator', 'a\u180eb'],
+    ['private use', 'a\ue000b'],
+    ['supplementary private use', 'a\u{f0000}b'],
+    ['Hangul filler', 'a\u3164b'],
+    ['Hangul choseong filler', 'a\u115fb'],
+    ['Hangul jungseong filler', 'a\u1160b'],
+    ['halfwidth Hangul filler', 'a\uffa0b'],
+    // Slash and backslash lookalikes.
+    ['division slash', '\u2215etc\u2215passwd'],
+    ['fullwidth solidus', 'a\uff0fb'],
+    ['big solidus', 'a\u29f8b'],
+    ['fraction slash', 'a\u2044b'],
+    ['fullwidth reverse solidus', 'a\uff3cb'],
+    ['reverse solidus operator', 'a\u29f5b'],
   ])('refuses %s', (_label, p) => {
     const reason = pathProblem(p)
     expect(typeof reason).toBe('string')
@@ -59,5 +130,28 @@ describe('pathKey', () => {
     expect(pathKey('A.h')).toBe(pathKey('a.h'))
     expect(pathKey('Cafe\u0301.h')).toBe(pathKey('café.h'))
     expect(pathKey('a.h')).not.toBe(pathKey('b.h'))
+  })
+
+  // F9: names that a case-insensitive, normalizing file system (APFS, NTFS)
+  // or another unzipper treats as one must collide here too.
+  test.each([
+    ['long s', 's.h', '\u017f.h'],
+    ['final sigma', '\u03c3.h', '\u03c2.h'],
+    ['dotless i', 'i.h', '\u0131.h'],
+    ['sharp s', 'ss.h', '\u00df.h'],
+    ['Kelvin sign', 'k.h', '\u212a.h'],
+    ['titlecase digraph', '\u01c5.h', '\u01c6.h'],
+    ['ligature ff', '\ufb00.h', 'ff.h'],
+    ['ligature fi', '\ufb01le', 'file'],
+    ['ohm sign', '\u03a9.h', '\u2126.h'],
+    ['fullwidth letters', '\uff21.h', 'a.h'],
+    ['decomposed accent', 'e\u0301.h', '\u00e9.h'],
+  ])('%s collides', (_label, a, b) => {
+    expect(pathKey(a)).toBe(pathKey(b))
+  })
+
+  test('different names still differ', () => {
+    expect(pathKey('s.h')).not.toBe(pathKey('t.h'))
+    expect(pathKey('story.inf')).not.toBe(pathKey('story.h'))
   })
 })

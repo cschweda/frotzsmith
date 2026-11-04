@@ -14,6 +14,24 @@ const CONTROL = /[\u0000-\u001f\u007f-\u009f]/
 // A high surrogate not followed by a low one, or a low one not preceded by a high one.
 const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/
 const DRIVE_LETTER = /^[A-Za-z]:/
+/** Characters Windows can't hold in a name (`\\` and `/` are handled apart). */
+const WINDOWS_FORBIDDEN = /[:<>|?*"]/
+/**
+ * Characters that can't be seen, or that change how the rest of a name
+ * displays: format characters (bidi controls, zero-width characters, the BOM,
+ * soft hyphen, tags, invisible operators, …), line and paragraph separators,
+ * private-use characters, the Hangul fillers that render as blank space, and
+ * lookalikes of `/` and `\\` (division slash, fraction slash, fullwidth and big
+ * solidus, reverse solidus operator, fullwidth reverse solidus).
+ */
+const DECEPTIVE = /[\p{Cf}\p{Zl}\p{Zp}\p{Co}\u115f\u1160\u3164\uffa0\u2044\u2215\u29f5\u29f8\uff0f\uff3c]/u
+/**
+ * Windows device names, which name a device instead of a file in any folder
+ * and with any extension (`CON`, `nul.txt`, `COM1.inf`, `LPT¹`, `CONIN$`).
+ * Matched against the part of a segment before its first dot, with trailing
+ * spaces dropped, ignoring case.
+ */
+const DEVICE_NAME = /^(con|prn|aux|nul|com[0-9\u00b9\u00b2\u00b3]|lpt[0-9\u00b9\u00b2\u00b3]|conin\$|conout\$)$/i
 
 const utf8 = new TextEncoder()
 
@@ -24,16 +42,27 @@ export function pathProblem(path: string): string | null {
   if (path.includes('\\')) return 'the path contains a backslash'
   if (path.startsWith('/')) return 'the path starts with /'
   if (DRIVE_LETTER.test(path)) return 'the path starts with a drive letter'
+  if (WINDOWS_FORBIDDEN.test(path)) return 'the path contains a character Windows doesn’t allow in names'
+  if (DECEPTIVE.test(path)) return 'the path contains an invisible or look-alike character'
   if (utf8.encode(path).length > MAX_PATH_BYTES) return `the path is longer than ${MAX_PATH_BYTES} bytes`
   for (const segment of path.split('/')) {
     if (segment === '') return 'the path has an empty segment'
     if (segment === '.' || segment === '..') return `the path has a "${segment}" segment`
     if (utf8.encode(segment).length > MAX_SEGMENT_BYTES) return `a path segment is longer than ${MAX_SEGMENT_BYTES} bytes`
+    if (segment.endsWith('.') || segment.endsWith(' ')) return 'a name in the path ends with a dot or a space'
+    if (segment.startsWith(' ')) return 'a name in the path starts with a space'
+    if (DEVICE_NAME.test(segment.split('.')[0]!.replace(/ +$/, ''))) return 'the path uses a name Windows reserves for a device'
   }
   return null
 }
 
-/** The key two paths are compared by: equal keys collide (spec §2). */
+/**
+ * The key two paths are compared by: equal keys collide (spec §2). NFKC folds
+ * compatibility forms (`ﬀ` → `ff`, fullwidth `Ａ` → `A`, `ſ` → `s`), and
+ * upper-casing before lower-casing is a full case fold (`ß` → `ss`,
+ * `ı` → `i`, `ς` → `σ`), so names a case-insensitive file system or another
+ * unzipper would treat as one collide here too.
+ */
 export function pathKey(path: string): string {
-  return path.normalize('NFC').toLowerCase()
+  return path.normalize('NFKC').toUpperCase().toLowerCase().normalize('NFKC')
 }

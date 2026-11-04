@@ -346,10 +346,6 @@ describe('readContainer — accepts', () => {
     expect(readContainer(buildZip(many)).size).toBe(LIMITS.entries - 1)
   })
 
-  test('an archive comment', () => {
-    const z = buildZip(validEntries(), { eocd: { comment: enc.encode('made by hand') } })
-    expect(readContainer(z).size).toBe(1)
-  })
 })
 
 describe('readContainer — not a package', () => {
@@ -459,10 +455,50 @@ describe('readContainer — entry types', () => {
     expectRefused(buildZip([mimetypeEntry(), link]), 'symlink')
   })
 
-  test('symlink bits are only read from Unix-made entries', () => {
-    // Host 0 (MS-DOS): the high 16 bits mean nothing; treat it as a plain file.
-    const dos = stored('story.inf', 'x', { versionMadeBy: 20, externalAttrs: (0o120777 << 16) >>> 0 })
-    expect(readContainer(buildZip([mimetypeEntry(), dos])).size).toBe(1)
+  // F8: a desktop extractor or another unzipper may honour Unix mode bits
+  // whatever the "made by" host says, so they are read from every entry.
+  test.each([0, 3, 16, 19, 30])('a symbolic link made by host %i', (host) => {
+    const link = stored('notes', '../../../../tmp', { versionMadeBy: (host << 8) | 20, externalAttrs: (0o120777 << 16) >>> 0 })
+    expectRefused(buildZip([mimetypeEntry(), link]), 'symlink')
+  })
+
+  test.each([0, 19])('a FIFO or device made by host %i', (host) => {
+    for (const mode of [0o010644, 0o020644, 0o060644, 0o140644]) {
+      const odd = stored('story.inf', 'x', { versionMadeBy: (host << 8) | 20, externalAttrs: (mode << 16) >>> 0 })
+      expectRefused(buildZip([mimetypeEntry(), odd]), 'special-file')
+    }
+  })
+
+  test('a directory mode on a name that is not a folder, from any host', () => {
+    const odd = stored('story.inf', '', { versionMadeBy: (19 << 8) | 20, externalAttrs: (0o040755 << 16) >>> 0 })
+    expectRefused(buildZip([mimetypeEntry(), odd]), 'special-file')
+  })
+
+  test('plain files from any host, with or without Unix mode bits, are accepted', () => {
+    for (const host of [0, 3, 10, 19]) {
+      for (const attrs of [0, 0x20, (0o100644 << 16) >>> 0, (0o644 << 16) >>> 0]) {
+        const f = stored('story.inf', 'x', { versionMadeBy: (host << 8) | 20, externalAttrs: attrs })
+        expect(readContainer(buildZip([mimetypeEntry(), f])).size).toBe(1)
+      }
+    }
+  })
+
+  test('a file and a folder with the same name (a file "a" next to "a/b")', () => {
+    for (const [first, second] of [['a', 'a/b'], ['a/b', 'a'], ['A', 'a/b'], ['x/y', 'X/y/z.h']]) {
+      const e = expectRefused(buildZip([mimetypeEntry(), stored(first!, '1'), stored(second!, '2')]), 'path-conflict')
+      expect(e.message).toMatch(/^This project contains a file and a folder with the same name: /)
+    }
+  })
+
+  test('a directory entry with the same name as a file', () => {
+    const dir = stored('a/', new Uint8Array(0), { externalAttrs: (0o040755 << 16) >>> 0 })
+    expectRefused(buildZip([mimetypeEntry(), stored('a', 'x'), dir]), 'path-conflict')
+    expectRefused(buildZip([mimetypeEntry(), dir, stored('A', 'x')]), 'path-conflict')
+  })
+
+  test('a directory entry and files inside it are fine', () => {
+    const dir = stored('a/', new Uint8Array(0), { externalAttrs: (0o040755 << 16) >>> 0 })
+    expect([...readContainer(buildZip([mimetypeEntry(), dir, stored('a/b', 'x'), stored('a/c/d', 'y')])).keys()]).toEqual(['a/b', 'a/c/d'])
   })
 
   test('another special Unix file type (a FIFO)', () => {
@@ -694,6 +730,21 @@ describe('readContainer — structure', () => {
     expectRefused(buildZip(validEntries(), { eocd: { countDisk: 1, count: 2 } }), 'multi-disk')
   })
 
+  // F6(a): a reader that scans for the EOCD differently (macOS unzip,
+  // bsdtar, Python's zipfile) can find a whole second archive in a comment.
+  test('any archive comment', () => {
+    const z = buildZip(validEntries(), { eocd: { comment: enc.encode('made by hand') } })
+    expectRefused(z, 'archive-comment')
+  })
+
+  test('a different archive hidden in the comment (no second EOCD at the end)', () => {
+    const real = buildZip(validEntries())
+    const hidden = buildZip([mimetypeEntry(), stored('../../escape.txt', 'outside!')])
+    const comment = new Uint8Array([...hidden, 0x20]) // its EOCD no longer ends at EOF
+    expectRefused(buildZip(validEntries(), { eocd: { comment } }), 'archive-comment')
+    expect(real.length).toBeGreaterThan(0)
+  })
+
   test('trailing garbage after the EOCD', () => {
     expectRefused(buildZip(validEntries(), { trailing: enc.encode('garbage') }), 'damaged')
   })
@@ -730,6 +781,129 @@ describe('readContainer — structure', () => {
   test('a truncated archive', () => {
     const z = buildZip(validEntries())
     expectRefused(z.subarray(0, z.length - 30), 'damaged')
+  })
+})
+
+/** An extra-field record: header id, length, data. */
+function extraField(id: number, data: Uint8Array): Uint8Array {
+  const out = new Uint8Array(4 + data.length)
+  const dv = new DataView(out.buffer)
+  dv.setUint16(0, id, true)
+  dv.setUint16(2, data.length, true)
+  out.set(data, 4)
+  return out
+}
+
+/** An Info-ZIP Unicode Path (0x7075) or Unicode Comment (0x6375) field. */
+function unicodeField(id: number, forName: string, text: string): Uint8Array {
+  const t = enc.encode(text)
+  const data = new Uint8Array(5 + t.length)
+  data[0] = 1
+  new DataView(data.buffer).setUint32(1, crc32(enc.encode(forName)) >>> 0, true)
+  data.set(t, 5)
+  return extraField(id, data)
+}
+
+describe('readContainer — second names in extra fields (F6b)', () => {
+  test('an Info-ZIP Unicode Path field in the central directory', () => {
+    const e = stored('story.inf', 'x', { extra: unicodeField(0x7075, 'story.inf', '../../unicode-escape.inf'), local: { extra: new Uint8Array(0) } })
+    const err = expectRefused(buildZip([mimetypeEntry(), e]), 'unicode-extra')
+    expect(err.message).toContain('story.inf')
+  })
+
+  test('an Info-ZIP Unicode Path field in the local header only', () => {
+    const e = stored('story.inf', 'x', { local: { extra: unicodeField(0x7075, 'story.inf', 'other.inf') } })
+    expectRefused(buildZip([mimetypeEntry(), e]), 'unicode-extra')
+  })
+
+  test('an Info-ZIP Unicode Comment field', () => {
+    const e = stored('story.inf', 'x', { extra: unicodeField(0x6375, 'story.inf', 'hello'), local: { extra: new Uint8Array(0) } })
+    expectRefused(buildZip([mimetypeEntry(), e]), 'unicode-extra')
+  })
+
+  test('a Unicode Path field after another, harmless field', () => {
+    const extra = new Uint8Array([...extraField(0x5455, Uint8Array.of(1, 0, 0, 0, 0)), ...unicodeField(0x7075, 'story.inf', 'x.inf')])
+    expectRefused(buildZip([mimetypeEntry(), stored('story.inf', 'x', { extra, local: { extra: new Uint8Array(0) } })]), 'unicode-extra')
+  })
+
+  test('ordinary extra fields (timestamps, Unix ids) are accepted', () => {
+    const extra = new Uint8Array([...extraField(0x5455, Uint8Array.of(1, 0, 0, 0, 0)), ...extraField(0x7875, Uint8Array.of(1, 4, 0xe8, 3, 0, 0, 4, 0xe8, 3, 0, 0))])
+    const map = readContainer(buildZip([mimetypeEntry(), stored('story.inf', 'x', { extra })]))
+    expect(map.size).toBe(1)
+  })
+
+  test('an extra field whose records overrun it', () => {
+    const extra = Uint8Array.of(0x55, 0x54, 9, 0, 1) // says 9 bytes of data, has 1
+    expectRefused(buildZip([mimetypeEntry(), stored('story.inf', 'x', { extra })]), 'damaged')
+    expectRefused(buildZip([mimetypeEntry(), stored('story.inf', 'x', { local: { extra } })]), 'damaged')
+  })
+})
+
+describe('readContainer — deflate data ends where the entry ends (F14)', () => {
+  test.each([1, 3, 64])('%i trailing byte(s) after the deflate stream', (n) => {
+    const text = 'Constant Story "Hi";\n'.repeat(20)
+    const payload = new Uint8Array([...deflateSync(enc.encode(text)), ...new Uint8Array(n).fill(0x41)])
+    const e = stored('story.inf', text, { method: 8, csize: payload.length, payload })
+    const err = expectRefused(buildZip([mimetypeEntry(), e]), 'trailing-data')
+    expect(err.message).toContain('story.inf')
+  })
+
+  test('a second deflate stream appended to the first', () => {
+    const text = 'look\n'
+    const payload = new Uint8Array([...deflateSync(enc.encode(text)), ...deflateSync(enc.encode('xyzzy\n'))])
+    const e = stored('story.inf', text, { method: 8, csize: payload.length, payload })
+    expectRefused(buildZip([mimetypeEntry(), e]), 'trailing-data')
+  })
+
+  test('exact deflate streams of many shapes still open (stored, fixed and dynamic blocks; empty)', () => {
+    const samples = [
+      new Uint8Array(0),
+      enc.encode('a'),
+      enc.encode('hello hello hello hello'),
+      Uint8Array.from({ length: 70_000 }, (_, i) => (i * 7919) & 0xff), // mostly stored blocks
+      enc.encode('The quick brown fox. '.repeat(5000)),
+    ]
+    for (const bytes of samples) {
+      for (const level of [0, 1, 6, 9] as const) {
+        const e = deflated('story.inf', bytes, { payload: deflateSync(bytes, { level }) })
+        e.csize = e.payload.length
+        if (bytes.length > e.csize * LIMITS.ratio) continue
+        expect(readContainer(buildZip([mimetypeEntry(), e])).get('story.inf')).toEqual(bytes)
+      }
+    }
+  })
+})
+
+describe('writeContainer refuses what the reader refuses (F8, F9 parity)', () => {
+  test.each(['CON.h', 'notes/aux', 'a:b.h', 'file.', ' lead.h', '\u202eexe.txt', 'a\u200bb.h', 'a\u2215b.h', 'a?.h'])(
+    'the name %j',
+    (p) => {
+      expect(() => writeContainer([{ path: p, bytes: new Uint8Array(1) }])).toThrow(PackageError)
+    },
+  )
+
+  test.each([
+    ['s.h', '\u017f.h'],
+    ['ss.h', '\u00df.h'],
+    ['i.h', '\u0131.h'],
+    ['ff.h', '\ufb00.h'],
+  ])('names that fold together: %j and %j', (a, b) => {
+    expect(() => writeContainer([{ path: a, bytes: new Uint8Array(1) }, { path: b, bytes: new Uint8Array(1) }])).toThrow(PackageError)
+    // …and the reader refuses the same pair from a hand-made archive.
+    expectRefused(buildZip([mimetypeEntry(), stored(a, '1'), stored(b, '2')]), 'duplicate-path')
+  })
+
+  test('a file and a folder with the same name', () => {
+    for (const [a, b] of [['a', 'a/b'], ['A/b', 'a']]) {
+      let err: unknown
+      try {
+        writeContainer([{ path: a!, bytes: new Uint8Array(1) }, { path: b!, bytes: new Uint8Array(1) }])
+      } catch (e) {
+        err = e
+      }
+      expect(err).toBeInstanceOf(PackageError)
+      expect((err as PackageError).code).toBe('path-conflict')
+    }
   })
 })
 
