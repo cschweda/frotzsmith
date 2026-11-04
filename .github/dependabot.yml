@@ -1,0 +1,47 @@
+# Dependabot — modeled on Drafter's (github.com/cschweda/drafter, security
+# audit 2026-11-01). Weekly version updates for the yarn workspace (Dependabot's
+# `npm` ecosystem reads yarn.lock) and for the GitHub Actions CI uses.
+#
+# Minor and patch updates come grouped, so a week brings a PR or two, not
+# dozens; a major update comes on its own and gets its own branch + review.
+#
+# A new version waits a week before Dependabot offers it (`cooldown`), so a
+# package published with malware and pulled within days never reaches a PR.
+#
+# Security updates and alerts are repository settings (Settings → Code
+# security → Dependabot alerts / security updates). The `security` group keeps
+# those PRs few too. Every PR runs ci.yml (tests, typecheck, generate with the
+# replay + service-worker smoke checks, axe); before merging a dependency PR
+# also run a Netlify-shaped build (`NETLIFY=true npx nuxt generate` in a scratch
+# worktree): Netlify's preset writes dist/, CI's writes .output/public, and only
+# the former is what deploys (see tools/output-dir.test.ts).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: deps
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+      security:
+        applies-to: security-updates
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci
