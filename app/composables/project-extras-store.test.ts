@@ -49,3 +49,33 @@ describe('extras store', () => {
     expect(await getExtrasStore().load('k')).toEqual(sample())
   })
 })
+
+describe('extras store keeps ONE record per language', () => {
+  for (const [name, make] of [['IndexedDB', createIdbExtrasStore], ['memory', createMemoryExtrasStore]] as const) {
+    it(`${name}: saving a game removes the language's other records, not other languages'`, async () => {
+      const store = make()
+      expect(await store.save('i6:a', sample())).toBe(true)
+      expect(await store.save('zil:z', sample())).toBe(true)
+      expect(await store.save('i6:b', sample())).toBe(true)
+      expect(await store.load('i6:a')).toBeNull()
+      expect(await store.load('i6:b')).toEqual(sample())
+      expect(await store.load('zil:z')).toEqual(sample())
+    })
+    it(`${name}: clear(lang) removes that language's record only`, async () => {
+      const store = make()
+      await store.save('i6:a', sample())
+      await store.save('zil:z', sample())
+      await store.clear('i6')
+      expect(await store.load('i6:a')).toBeNull()
+      expect(await store.load('zil:z')).toEqual(sample())
+    })
+  }
+
+  it('operations run in call order, so a clear issued before a save never deletes it', async () => {
+    const store = createIdbExtrasStore()
+    const cleared = store.clear('i6')
+    const saved = store.save('i6:a', sample())
+    await Promise.all([cleared, saved])
+    expect(await store.load('i6:a')).toEqual(sample())
+  })
+})

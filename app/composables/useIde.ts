@@ -1,5 +1,7 @@
 import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { formatI6 } from '~/utils/format-i6'
+import { storyTitleOf } from '~/utils/story-title'
+import { getExtrasStore } from '~/composables/project-extras-store'
 import { formatZil } from '~/utils/format-zil'
 import { safeGetItem, safeRemoveItem, safeSetItem } from '~/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
@@ -59,19 +61,8 @@ export function useIde() {
       : activeProfile.value.defaultExt
   })
 
-  /**
-   * The story title from the source, used for Save-As filenames — language-aware.
-   * I6: reads `Constant Story "…"`.
-   * ZIL: reads the first pipe-segment of `<CONSTANT GAME-BANNER "Title|…">`.
-   */
-  const storyTitle = computed(() => {
-    if (profile.value.id === 'zil') {
-      const banner = /<CONSTANT\s+GAME-BANNER[^"]*"([^"]*)/i.exec(source.value)?.[1] ?? ''
-      const title = banner.split('|')[0]?.trim().replace(/[\r\n]/g, ' ').trim()
-      return title || undefined
-    }
-    return /Constant\s+Story\s+"([^"]*)"/i.exec(source.value)?.[1]?.trim()
-  })
+  /** The story title from the source, used for Save-As filenames — language-aware. */
+  const storyTitle = computed(() => storyTitleOf(profile.value.id === 'zil' ? 'zil' : 'i6', source.value))
   /** Filename stem for Save-As / Download: slug of the title (or 'story'), '-puny' for PunyInform. */
   const storyBase = computed(() => storyBaseName(storyTitle.value, effectiveProfile.value === 'puny'))
 
@@ -267,12 +258,16 @@ export function useIde() {
   }
 
   /** A different source is being loaded: hidden files kept from an opened
-   *  `.frotzsmith` project no longer belong to the editor's game, even when
+   *  `.frotzsmith` project no longer belong to the editor's game (the owner
+   *  marker and the stored record both go), even when
    *  the new one has the same title (useProjectPackage re-claims them after
    *  its own loadSource). Not part of resetForNewSource — that also runs on a
    *  language-switch restore, which keeps the same game. */
   function releaseExtras() {
-    if (import.meta.client) safeRemoveItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.extrasOwner))
+    if (!import.meta.client) return
+    safeRemoveItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.extrasOwner))
+    // …and drop the record itself, so the store never outgrows one project.
+    void getExtrasStore().clear(profile.value.stateKey)
   }
 
   /** Load a built-in sample into the editor, prettified for consistent formatting.

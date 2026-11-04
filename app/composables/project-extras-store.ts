@@ -8,7 +8,15 @@
  * fallback for node/SSR/no-IDB.
  *
  * Contract: `save` NEVER rejects — it resolves false on any failure so the
- * caller can cue the storage notice; `load` resolves null on missing/broken.
+ * caller can cue the storage notice; `load` resolves null on missing/broken;
+ * `clear` never rejects.
+ *
+ * Keys are `<language>:<storyKey>`, and only ONE record per language is ever
+ * kept: the extras belong to the one opened project, so `save` removes the
+ * language's other records in the same transaction, and `clear(language)`
+ * (useIde's releaseExtras) drops it when another source is loaded. IndexedDB
+ * operations run strictly in call order, so a clear issued before a save can
+ * never delete the record that save writes.
  */
 export interface ProjectExtras {
   /** Unrecognised package files, kept byte-for-byte. */
@@ -32,7 +40,14 @@ export interface ProjectExtras {
 export interface ExtrasStore {
   load(key: string): Promise<ProjectExtras | null>
   save(key: string, extras: ProjectExtras): Promise<boolean>
+  /** Remove the language's record (`<language>:*`). */
+  clear(language: string): Promise<void>
 }
+
+/** The language part of a `<language>:<storyKey>` key. */
+const languageOf = (key: string) => key.split(':')[0]!
+const inLanguage = (key: IDBValidKey | string, language: string) =>
+  typeof key === 'string' && key.startsWith(`${language}:`)
 
 /** Plain, unshared data: no reactive proxies, no aliasing of the caller's bytes. */
 function plain(x: ProjectExtras): ProjectExtras {
@@ -61,11 +76,17 @@ export function createMemoryExtrasStore(): ExtrasStore {
     },
     save: async (key, extras) => {
       try {
-        map.set(key, plain(extras))
+        const value = plain(extras)
+        const lang = languageOf(key)
+        for (const k of [...map.keys()]) if (k !== key && inLanguage(k, lang)) map.delete(k)
+        map.set(key, value)
         return true
       } catch {
         return false
       }
+    },
+    clear: async language => {
+      for (const k of [...map.keys()]) if (inLanguage(k, language)) map.delete(k)
     },
   }
 }
@@ -84,9 +105,36 @@ function openDb(): Promise<IDBDatabase> {
   })
 }
 
+/** Every IndexedDB operation, in call order (each opens its own connection,
+ *  so without this a later transaction could start first). */
+let _chain: Promise<unknown> = Promise.resolve()
+function queued<T>(op: () => Promise<T>): Promise<T> {
+  const next = _chain.then(op, op)
+  _chain = next.catch(() => {})
+  return next
+}
+
+function run(db: IDBDatabase, body: (store: IDBObjectStore) => void): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite')
+    body(tx.objectStore(STORE))
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error ?? new Error('transaction failed'))
+    tx.onabort = () => reject(tx.error ?? new Error('tx aborted'))
+  })
+}
+
+/** Delete the language's records except `keep`, inside the caller's transaction. */
+function dropOthers(store: IDBObjectStore, language: string, keep?: string) {
+  const req = store.getAllKeys()
+  req.onsuccess = () => {
+    for (const k of req.result) if (k !== keep && inLanguage(k, language)) store.delete(k)
+  }
+}
+
 export function createIdbExtrasStore(): ExtrasStore {
   return {
-    async load(key) {
+    load: key => queued(async () => {
       try {
         const db = await openDb()
         try {
@@ -102,18 +150,18 @@ export function createIdbExtrasStore(): ExtrasStore {
       } catch {
         return null
       }
-    },
-    async save(key, extras) {
+    }),
+    save: (key, extras) => queued(async () => {
       try {
         const value = plain(extras)
+        const lang = languageOf(key)
         const db = await openDb()
         try {
-          await new Promise<void>((resolve, reject) => {
-            const tx = db.transaction(STORE, 'readwrite')
-            tx.objectStore(STORE).put(value, key)
-            tx.oncomplete = () => resolve()
-            tx.onerror = () => reject(tx.error ?? new Error('put failed'))
-            tx.onabort = () => reject(tx.error ?? new Error('tx aborted'))
+          // One transaction: the new record and the removal of the old ones
+          // land together or not at all.
+          await run(db, store => {
+            store.put(value, key)
+            dropOthers(store, lang, key)
           })
           return true
         } finally {
@@ -122,7 +170,17 @@ export function createIdbExtrasStore(): ExtrasStore {
       } catch {
         return false
       }
-    },
+    }),
+    clear: language => queued(async () => {
+      try {
+        const db = await openDb()
+        try {
+          await run(db, store => dropOthers(store, language))
+        } finally {
+          db.close()
+        }
+      } catch { /* nothing to clear, or storage unavailable */ }
+    }),
   }
 }
 
