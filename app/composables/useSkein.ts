@@ -9,8 +9,10 @@ import {
   markAllStale,
   blessedLeaves,
   countNodes,
+  isValidTree,
   type SkeinTree,
 } from './skein-tree'
+import { registerSessionOnce } from './session-once'
 import { getSkeinStore } from './skein-store'
 import { replayBudgetMs } from './useTranscript'
 import { notifyStorageFull } from './useStorageNotice'
@@ -32,14 +34,27 @@ import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
  * NOT via useIde() — to avoid a circular composable chain.
  */
 
-/** Refs already carrying our session watchers. A WeakSet (not a module flag)
- *  so tests — where the state map is rebuilt per test — re-register cleanly. */
-const _watched = new WeakSet<object>()
+// Module-level run/persistence bookkeeping: the skein is a session-wide
+// singleton like the other state composables.
 
-/** Debounced-save timer + cancel flag for a batch run (module-level: the
- *  skein is a session-wide singleton like the other state composables). */
-let _saveTimer: ReturnType<typeof setTimeout> | null = null
-let _batchAbort = false
+/** Debounced saves, one timer PER BUCKET — a save for game B must never
+ *  cancel game A's still-pending save. */
+const _saveTimers = new Map<string, ReturnType<typeof setTimeout>>()
+/** Bucket whose IndexedDB load is in flight: the in-memory tree still belongs
+ *  to the previous game, so saving it under this key would clobber the
+ *  stored skein. */
+let _restoringKey: string | null = null
+/** Bumped on every successful compile; a replay started under an older
+ *  build is superseded and its outputs are discarded. */
+let _buildGen = 0
+/** Cancels the replay in flight (worker terminate), if any. */
+let _activeCancel: (() => void) | null = null
+/** A compile landed mid-run: re-run blessed threads once the run unwinds. */
+let _rerunPending = false
+/** The user pressed Stop: end the batch and don't toast it as a failure. */
+let _cancelRequested = false
+
+type RunOutcome = 'ok' | 'failed' | 'cancelled'
 
 export function useSkein() {
   const { profile } = useLanguage()
@@ -64,16 +79,19 @@ export function useSkein() {
 
   // ── persistence ───────────────────────────────────────────────────────────
   function scheduleSave() {
-    if (_saveTimer) clearTimeout(_saveTimer)
     const key = bucketKey()
+    if (key === _restoringKey) return
+    const pending = _saveTimers.get(key)
+    if (pending) clearTimeout(pending)
     const snapshot = tree.value
-    _saveTimer = setTimeout(() => {
+    _saveTimers.set(key, setTimeout(() => {
+      _saveTimers.delete(key)
       void getSkeinStore()
         .save(key, snapshot)
         .then(ok => {
           if (!ok) notifyStorageFull()
         })
-    }, 500)
+    }, 500))
   }
 
   function setTree(next: SkeinTree) {
@@ -83,7 +101,12 @@ export function useSkein() {
 
   /** Load the current game's bucket (fresh tree when none is stored). */
   async function restore() {
-    const stored = await getSkeinStore().load(bucketKey())
+    const key = bucketKey()
+    _restoringKey = key
+    const stored = await getSkeinStore().load(key)
+    // A newer switch superseded this load — its own restore owns the tree.
+    if (bucketKey() !== key) return
+    _restoringKey = null
     tree.value = stored ?? createTree()
     playCursor.value = tree.value.root
   }
@@ -126,25 +149,40 @@ export function useSkein() {
   }
 
   // ── runs ──────────────────────────────────────────────────────────────────
-  /** @returns true when the run produced turns; false on engine failure. */
-  async function replayPath(leafId: string): Promise<boolean> {
+  /** Replay root→leaf and write the outputs down the path. 'cancelled'
+   *  covers both Stop and a recompile superseding the run — neither may
+   *  write outputs (they'd be the old build's) or count as a failure. */
+  async function replayPath(leafId: string): Promise<RunOutcome> {
     const story = result.value?.ok ? result.value.storyFile : undefined
-    if (!story) return false
+    if (!story) return 'failed'
+    const gen = _buildGen
     const commands = pathCommands(tree.value, leafId)
     const ctrl = useReplay().replay(new Uint8Array(story), 'zmachine', commands, {
       timeoutMs: replayBudgetMs(commands.length),
     })
+    _activeCancel = ctrl.cancel
     try {
       const { turns } = await ctrl.promise
+      if (gen !== _buildGen || _cancelRequested) return 'cancelled'
       setTree(applyRun(tree.value, leafId, turns))
-      return true
+      return 'ok'
     } catch (err: unknown) {
+      if (gen !== _buildGen || _cancelRequested) return 'cancelled'
       // Engine failure/timeout: without a cue this looks like "nothing
       // happened" (found live — a story the ZVM replay chokes on produced
       // zero signal). Callers aggregate; runToNode toasts directly.
       lastRunError = String(err instanceof Error ? err.message : err)
-      return false
+      return 'failed'
+    } finally {
+      if (_activeCancel === ctrl.cancel) _activeCancel = null
     }
+  }
+
+  /** After any run unwinds: honour a compile that landed mid-run. */
+  function afterRun() {
+    if (!_rerunPending) return
+    _rerunPending = false
+    if (autoRun.value) void runStale()
   }
   let lastRunError = ''
 
@@ -161,14 +199,15 @@ export function useSkein() {
   async function runToNode(nodeId: string): Promise<void> {
     if (running.value) return
     running.value = true
+    _cancelRequested = false
     progress.value = { done: 0, total: 1 }
     try {
-      const ok = await replayPath(nodeId)
-      if (!ok) toastRunFailure('Skein')
+      if ((await replayPath(nodeId)) === 'failed') toastRunFailure('Skein')
       progress.value = { done: 1, total: 1 }
     } finally {
       running.value = false
       progress.value = null
+      afterRun()
     }
   }
 
@@ -178,24 +217,29 @@ export function useSkein() {
     const leaves = blessedLeaves(tree.value)
     if (!leaves.length) return
     running.value = true
-    _batchAbort = false
+    _cancelRequested = false
     progress.value = { done: 0, total: leaves.length }
     let failures = 0
     try {
       for (const [i, leaf] of leaves.entries()) {
-        if (_batchAbort) break
-        if (!(await replayPath(leaf))) failures += 1
+        const outcome = await replayPath(leaf)
+        if (outcome === 'cancelled') break
+        if (outcome === 'failed') failures += 1
         progress.value = { done: i + 1, total: leaves.length }
       }
       if (failures) toastRunFailure(`Skein: ${failures} of ${leaves.length} thread`)
     } finally {
       running.value = false
       progress.value = null
+      afterRun()
     }
   }
 
+  /** Stop: terminate the replay in flight and end the batch. */
   function cancelRuns() {
-    _batchAbort = true
+    _cancelRequested = true
+    _rerunPending = false
+    _activeCancel?.()
   }
 
   // ── blessing / editing ────────────────────────────────────────────────────
@@ -208,6 +252,11 @@ export function useSkein() {
   function removeAt(nodeId: string) {
     if (playCursor.value !== tree.value.root) playCursor.value = tree.value.root
     setTree(removeSubtree(tree.value, nodeId))
+  }
+  /** Put back a tree captured earlier this session (the panel's delete Undo). */
+  function restoreSnapshot(snapshot: SkeinTree) {
+    if (!snapshot.nodes[playCursor.value]) playCursor.value = snapshot.root
+    setTree(snapshot)
   }
   /** Commands root→node — feeds Send-to-Play ("Play to here") in the panel. */
   function commandsTo(nodeId: string): string[] {
@@ -229,11 +278,15 @@ export function useSkein() {
     )
   }
 
+  /** Import a .skein file. Rejects another language's skein (its commands
+   *  can't replay against this compiler's games) and any structurally broken
+   *  tree, which would otherwise throw later inside addPath/pathNodes. */
   function importSkein(json: string): boolean {
     try {
-      const data = JSON.parse(json) as { v?: number; tree?: SkeinTree }
+      const data = JSON.parse(json) as { v?: number; lang?: unknown; tree?: unknown }
+      if (data.lang !== undefined && data.lang !== profile.value.stateKey) return false
       const t = data.tree
-      if (!t || typeof t.root !== 'string' || !t.nodes?.[t.root]) return false
+      if (!isValidTree(t)) return false
       setTree(t)
       playCursor.value = t.root
       return true
@@ -242,24 +295,28 @@ export function useSkein() {
     }
   }
 
-  // ── session watchers (per-ref, so test-rebuilt state re-registers) ────────
-  if (import.meta.client && !_watched.has(result)) {
-    _watched.add(result)
+  // ── session watchers (once per app — see session-once.ts) ─────────────────
+  registerSessionOnce('skein', () => {
     // A successful build invalidates every verdict; auto-run re-earns them.
+    // A run already in flight is for the OLD build: cancel it, and re-run
+    // once it unwinds (runStale would otherwise no-op while running).
     watch(result, (r) => {
       if (!r?.ok || !r.storyFile) return
+      _buildGen += 1
       setTree(markAllStale(tree.value))
-      if (autoRun.value) void runStale()
+      if (running.value) {
+        _rerunPending = autoRun.value
+        _activeCancel?.()
+      } else if (autoRun.value) {
+        void runStale()
+      }
     })
-  }
-  if (import.meta.client && !_watched.has(activeStoryKey)) {
-    _watched.add(activeStoryKey)
     // Game switched → swap buckets (the debounced save of the old tree keys
     // by the OLD bucket because scheduleSave captured it — see closure above).
     watch(activeStoryKey, () => {
       void restore()
     })
-  }
+  })
 
   return {
     tree,
@@ -279,6 +336,7 @@ export function useSkein() {
     blessTo,
     unblessAt,
     removeAt,
+    restoreSnapshot,
     commandsTo,
     exportSkein,
     importSkein,

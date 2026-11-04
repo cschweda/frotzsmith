@@ -140,6 +140,25 @@ describe('bless / unbless / stale', () => {
     expect(pathNodes(t, b.leafId)[1]!.status).toBe('unblessed')
   })
 
+  it('markAllStale drops every last output — they belong to the previous build', () => {
+    const { tree, leafId } = treeWith(['a', 'b'])
+    let t = applyRun(tree, leafId, turnsFor(['a', 'b'], c => c))
+    t = markAllStale(t)
+    expect(pathNodes(t, leafId).every(n => n.lastOutput === undefined)).toBe(true)
+  })
+
+  it('blessing after a recompile cannot bless the previous build\'s output', () => {
+    const { tree, leafId } = treeWith(['a', 'b'])
+    let t = applyRun(tree, leafId, turnsFor(['a', 'b'], c => `old:${c}`))
+    const aId = pathNodes(t, leafId)[1]!.id
+    t = blessThread(t, aId) // 'a' blessed with old:a
+    t = markAllStale(t)
+    t = blessThread(t, leafId) // nothing has run on the new build yet
+    const [, a, b] = pathNodes(t, leafId)
+    expect(a!.status).toBe('stale')
+    expect(b!.blessedOutput).toBeUndefined()
+  })
+
   it('unblessSubtree clears blessing for the node and its descendants', () => {
     const { tree, leafId } = treeWith(['a', 'b'])
     let t = applyRun(tree, leafId, turnsFor(['a', 'b'], c => c))

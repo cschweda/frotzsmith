@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { pathNodes, type SkeinNode, type SkeinStatus } from '~/composables/skein-tree'
+import { type SkeinNode, type SkeinStatus } from '~/composables/skein-tree'
 import { lineDiff } from '~/utils/line-diff'
 
 const skein = useSkein()
 const { sendToPlay, canPlay, activeStoryKey } = useIde()
+const { profile } = useLanguage()
 
 const collapsed = ref(new Set<string>())
 const selectedId = ref<string | null>(null)
@@ -41,6 +42,16 @@ const selectedDiff = computed(() => {
   if (!n || n.status !== 'diff' || n.blessedOutput === undefined || n.lastOutput === undefined) return null
   return lineDiff(n.blessedOutput, n.lastOutput)
 })
+/** Roving tabindex: the tree is ONE tab stop — the selected row, or the
+ *  first row when nothing (visible) is selected. */
+const focusableId = computed(() => {
+  const ids = rows.value.map(r => r.node.id)
+  return selectedId.value && ids.includes(selectedId.value) ? selectedId.value : ids[0]
+})
+function focusRow(id: string) {
+  nextTick(() => document.getElementById(`skein-${id}`)?.focus())
+}
+
 const blessedCount = computed(
   () => Object.values(skein.tree.value.nodes).filter(n => n.blessedOutput !== undefined).length,
 )
@@ -73,13 +84,42 @@ function importScript() {
 }
 
 function startAdd(id: string) {
+  selectedId.value = id
   addingUnder.value = id
   newCommand.value = ''
 }
-function confirmAdd() {
-  if (addingUnder.value && newCommand.value.trim()) skein.addCommand(addingUnder.value, newCommand.value)
+/** Commit (or abandon) the inline add, then put focus back on its row — the
+ *  input unmounts, and focus would otherwise drop to <body>. */
+function finishAdd(commit: boolean) {
+  const parent = addingUnder.value
+  if (!parent) return
+  if (commit && newCommand.value.trim()) skein.addCommand(parent, newCommand.value)
   addingUnder.value = null
   newCommand.value = ''
+  focusRow(parent)
+}
+
+/** Delete a branch — no confirm dialog, but an Undo (it may hold blessed outputs). */
+function removeBranch(id: string) {
+  const before = skein.tree.value
+  const storyKey = activeStoryKey.value
+  const lang = profile.value.id
+  const node = before.nodes[id]
+  skein.removeAt(id)
+  if (selectedId.value === id) selectedId.value = node?.parentId !== before.root ? (node?.parentId ?? null) : null
+  if (focusableId.value) focusRow(focusableId.value)
+  useToast().add({
+    title: 'Branch deleted',
+    description: node ? `“${node.command}” and everything below it.` : undefined,
+    icon: 'i-lucide-trash-2',
+    actions: [{
+      label: 'Undo',
+      // Only into the same game/language the branch was deleted from.
+      onClick: () => {
+        if (activeStoryKey.value === storyKey && profile.value.id === lang) skein.restoreSnapshot(before)
+      },
+    }],
+  })
 }
 
 function playTo(id: string) {
@@ -93,7 +133,8 @@ function exportSkein() {
   a.href = url
   a.download = `${activeStoryKey.value}.skein`
   a.click()
-  URL.revokeObjectURL(url)
+  // Revoking synchronously can cancel the download in some Safari/Firefox builds.
+  setTimeout(() => URL.revokeObjectURL(url), 30_000)
 }
 
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -106,15 +147,22 @@ async function onImportFile(event: Event) {
   if (fileInput.value) fileInput.value.value = ''
 }
 
-/** ARIA tree keyboard nav: Up/Down move, Left collapses/goes up, Right expands. */
+/** ARIA tree keyboard nav: Up/Down move, Left collapses/goes up, Right
+ *  expands, Home/End jump. Only keys pressed ON a row count — the inline
+ *  "new command" input and the row buttons live inside the tree too, and
+ *  must keep their own arrow/Enter behavior. */
 function onTreeKeydown(event: KeyboardEvent) {
+  const target = event.target as HTMLElement
+  if (target.getAttribute('role') !== 'treeitem') return
   const ids = rows.value.map(r => r.node.id)
-  if (!ids.length) return
-  const current = selectedId.value && ids.includes(selectedId.value) ? selectedId.value : ids[0]!
+  const current = target.dataset.nodeId
+  if (!current || !ids.includes(current)) return
   const i = ids.indexOf(current)
   let next: string | null = null
   if (event.key === 'ArrowDown') next = ids[i + 1] ?? current
   else if (event.key === 'ArrowUp') next = ids[i - 1] ?? current
+  else if (event.key === 'Home') next = ids[0]!
+  else if (event.key === 'End') next = ids[ids.length - 1]!
   else if (event.key === 'ArrowRight') {
     const row = rows.value[i]!
     if (row.hasChildren && !row.expanded) toggle(current)
@@ -127,7 +175,7 @@ function onTreeKeydown(event: KeyboardEvent) {
   event.preventDefault()
   if (next) {
     selectedId.value = next
-    nextTick(() => document.getElementById(`skein-${next}`)?.focus())
+    focusRow(next)
   }
 }
 </script>
@@ -195,24 +243,25 @@ function onTreeKeydown(event: KeyboardEvent) {
     <!-- Tree -->
     <div v-else class="min-h-0 flex-1 overflow-auto px-2 py-2">
       <ul role="tree" aria-label="Skein command tree" class="space-y-0.5" @keydown="onTreeKeydown">
-        <li
-          v-for="row in rows"
-          :key="row.node.id"
-          role="treeitem"
-          :aria-level="row.depth + 1"
-          :aria-expanded="row.hasChildren ? row.expanded : undefined"
-          :aria-selected="selectedId === row.node.id"
-        >
+        <li v-for="row in rows" :key="row.node.id" role="none">
+          <!-- The focused element IS the treeitem, so screen readers announce
+               level / expanded / selected as focus moves. -->
           <div
             :id="`skein-${row.node.id}`"
-            tabindex="0"
+            role="treeitem"
+            :data-node-id="row.node.id"
+            :aria-level="row.depth + 1"
+            :aria-expanded="row.hasChildren ? row.expanded : undefined"
+            :aria-selected="selectedId === row.node.id"
+            :tabindex="focusableId === row.node.id ? 0 : -1"
             :class="[
               'group flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm',
               selectedId === row.node.id ? 'bg-elevated' : 'hover:bg-elevated/60',
             ]"
             :style="{ paddingLeft: `${row.depth * 1.25 + 0.375}rem` }"
             @click="selectedId = row.node.id"
-            @keydown.enter.prevent="selectedId = row.node.id"
+            @focusin="selectedId = row.node.id"
+            @keydown.enter.self.prevent="selectedId = row.node.id"
           >
             <button
               v-if="row.hasChildren"
@@ -275,7 +324,7 @@ function onTreeKeydown(event: KeyboardEvent) {
                 icon="i-lucide-trash-2"
                 title="Delete this branch"
                 aria-label="Delete this branch"
-                @click.stop="skein.removeAt(row.node.id)"
+                @click.stop="removeBranch(row.node.id)"
               />
             </span>
           </div>
@@ -287,9 +336,9 @@ function onTreeKeydown(event: KeyboardEvent) {
               autofocus
               placeholder="new command…"
               aria-label="New command"
-              @keydown.enter.prevent="confirmAdd"
-              @keydown.escape.prevent="addingUnder = null"
-              @blur="confirmAdd"
+              @keydown.enter.prevent="finishAdd(true)"
+              @keydown.escape.prevent="finishAdd(false)"
+              @blur="finishAdd(true)"
             />
           </div>
         </li>

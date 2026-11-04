@@ -171,13 +171,38 @@ export function removeSubtree(tree: SkeinTree, nodeId: string): SkeinTree {
   return { ...tree, nodes }
 }
 
-/** A fresh build invalidates every verdict: blessed nodes go stale. */
+/** A fresh build invalidates every verdict: blessed nodes go stale, and every
+ *  last output is dropped — it was produced by the PREVIOUS build, so keeping
+ *  it would let a later "bless" certify old text as this build's output. */
 export function markAllStale(tree: SkeinTree): SkeinTree {
   const nodes = { ...tree.nodes }
   for (const [id, node] of Object.entries(nodes)) {
-    if (node.blessedOutput !== undefined) nodes[id] = { ...node, status: 'stale' }
+    if (node.blessedOutput === undefined && node.lastOutput === undefined) continue
+    const { lastOutput: _old, ...rest } = node
+    nodes[id] = { ...rest, status: node.blessedOutput !== undefined ? 'stale' : 'unblessed' }
   }
   return { ...tree, nodes }
+}
+
+const STATUSES: ReadonlySet<string> = new Set<SkeinStatus>(['unblessed', 'match', 'diff', 'stale', 'error'])
+
+/** Structural check for an imported (untrusted) tree: every node well-formed,
+ *  every link resolvable, exactly one root — so later ops can't throw on it. */
+export function isValidTree(value: unknown): value is SkeinTree {
+  if (!value || typeof value !== 'object') return false
+  const t = value as Partial<SkeinTree>
+  if (typeof t.root !== 'string' || !t.nodes || typeof t.nodes !== 'object') return false
+  const nodes = t.nodes as Record<string, Partial<SkeinNode>>
+  if (!nodes[t.root]) return false
+  for (const [id, n] of Object.entries(nodes)) {
+    if (!n || typeof n !== 'object' || n.id !== id || typeof n.command !== 'string') return false
+    if (!Array.isArray(n.childIds) || !n.childIds.every(c => typeof c === 'string' && nodes[c]?.parentId === id)) return false
+    if (typeof n.status !== 'string' || !STATUSES.has(n.status)) return false
+    if (n.blessedOutput !== undefined && typeof n.blessedOutput !== 'string') return false
+    if (n.lastOutput !== undefined && typeof n.lastOutput !== 'string') return false
+    if (id === t.root ? n.parentId !== null : typeof n.parentId !== 'string' || !nodes[n.parentId]) return false
+  }
+  return true
 }
 
 /**

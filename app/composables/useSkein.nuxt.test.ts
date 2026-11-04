@@ -41,8 +41,26 @@ vi.stubGlobal('useTestScripts', () => ({ activeScript: _activeScript }))
 let _outputs: Record<string, string> = {}
 let _failNextReplay: string | null = null
 const _replayCalls: string[][] = []
+/** When true, runs hang until released — lets a test recompile mid-run. */
+let _holdReplays = false
+const _held: { release: () => void; cancel: ReturnType<typeof vi.fn> }[] = []
 function fakeReplay(_story: Uint8Array, _target: string, commands: string[]) {
   _replayCalls.push(commands)
+  if (_holdReplays) {
+    const outputs = { ..._outputs }
+    let resolve!: (v: unknown) => void
+    let reject!: (e: unknown) => void
+    const promise = new Promise((res, rej) => { resolve = res; reject = rej })
+    const cancel = vi.fn(() => reject(new Error('Replay cancelled')))
+    _held.push({
+      release: () => resolve({
+        turns: [{ command: '', output: 'BANNER' }, ...commands.map(c => ({ command: c, output: outputs[c] ?? `out:${c}` }))],
+        ms: 1,
+      }),
+      cancel,
+    })
+    return { promise, cancel }
+  }
   if (_failNextReplay) {
     const message = _failNextReplay
     _failNextReplay = null
@@ -80,9 +98,12 @@ async function flush(ms = 700) {
 describe('useSkein', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear() // setAutoRun persists 'off' — must not leak across tests
     _outputs = {}
     _failNextReplay = null
     _replayCalls.length = 0
+    _holdReplays = false
+    _held.length = 0
     _profile.value = { id: 'i6', stateKey: 'i6', route: '/' }
   })
 
@@ -203,6 +224,87 @@ describe('useSkein', () => {
     expect(skein.importSkein(json)).toBe(true)
     expect(Object.keys(skein.tree.value.nodes)).toHaveLength(2) // back to root + north
     expect(skein.importSkein('{"not":"a skein"}')).toBe(false)
+  })
+
+  it('several callers register the session watchers ONCE (one run per compile)', async () => {
+    // Real Nuxt useState hands every caller a new ref wrapper; a per-ref guard
+    // re-registered for IdeLayout, PlayPanel and SkeinPanel alike.
+    const { result } = bootIde('game-once')
+    compileSuccess(result)
+    const skein = useSkein()
+    useSkein()
+    useSkein()
+    await skein.restore()
+    skein.importActiveScript()
+    const leaf = leafOf(skein.tree.value)
+    await skein.runToNode(leaf)
+    skein.blessTo(leaf)
+    _replayCalls.length = 0
+
+    compileSuccess(result)
+    await flush()
+    expect(_replayCalls).toHaveLength(1)
+  })
+
+  it('a recompile mid-run cancels the in-flight replay and re-runs against the new build', async () => {
+    const { result } = bootIde('game-recompile')
+    compileSuccess(result)
+    const skein = useSkein()
+    await skein.restore()
+    skein.importActiveScript()
+    const leaf = leafOf(skein.tree.value)
+    await skein.runToNode(leaf)
+    skein.blessTo(leaf)
+
+    _holdReplays = true
+    compileSuccess(result) // build 2 → auto-run starts and hangs
+    await flush(50)
+    expect(_held).toHaveLength(1)
+
+    _outputs['take lamp'] = 'CHANGED'
+    compileSuccess(result) // build 3 while build 2's run is in flight
+    await flush(50)
+    expect(_held[0]!.cancel).toHaveBeenCalled()
+    // The stale verdict from build 2 must NOT land; build 3 re-runs.
+    _holdReplays = false
+    for (const h of _held) h.release()
+    await flush()
+    expect(pathNodes(skein.tree.value, leaf).at(-1)!.status).toBe('diff')
+    expect(skein.running.value).toBe(false)
+  })
+
+  it('cancelRuns stops the in-flight replay and does not toast a failure', async () => {
+    const { result } = bootIde('game-cancel')
+    compileSuccess(result)
+    const skein = useSkein()
+    await skein.restore()
+    skein.importActiveScript()
+    const leaf = leafOf(skein.tree.value)
+    _holdReplays = true
+    const run = skein.runToNode(leaf)
+    await flush(10)
+    skein.cancelRuns()
+    await run
+    expect(_held[0]!.cancel).toHaveBeenCalled()
+    expect(_toastAdd).not.toHaveBeenCalled()
+    expect(skein.running.value).toBe(false)
+  })
+
+  it('importSkein rejects another language\'s skein and malformed nodes', async () => {
+    bootIde('game-import')
+    const skein = useSkein()
+    await skein.restore()
+    skein.recordPlayCommand('north')
+    const good = JSON.parse(skein.exportSkein())
+    expect(skein.importSkein(JSON.stringify({ ...good, lang: 'zil' }))).toBe(false)
+    const broken = structuredClone(good)
+    const child = Object.keys(broken.tree.nodes).find((id: string) => id !== broken.tree.root)!
+    delete broken.tree.nodes[child].childIds
+    expect(skein.importSkein(JSON.stringify(broken))).toBe(false)
+    const dangling = structuredClone(good)
+    dangling.tree.nodes[dangling.tree.root].childIds.push('nope')
+    expect(skein.importSkein(JSON.stringify(dangling))).toBe(false)
+    expect(skein.importSkein(JSON.stringify(good))).toBe(true)
   })
 })
 
