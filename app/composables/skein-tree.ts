@@ -76,12 +76,14 @@ export function addPath(tree: SkeinTree, commands: string[]): { tree: SkeinTree;
 /** Root..node inclusive. */
 export function pathNodes(tree: SkeinTree, nodeId: string): SkeinNode[] {
   const path: SkeinNode[] = []
+  const seen = new Set<string>() // a malformed (cyclic) tree must never loop
   let cur: SkeinNode | undefined = tree.nodes[nodeId]
-  while (cur) {
-    path.unshift(cur)
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id)
+    path.push(cur)
     cur = cur.parentId === null ? undefined : tree.nodes[cur.parentId]
   }
-  return path
+  return path.reverse()
 }
 
 /** Commands root→node, EXCLUDING the root's '' — feeds replay()/Send-to-Play. */
@@ -138,10 +140,12 @@ export function blessThread(tree: SkeinTree, nodeId: string): SkeinTree {
 function subtreeIds(tree: SkeinTree, nodeId: string): string[] {
   const out: string[] = []
   const stack = [nodeId]
+  const seen = new Set<string>()
   while (stack.length) {
     const id = stack.pop()!
     const node = tree.nodes[id]
-    if (!node) continue
+    if (!node || seen.has(id)) continue
+    seen.add(id)
     out.push(id)
     stack.push(...node.childIds)
   }
@@ -202,7 +206,18 @@ export function isValidTree(value: unknown): value is SkeinTree {
     if (n.lastOutput !== undefined && typeof n.lastOutput !== 'string') return false
     if (id === t.root ? n.parentId !== null : typeof n.parentId !== 'string' || !Object.hasOwn(nodes, n.parentId)) return false
   }
-  return true
+  // One tree: walking down from the root reaches every node exactly once. This
+  // rejects cycles (even ones disjoint from the root) and orphans, which would
+  // otherwise make parent-walks loop forever.
+  const visited = new Set<string>()
+  const stack = [t.root]
+  while (stack.length) {
+    const id = stack.pop()!
+    if (visited.has(id)) return false
+    visited.add(id)
+    stack.push(...nodes[id]!.childIds!)
+  }
+  return visited.size === Object.keys(nodes).length
 }
 
 /**
@@ -214,10 +229,12 @@ export function blessedLeaves(tree: SkeinTree): string[] {
   const blessed = Object.values(tree.nodes).filter(n => n.blessedOutput !== undefined)
   const hasBlessedDescendant = (node: SkeinNode): boolean => {
     const stack = [...node.childIds]
+    const seen = new Set<string>()
     while (stack.length) {
       const id = stack.pop()!
       const child = tree.nodes[id]
-      if (!child) continue
+      if (!child || seen.has(id)) continue
+      seen.add(id)
       if (child.blessedOutput !== undefined) return true
       stack.push(...child.childIds)
     }

@@ -221,3 +221,41 @@ describe('isValidTree: prototype keys are not nodes', () => {
     })
   }
 })
+
+describe('isValidTree: shape is a single tree (no cycles, no orphans)', () => {
+  const node = (id: string, parentId: string | null, childIds: string[] = []) =>
+    ({ id, command: id, parentId, childIds, status: 'unblessed' })
+  const tree = (nodes: Record<string, unknown>) => ({ root: 'r', nodes })
+
+  it('rejects a two-node cycle off the root', () => {
+    expect(isValidTree(tree({ r: node('r', null), X: node('X', 'Y', ['Y']), Y: node('Y', 'X', ['X']) }))).toBe(false)
+  })
+  it('rejects a self-parent node', () => {
+    expect(isValidTree(tree({ r: node('r', null), X: node('X', 'X', ['X']) }))).toBe(false)
+  })
+  it('rejects a cycle through the root', () => {
+    expect(isValidTree({ root: 'r', nodes: { r: node('r', 'a', ['a']), a: node('a', 'r', ['r']) } })).toBe(false)
+  })
+  it('rejects an orphan unreachable from the root', () => {
+    expect(isValidTree(tree({ r: node('r', null), O: node('O', 'r') }))).toBe(false)
+  })
+  it('rejects a node listed as a child twice', () => {
+    expect(isValidTree(tree({ r: node('r', null, ['a', 'a']), a: node('a', 'r') }))).toBe(false)
+  })
+  it('accepts a 1,000-node chain, and pathNodes walks it quickly', () => {
+    const nodes: Record<string, unknown> = { r: node('r', null, ['n0']) }
+    for (let i = 0; i < 1000; i++) nodes[`n${i}`] = node(`n${i}`, i === 0 ? 'r' : `n${i - 1}`, i < 999 ? [`n${i + 1}`] : [])
+    const t = tree(nodes)
+    expect(isValidTree(t)).toBe(true)
+    const start = Date.now()
+    expect(pathNodes(t as never, 'n999')).toHaveLength(1001)
+    expect(Date.now() - start).toBeLessThan(500)
+  })
+  it('pathNodes and subtree operations terminate on a hand-built cyclic tree', () => {
+    const t = { root: 'r', nodes: { r: node('r', null, ['X']), X: node('X', 'Y', ['Y']), Y: node('Y', 'X', ['X']) } } as never
+    expect(pathNodes(t, 'X').length).toBeLessThanOrEqual(2)
+    expect(() => unblessSubtree(t, 'X')).not.toThrow()
+    expect(() => removeSubtree(t, 'X')).not.toThrow()
+    expect(() => blessedLeaves(t)).not.toThrow()
+  })
+})
