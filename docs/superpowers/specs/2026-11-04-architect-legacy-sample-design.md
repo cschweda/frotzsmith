@@ -56,7 +56,9 @@ Each Chapter-1 room (and the garden bed) has a small brass **plaque** giving its
 | P6 | **The springs** | `TURN WHEEL` (ancient waterway) then `TURN ON PUMP` (modern) — either order — → Flooded Passage drains | 5 |
 | P7 | **The mirror** | `TURN MIRROR` cycles N/E/S/W; at **EAST** the light hits the crystal socket → a **crystal** forms/ignites in the socket; `TAKE CRYSTAL` → stairs open D | 5 |
 | P8 | **Resonance** | Shifting Room: `WAIT` until the counter shows 13, go N. In the Resonance Chamber: `PUT CRYSTAL ON PEDESTAL`, `STRIKE FORK` → resonance, N opens | 5 |
-| — | Lore (optional, +2 each): read the journal, ask the Inspector about irregular building, read the Messenger's note, examine the formula wall, read the master blueprint before winning | | 10 |
+| — | Lore (optional, +2 each): read the **calling cards** (Entrance Hall), examine the **construction marks** (Survey Chamber), ask the Inspector about irregular building, read the Messenger's note, examine the formula wall | | 10 |
+
+*Lore revision (I6 build):* the original lore list included "read the journal" and "read the master blueprint before winning" — but both are on the winning path (the walkthrough reads the journal, and reading the master blueprint *is* the win), so the walkthrough could never score exactly 40. They were replaced by the calling cards (the outline's "mysterious visitors' calling cards with cryptic symbols") and the construction marks (the outline's "decoding the architect's symbolic language"); neither is on the walkthrough.
 
 The **win**: `READ BLUEPRINT` (master) in the Final Chamber → the original revelation, then the game ends with the score.
 
@@ -107,14 +109,16 @@ take crystal
 down
 north
 wait
-… (as many WAITs as the counter needs; the design fixes it so that entering the Shifting Room and waiting exactly 4 turns aligns the door)
+wait
+wait
+wait
 north
 put crystal on pedestal
 strike fork
 north
 read blueprint
 ```
-Builders: fix the exact number of WAITs (the design says 4) and make the rotating door deterministic; set the mirror's starting position so two TURNs reach EAST; the walkthrough above is normative — if a parser idiom forces a different phrasing in one language, change **both** and this list.
+Shifting Room timing (fixed by the I6 build, the ZIL version must match): entering resets the counter to its second `1` (it reads `1, 1`, arch to the west); the room ticks once at the end of the arrival turn (`2`) and once per turn after, so four WAITs give `3, 5, 8, 13` and the shutter is down when the counter shows 13; one more turn rolls it back to `1`. The mirror starts facing **west** and TURN cycles N → E → S → W. This list is exactly `app/modules/samples-shared/architect-legacy.walkthrough.txt`. The walkthrough above is normative — if a parser idiom forces a different phrasing in one language, change **both** and this list.
 
 ## Engineering
 

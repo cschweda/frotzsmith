@@ -37,12 +37,12 @@ describe('sampleById', () => {
 // ---------------------------------------------------------------------------
 
 describe('SAMPLES registry', () => {
-  it('has exactly 21 samples (11 std + 10 puny)', () => {
-    expect(SAMPLES).toHaveLength(21)
+  it('has exactly 22 samples (12 std + 10 puny)', () => {
+    expect(SAMPLES).toHaveLength(22)
   })
 
-  it('has 11 std samples', () => {
-    expect(SAMPLES.filter(s => s.group === 'std')).toHaveLength(11)
+  it('has 12 std samples', () => {
+    expect(SAMPLES.filter(s => s.group === 'std')).toHaveLength(12)
   })
 
   it('has 10 puny samples', () => {
@@ -77,8 +77,8 @@ describe('SAMPLES registry', () => {
     expect(SAMPLES[0]!.id).toBe('std-skeleton')
   })
 
-  it('puny-skeleton is the 12th sample (first puny entry)', () => {
-    expect(SAMPLES[11]!.id).toBe('puny-skeleton')
+  it('puny-skeleton is the 13th sample (first puny entry)', () => {
+    expect(SAMPLES[12]!.id).toBe('puny-skeleton')
   })
 })
 
@@ -94,16 +94,19 @@ describe('SAMPLES – special cases', () => {
     expect(s!.target).toBe('z3')
   })
 
-  it('only puny-haunted-house has an explicit target; all others are undefined', () => {
-    const withTarget = SAMPLES.filter(s => s.target !== undefined)
-    expect(withTarget).toHaveLength(1)
-    expect(withTarget[0]!.id).toBe('puny-haunted-house')
+  it('std-architect-legacy carries an explicit z5 target', () => {
+    expect(sampleById('std-architect-legacy')!.target).toBe('z5')
   })
 
-  it('each std sample has a matching puny counterpart (except std-list-exits)', () => {
+  it('only puny-haunted-house and std-architect-legacy have an explicit target', () => {
+    const withTarget = SAMPLES.filter(s => s.target !== undefined).map(s => s.id)
+    expect(withTarget.sort()).toEqual(['puny-haunted-house', 'std-architect-legacy'])
+  })
+
+  it('each std sample has a matching puny counterpart (except std-list-exits, std-architect-legacy)', () => {
     const stdIds = SAMPLES.filter(s => s.group === 'std').map(s => s.id)
     for (const id of stdIds) {
-      if (id === 'std-list-exits') continue
+      if (id === 'std-list-exits' || id === 'std-architect-legacy') continue
       const punyId = id.replace(/^std-/, 'puny-')
       expect(sampleById(punyId)).toBeDefined()
     }

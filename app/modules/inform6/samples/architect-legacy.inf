@@ -1,0 +1,1644 @@
+! ============================================================================
+!  THE ARCHITECT'S LEGACY  --  Frotzsmith sample (Inform 6 Standard Library)
+! ----------------------------------------------------------------------------
+!  A longer game, written to show what a BIG Inform 6 project looks like once
+!  it has outgrown a single room and a single puzzle. The small samples each
+!  teach one idea; this one shows how dozens of ideas sit together in one
+!  file without turning into soup. Skim it top to bottom: the layout is the
+!  lesson as much as the code.
+!
+!  THE STORY
+!    You are a county building surveyor sent to assess Quillon House, home of
+!    the late architect Ambrose Quill, before demolition. The house is a
+!    puzzle box. Beneath it lies an unfinished construction site, and beneath
+!    that, a prototype vault. At the bottom is the master blueprint.
+!
+!  HOW THIS FILE IS ORGANISED  (search for the banner text to jump)
+!    1. SETUP ............ story constants, scoring tasks, ALL puzzle state
+!    2. LIBRARY .......... Parser + VerbLib includes
+!    3. CLASSES .......... Room, Feature, Plaque, BrassDevice, Person
+!    4. HELPERS .......... shared routines (chapters, conversation, puzzles)
+!    5. CHAPTER ONE ...... Surface Secrets       (the house, rooms 1-6)
+!    6. CHAPTER TWO ...... The Unfinished Dream  (the construction site, 7-13)
+!    7. CHAPTER THREE .... Legacy of the Deep    (the prototype vault, 14-18)
+!    8. ENTRY POINTS ..... Initialise, DeathMessage, PrintTaskName, ...
+!    9. GRAMMAR .......... Grammar include + the game's own verbs
+!
+!  THE MAP  (18 rooms; [*] = optional, lore only)
+!
+!    CHAPTER ONE                      Study
+!                                       |
+!                     Library --- Entrance Hall --- Drawing Room
+!                                       |               | (down, once the
+!                               Overgrown Garden        |  brass panel opens)
+!                                (start)            Cellar Stairs
+!                                                       | down
+!    CHAPTER TWO                                    Lift Landing
+!                                                       | down (the lift)
+!                    [*]Foreman's Hut              Survey Chamber
+!                           |                      /           \
+!                       Great Hall -------------- +       Spring Gallery
+!                       (Foreman)                              | east
+!                                                     Flooded Passage
+!                                                              | east (drained)
+!                                                       Mirror Gallery
+!                                                              | down
+!    CHAPTER THREE           [*]Messenger's Alcove --- Vault Antechamber
+!                                                              | north
+!                                                        Shifting Room
+!                                                              | north (13)
+!                                                     Resonance Chamber
+!                                                              | north
+!                                                        Final Chamber
+!
+!  THE PUZZLE CHAIN  (each unlocks the next; 5 points apiece = 40)
+!    P1 Fibonacci dial  plaques 1,1,2,3,5 + library note  -> SET DIAL TO 8
+!    P2 Torn blueprint  half in a book, half in a bin     -> PUT LEFT HALF ON
+!                                                            RIGHT HALF
+!    P3 Brass devices   journal: low, high, between       -> RING BELL, STRIKE
+!                                                            CHIME, BLOW HORN
+!    P4 The lift        brass key + blueprint's spiral    -> UNLOCK CAGE, SET
+!                                                            DIAL TO SPIRAL,
+!                                                            PULL LEVER
+!    P5 The Foreman     he knew Quill                     -> SHOW JOURNAL TO
+!                                                            FOREMAN (a fork)
+!    P6 The springs     ancient + modern water            -> TURN WHEEL, TURN
+!                                                            ON PUMP
+!    P7 The mirror      aim the daylight east             -> TURN MIRROR (x2),
+!                                                            TAKE CRYSTAL
+!    P8 Resonance       wait for 13, then sing the stones -> WAIT, PUT CRYSTAL
+!                                                            ON PEDESTAL,
+!                                                            STRIKE FORK
+!    Lore (optional, 2 points each = 10): the calling cards, the survey
+!    marks, the Inspector's complaint, the Messenger's note, the formula wall.
+!    Win: READ BLUEPRINT in the Final Chamber.  Maximum score 50.
+!
+!  TECHNIQUES WORTH STEALING
+!    - Scoring with the library's TASK system (Achieved), declared in one
+!      table so the whole score is visible at a glance.
+!    - Every puzzle flag is a Global in section 1: one place to look when
+!      you ask "what has the player done so far?"
+!    - Classes with ADDITIVE properties: a Room's `before` and a Person's
+!      `life` provide shared fallbacks; each instance only writes what is
+!      special about it.
+!    - A daemon (the Shifting Room) and an each_turn routine (the Foreman).
+!    - Conversation via ask/tell/show/give, topic matching with a helper.
+!    - Conditional exits written as routines (the panel, the lift, the water).
+!    - ChooseObjects, to settle "which blueprint?" without a question.
+!
+!  Compiles cleanly with the bundled Standard Library 6.12; targets z5.
+! ============================================================================
+
+
+! ============================================================================
+!  1. SETUP  --  story constants, the score table, and all puzzle state
+! ============================================================================
+
+Constant Story      "The Architect's Legacy";
+Constant Headline   "^A Frotzsmith sample: a longer game in three chapters.^";
+
+! --- Scoring ----------------------------------------------------------------
+! The library's task system: each task is a number, task_scores holds what it
+! is worth, and Achieved(task) awards it exactly once (it remembers). FULL
+! SCORE lists completed tasks by name via PrintTaskName (section 8).
+! A bare `Constant TASKS_PROVIDED;` (value 0) switches the task system on.
+
+Constant TASKS_PROVIDED;
+Constant NUMBER_TASKS  13;
+Constant MAX_SCORE     50;
+
+Constant TASK_DIAL        0;   ! P1  the Fibonacci dial in the Study
+Constant TASK_BLUEPRINT   1;   ! P2  mending the torn blueprint
+Constant TASK_BRASS       2;   ! P3  bell, chime, horn in the right order
+Constant TASK_LIFT        3;   ! P4  starting the steam-and-crystal lift
+Constant TASK_FOREMAN     4;   ! P5  winning the Foreman's confidence
+Constant TASK_SPRINGS     5;   ! P6  draining the flooded passage
+Constant TASK_MIRROR      6;   ! P7  growing (and taking) the crystal
+Constant TASK_RESONANCE   7;   ! P8  singing the stones awake
+Constant TASK_LORE_CARDS  8;   ! lore: the calling cards in the hall
+Constant TASK_LORE_MARKS  9;   ! lore: decoding the survey marks
+Constant TASK_LORE_FORMS 10;   ! lore: the Inspector on irregular building
+Constant TASK_LORE_NOTE  11;   ! lore: the Messenger's coded note
+Constant TASK_LORE_WALL  12;   ! lore: checking the formula wall
+
+!                   P1 P2 P3 P4 P5 P6 P7 P8 | cards marks forms note wall
+Array task_scores -> 5  5  5  5  5  5  5  5    2     2     2     2    2;
+
+! --- Puzzle state -----------------------------------------------------------
+! Everything the game needs to remember about the player's progress lives
+! here, named for the puzzle it belongs to. Objects still use attributes
+! (open, locked, on) where the library already understands them.
+
+Global chapter        = 0;        ! which chapter banner has been shown
+Global brass_progress = 0;        ! P3: notes played correctly so far (0-3)
+Global panel_open     = false;    ! P3: the Drawing Room floor panel
+Global lift_symbol    = 'circle'; ! P4: what the lift's symbol dial is set to
+Global lift_ready     = false;    ! P4: lever pulled with the right symbol
+Global foreman_helped = false;    ! P5: the Foreman has given you the fork
+Global wheel_turned   = false;    ! P6: the ancient sluice is open
+Global passage_drained = false;   ! P6: both waters moving: the passage is dry
+Global mirror_facing  = 3;        ! P7: 0 north, 1 east, 2 south, 3 west
+Global stairs_open    = false;    ! P7: crystal taken, stairs down revealed
+Global shift_step     = 1;        ! P8: Shifting Room position, 0-6 (see there)
+Global resonance_done = false;    ! P8: the stones have sung; north is open
+
+Array compass_names --> "north" "east" "south" "west";
+Array fibonacci     --> 1 1 2 3 5 8 13;
+
+
+! ============================================================================
+!  2. LIBRARY
+! ============================================================================
+
+Include "Parser";
+Include "VerbLib";
+
+
+! ============================================================================
+!  3. CLASSES  --  write shared behaviour once
+! ============================================================================
+
+! Room: every location in the game. All are lit (the house by daylight, the
+! depths by steam-lamps, crystals and stranger things), so darkness never gets
+! in the way of the puzzles. `sounds` is what LISTEN hears here: because
+! `before` is an ADDITIVE property, a room can have its own `before` as well
+! and this class one still runs after it.
+Class Room
+  with sounds 0,
+       before [;
+         Listen:
+           if (noun == 0 && self.sounds ~= 0) {
+               PrintOrRun(self, sounds);
+               rtrue;
+           }
+       ],
+  has  light;
+
+! Feature: things named in a room description that you can examine but that
+! the library should neither list nor let you carry off.
+Class Feature
+  with before [;
+         Take, Pull, Push, Turn:
+           print_ret (The) self, " ", (IsOrAre) self, " part of the
+               property, and the property is the county's until it is
+               demolished.";
+       ],
+  has  scenery;
+
+! Plaque: Quill screwed one of these into every room of the house (and one
+! flower bed). Five instances differ only in `yards` and `what` -- a class
+! saves five copies of the same description.
+Class Plaque
+  with name 'small' 'brass' 'plaque',
+       short_name "brass plaque",
+       yards 0,
+       what "ROOM",
+       description [;
+           print "A small brass plaque, set perfectly level. It is engraved: ",
+               (string) self.what, " WIDTH ", self.yards;
+           if (self.yards == 1) print " YARD"; else print " YARDS";
+           ". Quill evidently wanted every visitor to know.";
+       ],
+  has  scenery;
+
+! BrassDevice: the bell, the chime and the horn in the Drawing Room. Ringing,
+! striking, blowing or hitting any of them goes to one routine, BrassSounded
+! (section 4), which keeps the puzzle logic in a single place. `order` is the
+! device's position in the correct sequence; `note` describes its voice.
+Class BrassDevice
+  with order 0,
+       note "a note",
+       before [;
+         Sound, Attack, Blow, Push, Touch:
+           BrassSounded(self);
+           rtrue;
+         Take, Pull, Turn:
+           print_ret (The) self, " is bolted to the mahogany board.";
+       ],
+  has  static scenery;
+
+! Person: the four characters. `life` is ADDITIVE too: each character's own
+! life routine handles the topics it cares about and returns false for
+! anything else, which falls through to these shared, in-character fallbacks.
+Class Person
+  with no_answer "There is no answer.",   ! reply to an unknown ASK/TELL topic
+       no_interest "~No, thank you.~",    ! reply to SHOW/GIVE of a dull thing
+       life [;
+         Ask, Tell, Answer:
+           PrintOrRun(self, no_answer);
+           rtrue;
+         Show, Give:
+           PrintOrRun(self, no_interest);
+           rtrue;
+         Kiss:
+           "This is a building survey.";
+         Attack:
+           "Violence would only add to the paperwork.";
+       ],
+       orders [;
+           print_ret (The) self, " gives you the look that professionals
+               reserve for other professionals' bright ideas.";
+       ],
+  has  animate;
+
+
+! ============================================================================
+!  4. HELPERS  --  routines shared across chapters
+! ============================================================================
+
+! BeginChapter(n): print a chapter banner the first time the player crosses
+! into chapter n. Called from each chapter's first room: a room's `initial`
+! routine runs as the player arrives, just before the room is described.
+[ BeginChapter n;
+    if (n <= chapter) return;
+    chapter = n;
+    new_line;
+    style bold;
+    switch (n) {
+      1: print "       Chapter One: Surface Secrets";
+      2: print "       Chapter Two: The Unfinished Dream";
+      3: print "       Chapter Three: Legacy of the Deep";
+    }
+    style roman;
+    print "^^";
+];
+
+! AskedAbout(w1 ... w6): true if any of the given words appears anywhere in
+! the topic of the current ASK/TELL. "ask foreman about the old architect"
+! matches 'architect' even though the topic starts with "the old".
+[ AskedAbout w1 w2 w3 w4 w5 w6  i w;
+    wn = consult_from;
+    for (i = 0 : i < consult_words : i++) {
+        w = NextWord();
+        if (w ~= 0 && (w == w1 or w2 or w3 or w4 or w5 or w6)) rtrue;
+    }
+    rfalse;
+];
+
+! P2: lay the two halves of the blueprint together. Reached from PUT/INSERT
+! (one half on the other) and from the JOIN verb in section 9.
+[ JoinHalves;
+    if (blueprint in player) "You've already mended the blueprint.";
+    if (left_half notin player || right_half notin player) {
+        if (left_half in player || right_half in player)
+            "You have only one half of the blueprint in hand.";
+        "You'd need both halves of the blueprint for that.";
+    }
+    remove left_half; remove right_half;
+    move blueprint to player;
+    Achieved(TASK_BLUEPRINT);
+    "You lay the two halves edge to edge. The tear matches exactly -- of
+    course it does -- and the drawing runs straight across the join as if it
+    had never been parted. You are holding a blueprint of Quillon House, and
+    of what lies beneath it.";
+];
+
+! P3: one of the brass devices has sounded. The correct order is
+! bell (order 0, low), chime (order 1, high), horn (order 2, between).
+[ BrassSounded dev;
+    if (panel_open)
+        print_ret (The) dev, " gives ", (string) dev.note,
+            ". The open panel does not care.";
+    if (dev.order == brass_progress) {
+        brass_progress++;
+        switch (brass_progress) {
+          1: "BONG. A deep, low note rolls out of the bell and into the
+             floor, where something mechanical seems to catch it and hold it.";
+          2: "A high, glassy note shivers out of the chime. Beneath the floor
+             a second mechanism takes it up, and the bell's note is still
+             humming underneath.";
+          3: panel_open = true;
+             Achieved(TASK_BRASS);
+             "You blow the horn. A reedy, mellow note settles exactly between
+             the other two, and the three sound together in a chord so
+             satisfying that the whole room seems to exhale. With a long,
+             oiled sigh, a panel in the floor beneath the board slides aside,
+             revealing a stone staircase leading down.";
+        }
+    }
+    if (brass_progress == 0)
+        print_ret (The) dev, " gives ", (string) dev.note, ", alone. Beneath
+            the floor something stirs, considers it, and settles back. It
+            was not the note it was waiting for.";
+    brass_progress = 0;
+    print_ret (The) dev, "'s note jars against the last, and the chord
+        collapses into a discord that sets your teeth on edge. Beneath the
+        floor, something mechanical clunks back to where it started.";
+];
+
+! P6: called after either water machine is worked. Drains the passage once
+! BOTH the ancient wheel and the modern pump are going, in either order.
+[ CheckSprings;
+    if (passage_drained || wheel_turned == false || pump hasnt on) rfalse;
+    passage_drained = true;
+    Achieved(TASK_SPRINGS);
+    print "^With both waters moving at once -- the ancient one going home,
+        the modern one hurrying it along -- the dark pool at the end of the
+        gallery shivers, sinks, and drains away down the passage with a
+        long, satisfied gurgle. The flooded passage is flooded no longer.^";
+    rtrue;
+];
+
+! P8: the Shifting Room's arch. Position 0-6 runs with the counter
+! 1,1,2,3,5,8,13; the arch moves a quarter turn per step and stands north
+! (with the shutter down) only at step 6, when the counter reads 13.
+[ ArchDirection;
+    return compass_names-->((shift_step + 2) % 4);
+];
+
+[ PrintCounter  i;
+    for (i = 0 : i <= shift_step : i++) {
+        if (i > 0) print ", ";
+        print fibonacci-->i;
+    }
+];
+
+
+! ============================================================================
+!  5. CHAPTER ONE: SURFACE SECRETS  --  the house
+! ----------------------------------------------------------------------------
+!  Rooms: Overgrown Garden, Entrance Hall, Library, Drawing Room, Study,
+!  Cellar Stairs. Puzzles P1 (dial), P2 (blueprint), P3 (brass devices).
+!  The plaques give the widths 1, 1, 2, 3, 5; the library note says the
+!  next one opens the house's "vault" (the desk drawer): 8.
+! ============================================================================
+
+! --- The player's own belongings --------------------------------------------
+
+Object notebook "surveyor's notebook"
+  with name 'notebook' 'surveyor' 'surveyor^s' 'my',
+       description "Your county-issue notebook. The first page bears today's
+           date and, underlined twice, QUILLON HOUSE: STRUCTURAL SURVEY. The
+           rest is blank, waiting for an irregularity.";
+
+! --- 1. Overgrown Garden ------------------------------------------------------
+
+Room garden "Overgrown Garden"
+  with initial [; BeginChapter(1); ],
+       description
+           "The garden has run wild in every way but one: the flower beds.
+           Beneath the brambles and bindweed they keep their shapes exactly --
+           squares beside squares, each bed as wide as the two before it put
+           together, as if the soil had been ruled with a straightedge. A small
+           brass plaque is set into the edge of the nearest bed.^^To the north
+           rises Quillon House, red brick and grey slate, every window the same
+           height and every chimney the same distance from the next.",
+       sounds "Bees, somewhere in the brambles, and far off the traffic on
+           the county road. Nothing from the house.",
+       n_to entrance_hall,
+       cant_go "The garden wall is high and the gate has rusted shut behind
+           you. The county expects its report: the house is north.";
+
+Plaque -> garden_plaque
+  with yards 1, what "BED";
+
+Feature -> flower_beds "flower beds"
+  with name 'flower' 'flowers' 'bed' 'beds' 'brambles' 'bindweed' 'soil',
+       description "You pace the beds out. The smallest is a yard wide, and so
+           is its neighbour; the next is two yards, the next three, then five.
+           Weeds have taken every bed, but not one of them has dared to
+           cross a border.",
+  has  pluralname;
+
+Feature -> house_exterior "Quillon House"
+  with name 'quillon' 'house' 'brick' 'slate' 'window' 'windows' 'chimney'
+           'chimneys',
+       description "A square-shouldered Victorian house, handsome and
+           unremarkable, which is the most suspicious thing about it.
+           Nothing about it is out of true. You have surveyed churches
+           that were less sure of themselves.",
+       before [;
+         Enter: <<Go n_obj>>;
+       ],
+  has  proper;
+
+! --- 2. Entrance Hall --------------------------------------------------------
+
+Room entrance_hall "Entrance Hall"
+  with description
+           "A tall, chilly hall with a black-and-white tiled floor in a pattern
+           that never quite repeats. Brass devices -- dials, gauges, small
+           trumpet-mouthed pipes -- are mounted along the walls at regular
+           intervals, polished and silent, like the instruments of a ship that
+           has never sailed. On a side table, a silver tray holds a stack of
+           calling cards, and a brass plaque is fixed beside the door.^^The
+           library is west and the drawing room east; a corridor runs north to
+           the study, and the front door stands open to the garden, south.",
+       sounds "The tick of the house cooling. Once, very faintly, a tone from
+           the pipes in the walls, as if something were humming to itself.",
+       s_to garden,
+       w_to library,
+       e_to drawing_room,
+       n_to study;
+
+Plaque -> hall_plaque
+  with yards 1;
+
+Feature -> hall_devices "brass devices"
+  with name 'brass' 'devices' 'device' 'dials' 'gauges' 'pipes' 'pipe'
+           'instruments',
+       description "Dials that measure nothing, gauges that point at zero,
+           little trumpet-mouthed pipes. Following the pipes with your eye,
+           you notice that every one of them runs along the wall and
+           disappears eastward, toward the drawing room. ~Decorative,~ says
+           the estate inventory. You make a note: possibly not.",
+  has  pluralname;
+
+Feature -> floor_tiles "tiled floor"
+  with name 'tile' 'tiles' 'tiled' 'floor' 'pattern',
+       description "You try to find where the pattern repeats and give up
+           after the fortieth tile. It is not random. It is simply longer
+           than your patience.";
+
+Object -> calling_cards "calling cards"
+  with name 'calling' 'card' 'cards' 'stack' 'tray' 'silver' 'table',
+       description [;
+           Achieved(TASK_LORE_CARDS);
+           "There are a dozen of them, left by different visitors on the
+           same day nine years ago; the date is pencilled on every card.
+           None bears a name. Each is printed instead with a single symbol:
+           a circle, a wave, a spiral, a star, and -- on several -- a
+           lantern with a line struck through it. The last card carries a
+           message in violet ink: ~We are ready when you are. -- L.~";
+       ],
+       before [;
+         Take: "They belong to the house's correspondence, and you are a
+           surveyor, not a burglar. You can read them where they lie.";
+       ],
+  has  static scenery pluralname;
+
+! --- 3. Library --------------------------------------------------------------
+
+Room library "Library"
+  with description
+           "Shelves climb from floor to ceiling on every wall, loaded with
+           architectural texts in four languages and at least one alphabet you
+           don't recognise. A wheeled ladder leans against them, waiting for
+           someone to need the top shelf. A brass plaque is fixed by the door,
+           and the only way out is east, back to the hall.",
+       sounds "The particular silence of a great many books.",
+       e_to entrance_hall;
+
+Plaque -> library_plaque
+  with yards 2;
+
+Feature -> shelves "shelves"
+  with name 'shelf' 'shelves' 'texts' 'books' 'volumes' 'alphabet',
+       description "Vitruvian commentaries, treatises on the catenary arch,
+           a monograph on the load-bearing properties of music. Several
+           spines have been rebound in Quill's own green leather.",
+  has  pluralname;
+
+Feature -> ladder "wheeled ladder"
+  with name 'ladder' 'wheeled' 'rungs',
+       description "Oak and brass, on a rail. Each rung is a little
+           further from the last than the one below it.",
+       before [;
+         Climb: "You climb the ladder and inspect the top shelf: dust, an
+           atlas of bridges that were never built, and a tin of humbugs long
+           since fused into a single geological humbug. You climb back down.";
+       ];
+
+Object -> treatise "slim book"
+  with name 'slim' 'book' 'treatise' 'grammar' 'of' 'rooms' 'margin',
+       half_fallen false,
+       initial "On a reading stand by the window lies a slim book.",
+       ! Shared by EXAMINE/READ and TAKE: the first time the book is
+       ! handled, the left half of the blueprint drops out of it.
+       release_half [;
+           if (self.half_fallen) rfalse;
+           self.half_fallen = true;
+           move left_half to location;
+           print "^A folded sheet slips from between the pages and
+               see-saws to the floor: half of a torn blueprint.^";
+       ],
+       description [;
+           print "~The Grammar of Rooms~, by A. Quill. It argues, at length
+               and with diagrams, that a building is a sentence and its rooms
+               are words, and that most architects are illiterate. In the
+               margin of the first chapter, in pencil:^^    ~Every room is the
+               sum of the two before it. The vault of the house is the
+               next.~^";
+           self.release_half();
+           rtrue;
+       ],
+       after [;
+         Take:
+           if (self.half_fallen) rfalse;
+           print "Taken.^";
+           self.release_half();
+           rtrue;
+       ];
+
+Object left_half "left half of a blueprint"
+  with name 'left' 'half' 'torn' 'blueprint' 'piece' 'sheet',
+       description "The left half of a blueprint on heavy linen paper, torn
+           down the middle. You can make out the left side of a house in
+           cross-section -- and, beneath it, lines continuing down off the
+           edge of anything a house should need.",
+       before [;
+         PutOn, Insert:
+           if (second == right_half) return JoinHalves();
+       ];
+
+! --- 4. Drawing Room ---------------------------------------------------------
+
+Room drawing_room "Drawing Room"
+  with description [;
+           print "A long, formal room of faded green silk and dust-sheeted
+               chairs. On the north wall, mounted on a polished mahogany board,
+               are three brass instruments: a squat bell, a slender chime of
+               hanging tubes, and a coiled horn. Unlike the devices in the
+               hall, these show signs of use -- fingerprints on the bell, the
+               horn's mouthpiece worn bright. A brass plaque is fixed by the
+               door, and the hall is back to the west.";
+           if (panel_open) print "^^Beneath the board, a panel in the floor
+               stands open over a stone staircase leading down.";
+           new_line;
+       ],
+       sounds "When you hold still, the three instruments hum very faintly,
+           as if something below the floor were still listening.",
+       w_to entrance_hall,
+       d_to [;
+           if (panel_open) return cellar_stairs;
+           "The floor is oak, and very well laid. Suspiciously well laid.";
+       ];
+
+Plaque -> drawing_plaque
+  with yards 3;
+
+Feature -> brass_board "mahogany board"
+  with name 'mahogany' 'board' 'instruments',
+       description "A polished board holding the bell, the chime and the
+           horn in a row. Small brass pipes run from the back of each
+           instrument down into the floor.";
+
+BrassDevice -> brass_bell "brass bell"
+  with name 'squat' 'brass' 'bell',
+       order 0,
+       note "a low, round note",
+       description "A squat, heavy bell, broad at the lip. It would speak
+           low, and take its time about it.";
+
+BrassDevice -> brass_chime "brass chime"
+  with name 'slender' 'brass' 'chime' 'chimes' 'tube' 'tubes',
+       order 1,
+       note "a high, glassy note",
+       description "Five slender tubes, the longest no longer than your
+           hand. Whatever they say, they will say it high.";
+
+BrassDevice -> brass_horn "brass horn"
+  with name 'coiled' 'brass' 'horn' 'mouthpiece',
+       order 2,
+       note "a mellow, reedy note",
+       description "A coiled horn with a bright mouthpiece. Its voice, you
+           judge, would fall somewhere in the middle: neither as deep as the
+           bell nor as shrill as the chime.";
+
+Feature -> floor_panel "floor panel"
+  with name 'panel' 'floor' 'floorboards' 'staircase' 'stair' 'stairs'
+           'steps',
+       description [;
+           if (panel_open) "The panel has slid neatly under the floorboards.
+               Stone steps lead down into cold air.";
+           "The oak floorboards beneath the board fit together without a
+           gap you could slide a card into.";
+       ],
+       before [;
+         Enter: <<Go d_obj>>;
+       ];
+
+! --- 5. Study ----------------------------------------------------------------
+
+Room study "Study"
+  with description
+           "The only room in the house that looks lived in: ink stains, a coat
+           over the back of the chair, a cup of something that gave up years
+           ago. A heavy desk faces the window; its single drawer is fitted
+           with a brass dial lock. A wastebasket beside it overflows with
+           crumpled drafts. A brass plaque is fixed by the door, and the hall
+           lies south.",
+       sounds "A clock somewhere, ticking at what you would swear is very
+           slightly less than once a second.",
+       s_to entrance_hall;
+
+Plaque -> study_plaque
+  with yards 5;
+
+Feature -> study_desk "heavy desk"
+  with name 'heavy' 'desk' 'writing',
+       description "A partners' desk in walnut, scarred by a lifetime of
+           compasses. Its single drawer has a brass dial set into its face.",
+  has  supporter;
+
+Feature -> study_clutter "study clutter"
+  with name 'coat' 'chair' 'cup' 'ink' 'stains',
+       description "The coat has a pencil in every pocket. The cup has been
+           growing something with real architectural ambition.";
+
+Object -> desk_drawer "desk drawer"
+  with name 'drawer' 'desk',
+       description [;
+           print "A shallow drawer with a brass dial lock. ";
+           if (self has open) { print "It stands open.^"; rtrue; }
+           "It is locked.";
+       ],
+       before [;
+         Open:
+           if (self has locked) "The drawer is locked. The dial on its face
+               is numbered from 0 to 21.";
+       ],
+  has  static scenery container openable lockable locked;
+
+Object -> drawer_dial "brass dial"
+  with name 'brass' 'dial' 'lock' 'combination' 'numbers',
+       setting 0,
+       description [;
+           "A brass dial numbered from 0 to 21, set into the drawer's face.
+           It points to ", self.setting, ".";
+       ],
+       before [;
+         Turn, Set: "Set it to which number? It runs from 0 to 21.";
+         SetTo:
+           ! `second` is the number typed (or a dictionary word, which is
+           ! a large value -- so the range check rejects words too).
+           if (second < 0 || second > 21) "The dial is numbered from 0 to
+               21, and offers nothing else.";
+           self.setting = second;
+           if (desk_drawer hasnt locked) "You set the dial to ", second,
+               ". The drawer is already open.";
+           if (second ~= 8) "You set the dial to ", second, ". Something
+               inside the drawer considers this, and declines.";
+           give desk_drawer ~locked open;
+           Achieved(TASK_DIAL);
+           "You set the dial to 8. One, one, two, three, five -- and eight.
+           The lock gives a small, satisfied click and the drawer slides open
+           of its own accord, revealing a leather journal and a brass key.";
+       ],
+  has  scenery;
+
+Object journal "leather journal" desk_drawer
+  with name 'leather' 'journal' 'diary' 'green',
+       description "Quill's journal, bound in green leather, his handwriting
+           small and untroubled. Most of it is measurements. Some of it is
+           dreams: a city beneath the downs, lit by its own light, where the
+           streets curve the way water wants to go and the rooms grow in
+           proportion like the chambers of a shell. One page, underlined
+           twice, reads:^^    ~The house will open for one who listens. Low,
+           then high, then the voice between.~^^The last entry says only:
+           ~Spring. Begin the city.~";
+
+Object brass_key "brass key" desk_drawer
+  with name 'brass' 'key',
+       description "A long brass key, its bow cast in the shape of a spiral.";
+
+Object -> wastebasket "wastebasket"
+  with name 'wastebasket' 'basket' 'bin' 'wicker' 'drafts' 'crumpled'
+           'rubbish',
+       description "A wicker wastebasket overflowing with crumpled drafts:
+           elevations, sections, a staircase that seems to go down in both
+           directions.",
+       before [;
+         Search:
+           if (right_half has general)
+               "Nothing else, unless you count beautifully drawn mistakes.";
+           give right_half general;     ! `general`: a free-use attribute
+           move right_half to self;
+           "You sift through the drafts. Most are abandoned elevations of
+           buildings that would not stand up -- or would, uncomfortably. Near
+           the bottom you find something that was not thrown away so much as
+           hidden: half of a torn blueprint.";
+         Take: "It's mostly rubbish, and the rubbish is mostly mistakes.
+           You'd rather not carry it.";
+       ],
+  has  scenery container open;
+
+Object right_half "right half of a blueprint"
+  with name 'right' 'half' 'torn' 'blueprint' 'piece' 'sheet',
+       description "The right half of a blueprint, torn down the middle. A
+           shaft drops from the floor of a drawing room into the earth, and
+           beside the shaft someone has inked a careful mark -- but the tear
+           runs straight through it.",
+       before [;
+         PutOn, Insert:
+           if (second == left_half) return JoinHalves();
+       ];
+
+Object blueprint "blueprint of Quillon House"
+  with name 'blueprint' 'plan' 'mended' 'house' 'quillon',
+       description "A cross-section of Quillon House, drawn with a
+           draughtsman's tenderness. You can see the garden, the hall and the
+           five rooms in their proper widths; below the drawing room a stair,
+           below the stair a shaft, and beside the shaft, inked boldly, a
+           SPIRAL. Beneath that the drawing fades into faint pencil -- vast
+           chambers, waterways, a mirror -- as if Quill had not quite dared
+           to commit them to ink.";
+
+! --- 6. Cellar Stairs --------------------------------------------------------
+
+Room cellar_stairs "Cellar Stairs"
+  with description
+           "Narrow stone steps descend in a tight square spiral, each flight
+           one step shorter than the last. The air grows colder with every
+           turn and smells of wet rock and machine oil. Somewhere below,
+           something hisses quietly, like a kettle that has been told to
+           wait. The steps climb to the drawing room and fall away below
+           toward a faint blue glow.",
+       sounds "A slow hiss of steam from below, and the drip of water.",
+       u_to drawing_room,
+       d_to lift_landing;
+
+Feature -> cellar_steps "stone steps"
+  with name 'stone' 'steps' 'stair' 'stairs' 'flight' 'flights',
+       description "Cut from one block, by the look of them. The house has
+           been sitting on this staircase all along.",
+  has  pluralname;
+
+
+! ============================================================================
+!  6. CHAPTER TWO: THE UNFINISHED DREAM  --  the construction site
+! ----------------------------------------------------------------------------
+!  Rooms: Lift Landing, Survey Chamber, Great Hall, Spring Gallery, Flooded
+!  Passage, Mirror Gallery, and (optional) the Foreman's Hut.
+!  Puzzles P4 (lift), P5 (Foreman), P6 (springs), P7 (mirror).
+!  The chapter banner is printed by Lift Landing's `initial` routine.
+! ============================================================================
+
+! --- 7. Lift Landing ---------------------------------------------------------
+
+Room lift_landing "Lift Landing"
+  with initial [; BeginChapter(2); ],
+       description [;
+           print "You stand on an iron platform bolted to the wall of a vast
+               vertical shaft. The cold here is the cold of deep stone, and
+               your breath hangs in the air. Before you hangs a lift unlike
+               any you have surveyed: a brass cage, riveted and gleaming,
+               slung from cables that vanish upward into the dark, fed by
+               copper pipes that pulse with steam. Clusters of crystals are
+               set into its frame like rivets";
+           if (lift_ready) print ", every one of them glowing a steady
+               blue.";
+           else print ", dull and grey.";
+           print " Beside the cage gate are a dial engraved with symbols and
+               a long iron lever. The stairs lead back up";
+           if (lift_ready) print "; the lift is ready to go down.^";
+           else print ".^";
+           rtrue;
+       ],
+       sounds "Steam, breathing in and out of the copper pipes. Far below,
+           something enormous drips.",
+       u_to cellar_stairs,
+       d_to [;
+           if (lift_ready) {
+               print "You step into the cage and draw the gate shut. With a
+                   shriek of steam and a chord from the crystals the lift
+                   drops, gently at first and then with alarming conviction.
+                   Rock streams past the bars; the blue light climbs the shaft
+                   walls with you. After a long minute it slows, sighs, and
+                   settles at the bottom.^";
+               return survey_chamber;
+           }
+           if (lift_cage has locked) "The cage gate is locked.";
+           "You step into the cage, but the lift is dead: no steam, no
+           light. You step out again, feeling foolish.";
+       ];
+
+Object -> lift_cage "lift cage"
+  with name 'lift' 'brass' 'cage' 'gate' 'elevator' 'crystals' 'cables'
+           'pipes' 'copper',
+       with_key brass_key,
+       description [;
+           print "A brass cage the size of a garden shed. Its gate ";
+           if (self has locked) print "is locked, and the keyhole is cut
+               in the shape of a spiral";
+           else print "stands open";
+           print ". The crystals in its frame are ";
+           if (lift_ready) "glowing.";
+           "dull.";
+       ],
+       before [;
+         Enter: <<Go d_obj>>;
+       ],
+       after [;
+         Unlock:
+           give self open;
+           "The brass key turns with the sound of a well-made clock, and the
+           cage gate folds back.";
+       ],
+  has  static scenery openable lockable locked;
+
+Object -> lift_dial "symbol dial"
+  with name 'symbol' 'symbols' 'dial',
+       description [;
+           print "A brass dial engraved with six symbols: a circle, a square,
+               a triangle, a wave, a star and a spiral. It points to the ";
+           print (address) lift_symbol, ".^";
+           rtrue;
+       ],
+       before [;
+         Turn, Set: "Set it to which symbol? Circle, square, triangle, wave,
+           star or spiral.";
+         SetTo:
+           switch (second) {
+             'circle', 'square', 'triangle', 'wave', 'star', 'spiral':
+               lift_symbol = second;
+               "The dial clicks round to the ", (address) second, ".";
+           }
+           "The dial has no numbers and no such symbol: only a circle,
+           square, triangle, wave, star and spiral.";
+       ],
+  has  scenery;
+
+Object -> lift_lever "iron lever"
+  with name 'iron' 'long' 'lever' 'handle',
+       description "A long iron lever with a wooden grip, standing upright.
+           A brass plate beneath it reads, in Quill's lettering: MIND THE
+           SYMBOL.",
+       before [;
+         Pull, Push, Turn:
+           if (lift_ready) "The lever is already down. The lift is ready.";
+           if (lift_cage has locked) "The lever will not move: an interlock
+               holds it while the cage is locked.";
+           if (lift_symbol ~= 'spiral') "You haul on the lever. Steam
+               coughs, the crystals flicker an unhappy red, and the lever
+               springs back. The machine wants a different symbol.";
+           lift_ready = true;
+           Achieved(TASK_LIFT);
+           "You haul the lever down. Steam hisses through every pipe at once,
+           the cables tighten with a groan, and one by one the crystals in
+           the cage frame kindle, until the whole lift is glowing a steady,
+           impossible blue. It is ready to go down.";
+       ],
+  has  scenery;
+
+! --- 8. Survey Chamber -------------------------------------------------------
+
+Room survey_chamber "Survey Chamber"
+  with description
+           "A broad chamber cut from the living rock with a precision that
+           makes you, professionally, uneasy: the walls are true to a hair,
+           the corners exact, the floor level enough to set a marble on and
+           have it stay put. Every surface is covered with construction marks,
+           the working notes of a mason who expected to come back. The lift
+           waits to take you up. A passage leads east toward a great echo,
+           and another runs south toward the sound of water.",
+       sounds "From the east, your own breathing, returned with interest.
+           From the south, running water.",
+       u_to [;
+           print "The lift carries you back up the shaft, wheezing
+               companionably.^";
+           return lift_landing;
+       ],
+       e_to great_hall,
+       s_to spring_gallery;
+
+Feature -> survey_marks "construction marks"
+  with name 'construction' 'marks' 'mark' 'symbols' 'tallies' 'lines',
+       description [;
+           Achieved(TASK_LORE_MARKS);
+           "Most are ordinary mason's marks, the private shorthand of a
+           working builder: a tick for checked, a cross for load-bearing. But
+           there is a second vocabulary among them -- the symbols from the
+           lift dial, used like words. With your notebook you decode a line:
+           the SPIRAL means descend, the WAVE means water, the STAR means
+           light. One symbol you have seen only on a calling card -- a
+           lantern with a line struck through it -- appears just once,
+           beside an arrow pointing down.";
+       ],
+  has  pluralname;
+
+! --- 9. Great Hall -----------------------------------------------------------
+
+Room great_hall "Great Hall"
+  with description
+           "The hall is enormous and unfinished. Half of it is roofed by a
+           vault of breathtaking delicacy; the other half is bare scaffolding
+           and stacked, numbered stone. The acoustics are perfect: your
+           footsteps return from the far end clear and slightly delayed, as if
+           the hall were considering them. A timber site hut stands against
+           the north wall, and the survey chamber is back to the west.",
+       sounds "Your own heartbeat, faintly, handed back to you by the vault.",
+       w_to survey_chamber,
+       n_to foremans_hut;
+
+Feature -> hall_vault "vaulted ceiling"
+  with name 'vault' 'vaulted' 'ceiling' 'scaffolding' 'stone' 'stones'
+           'numbered' 'roof',
+       description "Every stone of the finished half is cut to a curve no
+           two share; every stone of the unfinished half is numbered in
+           chalk, waiting for its place. The work stopped mid-sentence.";
+
+! The Foreman (P5). Note the pattern: his own `life` handles what he cares
+! about and returns false for everything else, so the Person class's
+! fallbacks (no_answer, no_interest) take over. His `each_turn` routine adds
+! a little life to the room every few turns while he is in view.
+Person -> foreman "Foreman"
+  with name 'foreman' 'man' 'grey' 'whiskered' 'apron',
+       description "A broad, grey-whiskered man in a canvas apron, chalk-dusted
+           to the elbows. He is checking the joint between two stones with a
+           feeler gauge and the expression of a man reading a letter from an
+           old friend.",
+       describe [;
+           "^The Foreman is here, measuring a joint that is already perfect.";
+       ],
+       no_answer "The Foreman considers this, then considers the joint again.
+           ~Can't say.~",
+       no_interest "The Foreman glances at it. ~Very nice.~",
+       ! The confidence he shares, reached by SHOW/GIVE (shown = true) or
+       ! by ASK (shown = false).
+       confide [ shown;
+           if (foreman_helped) "~I've told you what I know,~ says the Foreman.
+               ~The rest is further down.~";
+           foreman_helped = true;
+           move tuning_fork to player;
+           Achieved(TASK_FOREMAN);
+           if (shown) print "The Foreman takes the journal from
+               you, turns three pages, and stops. For a long moment the only
+               sound in the hall is the hall, listening.^^~His hand,~ he says
+               at last. ~I'd know it anywhere.";
+           else print "The Foreman lays down his gauge. For a long moment the
+               only sound in the hall is the hall, listening.^^~Quill,~ he says
+               at last. ~Ambrose Quill.";
+           " I was his apprentice, you know. Forty years. I carried his levels
+           and I learned his numbers, and when he went I stayed to finish what
+           I could.~ From his apron pocket he draws a steel tuning fork, its tines etched with tiny spirals. ~You'll be
+           wanting this further down. He made it to answer the stones.~ He
+           folds your fingers round it. ~And the springs: the old water wants
+           to go back where it came from. The new pump only helps it on its
+           way.~";
+       ],
+       life [;
+         Show, Give:
+           if (noun == journal) return self.confide(true);
+           if (noun == blueprint) "~His drawing,~ says the Foreman, without
+               surprise. ~He drew the house last. Like signing a letter.~";
+         Ask:
+           if (AskedAbout('architect', 'quill', 'ambrose', 'apprentice',
+               'journal', 'master')) return self.confide(false);
+           if (AskedAbout('lift', 'steam', 'crystal', 'crystals'))
+               "~Steam and crystal. He never trusted either on its own.~";
+           if (AskedAbout('water', 'springs', 'spring', 'pump', 'wheel',
+               'passage')) "~The old water wants to go back where it came
+               from. The new pump only helps it on its way.~";
+           if (AskedAbout('mirror', 'light', 'sun', 'daylight'))
+               "~The light comes down from the world,~ he says. ~He always
+               said you must point it where the day starts.~";
+           if (AskedAbout('fork', 'stones', 'pedestal'))
+               "~It's for the stones. You'll know.~";
+           if (AskedAbout('counter', 'shifting', 'door', 'arch', 'room'))
+               "~Patience. Same as the garden. Same as everything he built.~";
+           if (AskedAbout('inspector', 'woman', 'forms'))
+               "~Her? Been here since the spring before last. Nice woman.
+               Can't find the form for any of it.~";
+           if (AskedAbout('messenger', 'figure'))
+               "~Comes and goes. I've never seen the face.~";
+           if (AskedAbout('lanternless'))
+               "He looks at you sharply. ~Where did you hear that word?~ He
+               does not wait for an answer, and he does not give one.";
+           if (AskedAbout('hall', 'work', 'site', 'acoustics'))
+               "~Listen.~ He taps a stone with his hammer, and the hall sings
+               the note back to you from every direction at once. ~That's
+               not luck.~";
+         Tell:
+           "He listens politely, the way stone listens to rain.";
+       ],
+       orders [;
+           "~I take my orders from one man,~ says the Foreman, ~and he's been
+           dead nine years.~";
+       ],
+       each_turn [;
+           if (turns % 3 ~= 0) rfalse;
+           switch ((turns / 3) % 3) {
+             0: "^The Foreman taps a stone with his hammer and listens to the
+                hall answer.";
+             1: "^Somewhere up in the scaffolding, the hall repeats a cough
+                that nobody made.";
+             2: "^The Foreman chalks a small mark on a stone: an unfinished
+                spiral.";
+           }
+       ],
+  has  male;
+
+Object tuning_fork "tuning fork"
+  with name 'steel' 'tuning' 'fork' 'tines',
+       description "A steel tuning fork, heavier than it looks, its tines
+           etched with tiny spirals. Struck, it would give a single pure
+           note.",
+       before [;
+         Sound, Attack:
+           if (location ~= resonance_chamber)
+               "The fork gives a pure, thin note that dies away unremarked.
+               It was made for some other room.";
+           if (resonance_done) "The fork sings, and the stones hum along,
+               contentedly. The way north is already open.";
+           if (crystal notin pedestal)
+               "The fork's note rises, and the standing stones stir in their
+               ring -- but nothing on the pedestal carries the note to them,
+               and it fades.";
+           resonance_done = true;
+           Achieved(TASK_RESONANCE);
+           "You strike the fork against the pedestal's edge and hold it up. A
+           pure, thin note rises -- and the crystal answers it. Light pulses
+           out of the crystal in time with the note, and one by one the
+           standing stones take up the tone, each groove singing a little
+           lower than the last, until the whole ring rings like a bell the
+           size of a church. Dust sifts from the dome. Then, with a sound like
+           a great breath let out, the north wall of the chamber slides
+           apart.";
+       ];
+
+! --- 13. Foreman's Hut (optional: the Inspector) ----------------------------
+
+Room foremans_hut "Foreman's Hut"
+  with description
+           "A timber site hut, the kind that stands beside every building
+           project on earth, transported somehow a quarter of a mile
+           underground. It holds a desk, a kettle, a calendar stopped at a
+           month nine years ago, and a stack of forms tall enough to need its
+           own planning permission. The door is south.",
+       sounds "The scratch of a pencil, and a kettle that will never boil.",
+       s_to great_hall;
+
+Feature -> hut_furniture "hut furniture"
+  with name 'desk' 'kettle' 'calendar' 'forms' 'form' 'stack' 'paperwork',
+       description "The calendar has a ring round one date nine years ago,
+           and a single word: GONE. The forms are all addressed to the
+           county. You suspect they are addressed to you.";
+
+Person -> inspector "Inspector"
+  with name 'inspector' 'woman' 'official' 'thin' 'raincoat' 'badge'
+           'lanyard' 'clipboard',
+       description "A thin woman in a raincoat and lanyard, writing on a
+           clipboard with a pencil worn to a stub. Her badge reads COUNTY
+           BUILDING INSPECTORATE. By the height of the forms, she has been
+           here for some time.",
+       describe [;
+           "^The Inspector sits at the desk, filling in a form in triplicate.";
+       ],
+       no_answer "~You'd have to put that in writing,~ says the Inspector,
+           without looking up.",
+       no_interest "~I'll need that in triplicate,~ says the Inspector.",
+       life [;
+         Ask:
+           if (AskedAbout('irregular', 'building', 'practices', 'practice',
+               'irregularity')) {
+               Achieved(TASK_LORE_FORMS);
+               "~Irregular,~ the Inspector repeats, and lays her pencil down
+               for the first time. ~I have been here nine months. I have
+               measured every wall on this site. They are all correct. Not
+               within tolerance -- correct. Do you know what that does to a
+               person, finding nothing wrong? I have filed four hundred and
+               twelve forms.~ She picks the pencil up again. ~There is no
+               form for this,~ she says quietly, and begins another.";
+           }
+           if (AskedAbout('foreman')) "~Helpful man. Answers every question
+               with a different question.~";
+           if (AskedAbout('quill', 'architect', 'ambrose')) "~Deceased. I
+               have the certificate. I have filed it twice.~";
+           if (AskedAbout('form', 'forms')) "She hands you one. It is Form
+               114 (Supplementary): Declaration of Unaccountable Features.
+               Every box has been ticked. You hand it back.";
+           if (AskedAbout('county', 'demolition', 'survey')) "~They sent you
+               too? They always send someone. Mind the paperwork.~";
+       ];
+
+! --- 10. Spring Gallery -----------------------------------------------------
+
+Room spring_gallery "Spring Gallery"
+  with description [;
+           print "Water is everywhere here: dripping from the ceiling,
+               running in channels along the walls";
+           if (passage_drained) print ", and draining away eastward with a
+               cheerful gurgle";
+           else print ", and gathering in a dark, still pool at the gallery's
+               eastern end";
+           print ". Two machines face each other across the floor, centuries
+               apart. One is a great bronze wheel, green with age, set into the
+               wall of an ancient carved waterway; the other is a modern
+               electric pump, yellow and black, its hose snaking off to the
+               east. The survey chamber lies north, and the gallery runs east
+               into the flooded passage.^";
+           rtrue;
+       ],
+       sounds "Water, in every register: drip, trickle, rush.",
+       n_to survey_chamber,
+       e_to flooded_passage;
+
+Object -> bronze_wheel "bronze wheel"
+  with name 'bronze' 'great' 'wheel' 'sluice' 'waterway' 'ancient' 'carved',
+       description [;
+           print "A spoked bronze wheel, taller than you, worked into the
+               mouth of an ancient carved waterway. ";
+           if (wheel_turned) "It has been turned; the old sluice stands
+               open.";
+           "Its sluice is shut.";
+       ],
+       before [;
+         Turn, Push, Pull:
+           if (wheel_turned) "The wheel has turned as far as it will go; the
+               old sluice stands open.";
+           wheel_turned = true;
+           print "You put your weight against the bronze wheel. For a moment
+               nothing; then, with a groan like a ship's timbers, it turns,
+               and deep in the old waterway a stone sluice grinds open. Water
+               begins to run along the channel -- not toward the pool, but
+               away from it, back into the rock.^";
+           if (CheckSprings() == false) "^But the pool barely stirs. The old
+               waterway cannot carry it all alone.";
+           rtrue;
+         Take: "It weighs as much as a small carriage.";
+       ],
+  has  static scenery;
+
+Object -> pump "electric pump"
+  with name 'modern' 'electric' 'pump' 'yellow' 'black' 'hose' 'switch',
+       description [;
+           print "A modern site pump, yellow and black, stencilled PROPERTY OF
+               QUILL & APPRENTICE. Its switch is ";
+           if (self has on) "on, and it hums industriously.";
+           "off.";
+       ],
+       before [;
+         SwitchOff:
+           if (passage_drained) "Best leave it running; you would rather the
+               passage stayed drained while you are on the far side of it.";
+         Take: "It is bolted to the floor, presumably by someone who knew
+           surveyors.";
+       ],
+       after [;
+         SwitchOn:
+           print "The pump coughs, catches, and settles into an industrious
+               hum.^";
+           if (CheckSprings() == false) "^The hose twitches, but the pool
+               only stirs: the pump is pushing the water round in a circle,
+               with nowhere for it to go.";
+           rtrue;
+       ],
+  has  static scenery switchable;
+
+! --- 11. Flooded Passage ----------------------------------------------------
+
+Room flooded_passage "Flooded Passage"
+  with description [;
+           if (passage_drained)
+               "The passage floor is wet stone, still glistening, and drains
+               gurgle contentedly along its edges. Eastward, a silver light
+               beckons; the spring gallery is back to the west.";
+           "The passage slopes down into black water, perfectly still and
+           very cold; your breath steams above it. Forty feet to the east,
+           on the far side, a faint silver light shows. The spring gallery is
+           back to the west.";
+       ],
+       sounds [;
+           if (passage_drained) "Drains, gurgling with satisfaction.";
+           "Nothing. Still water makes no sound at all.";
+       ],
+       w_to spring_gallery,
+       e_to [;
+           if (passage_drained) return mirror_gallery;
+           "The water is chest-deep and very cold. You decline, on behalf of
+           your notebook.";
+       ];
+
+Feature -> flood_water "water"
+  with name 'water' 'black' 'pool' 'flood' 'drains' 'drain',
+       description [;
+           if (passage_drained) "Only puddles, and they are leaving.";
+           "Black, still and cold enough to stop the heart of a less
+           well-paid surveyor.";
+       ],
+       before [;
+         Drink: "It tastes of iron and a very long time.";
+         Enter: <<Go e_obj>>;
+       ];
+
+! --- 12. Mirror Gallery -----------------------------------------------------
+
+Room mirror_gallery "Mirror Gallery"
+  with description [;
+           print "A tall, narrow gallery, its walls sheathed in polished
+               silver. A shaft bored through hundreds of feet of rock lets
+               down a single pencil of daylight from the world above, which
+               falls onto a great mirror mounted on a pivot in the middle of
+               the floor. The mirror faces ", (string) compass_names-->mirror_facing,
+               ". On the far east wall, at head height, is a socket of cut
+               glass";
+           if (crystal in crystal_socket) print " in which a crystal blazes
+               with captured daylight";
+           else if (stairs_open) print ", empty now but still faintly warm";
+           else print ", empty and dark";
+           print ". The way back is west";
+           if (stairs_open) print ", and narrow stairs lead down from the
+               foot of the mirror";
+           ".";
+       ],
+       sounds "A high, almost inaudible singing from the silver walls,
+           like a wet finger on the rim of a glass.",
+       w_to flooded_passage,
+       d_to [;
+           if (stairs_open) return vault_antechamber;
+           "The floor is solid stone. Mostly.";
+       ];
+
+Object -> great_mirror "great mirror"
+  with name 'great' 'mirror' 'pivot' 'frame' 'disc' 'silvered',
+       description [;
+           "A disc of silvered glass as tall as a door, in a bronze frame
+           that turns on a pivot. It faces ", (string) compass_names-->mirror_facing,
+           ", throwing the daylight that way.";
+       ],
+       before [;
+         Turn, Push, Pull:
+           mirror_facing = (mirror_facing + 1) % 4;
+           print "You lean on the frame and the great mirror swings a
+               quarter turn on its pivot. It now faces ",
+               (string) compass_names-->mirror_facing, ", and ";
+           switch (mirror_facing) {
+             0: "the beam paints a bright, useless oval on the north wall.";
+             2: "the beam splashes across the south wall and the silver
+                throws it back, dazzled.";
+             3: "the beam runs back down the passage toward the water.";
+           }
+           ! Facing 1: east, where the crystal socket is.
+           if (crystal in crystal_socket || stairs_open)
+               "the beam strikes the crystal socket on the east wall.";
+           move crystal to crystal_socket;
+           "the beam strikes the crystal socket on the east wall full on.
+           For a heartbeat the cut glass simply shines; then light seems to
+           pour into it and stay there, thickening, until a crystal the size
+           of your fist has grown in the socket, blazing with captured
+           daylight.";
+         Take: "It is the size of a door and fixed to its pivot.";
+       ],
+  has  static scenery;
+
+Feature -> light_shaft "shaft of daylight"
+  with name 'shaft' 'daylight' 'light' 'beam' 'pencil' 'sun' 'sunlight',
+       description "Real daylight, hundreds of feet from the nearest sky. It
+           falls straight onto the mirror, which sends it wherever it is
+           pointed.";
+
+Object -> crystal_socket "crystal socket"
+  with name 'socket' 'cut' 'glass' 'wall',
+       description "A socket of cut glass, shaped like a cupped hand, set
+           into the east wall at head height.",
+  has  scenery container open;
+
+Object crystal "glowing crystal"
+  with name 'glowing' 'crystal' 'gem' 'stone',
+       description "A crystal the size of your fist, grown from daylight. It
+           is warm, and it glows -- not brightly, but patiently, like
+           something that intends to go on doing so for a very long time.",
+       after [;
+         Take:
+           if (stairs_open) rfalse;
+           stairs_open = true;
+           Achieved(TASK_MIRROR);
+           "The crystal comes away warm in your hand, still glowing. At the
+           same moment the floor at the mirror's foot splits along a seam you
+           had not noticed, and folds down into a flight of narrow stairs,
+           descending.";
+       ],
+  has  light;
+
+
+! ============================================================================
+!  7. CHAPTER THREE: LEGACY OF THE DEEP  --  the prototype vault
+! ----------------------------------------------------------------------------
+!  Rooms: Vault Antechamber, Shifting Room, Resonance Chamber, Final Chamber,
+!  and (optional) the Messenger's Alcove. Puzzle P8 (shifting room +
+!  resonance), then the win. The Shifting Room is driven by a DAEMON.
+! ============================================================================
+
+! --- 14. Vault Antechamber --------------------------------------------------
+
+Room vault_antechamber "Vault Antechamber"
+  with initial [; BeginChapter(3); ],
+       description
+           "The temperature has changed again. After the cold of the shaft
+           and the wet of the springs, the air here is warm, dry and perfectly
+           still, like the air inside a sealed letter. The walls are dense
+           with formulas cut in a fine, sure hand: equations of stress and
+           load that begin sensibly and end somewhere you cannot follow.
+           Stairs lead up to the mirror gallery. A plain doorway opens north,
+           and a low alcove east.",
+       sounds "Nothing at all. The silence has a texture, like felt.",
+       u_to mirror_gallery,
+       e_to messengers_alcove,
+       ! Entering the Shifting Room always starts its cycle afresh, so the
+       ! puzzle behaves the same way every time (and the walkthrough's four
+       ! WAITs always work).
+       n_to [;
+           shift_step = 1;
+           StartDaemon(shifting_room);
+           return shifting_room;
+       ];
+
+Feature -> formula_wall "formula wall"
+  with name 'formula' 'formulas' 'formulae' 'equation' 'equations' 'wall'
+           'walls',
+       description [;
+           Achieved(TASK_LORE_WALL);
+           "You follow one equation from the left-hand wall. It begins as an
+           ordinary calculation of the load on an arch. By the third line the
+           arch is carrying the weight of the arch above it; by the ninth it
+           is carrying itself; by the last it appears to be carrying the
+           mountain. At the foot, in the same hand: ~Checked. A.Q.~^^You are a
+           professional, so you check it too. It works. You wish it didn't.";
+       ];
+
+! --- 18. Messenger's Alcove (optional: the Messenger) ----------------------
+
+Room messengers_alcove "Messenger's Alcove"
+  with description
+           "A small, low alcove with a stone bench, lit by a lamp that burns
+           steadily on no fuel you can see. It feels like a waiting room: the
+           kind where the appointment was made a long time ago. The
+           antechamber is back to the west.",
+       sounds "The lamp makes a tiny sound, like someone not quite
+           breathing.",
+       w_to vault_antechamber;
+
+Feature -> alcove_lamp "lamp"
+  with name 'lamp' 'bench' 'stone' 'flame',
+       description "The lamp has a wick, a flame and no reservoir. The bench
+           is cold, and polished by a great deal of waiting.";
+
+Person -> messenger "Messenger"
+  with name 'messenger' 'figure' 'cloaked' 'hooded' 'cloak' 'hood',
+       description "A slight figure in a grey travelling cloak, hood up, face
+           in shadow. Their boots are dusty with a kind of dust you have
+           never seen, pale as flour, from somewhere a long way off.",
+       describe [;
+           "^The Messenger sits on the bench, waiting with the patience of
+           someone who has delivered this message many times.";
+       ],
+       no_answer "The Messenger says nothing at all, but taps the folded note
+           on the bench with one gloved finger.",
+       no_interest "The Messenger shakes their hooded head, very slightly.";
+
+Object -> coded_note "folded note"
+  with name 'folded' 'note' 'message' 'coded' 'code' 'wax' 'paper',
+       initial "A folded note, sealed with grey wax, lies on the bench beside
+           the Messenger.",
+       description [;
+           Achieved(TASK_LORE_NOTE);
+           "You break the grey seal. The note reads:^^    WKH OLJKW LV QHDUOB
+           UHDGB^^Beneath it, in a different and rather impatient hand,
+           someone has pencilled the answer: THE LIGHT IS NEARLY READY.^^The
+           Messenger gives a small nod, as if a delivery has finally been
+           signed for.";
+       ];
+
+! --- 15. Shifting Room  (P8, part one: the daemon) --------------------------
+! The room's arch travels round the walls a quarter turn per turn, and a
+! counter climbs 1, 1, 2, 3, 5, 8, 13. Only at 13 does it stand north with
+! the shutter down. Here is the timeline, which the walkthrough depends on:
+!
+!   turn you arrive  : description shows step 1 (counter "1, 1", arch west);
+!                      the daemon runs at the end of that turn -> step 2
+!   WAIT 1, 2, 3, 4  : steps 3, 4, 5, 6 -> counter 13, arch north, OPEN
+!   WAIT again       : the cycle starts over at step 1
+!
+! The daemon stops itself as soon as the player is somewhere else.
+
+Room shifting_room "Shifting Room"
+  with description [;
+           print "A circular room whose walls will not keep still. A single
+               iron-framed arch travels round them like the hand of a clock,
+               a quarter turn at a time, and the stone closes seamlessly
+               behind it as it goes. High on the wall a brass counter shows a
+               column of numbers: ";
+           PrintCounter();
+           print ". The arch now stands to the ", (string) ArchDirection(), ".";
+           if (shift_step == 6) print " Behind it the stone shutter has
+               dropped away: the way north is open.";
+           else print " To the north, a stone shutter seals the only other
+               doorway.";
+           " The plain doorway south, by which you came, stays obligingly
+           put.";
+       ],
+       sounds "Stone grinding on stone, patiently, like a mill that has
+           all the time in the world.",
+       before [;
+         Wait: "You stand still and let the room do the moving.";
+       ],
+       daemon [;
+           if (location ~= self) { StopDaemon(self); rfalse; }
+           if (shift_step == 6) {
+               shift_step = 1;
+               "^The counter rolls back to 1 with a weary clank, the shutter
+               grinds up again, and the arch slides back to the west to begin
+               its round once more.";
+           }
+           shift_step++;
+           print "^With a grinding of stone on stone, the arch slides a
+               quarter turn round the wall and comes to rest to the ",
+               (string) ArchDirection(), ". The counter clicks: ",
+               fibonacci-->shift_step;
+           if (shift_step == 6) ". Behind the arch, with a boom you feel in
+               your knees, the stone shutter drops into the floor. The way
+               north is open.";
+           if (shift_step == 2) ". The arch faces north, but the shutter
+               behind it stays shut: the counter, it seems, is not yet
+               satisfied.";
+           ".";
+       ],
+       n_to [;
+           if (shift_step == 6) return resonance_chamber;
+           print "The stone shutter to the north is shut. The counter shows ",
+               fibonacci-->shift_step, ", and the arch stands to the ",
+               (string) ArchDirection(), ".^";
+           rtrue;
+       ],
+       s_to vault_antechamber;
+
+Feature -> brass_counter "brass counter"
+  with name 'brass' 'counter' 'numbers' 'column',
+       description [;
+           print "A brass counter in a glass case, showing a column of
+               numbers: ";
+           PrintCounter();
+           ". Each is the sum of the two above it.";
+       ];
+
+Feature -> moving_arch "iron arch"
+  with name 'iron' 'arch' 'archway' 'shutter' 'stone' 'door' 'doorway',
+       description [;
+           print "The arch stands to the ", (string) ArchDirection(), ". ";
+           if (shift_step == 6) "The north shutter is down.";
+           "The north shutter is shut.";
+       ];
+
+! --- 16. Resonance Chamber  (P8, part two) ----------------------------------
+
+Room resonance_chamber "Resonance Chamber"
+  with description [;
+           print "A perfectly circular chamber under a low dome, so quiet
+               that you can hear your own pulse. A ring of grey standing
+               stones surrounds a pedestal of black basalt, each stone cut with
+               a single deep groove at exactly the same height. The shifting
+               room is back to the south";
+           if (resonance_done) print ". The stones still hum, and the north
+               wall stands open on a further chamber";
+           ".";
+       ],
+       sounds [;
+           if (resonance_done) "The stones, humming a chord you can feel in
+               your teeth.";
+           "Your own pulse. Then, very faintly, the stones, waiting to be
+           asked.";
+       ],
+       s_to shifting_room,
+       n_to [;
+           if (resonance_done) return final_chamber;
+           "The north wall is seamless basalt.";
+       ];
+
+Feature -> standing_stones "standing stones"
+  with name 'grey' 'standing' 'stones' 'stone' 'ring' 'groove' 'grooves',
+       description "Twelve grey stones, each a little taller than you, each
+           with one deep groove cut round it like a tuning mark.",
+  has  pluralname;
+
+Object -> pedestal "basalt pedestal"
+  with name 'black' 'basalt' 'pedestal',
+       description "A pedestal of black basalt with a shallow, cupped top,
+           about the size of a fist.",
+  has  static scenery supporter;
+
+! --- 17. Final Chamber  (the win) ------------------------------------------
+
+Room final_chamber "Final Chamber"
+  with description
+           "The last room is small and plain, which after everything else is
+           the most startling thing about it. Lamplight from nowhere in
+           particular falls on a reading lectern of oak and brass, and on the
+           lectern lies a great folded sheet: the master blueprint. The way
+           back is south.",
+       sounds "Paper, very faintly, as if the blueprint were breathing.",
+       s_to resonance_chamber;
+
+Feature -> lectern "lectern"
+  with name 'reading' 'lectern' 'oak',
+       description "Oak and brass, at exactly the height of a man who spent
+           his life leaning over drawings.",
+  has  supporter;
+
+Object master_blueprint "master blueprint" lectern
+  with name 'master' 'blueprint' 'great' 'folded' 'sheet' 'plan',
+       description [;
+           ! Reading this is the winning move: print the revelation and end
+           ! the game. deadflag 3 means "ended, by the author's own words":
+           ! the library calls DeathMessage (section 8) to say what they are.
+           print "You unfold the master blueprint across the lectern, and the
+               first thing you understand is that it is not a plan of this
+               place at all.^^This vault -- the lift, the springs, the mirror,
+               the singing stones -- is drawn small in one corner and labelled
+               in Quill's hand: PROTOTYPE. PROVEN. The rest of the enormous
+               sheet is given over to something else: LOW MERIDIAN, a city cut
+               beneath the Saltmarsh Downs, forty miles east, its coordinates
+               written in the margin to the second of arc. You trace its great
+               dome, its waterways, its lift shafts falling level below level,
+               its streets laid out to the same sequence as the flower beds in
+               the garden.^^In the deepest level is a sealed gallery, and beside
+               it, in Quill's small and untroubled hand: ~For the Lanternless.
+               Do not open until the light is ready.~^^You do not know who the
+               Lanternless are. Neither, you suspect, does anyone alive.^^At
+               the foot of the sheet the stages of the work are listed in
+               columns, with dates. The first several are ticked. The last
+               tick is nine years old. The next date is next spring.^^You take
+               out your notebook. Under QUILLON HOUSE you write: No
+               irregularities. Then, after some thought, you add the only
+               honest finding of your career:^^    The architect's madness was
+               a schedule.^";
+           deadflag = 3;
+           rtrue;
+       ],
+       before [;
+         Take: "It is clipped to the lectern by four brass clips. Read it
+           where it lies.";
+       ],
+  has  static scenery;
+
+
+! ============================================================================
+!  8. ENTRY POINTS  --  routines the library calls if the game provides them
+! ============================================================================
+
+[ Initialise;
+    location = garden;
+    move notebook to player;
+    lookmode = 2;                 ! VERBOSE: full descriptions on every visit
+    print "^^The county's letter is in your breast pocket, folded into exact
+        thirds. Quillon House, former residence of the late Ambrose Quill,
+        architect, is to be surveyed for structural soundness prior to
+        demolition. ~Report any irregularities.~^^Everyone at the planning
+        office laughed at that last word. Quill's building was famous for
+        nothing else.^";
+];
+
+! deadflag 3 (set by the master blueprint) ends the game with our own words.
+[ DeathMessage;
+    if (deadflag == 3) print "The work continues";
+];
+
+! Names for FULL SCORE, one per task number in section 1.
+[ PrintTaskName task;
+    switch (task) {
+      TASK_DIAL:        "opening Quill's desk";
+      TASK_BLUEPRINT:   "mending the blueprint";
+      TASK_BRASS:       "playing the brass chord";
+      TASK_LIFT:        "waking the lift";
+      TASK_FOREMAN:     "earning the Foreman's trust";
+      TASK_SPRINGS:     "turning the springs";
+      TASK_MIRROR:      "growing the crystal";
+      TASK_RESONANCE:   "singing the stones awake";
+      TASK_LORE_CARDS:  "reading the calling cards";
+      TASK_LORE_MARKS:  "decoding the survey marks";
+      TASK_LORE_FORMS:  "hearing the Inspector out";
+      TASK_LORE_NOTE:   "reading the Messenger's note";
+      TASK_LORE_WALL:   "checking Quill's arithmetic";
+    }
+];
+
+! In the Final Chamber you carry one blueprint and another lies on the
+! lectern. When the parser is choosing between candidates (code 2), weight
+! the master blueprint so READ BLUEPRINT means the one you came for.
+! Likewise X DESK means the desk itself, not the desk drawer (OPEN DESK
+! DRAWER still works: the drawer matches more words, so it is chosen first).
+[ ChooseObjects obj code;
+    if (code == 2 && obj == master_blueprint or study_desk) return 5;
+    return 0;
+];
+
+
+! ============================================================================
+!  9. GRAMMAR  --  the standard verbs, then the game's own
+! ============================================================================
+
+Include "Grammar";
+
+! SOUND: ring the bell, strike the chime, blow the horn, strike the fork.
+! Objects that make a noise handle ##Sound in their own `before`.
+[ SoundSub;
+    if (noun has animate) "They would not thank you for it.";
+    "You produce a dull, unmusical noise.";
+];
+
+Verb 'ring' 'strike' 'sound' 'toll' 'play' 'tap' 'bang'
+    * noun                              -> Sound
+    * noun 'on'/'against'/'with' noun   -> Sound;
+
+! The library's BLOW wants a HELD object; the brass horn is bolted down.
+Extend 'blow' first
+    * noun                              -> Sound;
+
+! JOIN: an alternative to PUT LEFT HALF ON RIGHT HALF.
+[ JoinSub; return JoinHalves(); ];
+
+Verb 'join' 'combine' 'assemble' 'mend' 'reassemble' 'repair'
+    * 'halves'/'pieces'                 -> Join
+    * 'blueprint' 'halves'/'pieces'     -> Join
+    * noun                              -> Join
+    * noun 'to'/'with'/'and' noun       -> Join;
