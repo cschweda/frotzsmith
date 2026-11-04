@@ -114,5 +114,5 @@ export function useSourceDocument() {
   // killing autosave for the session.
   registerSessionOnce('source-autosave', () => watch(source, scheduleSave))
 
-  return { source, savedAt, restore, save }
+  return { source, savedAt, restore, save, flushPendingSave }
 }

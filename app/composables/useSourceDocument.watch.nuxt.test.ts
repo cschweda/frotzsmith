@@ -88,3 +88,27 @@ describe('useSourceDocument — language switch', () => {
     expect(doc.source.value).toContain('WEST-OF-HOUSE')
   })
 })
+
+describe('useSourceDocument — flushPendingSave', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    localStorage.clear()
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('writes the recovery copy immediately, without advancing timers', async () => {
+    const { useLanguage } = await import('./useLanguage')
+    vi.stubGlobal('useLanguage', useLanguage)
+    const { useSourceDocument } = await import('./useSourceDocument')
+    const doc = useSourceDocument()
+    doc.source.value = 'Constant Story "Flushed";'
+    await nextTick()
+    expect(localStorage.getItem('frotzsmith:i6:recovery')).toBeNull()
+    doc.flushPendingSave()
+    const raw = localStorage.getItem('frotzsmith:i6:recovery')
+    expect(JSON.parse(raw!).source).toContain('Flushed')
+  })
+})

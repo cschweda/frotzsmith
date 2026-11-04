@@ -39,7 +39,7 @@ import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 
 /** Debounced saves, one timer PER BUCKET — a save for game B must never
  *  cancel game A's still-pending save. */
-const _saveTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const _saveTimers = new Map<string, { timer: ReturnType<typeof setTimeout>, run: () => Promise<void> }>()
 /** Bucket whose IndexedDB load is in flight: the in-memory tree still belongs
  *  to the previous game, so saving it under this key would clobber the
  *  stored skein. */
@@ -78,20 +78,33 @@ export function useSkein() {
   const nodeCount = computed(() => countNodes(tree.value))
 
   // ── persistence ───────────────────────────────────────────────────────────
+  /** The write behind one bucket's debounced save; the timer and `flushSaves` both run it. */
+  function persist(key: string, snapshot: SkeinTree): Promise<void> {
+    return getSkeinStore()
+      .save(key, snapshot)
+      .then(ok => {
+        if (!ok) notifyStorageFull()
+      })
+  }
+
   function scheduleSave() {
     const key = bucketKey()
     if (key === _restoringKey) return
     const pending = _saveTimers.get(key)
-    if (pending) clearTimeout(pending)
+    if (pending) clearTimeout(pending.timer)
     const snapshot = tree.value
-    _saveTimers.set(key, setTimeout(() => {
+    const run = () => {
       _saveTimers.delete(key)
-      void getSkeinStore()
-        .save(key, snapshot)
-        .then(ok => {
-          if (!ok) notifyStorageFull()
-        })
-    }, 500))
+      return persist(key, snapshot)
+    }
+    _saveTimers.set(key, { timer: setTimeout(run, 500), run })
+  }
+
+  /** Run every pending debounced save now and wait for the stores (before a reload). */
+  async function flushSaves(): Promise<void> {
+    const pending = [..._saveTimers.values()]
+    for (const p of pending) clearTimeout(p.timer)
+    await Promise.all(pending.map(p => p.run()))
   }
 
   function setTree(next: SkeinTree) {
@@ -321,6 +334,7 @@ export function useSkein() {
   return {
     tree,
     nodeCount,
+    flushSaves,
     running,
     progress,
     autoRun,

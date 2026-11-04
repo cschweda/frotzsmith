@@ -312,3 +312,15 @@ function leafOf(tree: SkeinTree): string {
   const leaf = Object.values(tree.nodes).find(n => n.id !== tree.root && n.childIds.length === 0)
   return leaf!.id
 }
+
+describe('useSkein — flushSaves', () => {
+  it('writes every pending bucket save now, without advancing timers', async () => {
+    bootIde('game-flush')
+    const skein = useSkein()
+    await skein.restore()
+    skein.recordPlayCommand('north')
+    await skein.flushSaves()
+    const saved = await _memStore.load(`${_profile.value.stateKey}:game-flush`)
+    expect(Object.values(saved!.nodes).map(n => n.command)).toContain('north')
+  })
+})
