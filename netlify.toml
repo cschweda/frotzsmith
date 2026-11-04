@@ -46,6 +46,8 @@
   for = "/manifest.webmanifest"
   [headers.values]
     Cache-Control = "no-cache"
+    # Netlify serves the .webmanifest extension as application/octet-stream.
+    Content-Type = "application/manifest+json"
 
 # Long-cache content-hashed build assets (WASM, interpreter, JS/CSS).
 [[headers]]
