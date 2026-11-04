@@ -17,7 +17,8 @@ const EXT_TO_VERSION: Record<string, number> = {
  *
  * The numeric version passed to compile() matches the first element of
  * versionTargets (z3 → 3) when opts.ext is absent, consistent with the
- * Infocom-authentic z3 target used by all ZIL_SAMPLES.
+ * Infocom-authentic z3 target used by the ZIL concept samples (each sample
+ * also declares its own target, applied when it is loaded).
  *
  * NOTE: Do NOT prepend a <VERSION> directive in the source here — the ZILF
  * worker already prepends `<VERSION {version}>` before compiling.

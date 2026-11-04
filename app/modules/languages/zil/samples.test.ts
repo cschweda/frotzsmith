@@ -36,8 +36,8 @@ describe('sampleById', () => {
 // ---------------------------------------------------------------------------
 
 describe('ZIL_SAMPLES registry', () => {
-  it('has exactly 7 samples', () => {
-    expect(ZIL_SAMPLES).toHaveLength(7)
+  it('has exactly 8 samples', () => {
+    expect(ZIL_SAMPLES).toHaveLength(8)
   })
 
   it('all IDs are unique', () => {
@@ -64,9 +64,9 @@ describe('ZIL_SAMPLES registry', () => {
     }
   })
 
-  it('every sample has target z3', () => {
+  it('every concept sample has target z3; the longer game targets z5', () => {
     for (const s of ZIL_SAMPLES) {
-      expect(s.target).toBe('z3')
+      expect(s.target).toBe(s.id === 'zil-architect-legacy' ? 'z5' : 'z3')
     }
   })
 
@@ -144,5 +144,14 @@ describe('ZIL_SAMPLES concept checks', () => {
     expect(s.source).toContain('QUEUE')
     expect(s.source).toContain('DEQUEUE')
     expect(s.source).toContain('CANDLE-LIFE')
+  })
+
+  it('zil-architect-legacy is the longer game: chapters, an interrupt, scoring, people', () => {
+    const s = sampleById('zil-architect-legacy')!
+    expect(s.name).toBe("The Architect's Legacy · longer game")
+    expect(s.source).toContain('CHAPTER THREE')
+    expect(s.source).toContain('<QUEUE ,I-SHIFTING-ROOM -1>')
+    expect(s.source).toContain('SCORING-ACHIEVEMENTS')
+    expect(s.source).toContain('PERSONBIT')
   })
 })
