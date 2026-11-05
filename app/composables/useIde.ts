@@ -317,6 +317,13 @@ export function useIde() {
     releaseExtras()
   }
 
+  /** Load a source file the author opened from disk. It arrived from outside
+   *  like a package does, so Skein auto-run waits until Play or Run (F2). */
+  function loadOpenedFile(text: string) {
+    loadSource(text)
+    useOutsideSource().markOutside()
+  }
+
   /** Start a fresh project: a blank editor with the chosen library forced. */
   function newProject(library: ProfileId) {
     source.value = ''
@@ -387,6 +394,7 @@ export function useIde() {
     setTargetMode,
     loadSample,
     loadSource,
+    loadOpenedFile,
     newProject,
     playStory,
     sendToPlay,

@@ -23,6 +23,21 @@ beforeEach(() => {
 })
 afterEach(() => vi.restoreAllMocks())
 
+describe('useOutsideSource — the held note is per language, like the mark', () => {
+  it('a note held for Inform 6 is not shown for ZIL, and trusting ZIL keeps it', () => {
+    useOutsideSource().markOutside()
+    useOutsideSource().autoRunHeld.value = true
+    _profile.value = ZIL
+    expect(useOutsideSource().autoRunHeld.value).toBe(false)
+    useOutsideSource().markOutside()
+    useOutsideSource().trust()
+    _profile.value = I6
+    expect(useOutsideSource().autoRunHeld.value).toBe(true)
+    useOutsideSource().trust()
+    expect(useOutsideSource().autoRunHeld.value).toBe(false)
+  })
+})
+
 describe('useOutsideSource', () => {
   it('starts trusted', () => {
     expect(useOutsideSource().untrusted.value).toBe(false)

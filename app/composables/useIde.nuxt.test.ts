@@ -404,6 +404,19 @@ describe('useIde — loadSample (async, lazy sample bodies)', () => {
     expect(useOutsideSource().untrusted.value).toBe(false)
   })
 
+  // Ruling (fix round): a plain .inf/.zil opened from disk is delivered like
+  // a package — outside source until the author presses Play or Run.
+  it('opening a plain source file marks it as outside source', () => {
+    const ide = useIde()
+    ide.newProject('std')
+    expect(useOutsideSource().untrusted.value).toBe(false)
+    ide.loadOpenedFile('Constant Story "From Disk";\n')
+    expect(ide.source.value).toBe('Constant Story "From Disk";\n')
+    expect(useOutsideSource().untrusted.value).toBe(true)
+    ide.newProject('std')
+    expect(useOutsideSource().untrusted.value).toBe(false)
+  })
+
   it('a sample that is unknown leaves the mark in place', async () => {
     const ide = useIde()
     useOutsideSource().markOutside()

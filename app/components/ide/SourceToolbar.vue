@@ -5,7 +5,7 @@ import { formatNameList, mismatchNames } from '~/utils/mismatch-list'
 import { DOWNLOAD_FAILED, OPEN_FAILED, downloadedNote, openDialogNotes, openedNotes, refusalSentence } from '~/utils/package-messages'
 import { isPristine } from '~/utils/pristine'
 
-const { source, storyBase, loadSource, newProject } = useIde()
+const { source, storyBase, loadOpenedFile, newProject } = useIde()
 const { togglePanel, panelOpen } = useProjectFiles()
 const { profile } = useLanguage()
 const { copyShareLink } = useShareLink()
@@ -56,7 +56,7 @@ const pendingPlain = shallowRef<{ name: string; text: string } | null>(null)
 const confirmPlain = ref(false)
 function openPlain(name: string, text: string) {
   if (isPristine(source.value) || text === source.value) {
-    loadSource(text)
+    loadOpenedFile(text) // outside source: no Skein auto-run until Play/Run
     void focusOpen()
     return
   }
@@ -67,7 +67,7 @@ function onReplacePlain() {
   const p = pendingPlain.value
   confirmPlain.value = false
   pendingPlain.value = null
-  if (p) loadSource(p.text)
+  if (p) loadOpenedFile(p.text)
   void focusOpen()
 }
 function onCancelPlain() {
