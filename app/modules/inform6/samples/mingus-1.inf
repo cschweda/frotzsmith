@@ -16,6 +16,7 @@
 !    gondolas are stalled. The only way out is down.
 !
 !  HOW THIS FILE IS ORGANISED  (search for the banner text to jump)
+!    0. HOW THIS GAME IS BUILT  the overview block, just below this header
 !    1. SETUP ............ story constants, the score table, ALL game state
 !    2. LIBRARY .......... Parser + VerbLib includes
 !    3. CLASSES .......... Room, Feature, Person, FloorTile
@@ -27,50 +28,10 @@
 !    8. ENTRY POINTS ..... Initialise, DeathMessage, PrintRank, PrintTaskName
 !    9. GRAMMAR .......... Grammar include + the game's own verbs
 !
-!  THE MAP  (20 rooms; [*] = optional, lore only)
-!
-!    ACT ONE                                       The Observatory
-!                                                        | up/down
-!                     Vaunt's Study                      |
-!                          | n/s                         |
-!     Gas Station     Pavilion Terrace ---- e/w ---- Upside-Down Ballroom
-!         | n/s         | u/d       | s/n                | down (after P3)
-!     Wind-Scoured --e/w-- Whitepaper  Lady Vaunt's    Root Cellar ....... ACT TWO
-!     Mesa (start)         Switchbacks Wing                | down (after P4)
-!                                   Archive --- s/n --- The Mempool --e/w-- Validator Pit
-!                                      | n/s               | s/n
-!                              Cold Wallet Cavern      Break Room
-!                                      | e/w               | down
-!                               Windward Ledge        [*]Shared Shaft
-!                                      | down (cable car)
-!    FINALE  Bottom Gondola Station --e/w-- The Runout --e--> The River's Edge
-!                                                        --e--> Foot of the Gangplank
-!
-!  THE PUZZLES  (10 puzzles x 5 points + 5 lore x 2 points = 60)
-!    P1  Whitepaper kiosk   translate three buzzwords   -> TYPE NOBODY, TYPE
-!                                                          MONEY, TYPE MOUNTAIN
-!    P2  The telescope      look down, not across       -> TURN TELESCOPE, LOOK
-!                                                          THROUGH TELESCOPE
-!    P3  Ballroom floor     the Survey's true order     -> PRESS FOYER / SHAFT /
-!                                                          STATION / OBSERVATORY /
-!                                                          SHOP TILE
-!    P4  KYC                address + CAPTCHA           -> PUT NOTICE IN SCANNER,
-!                                                          SELECT NONE
-!    P5  The contract       a punch card fixes the loop -> SEARCH TRANSACTIONS,
-!                                                          PUT CARD IN SLOT
-!    P6  The union          signed charter + collateral -> SIGN CHARTER, GIVE
-!                                                          CHARTER TO STEWARD
-!        (the consensus door wants P5's contract AND P6's endorsement)
-!    P7  The cold wallet    the Trust's plain words     -> TYPE THEY, NEVER,
-!                                                          LOOK, UP
-!    P8  The belted verdling oil, then a very small pin -> OIL BUCKLE, PRESS PAWL
-!                                                          WITH PIN  (the pike)
-!    P9  The coat           where the telescope showed  -> DIG BY GONDOLA, TAKE
-!                                                          COAT
-!    P10 The pike line      raise it, then walk         -> FEND VERDLINGS WITH
-!                                                          PIKE, EAST
-!    Lore: the Lost Expedition plaque, the busker, the Spite Terminal, Mrs.
-!    Thrumble, the Genesis Block.  Win: reach the Foot of the Gangplank.
+!  THE MAP, THE PUZZLES, THE SCORE AND THE STATE
+!    All in HOW THIS GAME IS BUILT, the block right after this one: the
+!    maps act by act, the puzzle dependency chain, the scoring table, the
+!    state table and the walkthrough map.
 !
 !  TECHNIQUES WORTH STEALING
 !    - A per-room turn counter that kills deterministically: the Runout's
@@ -96,7 +57,280 @@
 
 
 ! ============================================================================
+!  HOW THIS GAME IS BUILT  --  the overview, for a long game
+! ----------------------------------------------------------------------------
+!  Read this first. A game this long is easy to get lost in; these pages
+!  are the map of the CODE, not just of the rooms: how the game is divided,
+!  which puzzle opens what, where every point comes from, every piece of
+!  state and who touches it, and how the walkthrough runs through it all.
+!  Section banners further down say WHY each part is built the way it is.
+!
+!  A. THREE ACTS, AND WHY THE SPLIT
+!     Act One  The Abandoned Pavilion    the summit             rooms 1-8
+!     Act Two  The Blockchain Catacombs  inside the mountain    rooms 9-16
+!     Finale   The Runout                the valley floor       rooms 17-20
+!
+!     The story is one long fall, so the acts are altitude bands: each is a
+!     region with its own look, its own puzzles, and ONE way down into the
+!     next (P3's floor, then the cable car). Splitting it this way does
+!     three jobs at once:
+!     - The player always knows where the story is: an act banner prints the
+!       first time you cross a line (BeginAct, called from each act's first
+!       room), and the banner never repeats.
+!     - Each act is a chapter of code. Its rooms and objects sit together in
+!       one section (5, 6, 7), so a fix to Act Two never means scrolling
+!       through Act One; only rules that several objects share live apart,
+!       in section 4.
+!     - Difficulty climbs with the acts: Act One teaches the verbs (TYPE,
+!       PRESS, LOOK THROUGH), Act Two combines items, and the Finale is the
+!       one place that can kill you -- after every other puzzle is done.
+!     Every border runs BOTH ways (ballroom/cellar steps, the service lift,
+!     the cable car), so going back for something you forgot always works.
+!
+!  B. THE MAP, ACT BY ACT  (20 rooms; [*] = optional, lore only;
+!                           [Pn] = the puzzle that must be solved first;
+!                           on a link 'a/b', a leads up the page (or to the
+!                           right) and b leads back)
+!
+!     ACT ONE -- the summit (start: Wind-Scoured Mesa)
+!
+!                          Vaunt's Study         The Observatory
+!                                |                      |
+!                               n/s                    u/d
+!                                |                      |
+!       Gas Station       Pavilion Terrace --e/w-- Upside-Down Ballroom
+!            |              |          |                |
+!           n/s        u [P1] / d     n/s          u / d [P3]
+!            |              |          |                |
+!       Wind-Scoured --e/w-- Whitepaper  Lady Vaunt's    Root Cellar
+!       Mesa (START)         Switchbacks Wing            (Act Two)
+!
+!     ACT TWO -- inside the mountain (enter: Root Cellar)
+!
+!                                 Cold Wallet Cavern --e/w-- Windward Ledge
+!                                       |                        |
+!                                   n,u / s,d          u / d (the cable car)
+!                                       |                        |
+!                                  The Archive        Bottom Gondola Station
+!                                       |                   (Finale)
+!                          n [P5 + P6] / s  (the consensus door)
+!                                       |
+!       Root Cellar --d [P4] / u-- The Mempool --e/w-- Validator Pit
+!       (from Act One)                  |
+!                                      n/s
+!                                       |
+!                                   Break Room
+!                                       |
+!                                      u/d
+!                                       |
+!                               [*] Shared Shaft
+!
+!     FINALE -- the valley floor (enter: Bottom Gondola Station)
+!
+!       Bottom Gondola Station --e/w-- The Runout --e [pike up + coat]-->
+!                                          |
+!                 (east with the pike DOWN: walked back to the station)
+!
+!       --> The River's Edge --e/d [the lane, once it opens]--> Foot of the
+!           Gangplank (the end: the game is won as you arrive)
+!
+!  C. THE PUZZLES, IN DEPENDENCY ORDER
+!     Each line: what it needs -> what it opens. Read top to bottom; nothing
+!     is needed before it can be found.
+!
+!     ACT ONE
+!       (free from the start: the mesa and the Gas Station -- lore L1 and
+!        L2, and the OIL CAN, filled at the MAINNET pump, for P8)
+!       P1  Kiosk      3 plain words, TYPEd    -> the stair up: Terrace,
+!                                                 and the rest of Act One
+!       (now in reach: the NOTICE on the doorbell, for P4; the $SHRUG COIN
+!        in Lady Vaunt's Wing, for P6; the SURVEY in the study, for P3)
+!       P2  Telescope  turn it, look through   -> knowledge only: the coat
+!                                                 lies by the gondola car (P9)
+!       P3  Floor      the Survey's order      -> the ballroom floor opens:
+!                                                 Act Two
+!     ACT TWO
+!       P4  KYC        the notice + SELECT     -> the Verified Wallet Badge:
+!                      NONE                       the lift down to the Mempool
+!       P5  Contract   the punch card (SEARCH  -> attestation 1
+!                      TRANSACTIONS) -> slot
+!       P6  Union      the charter, signed at  -> attestation 2
+!                      the ink pad, + the coin
+!       (P5 and P6 in either order; the consensus door counts BOTH -> the
+!        Archive)
+!       P7  Wallet     the Trust's plain words -> the SIM-eject pin
+!                      (EXAMINE BLOCKS)
+!       P8  Belt       the oil (Act One) +     -> the PIKE
+!                      the pin (P7)
+!     FINALE
+!       P9  Coat       dig by the gondola car  -> the coat
+!                      (where P2 showed it)
+!       P10 Pike line  the pike (P8), raised,  -> the River's Edge, and the
+!                      + the coat (P9), east      ending
+!
+!     Why this order: each act is closed by ONE puzzle (P1 inside Act One,
+!     P3 into Act Two, P4 into the mine, the P5+P6 door to its far half), so
+!     the player is never facing more than a few open problems at once. Act
+!     One hands out items that only pay off later (the oil, the notice, the
+!     coin, the telescope's view), which ties the acts together and rewards
+!     looking around. The two parallel puzzles (P5, P6) sit in the middle of
+!     the game, where a strictly linear chain would feel longest. And the
+!     lethal rule comes LAST, needing both the pike and the coat, so the
+!     player meets it with everything learned -- and none of the carried-
+!     forward items can be used up for good (the doorbell always has another
+!     notice, the can refills, the steward hands the coin back, the badge and
+!     the pike refuse to leave you).
+!
+!  D. THE SCORING TABLE  (task_scores, section 1; awarded by Achieved)
+!     task               pts  earned by                awarded in
+!     P1  KIOSK           5   TYPE MOUNTAIN (3rd word) KioskTyped
+!     P2  TELESCOPE       5   LOOK THROUGH TELESCOPE,  telescope.before
+!                             pointing down            (Search)
+!     P3  FLOOR           5   PRESS SHOP TILE (5th)    PressTile
+!     P4  KYC             5   the 2nd of notice/CAPTCHA KycCheck
+!     P5  CONTRACT        5   PUT CARD IN SLOT         card_slot.before
+!     P6  UNION           5   GIVE CHARTER TO STEWARD  steward.life
+!     P7  WALLET          5   TYPE UP (4th word)       KeypadTyped
+!     P8  BELT            5   PRESS PAWL WITH PIN      belt_pawl.before
+!     P9  COAT            5   TAKE COAT                coat.after
+!     P10 PIKELINE        5   EAST, pike up + coat     runout.e_to
+!     L1  LORE_PLAQUE     2   READ PLAQUE              expedition_plaque
+!     L2  LORE_BUSKER     2   LISTEN TO BUSKER (1st)   busker.before
+!     L3  LORE_SPITE      2   READ TERMINAL            spite_terminal
+!     L4  LORE_CLERK      2   GIVE HARD HAT TO THRUMBLE thrumble.life
+!     L5  LORE_GENESIS    2   READ GENESIS BLOCK       genesis_block
+!                        ---
+!     MAX_SCORE          60   (10 x 5 + 5 x 2; the lore is optional: a win
+!                             without it scores 50)
+!     Rank ladder (PrintRank, section 8): 0-19 Bagholder, 20-39 Community
+!     Manager, 40-59 Early Adopter, 60 Exit Liquidity. A WIN is always Exit
+!     Liquidity, whatever the score, and carries the closing teaser.
+!
+!  E. THE STATE TABLE  (every Global in section 1: meaning / set by / read by)
+!     act             act banner shown (0-3)   BeginAct          BeginAct
+!     kiosk_line      P1 words done (0-3)      KioskTyped        KioskLine,
+!                                                                switchbacks
+!                                                                (text, u_to)
+!     telescope_down  P2 points down           telescope.before  telescope
+!                                                                (text, LOOK)
+!     tile_progress   P3 tiles in order (0-5)  PressTile         PressTile
+!     floor_open      P3 floor has gone down   PressTile         ballroom
+!                                                                (text, d_to),
+!                                                                FloorTile
+!     kyc_address     P4 notice scanned        kyc_scanner       KycCheck,
+!                                              (Receive)         kyc_scanner
+!     kyc_captcha     P4 CAPTCHA passed        SelectNoneSub     KycCheck,
+!                                                                kyc_scanner
+!     card_found      P5 punch card found      transactions      transactions
+!     charter_signed  P6 charter signed        union_charter     its name and
+!                                              (Sign)            text, steward
+!     mnemonic_words  P7 words in order (0-4)  KeypadTyped       keypad
+!     wallet_open     P7 the block has split   KeypadTyped       cold_cavern,
+!                                                                trust_block,
+!                                                                keypad
+!     can_full        P8 the can holds oil     oil_can (Fill),   oil_can,
+!                                              buckle (Oil)      OilSub, the
+!                                                                verdling
+!     buckle_oiled    P8 the pawl is oiled     buckle (Oil)      buckle,
+!                                                                belt_pawl,
+!                                                                the verdling
+!     belt_freed      P8 done                  belt_pawl         buckle, pawl,
+!                                              (PressWith)       oil_can, the
+!                                                                verdling
+!     coat_found      P9 dug out               gondola_car       gondola_car
+!     busker_songs    lore: songs heard        busker.before     busker.before
+!     pokes           pokes this visit (0-3)   Poke; reset by    PokeLine,
+!                                              bottom_station    Poke
+!                                              e_to, runout w_to
+!                                              and e_to
+!     pike_raised     the pike is up           FendSub; lowered  runout
+!                                              by runout.before, (before,
+!                                              w_to, the station each_turn,
+!                                              e_to, DROP PIKE   e_to), pike,
+!                                                                FendSub
+!     runout_fresh    the arrival turn         bottom_station    runout
+!                                              e_to (on);        (text,
+!                                              runout.each_turn  each_turn)
+!                                              (off)
+!     edge_fresh      the same, River's Edge   runout.e_to (on); river_edge
+!                                              river_edge        (text,
+!                                              each_turn (off)   each_turn)
+!     edge_turns      turns at the Edge        runout.e_to (0);  river_edge
+!                                              each_turn (+1)    each_turn
+!     part_now        an action parts the      river_edge        river_edge
+!                     crowd this turn          before (on),      each_turn
+!                                              each_turn (off)
+!     lane_open       the crowd has parted     Parting           river_edge
+!                                                                (text,
+!                                                                before,
+!                                                                each_turn)
+!
+!     State that needs NO global, because the object tree already says it:
+!     - P4 passed      = wallet_badge in player (the lift's d_to checks it)
+!     - attestations   = debugged_contract / endorsement in player
+!                        (Attestations counts them for the door)
+!     - P5 done        = debugged_contract has general (the engine's text)
+!     - P1 kiosk moved = switch_kiosk has general;  bonus kiosk read =
+!                        bonus_kiosk has general
+!     - P7 box open    = hardware_box has open (puts the pin in reach)
+!     - P8 done        = also: pike in player;  P9 done = coat in player
+!     - won / died     = deadflag 3 (WalkLane) / deadflag 1 (Poke)
+!     Rule used here: if an object can carry a fact (where it is, an
+!     attribute), let it; add a Global only for facts no object holds.
+!
+!  F. THE WALKTHROUGH MAP
+!     The shared walkthrough (app/modules/samples-shared/
+!     mingus-1.walkthrough.txt) is 70 commands; every one passes a turn.
+!     Numbers below are its line numbers. Both versions are tested on it.
+!
+!     ACT ONE  (lines 1-32)
+!        1     READ TICKET               the goal, in writing
+!        2-7   the mesa and Gas Station: READ PLAQUE (L1, +2, line 2),
+!              LISTEN TO BUSKER (L2, +2, line 4), TAKE CAN, FILL CAN
+!        8-12  Switchbacks: READ KIOSK, TYPE NOBODY / MONEY / MOUNTAIN
+!              (P1, +5, line 12)
+!       13-19  Terrace and Wing: TAKE NOTICE, EXAMINE COATS (a hint), READ
+!              TERMINAL (L3, +2, line 17), TAKE COIN
+!       20-22  Study: READ SURVEY (the order for P3)
+!       23-27  Observatory: TURN TELESCOPE, LOOK THROUGH TELESCOPE (P2, +5,
+!              line 26)
+!       28-32  Ballroom: PRESS the five tiles (P3, +5, line 32)
+!     ACT TWO  (lines 33-61)
+!       33-35  Root Cellar: PUT NOTICE IN SCANNER, SELECT NONE (P4, +5,
+!              line 35)
+!       36-41  Mempool and Validator Pit: SEARCH TRANSACTIONS, TAKE CHARTER,
+!              PUT CARD IN SLOT (P5, +5, line 40)
+!       42-45  Break Room: TAKE HARD HAT, SIGN CHARTER, GIVE CHARTER TO
+!              STEWARD (P6, +5, line 45)
+!       46-48  Shared Shaft: GIVE HARD HAT TO THRUMBLE (L4, +2, line 47)
+!       49-51  through the consensus door: READ GENESIS BLOCK (L5, +2,
+!              line 51)
+!       52-58  Cold Wallet Cavern: EXAMINE BLOCKS, TYPE THEY / NEVER / LOOK /
+!              UP (P7, +5, line 57), TAKE PIN
+!       59-61  Windward Ledge: OIL BUCKLE, PRESS PAWL WITH PIN (P8, +5,
+!              line 61)
+!     FINALE  (lines 62-70)
+!       62-63  the cable car down, then EAST onto the Runout [POKES: ---]
+!              (the arrival turn is free)
+!       64-67  DIG BY GONDOLA [*--], TAKE COAT (P9, +5, line 65) [**-],
+!              FEND VERDLINGS WITH PIKE (no poke: the pike is up), EAST
+!              (P10, +5, line 67) -- two pokes of three spent, by design
+!       68-70  The River's Edge: BOW, WAIT (the crowd parts at the end of
+!              the second turn after you arrive), EAST: the end. 60 of 60.
+! ============================================================================
+
+
+! ============================================================================
 !  1. SETUP  --  story constants, the score table, and all game state
+! ----------------------------------------------------------------------------
+!  WHY IT IS BUILT THIS WAY
+!    In a long game most bugs are STATE bugs: a flag set in one act and read
+!    in another. So every Global is declared here, on one screen, named for
+!    the puzzle it belongs to; the state table in the overview (E) says who
+!    sets and who reads each one. Scoring uses the library's task system
+!    rather than adding to `score` by hand: Achieved() awards a task only
+!    once, so it can sit in a description (the plaque, the terminal, the
+!    Genesis Block) with no flag to stop it scoring twice.
 ! ============================================================================
 
 Constant Story      "Mingus I: Elevated Returns";
@@ -172,6 +406,14 @@ Include "VerbLib";
 
 ! ============================================================================
 !  3. CLASSES  --  write shared behaviour once
+! ----------------------------------------------------------------------------
+!  WHY IT IS BUILT THIS WAY
+!    Twenty rooms, dozens of pieces of scenery and four people share most of
+!    their behaviour. A class writes it once (LISTEN in every room, the
+!    refusal for scenery, the fallback replies for people), and because
+!    `before` and `life` are additive, each object adds only what is special
+!    about it. FloorTile is the extreme case: five objects with no code of
+!    their own, and one routine (PressTile) behind them.
 ! ============================================================================
 
 ! Room: every location. All are lit (the summit by a merciless sun, the mine
@@ -249,6 +491,19 @@ Class FloorTile
 
 ! ============================================================================
 !  4. HELPERS  --  routines shared across acts
+! ----------------------------------------------------------------------------
+!  WHY THESE LIVE HERE, NOT IN THE OBJECTS
+!    A rule that more than one object or action needs belongs in ONE
+!    routine, so its copies can never drift apart.
+!    - TYPE serves two keyboards: TypeSub only dispatches on the room, and
+!      each machine's rules stay together (KioskTyped, KeypadTyped).
+!    - The poke rule lives in Poke and PokeLine. The Runout pokes you at the
+!      end of a turn AND when you grab treasure; both call Poke, so the
+!      counter, the wording and the death are always the same. A timed,
+!      lethal rule is only fair if it is perfectly consistent, and one
+!      routine is how you make it so. Changing the rule is one edit.
+!    - The ending has many doors (EAST, DOWN, FOLLOW LANE, BOARD SHIP,
+!      CLIMB GANGPLANK) and one room to walk into: WalkLane.
 ! ============================================================================
 
 ! BeginAct(n): print an act banner the first time you cross into act n.
@@ -485,6 +740,21 @@ Array trust_words --> 'they' 'never' 'look' 'up';
 !  Terrace, Upside-Down Ballroom, Vaunt's Private Study, Lady Vaunt's Wing,
 !  The Observatory. Puzzles P1 (kiosk), P2 (telescope), P3 (floor), and the
 !  oil you will need in Act Two. Lore: the plaque, the busker, the terminal.
+!
+!  WHY IT IS BUILT THIS WAY
+!    - A small free area (the mesa and the Gas Station) comes before the
+!      first gate, so the first puzzle (P1) is a few moves in and teaches the
+!      game's one unusual verb, TYPE, early.
+!    - The Terrace is a HUB: once P1 opens the stair, every room beyond it
+!      is one step from the Terrace or from the Ballroom. Hubs keep a big
+!      area easy to hold in your head.
+!    - Act One is where you LOAD UP: the oil and the notice are for Act Two,
+!      the coin for P6, the telescope's view for the Finale. Each is pointed
+!      at by text (the mesa's notices name the doorbell; the belted verdling
+!      names the MAINNET pump), never forced by a gate.
+!    - Knowledge gates, not flags: nothing checks that you read the Survey
+!      or looked through the telescope. The knowledge is the key, so a
+!      player who already knows the answer never has to repeat a step.
 ! ============================================================================
 
 ! --- The player's own belongings --------------------------------------------
@@ -1193,6 +1463,21 @@ Object -> telescope "thirteenth telescope"
 !  Puzzles P4 (KYC), P5 (contract), P6 (union), P7 (cold wallet), P8 (the
 !  belted verdling). Lore: Mrs. Thrumble, the Genesis Block. The act banner
 !  is printed by the Root Cellar's `initial` routine.
+!
+!  WHY IT IS BUILT THIS WAY
+!    - The Mempool is the act's hub, and its north door needs TWO things, P5
+!      and P6, which can be done in either order. Parallel puzzles in the
+!      middle of a long game break up the chain: stuck on one, the player
+!      can work on the other.
+!    - The door counts what you CARRY (Attestations), not flags: the
+!      contract and the endorsement are the proof, and the door's text shows
+!      the live count, so the player can see what is missing.
+!    - Things you must keep are made unlosable AT THE OBJECT (the badge's
+!      `before`, the pike's), not by checking for them everywhere else.
+!    - P7's answer is on screen (EXAMINE BLOCKS: the plain words, in order);
+!      the puzzle is noticing which kind of word the Trust wants.
+!    - The optional room, the Shared Shaft, is one step off the path (down
+!      from the Break Room): lore is easy to find and easy to skip.
 ! ============================================================================
 
 ! --- 9. Root Cellar ---------------------------------------------------------
@@ -2055,6 +2340,18 @@ Feature -> belt_pawl "release pawl"
 !  `each_turn` is a room property the library runs at the end of each turn
 !  only while you are in that room -- a daemon that switches itself on and
 !  off with your location, which is exactly the rule's scope.
+!
+!  WHY IT IS BUILT THIS WAY
+!    - Only one region can kill you, and it comes last: by then you hold the
+!      pike, have been told three times that it matters (the busker's song,
+!      the belted verdling, the station's sign) and know where the coat is.
+!    - The rule is a BUDGET, not a surprise: the counter prints every turn,
+!      the arrival turn is free, and the walkthrough spends two pokes of the
+!      three. A mistake that is not fatal (east with the pike down) costs a
+!      walk back, not a death.
+!    - The ending is a small state machine of its own (edge_fresh,
+!      edge_turns, part_now, lane_open) on the same each_turn pattern as the
+!      Runout, so the reader learns the pattern once and sees it twice.
 ! ============================================================================
 
 ! --- 17. Bottom Gondola Station ---------------------------------------------
@@ -2424,6 +2721,12 @@ Room gangplank_foot "Foot of the Gangplank"
 
 ! ============================================================================
 !  8. ENTRY POINTS  --  routines the library calls if the game provides them
+! ----------------------------------------------------------------------------
+!  WHY IT IS BUILT THIS WAY
+!    Two endings, two values of deadflag: 1 is the library's own death, 3
+!    is the library's "some other ending", whose words DeathMessage supplies.
+!    The closing teaser rides in PrintRank because the rank is the last
+!    thing the library prints for a finished game.
 ! ============================================================================
 
 ! Initialise runs once, before the banner. It must set `location`; anything
@@ -2491,6 +2794,13 @@ Room gangplank_foot "Foot of the Gangplank"
 
 ! ============================================================================
 !  9. GRAMMAR  --  the standard verbs, then the game's own
+! ----------------------------------------------------------------------------
+!  WHY IT IS BUILT THIS WAY
+!    A verb belongs to the whole game, not to one object, so every new verb
+!    is here, each with a note naming the puzzle it serves; the objects
+!    answer the actions in their own `before`. Where a new line could steal
+!    a sentence from an old one, `first` and `last` decide which wins (see
+!    ANSWER and PUSH ... WITH below).
 ! ============================================================================
 
 Include "Grammar";
