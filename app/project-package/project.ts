@@ -300,6 +300,21 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
     tests.push(test)
   }
 
+  // The solution: only the file the manifest names, UTF-8 text of at most
+  // 1 MiB (UTF-16 length, the store's unit); anything else refuses the open.
+  let solution: string | undefined
+  if (m.solution !== undefined) {
+    // A .txt only — never a story, an include, or a Skein's file — and
+    // claimed before the Skein, so an unopened Skein can't be re-claimed.
+    if (!m.solution.toLowerCase().endsWith('.txt')) {
+      throw new PackageError('bad-solution', `This project's solution file must end .txt, not ${quotedPath(m.solution)}.`)
+    }
+    const data = claim(m.solution, 'solution')
+    if (data.length > SOLUTION_MAX * 3) throw solutionTooBig() // can't be ≤ 1 Mi UTF-16 units
+    solution = text(m.solution, data)
+    if (solution.length > SOLUTION_MAX) throw solutionTooBig()
+  }
+
   // Skein: the manifest is authoritative; else <stem>.skein when present.
   const ignored: string[] = []
   let skeinNotOpened: string | null = null
@@ -319,16 +334,6 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
       skeinNotOpened = skeinPath
       claimed.delete(pathKey(skeinPath)) // falls through to opaque below
     }
-  }
-
-  // The solution: only the file the manifest names, UTF-8 text of at most
-  // 1 MiB (UTF-16 length, the store's unit); anything else refuses the open.
-  let solution: string | undefined
-  if (m.solution !== undefined) {
-    const data = claim(m.solution, 'solution')
-    if (data.length > SOLUTION_MAX * 3) throw solutionTooBig() // can't be ≤ 1 Mi UTF-16 units
-    solution = text(m.solution, data)
-    if (solution.length > SOLUTION_MAX) throw solutionTooBig()
   }
 
   const includes: { path: string; text: string }[] = []

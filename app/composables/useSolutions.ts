@@ -54,6 +54,8 @@ export function useSolutions() {
   const readOnly = computed(() => recState.value === 'recording')
   /** The open session is a from-scratch recording that hasn't saved yet. */
   const recScratch = useState<boolean>('frotz:solution-rec-scratch', () => false)
+  /** Commands a failed recorder save kept (owned by useSolutionRecorder). */
+  const recUnsaved = useState<string[] | null>('frotz:solution-rec-unsaved', () => null)
   /** What the solution's editor shows: the live text while recording, else the saved text. */
   const view = computed<string | null>(() => {
     const l = live.value
@@ -179,6 +181,9 @@ export function useSolutions() {
     // hidden solution is still not shown).
     if (!plan.ok) return plan
     buckets.value = withText(key, next)
+    // The edited text is now what Resume / Stop / Retry carry on from: drop
+    // commands a failed save kept, so they can't overwrite the edit.
+    recUnsaved.value = null
     if (recScratch.value) {
       // An edit while a from-scratch session is paused becomes the solution
       // that Resume carries on from. The author wrote it: nothing to guard.

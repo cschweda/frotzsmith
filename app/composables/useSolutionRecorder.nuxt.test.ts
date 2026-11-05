@@ -71,6 +71,11 @@ function bootThenType(...cmds: string[]) {
 function type(...cmds: string[]) {
   for (const c of cmds) usePlayTranscript().record(c)
 }
+/** Show solution for the active game (as the Solution tab does). */
+function useSolutionTabReveal() {
+  ;(globalThis as unknown as { useState: <T>(k: string, i?: () => T) => { value: T } })
+    .useState<string | null>('frotz:solution-revealed', () => null).value = ide.activeStoryKey.value
+}
 const flush = async () => {
   for (let i = 0; i < 5; i++) await nextTick()
   await new Promise(r => setTimeout(r, 0))
@@ -325,6 +330,24 @@ describe('useSolutionRecorder', () => {
     expect(after.noticeAfterReload()).toBe(true)
     expect(_toastAdd).toHaveBeenCalledTimes(1)
     expect(after.noticeAfterReload()).toBe(false)
+  })
+
+  // Task 5 review fix 1: an edit while paused after a failed save is what Resume carries on from.
+  it('pause → save fails → edit removes a line → Resume feeds the edited commands', async () => {
+    const s = useSolutions()
+    s.set(formatSolution('Test Game', 'Opening.', [{ command: 'north', output: '' }, { command: 'oops', output: '' }]))
+    useSolutionTabReveal()
+    const r = useSolutionRecorder()
+    expect((await r.continueRecording()).ok).toBe(true)
+    type('east')
+    _generate.mockResolvedValueOnce({ ok: false, message: 'Boom.' } as never)
+    expect((await r.pause()).ok).toBe(false)
+    expect(r.hasUnsaved.value).toBe(true)
+    const edited = s.text.value!.split('\n').filter(l => l !== '> oops').join('\n')
+    expect(s.edit(edited).ok).toBe(true)
+    expect(r.hasUnsaved.value).toBe(false)
+    expect((await r.resume()).ok).toBe(true)
+    expect(ide.sendToPlay).toHaveBeenLastCalledWith(['north'])
   })
 
   // Task 5 (residual leak b): a failed from-scratch save leaves unsaved

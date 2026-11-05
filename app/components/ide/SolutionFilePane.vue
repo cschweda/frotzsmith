@@ -16,6 +16,7 @@ const solutions = useSolutions()
 const { view, visible, readOnly } = solutions
 const tab = useSolutionTab()
 const { storyTitle } = useIde()
+const { state } = useSolutionRecorder()
 
 const area = shallowRef<HTMLTextAreaElement | null>(null)
 const message = ref<string | null>(null)
@@ -68,6 +69,9 @@ watch(text, async () => {
       />
       <p v-if="readOnly" class="text-muted shrink-0 border-t border-default px-3 py-1 text-xs">
         Read-only while recording; press Pause to edit.
+      </p>
+      <p v-else-if="state === 'paused'" class="text-muted shrink-0 border-t border-default px-3 py-1 text-xs">
+        Resume rebuilds the text from its <code>&gt;</code> lines; other notes aren’t kept.
       </p>
       <p v-if="message" class="text-error shrink-0 border-t border-default px-3 py-1 text-xs" role="status">{{ message }}</p>
     </template>

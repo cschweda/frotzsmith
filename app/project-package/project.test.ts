@@ -577,7 +577,21 @@ describe('the solution file', () => {
     expect(await refusal(pkg(m({ solution: 'solution.txt' }), { 'g.inf': 'x' }))).toMatch(/points at a file that isn't in it/)
     expect(await refusal(pkg(m({ solution: '../s.txt' }), { 'g.inf': 'x' }))).toMatch(/unsafe name/)
     expect(await refusal(pkg(m({ solution: 7 }), { 'g.inf': 'x' }))).toMatch(/isn't text/)
-    expect(await refusal(pkg(m({ solution: 'g.inf' }), { 'g.inf': 'x' }))).toMatch(/one file for two purposes/)
+    expect(await refusal(pkg(m({ tests: [{ name: 't', path: 'tests/t.txt' }], solution: 'tests/t.txt' }), { 'g.inf': 'x', 'tests/t.txt': 'n' })))
+      .toMatch(/one file for two purposes/)
+  })
+
+  it('refuses a solution path that is not .txt (a story, an include, a Skein)', async () => {
+    for (const path of ['s.z5', 'lamp.h', 'rooms.zil', 'g.skein', 'notes.md']) {
+      expect(await refusal(pkg(m({ solution: path }), { 'g.inf': 'x', [path]: 'text' })))
+        .toBe(`This project's solution file must end .txt, not “${path}”.`)
+    }
+    expect((await readProjectPackage(pkg(m({ solution: 'S.TXT' }), { 'g.inf': 'x', 'S.TXT': 'ok' }))).project.solution).toBe('ok')
+  })
+
+  it('an unopened Skein can’t be re-claimed as the solution', async () => {
+    expect(await refusal(pkg(m({ skein: 'run.txt', solution: 'run.txt' }), { 'g.inf': 'x', 'run.txt': 'not a skein' })))
+      .toMatch(/one file for two purposes/)
   })
 
   it('the writer refuses a solution the reader would refuse, so a download always reopens', async () => {
