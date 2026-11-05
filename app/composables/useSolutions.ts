@@ -52,10 +52,16 @@ export function useSolutions() {
   const recState = useState<'recording' | 'paused' | 'stopped'>('frotz:solution-rec-state', () => 'stopped')
   /** True while recording: the solution can't be edited by hand. */
   const readOnly = computed(() => recState.value === 'recording')
+  /** The open session is a from-scratch recording that hasn't saved yet. */
+  const recScratch = useState<boolean>('frotz:solution-rec-scratch', () => false)
   /** What the solution's editor shows: the live text while recording, else the saved text. */
   const view = computed<string | null>(() => {
     const l = live.value
-    if (readOnly.value && l && l.key === activeStoryKey.value) return l.text
+    const ownLive = l && l.key === activeStoryKey.value ? l.text : null
+    // Recording from scratch: the new text or nothing yet — never the old
+    // solution (it may still be behind the spoiler guard).
+    if (recScratch.value && recState.value !== 'stopped') return ownLive ?? ''
+    if (readOnly.value && ownLive !== null) return ownLive
     return text.value
   })
   /** Show `next` as the live text of the active game (null drops it). */
@@ -157,6 +163,9 @@ export function useSolutions() {
   /** An edit typed in the solution's tab: memory now, written after ~1 s idle. */
   function edit(next: string): Plan {
     if (readOnly.value) return READ_ONLY
+    // An edit while a from-scratch session is paused becomes the solution
+    // that Resume carries on from.
+    recScratch.value = false
     syncLanguage()
     const key = activeStoryKey.value
     const plan = planSolution(next, otherTotal(key))

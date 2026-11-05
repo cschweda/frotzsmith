@@ -21,7 +21,7 @@ const props = withDefaults(defineProps<{ showStart?: boolean; compact?: boolean 
 const recorder = useSolutionRecorder()
 const { has } = useSolutions()
 const { storyTitle } = useIde()
-const { state, saving, notice } = recorder
+const { state, saving, notice, hasUnsaved, revealed } = recorder
 
 const light = computed(() => {
   switch (state.value) {
@@ -66,6 +66,7 @@ const onPause = () => run(() => recorder.pause())
 const onResume = () => run(() => recorder.resume())
 const onStop = () => run(() => recorder.stop())
 const onContinue = () => run(() => recorder.continueRecording())
+const onRetry = () => run(() => recorder.retrySave())
 
 const message = computed(() => failure.value ?? notice.value)
 </script>
@@ -101,7 +102,7 @@ const message = computed(() => failure.value ?? notice.value)
           Record
         </UButton>
         <UButton
-          v-if="has"
+          v-if="has && revealed"
           :size="size"
           color="neutral"
           variant="subtle"
@@ -113,6 +114,18 @@ const message = computed(() => failure.value ?? notice.value)
           Continue recording
         </UButton>
       </template>
+      <UButton
+        v-if="hasUnsaved && state !== 'recording'"
+        :size="size"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-save"
+        :disabled="busy || saving"
+        aria-label="Retry saving the solution"
+        @click="onRetry"
+      >
+        Retry save
+      </UButton>
     </div>
     <p v-if="message" class="text-muted text-xs" role="status">{{ message }}</p>
 

@@ -36,6 +36,7 @@ function makeIde() {
     result: ref({ ok: true, storyFile: new Uint8Array([1]), storyExt: 'z5' }),
     sourceGen: ref(0),
     playNonce: ref(0),
+    buildIsCurrent: ref(true),
     activeTab: ref('results'),
     canPlay: ref(true),
     storyTitle: ref('Test Game'),
@@ -146,11 +147,118 @@ describe('useSolutionRecorder', () => {
     const s = useSolutions()
     s.set(formatSolution('Test Game', 'Opening.', [{ command: 'north', output: 'x' }, { command: 'open door', output: 'y' }]))
     const r = useSolutionRecorder()
+    // Load file reveals what it loaded (useSolutionTab.load).
+    ;(globalThis as unknown as { useState: <T>(k: string, i?: () => T) => { value: T } })
+      .useState<string | null>('frotz:solution-revealed', () => null).value = 'game1'
     expect((await r.continueRecording()).ok).toBe(true)
     expect(ide.sendToPlay).toHaveBeenLastCalledWith(['north', 'open door'])
     bootThenType('west', 'xyzzy')
     await r.stop()
     expect(solutionCommands(s.text.value!)).toEqual(['north', 'open door', 'west', 'xyzzy'])
+  })
+
+  it('Record from scratch never shows the old solution, and reveals only new saved text', async () => {
+    const old = formatSolution('Test Game', 'Opening.', [{ command: 'secret', output: 'Spoiler.' }])
+    const s = useSolutions()
+    s.set(old)
+    const r = useSolutionRecorder()
+    await r.record({ confirmed: true })
+    expect(s.view.value).toBe('') // not the saved (hidden) text, before any live result
+    expect(r.revealed.value).toBe(false)
+    bootThenType()
+    expect((await r.stop()).ok).toBe(true) // zero commands: nothing saved…
+    expect(s.text.value).toBe(old)
+    expect(r.revealed.value).toBe(false) // …and the old solution stays hidden
+    await r.record({ confirmed: true })
+    bootThenType('north')
+    await r.stop()
+    expect(r.revealed.value).toBe(true) // the author's new text
+  })
+
+  it('Continue is refused while the solution is hidden', async () => {
+    useSolutions().set(formatSolution('Test Game', 'Opening.', [{ command: 'north', output: '' }]))
+    const r = useSolutionRecorder()
+    const res = await r.continueRecording()
+    expect(res.ok).toBe(false)
+    expect(ide.sendToPlay).not.toHaveBeenCalled()
+  })
+
+  it('from scratch, zero commands, Pause then Resume replays only that session (not the old solution)', async () => {
+    useSolutions().set(formatSolution('Test Game', 'Opening.', [{ command: 'old', output: '' }]))
+    const r = useSolutionRecorder()
+    await r.record({ confirmed: true })
+    bootThenType()
+    expect(await r.pause()).toEqual({ ok: true, empty: true })
+    expect((await r.resume()).ok).toBe(true)
+    expect(ide.sendToPlay).not.toHaveBeenCalled()
+    expect(ide.playFromStart).toHaveBeenCalledTimes(2)
+    bootThenType('east')
+    await r.stop()
+    expect(solutionCommands(useSolutions().text.value!)).toEqual(['east'])
+  })
+
+  it('refuses to start a session while a save is still replaying', async () => {
+    let release: (v: unknown) => void = () => {}
+    const r = useSolutionRecorder()
+    await r.record()
+    bootThenType('north')
+    _generate.mockImplementationOnce(() => new Promise(res => (release = res as (v: unknown) => void)) as never)
+    const pausing = r.pause()
+    expect(r.saving.value).toBe(true)
+    const res = await r.resume()
+    expect(res.ok).toBe(false)
+    expect(r.state.value).toBe('paused')
+    release({ ok: true, text: formatSolution('Test Game', 'Opening.', [{ command: 'north', output: '' }]) })
+    await pausing
+  })
+
+  it('a failed save offers Retry save; loading a file drops the unsaved commands', async () => {
+    const r = useSolutionRecorder()
+    await r.record()
+    bootThenType('north')
+    _generate.mockResolvedValueOnce({ ok: false, message: 'Boom.' } as never)
+    const res = await r.pause()
+    expect(res.ok).toBe(false)
+    expect(r.hasUnsaved.value).toBe(true)
+    expect(r.notice.value).toMatch(/Retry save/)
+    expect((await r.retrySave()).ok).toBe(true)
+    expect(r.hasUnsaved.value).toBe(false)
+    expect(solutionCommands(useSolutions().text.value!)).toEqual(['north'])
+    // Fail again, then the author loads a file instead: Stop must not overwrite it.
+    await r.resume()
+    bootThenType('south')
+    _generate.mockResolvedValueOnce({ ok: false, message: 'Boom.' } as never)
+    await r.pause()
+    expect(r.hasUnsaved.value).toBe(true)
+    const loaded = formatSolution('Test Game', 'Opening.', [{ command: 'loaded', output: '' }])
+    useSolutions().set(loaded)
+    r.discardUnsaved()
+    await r.stop()
+    expect(useSolutions().text.value).toBe(loaded)
+  })
+
+  it('live regenerate never compiles: skipped while the build is stale', async () => {
+    vi.useFakeTimers()
+    try {
+      const r = useSolutionRecorder()
+      await r.record()
+      _generate.mockClear()
+      ide.buildIsCurrent.value = false
+      bootThenType('north')
+      await vi.advanceTimersByTimeAsync(400)
+      expect(_generate).not.toHaveBeenCalled()
+      expect(r.state.value).toBe('recording')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a same-language remount while recording gives no reload notice and keeps the mark', async () => {
+    const r = useSolutionRecorder()
+    await r.record()
+    expect(r.noticeAfterReload()).toBe(false)
+    expect(_toastAdd).not.toHaveBeenCalled()
+    expect(sessionStorage.getItem('frotzsmith:solution-recording')).toBe('1')
   })
 
   it('a recompile while recording pauses the session and keeps what was played', async () => {

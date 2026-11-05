@@ -73,6 +73,13 @@ export function useSolutionRecorder() {
   const notice = useState<string | null>('frotz:solution-rec-notice', () => null)
   /** A save (Pause/Stop) is replaying the commands. */
   const saving = useState<boolean>('frotz:solution-rec-saving', () => false)
+  /** The open session started from scratch (Record) and nothing it played
+   *  has been saved yet: its base is [] and the old solution is not shown. */
+  const scratch = useState<boolean>('frotz:solution-rec-scratch', () => false)
+  /** The story key whose solution the author chose to see (useSolutionTab's spoiler guard). */
+  const revealedKey = useState<string | null>('frotz:solution-revealed', () => null)
+  const revealed = computed(() => revealedKey.value === ide.activeStoryKey.value)
+  const hasUnsaved = computed(() => unsaved.value !== null)
   /** For the live region: the state as words, changed on every transition. */
   const announcement = useState<string>('frotz:solution-rec-announce', () => '')
 
@@ -83,6 +90,7 @@ export function useSolutionRecorder() {
     state.value = next
     setMark(next === 'recording')
     if (next !== 'recording') cancelLive()
+    if (next === 'stopped') scratch.value = false
     const word = next === 'recording' ? 'Recording' : next === 'paused' ? 'Recording paused' : 'Recording stopped'
     announcement.value = why ? `${word}: ${why}` : `${word}.`
   }
@@ -96,6 +104,9 @@ export function useSolutionRecorder() {
     liveTimer = setTimeout(() => {
       liveTimer = null
       if (state.value !== 'recording') return
+      // Never compile from here: a source edited mid-recording would pause
+      // the session (and a failed build would take over the right pane).
+      if (!ide.buildIsCurrent.value) return
       const cmds = allCommands()
       void useSolutionGenerator().generate(cmds).then(r => {
         // Only while still recording, and only the latest request's text.
@@ -118,7 +129,7 @@ export function useSolutionRecorder() {
       if (ide.sourceGen.value !== gen) return { ok: false, message: 'A different game was loaded, so the solution was not saved.' }
       if (!r.ok) {
         unsaved.value = cmds
-        const message = `The solution was not saved: ${r.superseded ? 'another solution request replaced it' : r.message.replace(/\.$/, '')}; Resume or Stop tries again.`
+        const message = `The solution was not saved: ${r.superseded ? 'another solution request replaced it' : r.message.replace(/\.$/, '')}; press Retry save to try again.`
         notice.value = message
         return { ok: false, message }
       }
@@ -129,7 +140,10 @@ export function useSolutionRecorder() {
         return put
       }
       unsaved.value = null
+      scratch.value = false
       solutions.setLive(null)
+      // New text the author just recorded: no spoiler to guard any more.
+      revealedKey.value = ide.activeStoryKey.value
       // The saved text is now the starting point; its commands are the base.
       base.value = solutionCommands(r.text)
       captured.value = []
@@ -140,8 +154,10 @@ export function useSolutionRecorder() {
   }
 
   /** Start capturing after `cmds` have been fed into a fresh Play. */
-  async function startFrom(cmds: string[]): Promise<RecorderResult> {
+  async function startFrom(cmds: string[], fromScratch = false): Promise<RecorderResult> {
     if (starting || state.value === 'recording') return { ok: false, message: 'A recording is already running.' }
+    // A save still replaying would land on top of the new session.
+    if (saving.value) return { ok: false, message: 'The solution is still being saved, so try again in a moment.' }
     starting = true
     try {
       const gen = ide.sourceGen.value
@@ -155,10 +171,9 @@ export function useSolutionRecorder() {
       unsaved.value = null
       base.value = cmds.slice()
       captured.value = []
+      if (fromScratch) scratch.value = true
       solutions.setLive(null)
       setState('recording')
-      // The author is making this solution: no spoiler to guard (useSolutionTab).
-      useState<string | null>('frotz:solution-revealed', () => null).value = ide.activeStoryKey.value
       // The game on the right, its solution on the left.
       useProjectFiles().openFile('solution')
       ownBoot = true
@@ -182,7 +197,7 @@ export function useSolutionRecorder() {
     if (state.value === 'recording') return { ok: false, message: 'A recording is already running.' }
     if (solutions.has.value && !opts.confirmed)
       return { ok: false, needsConfirm: true, message: `Replace the solution for “${ide.storyTitle.value || 'Untitled'}”?` }
-    return startFrom([])
+    return startFrom([], true)
   }
 
   /** Save what was played and stop capturing, so the author can edit. */
@@ -194,7 +209,10 @@ export function useSolutionRecorder() {
 
   /** Carry on from where the solution ends (its `> ` lines, edits included). */
   function resumeCommands(): string[] {
-    return unsaved.value ?? solutionCommands(solutions.text.value ?? '')
+    if (unsaved.value) return unsaved.value
+    // A from-scratch session that saved nothing: only its own commands.
+    if (scratch.value) return allCommands()
+    return solutionCommands(solutions.text.value ?? '')
   }
 
   async function resume(): Promise<RecorderResult> {
@@ -206,6 +224,8 @@ export function useSolutionRecorder() {
   async function continueRecording(): Promise<RecorderResult> {
     if (state.value !== 'stopped') return { ok: false, message: 'A recording session is already open.' }
     if (!solutions.has.value && !unsaved.value) return { ok: false, message: 'This game has no solution to continue yet.' }
+    // Continuing plays the solution in front of the author: lift the guard first.
+    if (!revealed.value && !unsaved.value) return { ok: false, message: 'Press Show solution first, since continuing plays the solution through.' }
     return startFrom(resumeCommands())
   }
 
@@ -218,8 +238,26 @@ export function useSolutionRecorder() {
     return save()
   }
 
+  /** Try again to save commands a failed save kept. */
+  async function retrySave(): Promise<RecorderResult> {
+    if (!unsaved.value) return { ok: true }
+    const r = await save()
+    if (r.ok) notice.value = null
+    return r
+  }
+
+  /** The author replaced or cleared the solution: drop commands a failed save kept,
+   *  so a later Stop can't write them over the new text. */
+  function discardUnsaved() {
+    unsaved.value = null
+    if (state.value === 'paused') scratch.value = false
+  }
+
   /** On the first load after a reload that cut a recording short: tell the author once. */
   function noticeAfterReload(): boolean {
+    // Still in memory (a same-language remount, e.g. a /technical round trip):
+    // no reload happened; keep the mark for a real one.
+    if (state.value !== 'stopped') return false
     if (!takeMark()) return false
     useToast().add({
       title: 'Solution recording ended',
@@ -291,6 +329,8 @@ export function useSolutionRecorder() {
     recording,
     commandCount,
     saving,
+    hasUnsaved,
+    revealed,
     notice,
     announcement,
     record,
@@ -298,6 +338,8 @@ export function useSolutionRecorder() {
     resume,
     stop,
     continueRecording,
+    retrySave,
+    discardUnsaved,
     noticeAfterReload,
   }
 }

@@ -94,7 +94,9 @@ export function useSolutionTab() {
     if (text === null) return { ok: false, message: 'Press Show solution first to make the sample’s solution.' }
     if (solutions.has.value && !opts.confirmed)
       return { ok: false, needsConfirm: true, message: `Replace the solution for “${ide.storyTitle.value || 'Untitled'}”?` }
-    return solutions.set(text)
+    const r = solutions.set(text)
+    if (r.ok) recorder.discardUnsaved()
+    return r
   }
 
   /** Rebuild the text from its `> ` lines against the current build. */
@@ -128,6 +130,7 @@ export function useSolutionTab() {
     if (!opts.confirmed)
       return { ok: false, needsConfirm: true, message: `Clear the solution for “${ide.storyTitle.value || 'Untitled'}”?` }
     solutions.clear()
+    recorder.discardUnsaved()
     return { ok: true }
   }
 
@@ -176,7 +179,10 @@ export function useSolutionTab() {
     if (solutions.has.value && !opts.confirmed)
       return { ok: false, needsConfirm: true, message: `Replace the solution for “${ide.storyTitle.value || 'Untitled'}”?` }
     const r = solutions.set(text)
-    if (r.ok) reveal() // the author chose this text; no spoiler to guard
+    if (r.ok) {
+      reveal() // the author chose this text; no spoiler to guard
+      recorder.discardUnsaved()
+    }
     return r
   }
 

@@ -25,6 +25,7 @@ function makeIde() {
     result: ref({ ok: true, storyFile: new Uint8Array([1]), storyExt: 'z5' }),
     sourceGen: ref(0),
     playNonce: ref(0),
+    buildIsCurrent: ref(true),
     activeTab: ref('solution'),
     storyTitle: ref('Test Game'),
     storyBase: ref('test-game'),
@@ -137,6 +138,21 @@ describe('useSolutionTab', () => {
     const big = new File(['x'.repeat(SOLUTION_MAX + 1)], 'big.txt', { type: 'text/plain' })
     const refused = await t.readFile(big)
     expect(refused.ok).toBe(false)
+  })
+
+  it('Load file and Clear drop commands a failed save kept', async () => {
+    const r = useSolutionRecorder()
+    const t = useSolutionTab()
+    await r.record()
+    usePlayTranscript().reset()
+    usePlayTranscript().record('north')
+    _generate.mockResolvedValueOnce({ ok: false, message: 'Boom.' } as never)
+    await r.stop()
+    expect(r.hasUnsaved.value).toBe(true)
+    expect(t.load(own()).ok).toBe(true)
+    expect(r.hasUnsaved.value).toBe(false)
+    expect(t.clear({ confirmed: true }).ok).toBe(true)
+    expect(useSolutions().has.value).toBe(false)
   })
 
   it('Download is named <storyBase>-solution.txt', () => {
