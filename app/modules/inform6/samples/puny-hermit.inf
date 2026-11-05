@@ -39,6 +39,11 @@
 !
 !  [ Initialise; location = Room; ]    Constant INITIAL_LOCATION_VALUE = Room;
 !  bare-string opening message         print "opening message"  in Initialise
+!
+!  HOW THE GAME FLOWS
+!    You start in a Forest Clearing, where an apple lies. TAKE APPLE, then go
+!    NORTH to the Hermit's Hut. EXAMINE HERMIT, ASK HERMIT ABOUT anything, and
+!    GIVE APPLE TO HERMIT: he accepts it. No ending.
 ! ============================================================================
 
 ! ---------------------------------------------------------------------------

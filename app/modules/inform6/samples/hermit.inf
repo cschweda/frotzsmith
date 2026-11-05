@@ -18,6 +18,11 @@
 !  * Object -> (arrow) — places the object inside the parent (its location)
 !  * has animate       — marks this object as a living character
 !  * life [ ]          — routine property handling conversation verbs on NPCs
+!
+!  HOW THE GAME FLOWS
+!    You start in a Forest Clearing. NORTH is the Hermit's Hut, where the hermit
+!    sits and an apple lies. EXAMINE HERMIT, ASK HERMIT ABOUT anything, TAKE
+!    APPLE and GIVE APPLE TO HERMIT: he accepts it. No ending.
 ! ============================================================================
 
 ! ---------------------------------------------------------------------------
@@ -81,13 +86,12 @@ Object Hut "Hermit's Hut"
   has  light;
 
 ! ---------------------------------------------------------------------------
-!  A TAKEABLE OBJECT — placed in the player's inventory at start
+!  A TAKEABLE OBJECT — the apple, waiting in the hut
 !  The `->` arrow in "Object -> apple" means the object is a child of the
-!  most recently declared Object. Here Hut was declared last, so the apple
-!  begins in Hut. But wait — we want it in the player's inventory. The
-!  trick: Initialise could `move apple to player;`, or we declare it after
-!  the Clearing so it becomes a child of Clearing and the player starts
-!  there. As written (declared after Hut), the apple starts in Hut.
+!  most recently declared Object. Hut was declared last, so the apple
+!  begins in the Hut, next to the hermit: the player finds it there and can
+!  give it to him. (To start the player holding it instead, Initialise
+!  would say `move apple to player;`.)
 !
 !  `name` property — a list of dictionary words that the parser accepts as
 !  names for this object. Must be lowercase, single-quoted.

@@ -47,6 +47,11 @@
 !
 !  PunyInform targets the Z3 story format by default (smaller, wider
 !  compatibility). The Standard Library targets Z5/Z8.
+!
+!  HOW THE GAME FLOWS
+!    One room, the Starting Room, and nothing in it yet. LOOK shows it again;
+!    everything else gets the library's stock replies. Copy this file to begin
+!    a game of your own.
 ! ============================================================================
 
 ! --- Game identity constants -------------------------------------------------

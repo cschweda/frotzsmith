@@ -7,6 +7,11 @@
 !    • The Initialise routine setting a start location and printing a banner
 !    • The three Standard Library includes (Parser / VerbLib / Grammar)
 !  Try: look, take lamp, examine lamp, north, south, inventory
+!
+!  HOW THE GAME FLOWS
+!    You start in the Cottage, where a brass lamp lies. TAKE LAMP (and EXAMINE
+!    it), go NORTH to the Meadow and SOUTH back; INVENTORY shows the lamp.
+!    No puzzle and no ending: a map with one thing in it.
 ! ============================================================================
 
 ! --- Game identity constants -------------------------------------------------

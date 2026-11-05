@@ -49,6 +49,11 @@
 !    [your objects and code here]
 !    Include "Grammar";  — verb grammar tables; must follow VerbLib because
 !                          it references routines defined there.
+!
+!  HOW THE GAME FLOWS
+!    You start in the lit Hall with a lantern. Go DOWN without it and the
+!    Cellar is pitch dark. Come back UP, TAKE LANTERN, go DOWN again: now the
+!    Cellar is lit and a rusty key can be seen and taken. No ending.
 ! ============================================================================
 
 ! --- Game metadata constants --------------------------------------------------

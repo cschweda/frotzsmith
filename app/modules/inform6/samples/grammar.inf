@@ -66,6 +66,11 @@
 !  Include "Grammar";  (last)          Include "puny.h";
 !  [ Initialise; location = Room; ]    Constant INITIAL_LOCATION_VALUE = Room;
 !  Verb / Extend before "Grammar"      Verb / Extend before Include "puny.h"
+!
+!  HOW THE GAME FLOWS
+!    One room, the Magic Chamber, with a brass lamp. XYZZY (or PLUGH) answers
+!    with a hollow voice; INCANT LAMP (or INVOKE LAMP) makes the lamp flare,
+!    and INCANT anything else does nothing. No puzzle and no ending.
 ! ============================================================================
 
 ! ---------------------------------------------------------------------------

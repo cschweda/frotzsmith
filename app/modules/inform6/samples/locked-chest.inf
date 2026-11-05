@@ -38,6 +38,11 @@
 !  Include "VerbLib";                  Include "globals.h";
 !  Include "Grammar";  (last)          Include "puny.h";
 !  [ Initialise; location = Room; ]    Constant INITIAL_LOCATION_VALUE = Room;
+!
+!  HOW THE GAME FLOWS
+!    One room, a dusty Study, with a brass key and a locked chest. TAKE KEY,
+!    UNLOCK CHEST WITH KEY, OPEN CHEST, TAKE COIN. OPEN CHEST before unlocking
+!    it is refused. The coin is the reward; there is no ending beyond it.
 ! ============================================================================
 
 ! ---------------------------------------------------------------------------
