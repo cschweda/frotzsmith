@@ -2,8 +2,9 @@
 import type { RightTab } from '~/composables/useIde'
 
 const { activeTab, status } = useIde()
-// Announces recorder state changes once (several recorder bars can be mounted).
-const { state: recState, announcement } = useSolutionRecorder()
+// Announces recorder state changes and automatic notices once (several
+// recorder bars can be mounted, each showing the notice without announcing it).
+const { state: recState, announcement, notice: recNotice } = useSolutionRecorder()
 
 const tabs: { id: RightTab; label: string; icon: string }[] = [
   { id: 'results', label: 'Results', icon: 'i-lucide-clipboard-list' },
@@ -97,6 +98,9 @@ async function onKeydown(event: KeyboardEvent) {
       <MapPanel v-else-if="activeTab === 'map'" />
       <SolutionPanel v-else-if="activeTab === 'solution'" />
     </div>
-    <p class="sr-only" aria-live="polite" role="status">{{ announcement }}</p>
+    <p class="sr-only" aria-live="polite" role="status">
+      <span>{{ announcement }}</span>
+      <span v-if="recNotice"> {{ recNotice }}</span>
+    </p>
   </div>
 </template>

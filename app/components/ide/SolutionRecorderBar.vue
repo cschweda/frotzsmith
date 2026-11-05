@@ -5,8 +5,8 @@
  *
  * The light is a coloured dot plus a word — Recording (green), Paused
  * (amber), Stopped (red) — so it never relies on colour alone. State changes
- * are announced once, by the live region in RightPaneTabs, not here (several
- * bars can be mounted at once).
+ * and automatic notices are announced once, by the live region in
+ * RightPaneTabs, not here (several bars can be mounted at once).
  *
  * `showStart` adds Record / Continue recording while Stopped (the Solution
  * tab); without it the bar only steers a running session.
@@ -68,14 +68,13 @@ const onStop = () => run(() => recorder.stop())
 const onContinue = () => run(() => recorder.continueRecording())
 const onRetry = () => run(() => recorder.retrySave())
 
-const message = computed(() => failure.value ?? notice.value)
 </script>
 
 <template>
   <div class="flex flex-col gap-1">
     <div class="flex flex-wrap items-center gap-2">
       <span class="flex items-center gap-1.5 text-sm font-semibold" :class="light.text">
-        <span class="size-2.5 rounded-full" :class="[light.dot, state === 'recording' ? 'animate-pulse' : '']" aria-hidden="true" />
+        <span class="size-2.5 rounded-full" :class="[light.dot, state === 'recording' ? 'motion-safe:animate-pulse' : '']" aria-hidden="true" />
         <span>{{ light.word }}</span>
         <span class="sr-only">(solution recording)</span>
       </span>
@@ -121,13 +120,17 @@ const message = computed(() => failure.value ?? notice.value)
         variant="subtle"
         icon="i-lucide-save"
         :disabled="busy || saving"
-        aria-label="Retry saving the solution"
+        aria-label="Retry save of the solution"
         @click="onRetry"
       >
         Retry save
       </UButton>
     </div>
-    <p v-if="message" class="text-muted text-xs" role="status">{{ message }}</p>
+    <!-- The clicked bar's own failure is a status (only this bar shows it).
+         An automatic notice is in every mounted bar, so it is shown here but
+         announced once, by the live region in RightPaneTabs. -->
+    <p v-if="failure" class="text-muted text-xs" role="status">{{ failure }}</p>
+    <p v-else-if="notice" class="text-muted text-xs">{{ notice }}</p>
 
     <OpenProjectModal
       v-model:open="confirmRecord"
