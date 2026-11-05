@@ -26,6 +26,7 @@ import { useExtensions } from './useExtensions'
 import { useProjectFiles } from './useProjectFiles'
 import { useTestScripts } from './useTestScripts'
 import { usePlayTranscript } from './usePlayTranscript'
+import { useOutsideSource } from './outside-source'
 import { useLanguage } from './useLanguage'
 
 // Stub usePlayTranscript global — usePlayTranscript calls useIde() inside
@@ -192,6 +193,13 @@ describe('useIde — sendToPlay side-effects', () => {
     const before = playNonce.value
     sendToPlay(['look'])
     expect(playNonce.value).toBe(before + 1)
+  })
+
+  it('Play trusts an outside (package/link) source, so Skein auto-run resumes (F2)', () => {
+    const ide = setupSuccessResult()
+    useOutsideSource().markOutside()
+    ide.playStory()
+    expect(useOutsideSource().untrusted.value).toBe(false)
   })
 
   it('sendToPlay sets activeTab to "play"', () => {

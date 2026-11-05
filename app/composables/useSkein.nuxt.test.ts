@@ -76,6 +76,7 @@ function fakeReplay(_story: Uint8Array, _target: string, commands: string[]) {
 vi.stubGlobal('useReplay', () => ({ replay: fakeReplay }))
 
 const { useSkein } = await import('./useSkein')
+const { useOutsideSource } = await import('./outside-source')
 
 /** Fresh shared state per test (the setup harness clears useState between tests). */
 function bootIde(storyKey = 'zork') {
@@ -100,6 +101,7 @@ describe('useSkein', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear() // setAutoRun persists 'off' — must not leak across tests
+    sessionStorage.clear() // the outside-source mark
     _outputs = {}
     _failNextReplay = null
     _replayCalls.length = 0
@@ -165,6 +167,44 @@ describe('useSkein', () => {
     compileSuccess(result)
     await flush()
     expect(pathNodes(skein.tree.value, leaf).at(-1)!.status).toBe('stale')
+  })
+
+  it('an outside source (package/link) does not auto-run until the author runs it (F2)', async () => {
+    const { result } = bootIde('game-out')
+    compileSuccess(result)
+    const skein = useSkein()
+    await skein.restore()
+    skein.importActiveScript()
+    const leaf = leafOf(skein.tree.value)
+    await skein.runToNode(leaf)
+    skein.blessTo(leaf)
+
+    useOutsideSource().markOutside() // e.g. a package was just opened
+    const calls = _replayCalls.length
+    compileSuccess(result)
+    await flush()
+    expect(_replayCalls.length).toBe(calls) // nothing replayed
+    expect(pathNodes(skein.tree.value, leaf).at(-1)!.status).toBe('stale')
+    expect(skein.autoRunHeld.value).toBe(true) // the panel's one-line note
+
+    // The author's explicit Run trusts it; later compiles auto-run again.
+    await skein.runStale()
+    expect(skein.autoRunHeld.value).toBe(false)
+    expect(useOutsideSource().untrusted.value).toBe(false)
+    expect(pathNodes(skein.tree.value, leaf).at(-1)!.status).toBe('match')
+    compileSuccess(result)
+    await flush()
+    expect(_replayCalls.length).toBe(calls + 2)
+  })
+
+  it('an outside source with nothing blessed holds silently (no note)', async () => {
+    const { result } = bootIde('game-out2')
+    const skein = useSkein()
+    await skein.restore()
+    useOutsideSource().markOutside()
+    compileSuccess(result)
+    await flush()
+    expect(skein.autoRunHeld.value).toBe(false)
   })
 
   it('play capture walks/extends a cursor path; session reset returns to root', async () => {

@@ -24,6 +24,7 @@ const _profile = ref({ id: 'i6', route: '/', stateKey: 'i6' })
 vi.stubGlobal('useLanguage', () => ({ profile: _profile }))
 
 const { useShareLink } = await import('./useShareLink')
+const { useOutsideSource } = await import('./outside-source')
 
 function setHash(frag: string | null) {
   history.replaceState(null, '', frag ? `/#${frag}` : '/')
@@ -34,6 +35,7 @@ describe('consumeShareFragment', () => {
     vi.clearAllMocks()
     _profile.value = { id: 'i6', route: '/', stateKey: 'i6' }
     setHash(null)
+    sessionStorage.clear()
   })
 
   it('auto-loads over a pristine buffer (the language seed) and clears the hash', () => {
@@ -45,6 +47,7 @@ describe('consumeShareFragment', () => {
     expect(consumed).toBe(true)
     expect(_loadSource).toHaveBeenCalledWith('Constant Story "SHARED";')
     expect(window.location.hash).toBe('')
+    expect(useOutsideSource().untrusted.value).toBe(true) // no Skein auto-run yet (F2)
   })
 
   it('over real work: does NOT overwrite — offers a toast action that loads on click', () => {
@@ -55,11 +58,13 @@ describe('consumeShareFragment', () => {
 
     expect(consumed).toBe(true)
     expect(_loadSource).not.toHaveBeenCalled()
+    expect(useOutsideSource().untrusted.value).toBe(false)
     expect(_toastAdd).toHaveBeenCalledTimes(1)
     const toast = _toastAdd.mock.calls[0]![0] as { actions?: Array<{ onClick: () => void }> }
     expect(toast.actions?.length).toBeGreaterThan(0)
     toast.actions![0]!.onClick()
     expect(_loadSource).toHaveBeenCalledWith('Constant Story "SHARED";')
+    expect(useOutsideSource().untrusted.value).toBe(true)
   })
 
   it('ignores a fragment for the other language (leaves the hash intact)', () => {

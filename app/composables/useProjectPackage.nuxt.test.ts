@@ -26,6 +26,7 @@ import { useProjectFiles } from './useProjectFiles'
 import { useTestScripts } from './useTestScripts'
 import { useLanguage } from './useLanguage'
 import { useSkein } from './useSkein'
+import { useOutsideSource } from './outside-source'
 import { resetStorageNoticeForTests } from './useStorageNotice'
 import { addPath, blessThread, createTree, type SkeinTree } from './skein-tree'
 import { readProjectPackage, writeProjectPackage, type ProjectSnapshot } from '~/project-package/project'
@@ -141,6 +142,7 @@ function ideState() {
 beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
+  sessionStorage.clear()
   vi.stubGlobal('indexedDB', new IDBFactory())
   resetStorageNoticeForTests()
 })
@@ -164,6 +166,8 @@ describe('useProjectPackage — round trip (RF 2)', () => {
     expect(useTestScripts().scripts.value.map(s => s.name)).toEqual(['Walkthrough', 'Death'])
     expect(useSkein().tree.value).toEqual(original.skein)
     expect(useExtensions().enabledFiles.value.map(f => f.name).sort()).toEqual(['lamp', 'ordinals'])
+    // Outside source: no Skein auto-run until the author plays or runs it (F2).
+    expect(useOutsideSource().untrusted.value).toBe(true)
 
     // …and the next download gives back everything.
     const { bytes, filename } = await pkg.buildPackage()

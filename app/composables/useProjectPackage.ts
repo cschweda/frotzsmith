@@ -5,6 +5,7 @@ import type { Target } from '~/project-package/manifest'
 import { countNodes, createTree, type SkeinTree } from '~/composables/skein-tree'
 import { getExtrasStore, type ProjectExtras } from '~/composables/project-extras-store'
 import { getSkeinStore } from '~/composables/skein-store'
+import { useOutsideSource } from '~/composables/outside-source'
 import { includeNameOf, includePathOf, planUploaded } from '~/composables/useExtensions'
 import { BUNDLED_EXTENSIONS } from '~/modules/inform6/extensions'
 import { SEED_SCRIPT } from '~/composables/useTestScripts'
@@ -127,6 +128,7 @@ export function useProjectPackage() {
     // The source first: loadSource resets run state and moves to the opened
     // game's story key, which every later write is keyed by.
     ide.loadSource(project.main.text) // clears the extras owner and record…
+    useOutsideSource().markOutside() // no Skein auto-run until Play/Run (F2)
     sourceDoc.save() // durable now, not after the autosave debounce
     const openedKey = ide.activeStoryKey.value
     const openedGen = sourceGen.value

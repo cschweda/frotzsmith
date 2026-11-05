@@ -5,6 +5,7 @@ import { getExtrasStore } from '~/composables/project-extras-store'
 import { formatZil } from '~/utils/format-zil'
 import { safeGetItem, safeRemoveItem, safeSetItem } from '~/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
+import { useOutsideSource } from '~/composables/outside-source'
 import { PROFILES, detectProfile, type ProfileId } from '~/modules/inform6/profiles'
 import { sampleById, loadSampleSource } from '~/modules/inform6/samples'
 import { sampleById as zilSampleById } from '~/modules/languages/zil/samples'
@@ -337,6 +338,9 @@ export function useIde() {
 
   function playStory() {
     if (!canPlay.value) return
+    // The author chose to play: a package/share-link source is trusted from
+    // here on, so Skein auto-run resumes (audit F2; see outside-source.ts).
+    useOutsideSource().trust()
     activeTab.value = 'play'
     playNonce.value += 1
   }

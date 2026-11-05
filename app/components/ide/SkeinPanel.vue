@@ -254,6 +254,9 @@ function onTreeKeydown(event: KeyboardEvent) {
     </div>
 
     <p v-if="note" class="text-muted shrink-0 px-3 pt-2 text-xs" aria-live="polite">{{ note }}</p>
+    <p v-if="skein.autoRunHeld.value" class="text-muted shrink-0 px-3 pt-2 text-xs" role="status">
+      Auto-run waited: this game came from a project file or a link, so it runs only when you press Run stale or Play.
+    </p>
 
     <!-- Empty state -->
     <div v-if="!rows.length" class="frotz-grid flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">

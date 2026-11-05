@@ -1,5 +1,6 @@
 import { encodeShareFragment, decodeShareFragment } from '~/utils/share-link'
 import { isPristine } from '~/utils/pristine'
+import { useOutsideSource } from '~/composables/outside-source'
 
 /**
  * Share the editor's source as a URL — zero backend: the source rides
@@ -13,6 +14,7 @@ import { isPristine } from '~/utils/pristine'
 export function useShareLink() {
   const { source, loadSource } = useIde()
   const { profile } = useLanguage()
+  const { markOutside } = useOutsideSource()
 
   /** Handle an incoming #src= fragment (call once after restore() on mount).
    *  Returns true when a valid fragment for THIS language was recognized. */
@@ -29,6 +31,7 @@ export function useShareLink() {
 
     if (isPristine(source.value)) {
       loadSource(decoded.source)
+      markOutside() // no Skein auto-run until Play/Run (audit F2)
       useToast().add({
         title: 'Loaded shared source',
         description: 'This link carried a game source — it is now in your editor. Compile to play it.',
@@ -48,7 +51,10 @@ export function useShareLink() {
             // The toast can outlive a route change; only load into the
             // language the link was made for.
             onClick: () => {
-              if (profile.value.id === decoded.lang) loadSource(decoded.source)
+              if (profile.value.id === decoded.lang) {
+                loadSource(decoded.source)
+                markOutside()
+              }
             },
           },
         ],

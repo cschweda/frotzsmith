@@ -15,6 +15,7 @@ import {
 } from './skein-tree'
 import { markRaw } from 'vue'
 import { registerSessionOnce } from './session-once'
+import { useOutsideSource } from './outside-source'
 import { getSkeinStore } from './skein-store'
 import { replayBudgetMs } from './useTranscript'
 import { notifyStorageFull } from './useStorageNotice'
@@ -88,6 +89,12 @@ export function useSkein() {
     if (!import.meta.client) return true
     return safeGetItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.skeinAutoRun)) !== 'off'
   })
+
+  // A package/share-link source doesn't auto-run until the author plays or
+  // runs it once by hand (audit F2; see outside-source.ts).
+  const outside = useOutsideSource()
+  /** Auto-run may fire now: on, and the source isn't an untrusted outside one. */
+  const mayAutoRun = () => autoRun.value && !outside.untrusted.value
 
   const bucketKey = () => `${profile.value.stateKey}:${activeStoryKey.value}`
   const nodeCount = computed(() => countNodes(tree.value))
@@ -236,7 +243,7 @@ export function useSkein() {
   function afterRun() {
     if (!_rerunPending) return
     _rerunPending = false
-    if (autoRun.value) void runStale()
+    if (mayAutoRun()) void runStaleBatch()
   }
   let lastRunError = ''
 
@@ -249,9 +256,10 @@ export function useSkein() {
     })
   }
 
-  /** Run the path to one node. */
+  /** Run the path to one node (the author's click — trusts an outside source). */
   async function runToNode(nodeId: string): Promise<void> {
     if (running.value) return
+    outside.trust()
     running.value = true
     _cancelRequested = false
     progress.value = { done: 0, total: 1 }
@@ -265,8 +273,15 @@ export function useSkein() {
     }
   }
 
-  /** Re-run every blessed leaf (each run re-verifies its whole root path). */
+  /** The author's Run: re-run every blessed leaf. Trusts an outside source. */
   async function runStale(): Promise<void> {
+    if (running.value) return
+    outside.trust()
+    return runStaleBatch()
+  }
+
+  /** Re-run every blessed leaf (each run re-verifies its whole root path). */
+  async function runStaleBatch(): Promise<void> {
     if (running.value) return
     const leaves = blessedLeaves(tree.value)
     if (!leaves.length) return
@@ -363,11 +378,15 @@ export function useSkein() {
       if (!r?.ok || !r.storyFile) return
       _buildGen += 1
       setTree(markAllStale(tree.value))
+      if (autoRun.value && outside.untrusted.value) {
+        // Held back: the panel shows a one-line note until Play or Run.
+        outside.autoRunHeld.value = blessedLeaves(tree.value).length > 0
+      }
       if (running.value) {
-        _rerunPending = autoRun.value
+        _rerunPending = mayAutoRun()
         _activeCancel?.()
-      } else if (autoRun.value) {
-        void runStale()
+      } else if (mayAutoRun()) {
+        void runStaleBatch()
       }
     })
     // Game switched → swap buckets (the debounced save of the old tree keys
@@ -385,6 +404,8 @@ export function useSkein() {
     progress,
     autoRun,
     setAutoRun,
+    /** Auto-run waited because the source came from a package or link. */
+    autoRunHeld: outside.autoRunHeld,
     restore,
     replaceTree,
     importActiveScript,
