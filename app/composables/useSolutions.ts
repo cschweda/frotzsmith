@@ -2,7 +2,7 @@ import { toRaw } from 'vue'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 import { safeGetItem, safeRemoveItem, safeSetItem } from '~/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
-import { planSolution } from '~/composables/solution-text'
+import { planSolution, SOLUTION_MAX, SOLUTION_STORE_MAX } from '~/composables/solution-text'
 
 type Plan = { ok: true } | { ok: false; message: string }
 type Bucket = { text: string }
@@ -58,21 +58,33 @@ export function useSolutions() {
     return out
   }
 
-  function persist() {
-    cancelPendingSave()
+  /** Write `data` to `key`. Both are captured by the caller when the write is
+   *  queued, so a language switch in between can't cross the streams. */
+  function write(key: string, data: Buckets) {
     if (!import.meta.client) return
-    const raw = toRaw(buckets.value)
+    const raw = toRaw(data)
     if (Object.keys(raw).length === 0) {
-      safeRemoveItem(storageKey())
+      safeRemoveItem(key)
       return
     }
-    if (!safeSetItem(storageKey(), JSON.stringify({ v: 1, buckets: raw }))) notifyStorageFull()
+    if (!safeSetItem(key, JSON.stringify({ v: 1, buckets: raw }))) notifyStorageFull()
+  }
+
+  function persist() {
+    cancelPendingSave()
+    write(storageKey(), buckets.value)
+  }
+
+  /** In-memory buckets still belong to the other language (a switch happened
+   *  and restore() hasn't run): load this language's first. */
+  function syncLanguage() {
+    if (bucketsLang.value !== profile.value.stateKey) restore()
   }
 
   function flushPendingSave() {
-    const write = pendingWrite
+    const run = pendingWrite
     cancelPendingSave()
-    write?.()
+    run?.()
   }
 
   /** Load the stored record for the active language. Corrupt data is dropped. */
@@ -93,9 +105,13 @@ export function useSolutions() {
       const d = JSON.parse(raw) as { v?: unknown; buckets?: unknown }
       if (d && d.v === 1 && d.buckets && typeof d.buckets === 'object' && !Array.isArray(d.buckets)) {
         const src = d.buckets as Record<string, unknown>
+        let total = 0
         for (const k of Object.keys(src)) {
           const b = src[k] as { text?: unknown } | null
-          if (b && typeof b.text === 'string' && b.text.length <= 1024 * 1024) loaded[k] = { text: b.text }
+          if (b && typeof b.text === 'string' && b.text.length <= SOLUTION_MAX && total + b.text.length <= SOLUTION_STORE_MAX) {
+            loaded[k] = { text: b.text }
+            total += b.text.length
+          }
         }
       }
     } catch {
@@ -107,6 +123,7 @@ export function useSolutions() {
 
   /** Save the active game's solution; one over a cap changes nothing. */
   function set(next: string): Plan {
+    syncLanguage()
     const key = activeStoryKey.value
     const plan = planSolution(next, otherTotal(key))
     if (!plan.ok) return plan
@@ -118,22 +135,26 @@ export function useSolutions() {
 
   /** An edit typed in the solution's tab: memory now, written after ~1 s idle. */
   function edit(next: string): Plan {
+    syncLanguage()
     const key = activeStoryKey.value
     const plan = planSolution(next, otherTotal(key))
     if (!plan.ok) return plan
     buckets.value = withText(key, next)
+    const target = storageKey()
+    const snapshot = buckets.value
     if (saveTimer) clearTimeout(saveTimer)
-    pendingWrite = persist
+    pendingWrite = () => write(target, snapshot)
     saveTimer = setTimeout(() => {
-      const write = pendingWrite
+      const run = pendingWrite
       saveTimer = null
       pendingWrite = null
-      write?.()
+      run?.()
     }, 1000)
     return plan
   }
 
   function clear() {
+    syncLanguage()
     buckets.value = withText(activeStoryKey.value, null)
     persist()
   }

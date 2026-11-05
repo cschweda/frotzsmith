@@ -15,6 +15,14 @@ function storyKey() {
   return ((globalThis as any).useState as (k: string, i?: () => string) => { value: string })('frotz:story-key', () => 'game1')
 }
 
+function stateBuckets() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((globalThis as any).useState as (k: string, i?: () => unknown) => { value: unknown })('frotz:solution-buckets', () => Object.create(null))
+}
+function setLang(id: 'i6' | 'zil') {
+  useLanguage().setLanguage(id) // state is reset per test, so resolve it fresh
+}
+
 describe('useSolutions', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -22,11 +30,9 @@ describe('useSolutions', () => {
     localStorage.clear()
     resetStorageNoticeForTests()
     storyKey().value = 'game1'
-    useSolutions().clear()
-    useSolutions().clear()
-    storyKey().value = 'game2'
-    useSolutions().clear()
-    storyKey().value = 'game1'
+    setLang('i6')
+    useSolutions().flushPendingSave()
+    stateBuckets().value = Object.create(null)
     localStorage.clear()
   })
 
@@ -112,5 +118,30 @@ describe('useSolutions', () => {
     s.set('mem2')
     expect(s.text.value).toBe('mem2')
     expect(_toastAdd).toHaveBeenCalledTimes(1)
+  })
+
+  it('a pending edit is not written under the other language after a switch', () => {
+    vi.useFakeTimers()
+    const s = useSolutions()
+    s.set('i6 text')
+    s.edit('i6 edited')
+    setLang('zil')
+    s.restore() // flushes the pending edit to its own (i6) key
+    expect(JSON.parse(localStorage.getItem(KEY)!).buckets.game1.text).toBe('i6 edited')
+    expect(localStorage.getItem('frotzsmith:zil:solutions')).toBeNull()
+    vi.advanceTimersByTime(2000)
+    expect(localStorage.getItem('frotzsmith:zil:solutions')).toBeNull()
+    expect(s.text.value).toBeNull()
+    vi.useRealTimers()
+  })
+
+  it('set() after a switch without restore() lands under the right key', () => {
+    const s = useSolutions()
+    s.set('i6 text')
+    setLang('zil')
+    expect(s.set('zil text')).toEqual({ ok: true })
+    expect(JSON.parse(localStorage.getItem('frotzsmith:zil:solutions')!).buckets).toEqual({ game1: { text: 'zil text' } })
+    expect(JSON.parse(localStorage.getItem(KEY)!).buckets).toEqual({ game1: { text: 'i6 text' } })
+    setLang('i6')
   })
 })
