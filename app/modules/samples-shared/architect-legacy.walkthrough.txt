@@ -1,0 +1,48 @@
+north
+west
+examine plaque
+read book
+take half
+east
+north
+examine plaque
+search wastebasket
+take half
+put left half on right half
+set dial to 8
+take journal
+take key
+read journal
+south
+east
+ring bell
+strike chime
+blow horn
+down
+down
+unlock cage with key
+set dial to spiral
+pull lever
+down
+east
+show journal to foreman
+west
+south
+turn wheel
+turn on pump
+east
+east
+turn mirror
+turn mirror
+take crystal
+down
+north
+wait
+wait
+wait
+wait
+north
+put crystal on pedestal
+strike fork
+north
+read blueprint

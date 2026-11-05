@@ -11,6 +11,9 @@ export interface Sample {
   target?: StoryExt
   /** Body filename under ./samples/ — loaded on demand via loadSampleSource(). */
   file: string
+  /** Run the I6 formatter on load (default true). False keeps the file's
+   *  hand layout byte-for-byte — for a sample whose layout is the lesson. */
+  format?: boolean
 }
 
 /**
@@ -42,6 +45,7 @@ export const SAMPLES: Sample[] = [
   { id: 'std-magic-8-ball', group: 'std', name: 'Magic 8-Ball · random', description: 'A custom verb and random() for varied output', file: 'magic-8-ball.inf' },
   { id: 'std-list-exits', group: 'std', name: 'List Exits · compass', description: 'A std-only EXITS verb (Compass + LanguageDirection)', file: 'list-exits.inf' },
   { id: 'std-haunted-house', group: 'std', name: 'Haunted House · first floor', description: "The first floor of a port of Radio Shack's 1979 adventure", file: 'haunted-house.inf' },
+  { id: 'std-architect-legacy', group: 'std', name: "The Architect's Legacy · longer game", description: 'A three-chapter game: 18 rooms, 8 puzzles, NPCs — what a bigger project looks like', target: 'z5', file: 'architect-legacy.inf', format: false },
   { id: 'puny-skeleton', group: 'puny', name: 'Skeleton', description: 'Bare, compilable starting point', file: 'puny-skeleton.inf' },
   { id: 'puny-two-rooms', group: 'puny', name: 'Two Rooms', description: 'Rooms, movement, a takeable object', file: 'puny-two-rooms.inf' },
   { id: 'puny-dark-cellar', group: 'puny', name: 'The Dark Cellar · light', description: 'Darkness and carrying a light source', file: 'puny-dark-cellar.inf' },

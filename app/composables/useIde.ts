@@ -271,7 +271,8 @@ export function useIde() {
     void getExtrasStore().clear(profile.value.stateKey)
   }
 
-  /** Load a built-in sample into the editor, prettified for consistent formatting.
+  /** Load a built-in sample into the editor, prettified for consistent formatting
+   *  (unless the sample sets `format: false`).
    *  Async: I6 sample bodies live in per-sample lazy chunks (loadSampleSource). */
   async function loadSample(id: string): Promise<void> {
     // ZIL samples: look up from the ZIL sample registry; no I6 formatting.
@@ -296,7 +297,7 @@ export function useIde() {
     const src = await loadSampleSource(id)
     if (src === null) return // chunk failed to load — keep the current source
     if (sourceGen.value !== gen || profile.value.id !== lang) return
-    source.value = formatI6(src)
+    source.value = s.format === false ? src : formatI6(src)
     // Commit the new game's bucket key AFTER source is set so storyKey reflects the sample.
     activeStoryKey.value = storyKey.value
     // Reset to auto so the sample compiles with its own library, not whatever

@@ -11,7 +11,7 @@
  *   Files: sample/cloak/cloak.zil (Cloak of Darkness, converted by
  *   Tara McGrew, Jayson Smith, and Josh Lawrence), sample/empty/empty.zil
  *   (skeleton basis), zillib/tests/test-light.zil (light demo basis).
- *   Hand-written samples: two-rooms, npc, puzzle, daemon.
+ *   Hand-written samples: two-rooms, npc, puzzle, daemon, architect-legacy.
  */
 
 import type { StoryExt } from '~/modules/languages/types'
@@ -23,6 +23,7 @@ import npcSrc from './samples/npc.zil?raw'
 import puzzleSrc from './samples/puzzle.zil?raw'
 import lightSrc from './samples/light.zil?raw'
 import daemonSrc from './samples/daemon.zil?raw'
+import architectLegacySrc from './samples/architect-legacy.zil?raw'
 
 /** A single ZIL sample in the Frotzsmith sample library. */
 export interface ZilSample {
@@ -34,7 +35,8 @@ export interface ZilSample {
   description: string
   /**
    * Preferred Z-machine version to compile to when this sample is loaded.
-   * All ZIL samples target z3 (VERSION ZIP) — the compact Zork format.
+   * The concept demos target z3 (VERSION ZIP) — the compact Zork format;
+   * the longer Architect's Legacy targets z5.
    */
   target: StoryExt
   /** Raw ZIL source text (imported with ?raw). */
@@ -44,8 +46,9 @@ export interface ZilSample {
 /**
  * The full ZIL sample set: one sample per concept, all compiling cleanly
  * against the committed ZILF bundle (public/zilf/<rev>/_framework).
- * Every sample targets z3 (<VERSION ZIP>) — the standard for single-file
- * zillib games.
+ * The concept demos target z3 (<VERSION ZIP>) — the standard for small
+ * single-file zillib games. The longer sample (The Architect's Legacy, the
+ * same game as the Inform 6 sample of that name) targets z5.
  */
 export const ZIL_SAMPLES: ZilSample[] = [
   {
@@ -96,6 +99,13 @@ export const ZIL_SAMPLES: ZilSample[] = [
     description: 'A per-turn timed event using QUEUE from zillib/events.zil',
     target: 'z3',
     source: daemonSrc,
+  },
+  {
+    id: 'zil-architect-legacy',
+    name: "The Architect's Legacy · longer game",
+    description: 'A three-chapter game: 18 rooms, 8 puzzles, NPCs — what a bigger project looks like',
+    target: 'z5',
+    source: architectLegacySrc,
   },
 ]
 
