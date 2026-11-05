@@ -47,6 +47,7 @@ export const SAMPLES: Sample[] = [
   { id: 'std-haunted-house', group: 'std', name: 'Haunted House · first floor', description: "The first floor of a port of Radio Shack's 1979 adventure", file: 'haunted-house.inf' },
   { id: 'std-architect-legacy', group: 'std', name: "The Architect's Legacy · longer game", description: 'A three-chapter game: 18 rooms, 8 puzzles, NPCs — what a bigger project looks like', target: 'z5', file: 'architect-legacy.inf', format: false },
   { id: 'std-mingus-1', group: 'std', name: 'Mingus I: Elevated Returns · longer game', description: 'A crypto satire in three acts: 20 rooms, 10 puzzles, a three-poke finale', target: 'z5', file: 'mingus-1.inf', format: false },
+  { id: 'std-mingus-2', group: 'std', name: 'Mingus II: Everything Rolls Downhill · longer game', description: 'A river voyage in five landings: 20 rooms, 10 puzzles, a guide and a trickster', target: 'z5', file: 'mingus-2.inf', format: false },
   { id: 'puny-skeleton', group: 'puny', name: 'Skeleton', description: 'Bare, compilable starting point', file: 'puny-skeleton.inf' },
   { id: 'puny-two-rooms', group: 'puny', name: 'Two Rooms', description: 'Rooms, movement, a takeable object', file: 'puny-two-rooms.inf' },
   { id: 'puny-dark-cellar', group: 'puny', name: 'The Dark Cellar · light', description: 'Darkness and carrying a light source', file: 'puny-dark-cellar.inf' },

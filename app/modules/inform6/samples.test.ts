@@ -37,12 +37,12 @@ describe('sampleById', () => {
 // ---------------------------------------------------------------------------
 
 describe('SAMPLES registry', () => {
-  it('has exactly 23 samples (13 std + 10 puny)', () => {
-    expect(SAMPLES).toHaveLength(23)
+  it('has exactly 24 samples (14 std + 10 puny)', () => {
+    expect(SAMPLES).toHaveLength(24)
   })
 
-  it('has 13 std samples', () => {
-    expect(SAMPLES.filter(s => s.group === 'std')).toHaveLength(13)
+  it('has 14 std samples', () => {
+    expect(SAMPLES.filter(s => s.group === 'std')).toHaveLength(14)
   })
 
   it('has 10 puny samples', () => {
@@ -77,8 +77,8 @@ describe('SAMPLES registry', () => {
     expect(SAMPLES[0]!.id).toBe('std-skeleton')
   })
 
-  it('puny-skeleton is the 14th sample (first puny entry)', () => {
-    expect(SAMPLES[13]!.id).toBe('puny-skeleton')
+  it('puny-skeleton is the 15th sample (first puny entry)', () => {
+    expect(SAMPLES[14]!.id).toBe('puny-skeleton')
   })
 })
 
@@ -94,8 +94,8 @@ describe('SAMPLES – special cases', () => {
     expect(s!.target).toBe('z3')
   })
 
-  // The two longer games: Std-only, z5, and loaded byte-for-byte.
-  const LONGER_GAMES = ['std-architect-legacy', 'std-mingus-1']
+  // The longer games: Std-only, z5, and loaded byte-for-byte.
+  const LONGER_GAMES = ['std-architect-legacy', 'std-mingus-1', 'std-mingus-2']
 
   it('the longer games carry an explicit z5 target', () => {
     for (const id of LONGER_GAMES) expect(sampleById(id)!.target, id).toBe('z5')

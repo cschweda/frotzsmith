@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Added — 2026-11-05 Mingus II
+- **New longer sample: Mingus II: Everything Rolls Downhill** (Inform 6,
+  z5), the sequel to Mingus I. A funeral ship floats down the Verdance
+  through five landings: 20 rooms, 10 puzzles and five names to keep, 100
+  points. It teaches how to code an NPC: Lucan Fairweather, the Thursday
+  tenor, follows you, leads you to the one thing you'll need, talks, reacts
+  to what you give and show him, and dies in a scripted event on a timer.
+  Sandwich, the front-runner, and Mrs. Thrumble show two more NPC patterns.
+  It also shows a vehicle made of fixed rooms and one variable, and a
+  current that gives you exactly one turn to act. Its walkthrough is in the
+  Solution tab, and a golden test plays it to the win.
+
 ### Changed — 2026-11-05 Mingus I
 - **Mingus I's empire now has a name:** the Mingan Ascendancy, in both the Inform 6 and ZIL samples and in the lore.
 

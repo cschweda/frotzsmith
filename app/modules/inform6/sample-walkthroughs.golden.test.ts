@@ -77,6 +77,7 @@ const FINALE: Record<string, { text: string | RegExp; ended?: boolean }> = {
   'std-haunted-house': { text: 'A raging fire blocks the door to the south' },
   'std-architect-legacy': { text: 'The work continues', ended: true },
   'std-mingus-1': { text: 'You have reached the bottom of the Mingus', ended: true },
+  'std-mingus-2': { text: 'You have gone further than anyone', ended: true },
   'puny-skeleton': { text: 'An empty room, waiting for your imagination' },
   'puny-two-rooms': { text: 'brass lamp' },
   'puny-dark-cellar': { text: 'rusty key' },

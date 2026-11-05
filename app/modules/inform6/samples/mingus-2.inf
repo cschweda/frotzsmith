@@ -1,0 +1,2555 @@
+! ============================================================================
+!  MINGUS II: EVERYTHING ROLLS DOWNHILL  --  Frotzsmith sample (Inform 6 Std)
+! ----------------------------------------------------------------------------
+!  The third longer sample, and the sequel to Mingus I. The Architect's
+!  Legacy showed how a big game is ORGANISED; Mingus I showed how to make a
+!  timed, deadly rule FAIR. This one keeps that layout and adds two lessons:
+!
+!    1. HOW TO CODE AN NPC. Lucan Fairweather, the Thursday tenor, follows
+!       you, leads you, talks, reacts to what you give and show him, runs on
+!       a small state machine, and dies in a scripted event on a timer. His
+!       code is section 11, and every routine there opens with the LESSON it
+!       teaches. Two more NPCs show two more patterns: Sandwich, a trickster
+!       on a fixed schedule, and Mrs. Thrumble, who answers a bell.
+!    2. HOW TO MAKE A VEHICLE WITHOUT MOVING ROOMS. The funeral ship is four
+!       fixed rooms. Where the ship IS lives in one variable, ship_at, which
+!       decides what you see over the rail, where OUT leads, and what the
+!       current does.
+!
+!  THE STORY
+!    Mingus I ended at the foot of a funeral ship's gangplank, with thousands
+!    of verdlings bowed to the pike in your hand. Mingus II starts there, the
+!    next morning. Nobody who has floated down the Verdance has ever come
+!    back. On the way down you find five names -- evidence of how far five of
+!    the lost got -- and stow them in the ship's custody chest. The river
+!    decides how far YOU get.
+!
+!  HOW THIS FILE IS ORGANISED  (search for the banner text to jump)
+!     1. SETUP ............ story constants, the score table, ALL game state
+!     2. LIBRARY .......... Parser + VerbLib includes
+!     3. CLASSES .......... Room, ShipRoom, Feature, Person, LostName
+!     4. HELPERS .......... the ship's position, casting off, the river rule
+!     5. THE SHIP ......... Main Deck, Prow, Stern, Hold  (rooms 1-4)
+!     6. PART ONE ......... The Sluice          (the Mingus bank, rooms 5-7)
+!     7. PART TWO ......... The Sandbar         (mid-river, rooms 8-9)
+!     8. PART THREE ....... The old-side bank   (rooms 10-14)
+!     9. PART FOUR ........ The Gilded Span     (mid-river, rooms 15-16)
+!    10. PART FIVE ........ The Intake          (the Mingus bank, rooms 17-19)
+!    11. NPCS ............. Lucan (the showcase), Sandwich, Mrs. Thrumble
+!    12. THE DISPATCHER ... the one end-of-turn daemon: river, Lucan, Sandwich
+!    13. FINALE ........... The Old-Side Shore  (room 20)
+!    14. ENTRY POINTS ..... Initialise, DeathMessage, PrintRank, PrintTaskName
+!    15. GRAMMAR .......... Grammar include + the game's own verbs
+!
+!  THE MAP  (20 rooms; the river runs SOUTH, the Mingus bank is west, the
+!            old-side bank east)
+!
+!    PART ONE  Inside the Sluice -w/e- Sluice Mouth -w/e- Foot of the Gangplank
+!                                                            | up/in/board
+!    THE SHIP (four fixed rooms)                         Main Deck --n/s-- Prow
+!                                                            |  \--s/n-- Stern
+!                                                            | down/up
+!                                                           Hold [custody chest]
+!
+!    OUT from the Main Deck (and IN back) depends on ship_at:
+!      SANDBAR  The Sandbar -e/w- Expedition Wreck
+!      PIER     Stone Pier -n/s- Mine Heads -n/s- Hollow Green -n/s- Old Fence
+!                                    | e/w
+!                              Outside the Half-Buried Hall
+!      SPAN     (Prow) -up/climb chain/down- Broken End -w/e- Span Deck
+!      INTAKE   Intake Screen -w/e- Divers' Shed ; Intake Screen -n/s- Drowned
+!                                                                      Road
+!    FINALE    (the Race) --wreck--> The Old-Side Shore
+!
+!    The voyage: Sluice -> passage 1 -> Sandbar -> passage 2 -> Stone Pier ->
+!    passage 3 -> Gilded Span -> passage 4 -> Intake -> passage 5, the Race
+!    -> wrecked on the old-side bank.
+!
+!  THE PUZZLES  (10 puzzles x 8 points + 5 names x 4 points = 100)
+!    P1  The launch       bow first, then the lever  -> BOW, PULL LEVER
+!    P2  The feint        reach for the gilt         -> TAKE STRONGBOX
+!    P3  Ship the sweep   a steering oar             -> PUT SWEEP IN SOCKET
+!    P4  Kedge off        grapnel astern, haul       -> THROW GRAPNEL, PULL LINE
+!    P5  The crossing     the one-turn window        -> STEER EAST
+!    P6  The lifebelt     where Lucan leads you      -> TAKE LIFEBELT
+!    P7  The chain        the one-turn window        -> THROW GRAPNEL AT CHAIN
+!    P8  The civic key    a long reach               -> PULL BOX WITH PIKE
+!    P9  Stop the pump    Vaunt's key, Vaunt's pump  -> PUT KEY IN SWITCH
+!    P10 The Race         wear what floats           -> WEAR LIFEBELT
+!    N1-N5 The five names, each PUT IN CHEST: the launch register, the
+!    Expedition's nameboard, Lucan's songbook, the diver's tag, and
+!    Councillor Sutt's plaque.
+!
+!  TECHNIQUES WORTH STEALING
+!    - ONE end-of-turn dispatcher (world_clock, section 12) that runs the
+!      river, then Lucan, then Sandwich, in a fixed order. No other daemon,
+!      timer or each_turn prints anything, so every turn's text always comes
+!      out in the same order.
+!    - A vehicle as state: four ship rooms that never move, plus ship_at,
+!      passage and drift for "where is the ship?" (section 4).
+!    - A countdown with a window: the current. A landing comes alongside
+!      and you get exactly one turn to act. A miss loops you round (the
+!      eddy) or kills you (the broken end).
+!    - NPC: a state machine (HIDDEN -> FOLLOWING -> GUIDING -> ARRIVED ->
+!      DEAD), and each state's behaviour in one place (LucanTick).
+!    - NPC: following (he walks after you) and leading (he goes first, waits
+!      a turn for you, and catches up if you get ahead).
+!    - NPC: conversation: one topic table shared by ASK and TELL, a fallback
+!      line, and a greeting (HELLO, SAY HELLO, GREET LUCAN).
+!    - NPC: reacting to GIVE and SHOW, item by item.
+!    - NPC: a scripted, timed event (his death, two turns after arrival,
+!      whatever you do), and its consequences: his effects stay where he
+!      fell, another NPC mentions him, and his book reaches you through her.
+!    - A scheduled antagonist whose interference is deterministic and
+!      learnable (Sandwich's front-run rule).
+!    - Gates that explain themselves: you can't leave a landing without the
+!      thing you'll need next, and the refusal says why.
+!    - A container that only takes some things and never gives back (the
+!      custody chest, which works like a trophy case).
+!    - A warn-once global rule (the river).
+!    - A win and a death that end with different words (deadflag 3 vs 1),
+!      and a custom rank (PrintRank) that carries the closing teaser.
+!
+!  Compiles cleanly with the bundled Standard Library 6.12; targets z5.
+! ============================================================================
+
+
+! ============================================================================
+!  1. SETUP  --  story constants, the score table, and all game state
+! ============================================================================
+
+Constant Story      "Mingus II: Everything Rolls Downhill";
+Constant Headline   "^A Frotzsmith sample: a river voyage in five landings.^";
+
+! --- Scoring ----------------------------------------------------------------
+! The library's task system: task_scores holds what each task is worth, and
+! Achieved(task) awards it exactly once -- so it is always safe to call it
+! again. FULL SCORE names completed tasks via PrintTaskName (section 14).
+
+Constant TASKS_PROVIDED;
+Constant NUMBER_TASKS  15;
+Constant MAX_SCORE     100;
+
+Constant TASK_LAUNCH     0;   ! P1  the launch: bow, then the lever
+Constant TASK_FEINT      1;   ! P2  Sandwich front-runs the strongbox
+Constant TASK_SWEEP      2;   ! P3  the sweep shipped in its socket
+Constant TASK_KEDGE      3;   ! P4  kedged off the Sandbar
+Constant TASK_CROSSING   4;   ! P5  steered across to the old side
+Constant TASK_LIFEBELT   5;   ! P6  the lifebelt, where Lucan led you
+Constant TASK_CHAIN      6;   ! P7  the grapnel on the chain
+Constant TASK_KEY        7;   ! P8  the civic key, fished off the girder
+Constant TASK_PUMP       8;   ! P9  the pump stopped
+Constant TASK_RACE       9;   ! P10 the Race survived
+Constant TASK_REGISTER  10;   ! N1  the launch register, in the chest
+Constant TASK_NAMEBOARD 11;   ! N2  the Expedition's nameboard
+Constant TASK_SONGBOOK  12;   ! N3  Lucan's songbook
+Constant TASK_TAG       13;   ! N4  the diver's tag
+Constant TASK_PLAQUE    14;   ! N5  Councillor Sutt's plaque
+
+!                   P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 | N1 N2 N3 N4 N5
+Array task_scores -> 8  8  8  8  8  8  8  8  8  8     4  4  4  4  4;
+
+! --- Where the ship is -------------------------------------------------------
+! ship_at is one of these. The landings are numbered from 1 so that 0 can
+! mean "this room is not part of any landing" (a Room's `landing`, below).
+Constant SLUICE   1;          ! moored at the Sluice      (Part One)
+Constant SANDBAR  2;          ! aground on the Sandbar    (Part Two)
+Constant PIER     3;          ! made fast at the Stone Pier (Part Three)
+Constant SPAN     4;          ! hanging from the Span's chain (Part Four)
+Constant INTAKE   5;          ! pinned to the intake screen (Part Five)
+Constant ADRIFT   6;          ! on the current, between landings
+
+! --- Lucan's states (section 11 explains each one) ---------------------------
+Constant HIDDEN    0;         ! stowed away; not in play yet
+Constant FOLLOWING 1;         ! walks after you
+Constant GUIDING   2;         ! goes ahead of you on the old-side bank
+Constant ARRIVED   3;         ! at the Hollow Green; the timer is running
+Constant DEAD      4;         ! gone; only his effects remain
+
+! --- Sandwich's schedule (section 11) ----------------------------------------
+Constant SW_UPSTREAM 0;       ! offshore at the Foot of the Gangplank
+Constant SW_AHEAD    1;       ! shot past you; waiting at the Wreck
+Constant SW_WAITING  2;       ! has told you the front-run rule
+Constant SW_HOLDING  3;       ! holds a decoy: "Yours for the coat."
+Constant SW_INTAKE   4;       ! pinned at the intake, holding the plaque
+Constant SW_RACING   5;       ! rowed off downstream ahead of you
+Constant SW_GONE     6;       ! broke up in the white water
+
+! --- Game state -------------------------------------------------------------
+! Everything the game remembers lives here. Ask "what has the player done?"
+! and the answer is on this screen.
+
+Global ship_at        = SLUICE;   ! where the ship is (see the constants)
+Global passage        = 0;        ! which passage, 1-5, while ADRIFT
+Global drift          = 0;        ! turns into this passage (0-3)
+Global lucan_state    = HIDDEN;   ! Lucan's state machine
+Global lucan_timer    = 0;        ! turns since he ARRIVED at the Hollow Green
+Global last_location  = 0;        ! where you were when the last turn ended
+Global sandwich_state = SW_UPSTREAM;
+Global river_warned   = false;    ! the Verdance has used up its one warning
+Global pump_stopped   = false;    ! P9 done: the intake has let go
+Global lines_let_go   = false;    ! P1: the verdlings have let go the lines
+Global sweep_shipped  = false;    ! P3: the sweep is in the stern socket
+Global kedge_set      = false;    ! P4: the grapnel is biting astern
+Global grapnel_hooked = false;    ! P7: the grapnel holds the chain
+Global songbook_given = false;    ! Mrs. Thrumble has handed over the songbook
+
+
+! ============================================================================
+!  2. LIBRARY
+! ============================================================================
+
+Include "Parser";
+Include "VerbLib";
+
+
+! ============================================================================
+!  3. CLASSES  --  write shared behaviour once
+! ============================================================================
+
+! Room: every location. All are lit (daylight, even in the Hold, through the
+! deck seams), so darkness never gets in the way.
+!   landing    -- which landing this room belongs to (SLUICE ... INTAKE), or
+!                 0. Lucan's following rule and the cast-off checks use it.
+!   riverside  -- true where the Verdance is right there: SWIM, DIVE and
+!                 JUMP here are RIVER ATTEMPTS (section 4).
+!   river_line -- the room's own line for the first river attempt.
+! `before` is an ADDITIVE property: a room's own `before` runs first, and if
+! it doesn't stop the action, this one runs too.
+Class Room
+  with landing 0,
+       riverside false,
+       river_line "You stand at the edge, and the Verdance goes by, quick and
+           quiet, close enough to touch. You step back.",
+       before [;
+         Swim, Jump:
+           if (self.riverside) return RiverAttempt(self.river_line);
+       ],
+  has  light;
+
+! ShipRoom: the four rooms of the funeral ship. They never move; ship_at says
+! where they are. OUT is the same routine in all four (ShipOut, section 4),
+! and the river is always over the rail.
+Class ShipRoom
+  class Room
+  with riverside true,
+       river_line "You put a leg over the rail, and the current pulls at your
+           boot like a hand. You climb back.",
+       out_to [; return ShipOut(); ];
+
+! Feature: things a description mentions that you can examine but that the
+! library should neither list nor let you carry off.
+Class Feature
+  with before [;
+         Take, Pull, Push, Turn:
+           print_ret (The) self, " ", (IsOrAre) self, " not coming with
+               you.";
+       ],
+  has  scenery;
+
+! Person: the characters. `life` is ADDITIVE too: each character's own life
+! routine handles what it cares about and returns false for anything else,
+! which falls through to these shared fallbacks.
+!   greeting -- what HELLO, SAY HELLO and GREET get from this person
+!               (HelloSub, section 15, finds the person present).
+Class Person
+  with greeting "There is no answer.",
+       no_answer "There is no answer.",
+       life [;
+         Ask, Tell, Answer:
+           PrintOrRun(self, no_answer);
+           rtrue;
+         Kiss:
+           "This is not that kind of river.";
+       ],
+  has  animate;
+
+! LostName: the five names you are collecting. Each knows the task it
+! scores when it goes into the custody chest (section 5), and `reading` is
+! the name Lucan reads aloud if you show it to him.
+Class LostName
+  with task 0,
+       reading "a name";
+
+
+! ============================================================================
+!  4. HELPERS  --  the ship's position, casting off, the river rule
+! ============================================================================
+
+! --- The ship's position ------------------------------------------------------
+! ShipTo(where): the one place ship_at changes. Objects with a `found_in`
+! routine (the chain, the mooring rope, the verdlings on the bank...) decide
+! where they are from ship_at, but the library only re-checks them when you
+! move. MoveFloatingObjects() asks them again right now, so the room you are
+! standing in is correct even though you didn't go anywhere.
+[ ShipTo where;
+    ship_at = where;
+    MoveFloatingObjects();
+];
+
+! OutsideView: one sentence about the outside, chosen by ship_at. The Main
+! Deck ends its description with it -- the whole "vehicle" is this switch.
+[ OutsideView;
+    switch (ship_at) {
+      SLUICE:  print "Over the rail, the slipway runs down into the Verdance,
+                   and the bowed verdlings line the Mingus bank, holding the
+                   ship's lines.";
+      SANDBAR: print "Over the rail, the ship sits aground on a long pale
+                   sandbar in mid-river. You could go out onto it.";
+      PIER:    print "Over the rail, the ship is made fast to an iron ring on
+                   an old stone pier. That is the old side. You could go
+                   out onto it.";
+      SPAN:    print "Overhead hangs the broken end of the gilded span, and
+                   the ship hangs from its chain by the grapnel line,
+                   shuddering. The way up is the chain, from the prow.";
+      INTAKE:  print "Over the rail, the gilded grating of the intake holds
+                   the ship pinned against the Mingus bank. You could go out
+                   onto its catwalk.";
+      ADRIFT:  print "Over the rail, the Verdance goes by, quick and quiet.";
+    }
+];
+
+! ShipOut: OUT from any ship room. It goes ashore only from the Main Deck,
+! and only at a landing that has a shore. An exit routine returns a room to
+! go there, or prints a refusal and returns true to stay put.
+[ ShipOut;
+    if (location ~= main_deck) "The way off the ship is from the main deck.";
+    switch (ship_at) {
+      SLUICE:  return gangplank_foot;
+      SANDBAR: return the_sandbar;
+      PIER:    return stone_pier;
+      INTAKE:  return intake_screen;
+      SPAN:    "The only way off is up the chain, from the prow.";
+    }
+    "The Verdance. You know the line about the Verdance.";
+];
+
+! --- Casting off ---------------------------------------------------------------
+! CastOff(n): leave the landing and start passage n. Each landing's cast-off
+! action (PULL LEVER, PULL LINE, UNTIE ROPE, UNHOOK GRAPNEL, and the intake
+! letting go) prints its own text and then calls this. The current itself
+! moves at the end of the turn (RiverTick, section 12), which is why the
+! cast-off turn always ends at [CURRENT: 1/3].
+!
+! The five names are optional. Leaving a landing without its name only
+! costs points, and the river says so once.
+[ CastOff n  left;
+    switch (ship_at) {
+      SLUICE:  left = launch_register;
+      SANDBAR: left = nameboard;
+      PIER:    left = songbook;
+      SPAN:    left = diver_tag;
+      INTAKE:  left = sutt_plaque;
+    }
+    if (left && ~~Aboard(left)) print "^The river does not go back.^";
+    passage = n;
+    drift = 0;
+    ShipTo(ADRIFT);
+];
+
+! Aboard(o): is o with you or on the ship? Climb the object tree from o to
+! the room it is in; if the player was on the way, you carry it.
+[ Aboard o;
+    while (parent(o) ~= 0) {
+        if (o == player) rtrue;
+        o = parent(o);
+    }
+    return (o ofclass ShipRoom);
+];
+
+! PrintCurrent: the counter, in plain ASCII, on a line of its own.
+[ PrintCurrent;
+    print "[CURRENT: ", drift, "/3]^";
+];
+
+! --- The river rule (warn once, globally) ---------------------------------------
+! A RIVER ATTEMPT is SWIM, DIVE or JUMP in a riverside room, ENTER RIVER, and
+! a few places' own ways in (the girder at the Broken End, the road at the
+! Drowned Road). The very first one in the whole game is refused, with the
+! place's own line; every later one, anywhere, kills. One Global,
+! river_warned, is the whole memory of the rule.
+[ RiverAttempt line;
+    if (~~river_warned) {
+        river_warned = true;
+        print (string) line;
+        "^^[The Verdance warns you once. It has never warned anyone twice.]";
+    }
+    RiverDeath();
+    rtrue;
+];
+
+! The death text, shared by the river rule and the Race without a lifebelt.
+! deadflag 1 makes the library print "*** You have died ***".
+[ RiverDeath;
+    print "The Verdance takes you, quick and quiet, the way it has taken
+        everyone. Nobody comes back.^";
+    deadflag = 1;
+];
+
+
+! ============================================================================
+!  5. THE SHIP  --  four fixed rooms (1-4)
+! ----------------------------------------------------------------------------
+!  The ship never moves in the object tree. ship_at (section 4) says where it
+!  is; OutsideView and ShipOut turn that into what you see and where OUT goes.
+! ============================================================================
+
+! --- The player's own belongings --------------------------------------------
+
+! The pike: Mingus I's rules carry over. It can't be given away, put in
+! anything or thrown, so it can never be lost for good; DROP leaves it where
+! it falls. GIVE PIKE TO LUCAN is let through to Lucan, who refuses it in
+! character (section 11): a `before` returning false lets the action go on.
+Object pike "pike"
+  with name 'pike' 'verdling^s' 'staff' 'spear' 'pole',
+       description "A verdling's pike: a long pole of river wood, its point
+           worn bright. Thousands of verdlings bowed to it. It is a very long
+           reach.",
+       before [;
+         Give:
+           if (second == lucan) rfalse;
+           "You keep hold of the pike. Down here, it is the only thing anyone
+           respects.";
+         PutOn, Insert, ThrowAt:
+           "You keep hold of the pike. Down here, it is the only thing anyone
+           respects.";
+       ];
+
+! Lady Vaunt's coat, the real one. Nothing needs it; Sandwich will take it
+! as a price (section 11), and Lucan knows it.
+Object coat "Lady Vaunt's coat"
+  with name 'coat' 'long' 'real' 'lady' 'vaunt^s' 'esme^s' 'shadow',
+       description "Lady Vaunt's coat. The real one: it casts a shadow, which
+           is more than most things from the Ascendancy do.",
+  has  clothing proper;
+
+! --- 1. Main Deck -------------------------------------------------------------
+
+! The description is a routine because two things in it change: the
+! receipt, and the last sentence, which is OutsideView (section 4).
+ShipRoom main_deck "Main Deck"
+  with description [;
+           print "The main deck of a funeral ship: broad, gilded, and built
+               for one passenger, who is meant to be lying down. An empty
+               bier stands amidships under the mast, where a blank plaque is
+               bolted ready for somebody's seed words. A receipt is pinned
+               to the mast. Along the rail, the hooks where the hard wallets
+               hung are all bare. A chock lever stands by the rail. The
+               prow is north, the stern south, and a hatch leads down into
+               the hold.^^";
+           OutsideView();
+           new_line;
+       ],
+       n_to prow,
+       s_to stern,
+       d_to hold;
+
+Feature -> blank_plaque "blank plaque"
+  with name 'blank' 'plaque' 'mast' 'seed' 'words',
+       description "Blank. Somebody has polished it, ready.";
+
+! Sandwich's first appearance is on paper: he got here before the dead did.
+Object -> receipt "receipt"
+  with name 'receipt' 'salvage' 'paper' 'note',
+       description "SALVAGE RECEIPT. Item: hard wallets, all. Fee: everything.
+           Thank you for choosing BOTTOM LINE SALVAGE. -- S.",
+       before [;
+         Take, Pull: "It's pinned to the mast with a gilt nail. Sandwich
+             wanted it found.";
+       ],
+  has  static scenery;
+
+Feature -> bier "empty bier"
+  with name 'empty' 'bier' 'hooks' 'wallets' 'hard' 'rail',
+       description "The bier is empty, and so are the hooks along the rail.
+           The hard wallets are gone. Somebody got here first.";
+
+Feature -> hatch "hatch"
+  with name 'hatch' 'hatchway',
+       description "A square hatch with a ladder, down into the hold.",
+       before [;
+         Enter: <<Go d_obj>>;
+         Open, Close: "It stays open. The dead don't mind a draught.";
+       ];
+
+! P1, part two: the chock lever. PULL (or PUSH, TURN) does nothing until the
+! verdlings have let go of the lines (BowSub, section 15). Then it launches
+! the ship: the cast-off action for passage 1.
+Object -> chock_lever "chock lever"
+  with name 'chock' 'lever' 'handle',
+       description [;
+           if (ship_at == SLUICE) "A long iron lever. Below the rail it
+               runs down to the chock that holds the ship on the slip.";
+           "A long iron lever. Its chock is somewhere up the Verdance now.";
+       ],
+       before [;
+         Pull, Push, Turn:
+           if (ship_at ~= SLUICE) "The lever swings loose. Its chock is
+               somewhere up the Verdance now, with everything else.";
+           if (~~lines_let_go) "The ship strains against a thousand small
+               hands on its lines, and does not move.";
+           Achieved(TASK_LAUNCH);
+           print "You pull the lever. Somewhere under the hull the chock
+               knocks out, and the ship slides down the slip, gathering
+               itself, and onto the Verdance. Behind you the verdlings
+               stay bowed, and grow small.^";
+           CastOff(1);
+           rtrue;
+       ],
+  has  static scenery;
+
+! --- 2. The Prow ----------------------------------------------------------------
+
+! The chain (Part Four) is part of the view while it matters: it is named in
+! the description during passage 3 and while the ship hangs from it. UP
+! climbs it, but only when the ship is held at the Span.
+ShipRoom prow "The Prow"
+  with description [;
+           print "The ship's high prow, where a gilded figurehead leans out
+               over the water: Lord Vaunt, chin up, with laser eyes that
+               stopped working some time ago. From here you see downstream:
+               the Verdance, broad and green and going somewhere.";
+           if (ship_at == SPAN) print " Overhead is the broken end of the
+               span, and from it hangs the chain, with your grapnel bitten
+               into it and the line bar-taut.";
+           else if (ship_at == ADRIFT && passage == 3) print " Ahead, the
+               gilded span reaches out from the Mingus bank and stops, and
+               a chain hangs from its broken end toward the water.";
+           "^^The main deck is back to the south.";
+       ],
+       s_to main_deck,
+       u_to [;
+           if (ship_at == SPAN) return broken_end;
+           "Only the figurehead goes any higher, and it has never come
+           down.";
+       ];
+
+Feature -> figurehead "figurehead"
+  with name 'gilded' 'figurehead' 'vaunt' 'laser' 'eyes' 'head',
+       description "Lord Vaunt in gilt, leaning into the wind. The laser eyes
+           are dark. He is looking downstream, which is more than he ever
+           did in life.";
+
+! --- 3. The Stern ------------------------------------------------------------
+
+! P3 lives here: the socket takes the sweep. STEER (section 15) works only
+! here, and only with the sweep shipped. The kedge (P4) is thrown from here
+! too, because the bar holds the bow and the deep water is astern.
+ShipRoom stern "The Stern"
+  with description [;
+           print "The ship's stern, low and broad. In the deck is a socket,
+               worn smooth, as if something used to sit in it, long ago,
+               before anyone decided the dead didn't need to steer.";
+           if (sweep_shipped) print " The sweep sits in it now, long and
+               ready.";
+           if (kedge_set) print " A line runs from the rail out into the
+               water astern, where the grapnel is biting the riverbed.";
+           "^^The main deck is north.";
+       ],
+       n_to main_deck;
+
+! The socket takes one thing: the sweep. PUT SWEEP IN SOCKET sends the socket
+! a ##Receive first, with `noun` = the thing being put in, so the socket
+! decides -- before the library's own "that can't contain things".
+Object -> socket "socket"
+  with name 'socket' 'hole' 'worn',
+       description [;
+           if (sweep_shipped) "The sweep sits in it as if it had never
+               left.";
+           "A round socket in the stern deck, worn smooth. Something long
+           used to sit in it.";
+       ],
+       before [;
+         Receive:
+           if (noun ~= sweep) "It was made for one thing, and that isn't
+               it.";
+           move sweep to stern;
+           sweep_shipped = true;
+           Achieved(TASK_SWEEP);
+           "You set the sweep in the socket. It drops in as if it had been
+           waiting.";
+       ],
+  has  static scenery;
+
+! The kedge line exists only while the grapnel is biting astern. A
+! `found_in` routine is asked "are you here?" whenever the player moves (or
+! when ShipTo calls MoveFloatingObjects).
+Object kedge_line "kedge line"
+  with name 'line' 'kedge' 'rope',
+       found_in [; return (kedge_set && location == stern); ],
+       description "The grapnel's line, running from the rail into the deep
+           water astern. It is taut.",
+       before [;
+         Pull, Take, Turn: return PullKedge();
+       ],
+  has  static scenery;
+
+! --- 4. The Hold ------------------------------------------------------------
+
+! The Hold: Lucan's hiding place, and the custody chest.
+ShipRoom hold "The Hold"
+  with description [;
+           print "The hold, lit by daylight through the deck seams. Most of
+               it is a heap of $ALT medallions, the ship's cargo of the
+               dead's own money";
+           if (lucan_state ~= HIDDEN) print ", with a hollow in it where
+               Lucan slept, and a sandwich wrapper";
+           ". Against the bulkhead stands the custody chest, stencilled
+           MOST SECURE CUSTODY SOLUTION -- NOTHING HAS EVER BEEN WITHDRAWN.
+           Its lid stands open. A ladder goes up to the main deck.";
+       ],
+       u_to main_deck;
+
+! MEDALLION and MEDALLIONS: in a z5 story a dictionary word keeps only its
+! first nine letters, so these two are the SAME word. Here that is fine --
+! there is only one heap -- so neither ever asks "which do you mean?".
+Object -> medallions "$ALT medallions"
+  with name 'medallion' 'medallions' 'alt' 'heap' 'cargo' 'money' 'coins',
+       description "Thousands of them, stamped with Vaunt's face and the
+           word $ALT. They were the dead's own money. They are worth exactly
+           what everything else from the Ascendancy is worth.",
+       before [;
+         Take, Pull, Push, Search: "They're $ALT. Leave them for the dead.";
+       ],
+  has  static scenery pluralname;
+
+! The custody chest: the game's trophy case. It is an open container, but
+! its `before` decides everything first:
+!   ##Receive (PUT X IN CHEST, PUT X ON CHEST) -- only a LostName goes in,
+!     and the first time it does, it scores its task.
+!   ##LetGo (TAKE X, TAKE X FROM CHEST, for something inside) -- never.
+! Because nothing ever comes out, a name can only go in once: no flag is
+! needed to stop double scoring.
+Object -> custody_chest "custody chest"
+  with name 'custody' 'chest' 'lid' 'stencil' 'solution',
+       description [;
+           print "MOST SECURE CUSTODY SOLUTION -- NOTHING HAS EVER BEEN
+               WITHDRAWN, says the stencil. The lid stands open.";
+           if (child(self)) {
+               print " Inside: ";
+               WriteListFrom(child(self), ENGLISH_BIT);
+               print ".";
+           }
+           new_line;
+           rtrue;
+       ],
+       before [;
+         Receive:
+           if (~~(noun ofclass LostName)) "The chest is for names.";
+           move noun to self;
+           Achieved(noun.task);
+           "The chest accepts it. NOTHING HAS EVER BEEN WITHDRAWN, says the
+           lid.";
+         LetGo:
+           "NOTHING HAS EVER BEEN WITHDRAWN. The lid is very clear about
+           this.";
+         Close: "The lid doesn't close. It has nothing to hide, it says.";
+       ],
+  has  static container open scenery;
+
+
+! Lucan's nest: only there once he has climbed out of it.
+Object lucan_nest "Lucan's nest"
+  with name 'nest' 'hollow' 'wrapper' 'sandwich',
+       found_in [; return (lucan_state ~= HIDDEN && location == hold); ],
+       description "A hollow in the medallions the shape of a large man, and a
+           sandwich wrapper. Lucan travelled with what he could carry.",
+       before [;
+         Take, Search: "You leave it as it is.";
+       ],
+  has  static scenery;
+
+! ============================================================================
+!  6. PART ONE: THE SLUICE  --  the Mingus bank (rooms 5-7)
+! ----------------------------------------------------------------------------
+!  The start. The launch drill (read at the Sluice Mouth) tells you the order
+!  of P1: aboard, bow, lever. N1, the launch register, is inside the Sluice.
+! ============================================================================
+
+! --- 5. Foot of the Gangplank (start) -----------------------------------------
+
+! `cant_go` replaces "You can't go that way" for every direction without an
+! exit: the crowd is the wall here, as it was at the end of Mingus I.
+Room gangplank_foot "Foot of the Gangplank"
+  with landing SLUICE,
+       riverside true,
+       description "The foot of the gangplank, where Mingus I left you. The
+           verdlings are still bowed, thousands of them, all the way back to
+           the mountain, and the lane they made for you still runs to the
+           water. At the end of it the funeral ship rocks at the mouth of
+           the Sluice, its gangplank down, its blank plaque polished on the
+           mast. The covered chute of the Sluice comes down out of the
+           mountain to the west. Up the gangplank is the ship.",
+       u_to main_deck,
+       in_to main_deck,
+       w_to sluice_mouth,
+       cant_go "The crowd closes softly in front of you, and bows again.";
+
+Feature -> lane "lane"
+  with name 'lane' 'path' 'gap',
+       description "A shoulder's width between bowed heads, running straight
+           to the gangplank.";
+
+! The ship seen from outside, at each landing it can be boarded from. ENTER
+! SHIP and BOARD SHIP (section 15) walk aboard. UNTIE SHIP at the Pier means
+! the mooring rope.
+Object funeral_ship "funeral ship"
+  with name 'ship' 'funeral' 'gangplank' 'hull' 'boat',
+       found_in gangplank_foot the_sandbar stone_pier intake_screen,
+       description "A funeral ship: a high gilded prow, a mast with a blank
+           plaque, and a hold for the dead's money. It was built to carry
+           one passenger, lying down.",
+       before [;
+         Enter, Climb: <<Go in_obj>>;
+         Untie: if (location == stone_pier) <<Untie mooring_rope>>;
+       ],
+  has  scenery;
+
+! The verdlings are on the Mingus bank only (they never cross the river and
+! never go underground). They are in scope wherever you can see them,
+! including from the Main Deck before the launch, so BOW TO VERDLINGS works
+! there.
+Object verdlings "verdlings"
+  with name 'verdlings' 'verdling' 'crowd' 'heads' 'thousands' 'pikes',
+       found_in [;
+           if (location == gangplank_foot or sluice_mouth or intake_screen)
+               rtrue;
+           return (location == main_deck && ship_at == SLUICE);
+       ],
+       description [;
+           if (location == intake_screen) "Far off along the Mingus bank, the
+               verdlings stand in silent rows, watching. They keep well
+               away from the intake. It is a hole.";
+           if (location == sluice_mouth) "They keep well back from the
+               Sluice. Nobody has told them why. Nobody had to.";
+           "Thousands of small mud-coloured heads, bowed. Down by the water,
+           a few hundred small hands hold the ship's lines.";
+       ],
+       life [;
+         default: "Thousands of small heads stay bowed.";
+       ],
+  has  animate scenery pluralname;
+
+! --- 6. The Sluice Mouth ------------------------------------------------------
+
+Room sluice_mouth "The Sluice Mouth"
+  with landing SLUICE,
+       riverside true,
+       description "The end of the covered chute, where the Sluice comes out
+           of the mountain onto a stone slipway and the slipway runs down
+           into the river. Funeral ships come down the chute on rollers and
+           wait here on the chock for their last push. Painted on the arch
+           above the chute is the launch drill. The verdlings keep well back.
+           Inside the Sluice is west; the gangplank is east.",
+       e_to gangplank_foot,
+       w_to inside_sluice,
+       in_to inside_sluice;
+
+! The drill: READ is EXAMINE in the Standard Library, so a description is
+! all a readable thing needs. It states P1's order outright.
+Feature -> launch_drill "launch drill"
+  with name 'launch' 'drill' 'arch' 'paint' 'order' 'painted',
+       description "LAUNCH ORDER -- 1. THE PASSENGER ABOARD. 2. THE CHIEF
+           BOWS; THE VERDLINGS LET GO. 3. THE CHOCK LEVER.";
+
+Feature -> slipway "slipway"
+  with name 'slipway' 'slip' 'chock' 'rollers' 'stone',
+       description "Worn stone, greased for a thousand launches. The chock
+           that holds the ship is down under its hull, worked from the deck
+           by a lever.";
+
+! --- 7. Inside the Sluice ------------------------------------------------------
+
+Room inside_sluice "Inside the Sluice"
+  with description "Dim. Rollers run up into the mountain as far as you can
+           see, and far above, the chute is jammed: the dead are piling up in
+           cold storage at the summit, waiting for somebody to fix it.
+           Somebody is not coming. A lectern stands by the rollers. The way
+           out is east.",
+       e_to sluice_mouth,
+       out_to sluice_mouth;
+
+Feature -> rollers "rollers"
+  with name 'rollers' 'roller' 'chute' 'jam' 'summit' 'storage',
+       description "They run up into the dark. A long way up, something gilded
+           is wedged across them.",
+  has  pluralname;
+
+Feature -> lectern "lectern"
+  with name 'lectern' 'stand',
+       description "A plain wooden lectern, for the register.";
+
+! N1. Its last entry names Councillor Sutt and the Floor Price: you will meet
+! her plaque at the intake, in Part Five.
+LostName -> launch_register "launch register"
+  with name 'launch' 'register' 'ledger' 'entries' 'entry',
+       task TASK_REGISTER,
+       reading "Councillor Amberline Sutt",
+       initial "The launch register lies open on the lectern.",
+       description "THE LAUNCH REGISTER OF THE SLUICE. Ship after ship, name
+           after name, all in the same hand. The last entry reads: ~the
+           Floor Price, for Councillor Amberline Sutt.~ After it, nothing:
+           that was the last ship before the jam.";
+
+
+! ============================================================================
+!  7. PART TWO: THE SANDBAR  --  mid-river (rooms 8-9)
+! ----------------------------------------------------------------------------
+!  The ship runs aground on its own. Sandwich is at the Wreck first, and his
+!  front-run rule decides P2. The sweep (P3) and the grapnel (P4) are here,
+!  and so is N2, the Expedition's nameboard.
+! ============================================================================
+
+! --- 8. The Sandbar -------------------------------------------------------------
+
+Room the_sandbar "The Sandbar"
+  with landing SANDBAR,
+       riverside true,
+       description "A long pale bar in mid-river, where the funeral ship has
+           run aground: the way, by the look of it, they all do. The
+           Verdance goes by on both sides. To the east, a wrecked boat lies
+           on its side at the end of the bar. The ship is back in.",
+       in_to main_deck,
+       e_to wreck;
+
+! Sandwich's scull, beached here until he leaves (section 11).
+Object -> beached_scull "gilded scull"
+  with name 'gilded' 'racing' 'scull' 'slippage' 'oars',
+       description "A narrow gilded racing scull, pulled up on the sand. Its
+           name is painted on the bow: SLIPPAGE.",
+       describe [;
+           "^A narrow gilded racing scull is pulled up on the sand.";
+       ],
+       before [;
+         Take, Push, Pull, Enter: "It's Sandwich's. He'd be there first.";
+       ],
+  has  static;
+
+! --- 9. The Expedition Wreck ------------------------------------------------------
+
+! The room's `before` is where the front-run rule lives: a room's `before`
+! runs ahead of the object's own, so the room can step in on the first TAKE
+! of any of the four salvage items while Sandwich is here. SandwichGrab is
+! in section 11.
+Room wreck "The Expedition Wreck"
+  with landing SANDBAR,
+       riverside true,
+       description "The Step Three lies on her side at the end of the bar,
+           her planks gone grey. She was the Verdance Expedition's boat, and
+           painted along her side is the Expedition's roadmap: STEP 1: BOAT.
+           STEP 2: RIVER. STEP 3: CROSS. Her thwart board has come loose and
+           lies in the sand. The bar runs back west.",
+       w_to the_sandbar,
+       before [;
+         Take: if (sandwich in self) return SandwichGrab(noun);
+         Remove: if (sandwich in self && noun in sandwich)
+                     "He's already out of reach, smiling. Latency.";
+       ];
+
+Feature -> step_three "Step Three"
+  with name 'step' 'three' 'wreck' 'wrecked' 'boat' 'roadmap' 'planks',
+       description "Her roadmap ended at STEP 3: CROSS. She got as far as a
+           sandbar.";
+
+! The sweep: the long steering oar for the stern socket (P3).
+Object -> sweep "sweep"
+  with name 'sweep' 'oar' 'steering' 'long',
+       initial "A long steering sweep lies along the wreck's thwarts.",
+       ! Once shipped, the Stern's description mentions it; `describe`
+       ! returning true stops the library listing it a second time.
+       describe [; if (sweep_shipped) rtrue; rfalse; ],
+       description "A long steering oar. Its foot is worn round, to sit in a
+           socket.",
+       before [;
+         Take: if (sweep_shipped) "It's shipped in the socket. Leave it
+             there.";
+       ];
+
+! The grapnel: thrown astern it kedges you off the bar (P4); thrown at the
+! chain in passage 3's window it saves the ship (P7). Every way of throwing
+! or dropping it goes to one routine, GrapnelThrown (section 9).
+Object -> grapnel "grapnel"
+  with name 'grapnel' 'grapple' 'hook' 'anchor' 'tines',
+       initial "A grapnel on a coil of line lies half buried in the sand.",
+       describe [;
+           if (grapnel_hooked) "^The grapnel line runs up from the rail to the
+               chain overhead, bar-taut.";
+           rfalse;
+       ],
+       description [;
+           if (grapnel_hooked) "Bitten into the chain overhead. The whole ship
+               hangs from it.";
+           "A four-tined iron grapnel on a long coil of line.";
+       ],
+       before [;
+         Drop: return GrapnelThrown(0);
+         ThrowAt: return GrapnelThrown(second);
+         Take: if (grapnel_hooked) "It's holding the whole ship. UNHOOK it
+             when you're ready to go.";
+         Pull, Unhook: if (grapnel_hooked) return UnhookGrapnel();
+       ];
+
+! The strongbox: gilt, so Sandwich always wants it. If he leaves without it
+! (the coat route), you can take it and open it.
+Object -> strongbox "strongbox"
+  with name 'strongbox' 'treasury' 'gilt' 'stencilled',
+       initial "A gilded strongbox, stencilled EXPEDITION TREASURY, sits in
+           the wreck's bilge.",
+       description "A gilded strongbox stencilled EXPEDITION TREASURY.",
+  has  container openable;
+
+Object safu_note "note" strongbox
+  with name 'note' 'safu' 'funds',
+       description "FUNDS ARE SAFU.";
+
+! N2: five names scratched into the thwart board. Only this object answers
+! to NAME and NAMES, so EXAMINE NAMES never asks "which do you mean?".
+LostName -> nameboard "nameboard"
+  with name 'nameboard' 'thwart' 'board' 'names' 'name' 'scratched',
+       task TASK_NAMEBOARD,
+       reading "Nonie Pask",
+       description "The Step Three's thwart board. Five names are scratched
+           into it with a knife point, one under another: DELL ARKWRIGHT,
+           NONIE PASK, TOMAS VERE, ILSA GRUND, BEN OKORO. Under them, in the
+           same hand: GOT THIS FAR.";
+
+
+! ============================================================================
+!  8. PART THREE: THE OLD-SIDE BANK  --  the taboo is broken (rooms 10-14)
+! ----------------------------------------------------------------------------
+!  Lucan leads you up the bank by his favourite verse, to the lifebelt (P6).
+!  The old side is seen only from outside, and never explained. Mrs.
+!  Thrumble answers the bell at the pier. N3, Lucan's songbook, reaches you
+!  through her.
+! ============================================================================
+
+! --- 10. The Stone Pier -------------------------------------------------------
+
+! Leaving the pier sends Mrs. Thrumble below. The room's `before` catches
+! every Go: noun.door_dir is the exit property for that direction (n_to,
+! in_to...), so self.(noun.door_dir) is non-zero exactly when there is an
+! exit that way -- she only leaves if you really do.
+Room stone_pier "The Stone Pier"
+  with landing PIER,
+       riverside true,
+       description "Old fitted stone, the joints so tight a knife wouldn't go
+           in, older than anything on the Mingus side. The funeral ship is
+           made fast to an iron ring set in the pier. Set into the bank at the
+           pier's head is an iron hatch with a barred window, a bell on a
+           bracket, and a card. The ship is back in; the bank rises to the
+           north.",
+       in_to main_deck,
+       n_to mine_heads,
+       before [;
+         Go:
+           if (thrumble in self && self.(noun.door_dir) ~= 0) {
+               remove thrumble;
+               print "The shutter closes.^^";
+           }
+       ];
+
+Feature -> iron_ring "iron ring"
+  with name 'iron' 'ring',
+       description "A plain iron ring, worn bright on the inside by ropes. The
+           ship's mooring rope is made fast to it.";
+
+Feature -> lost_hatch "iron hatch"
+  with name 'hatch' 'window' 'barred' 'bars' 'shutter' 'counter',
+       description [;
+           if (thrumble in stone_pier) "Behind the bars, Mrs. Thrumble is
+               writing in a ledger. She does not look up.";
+           "An iron hatch in the bank, with a barred window and a shutter
+           behind the bars. The shutter is down.";
+       ],
+       before [;
+         Open, Enter: "It isn't that kind of hatch. There's a bell.";
+       ];
+
+Feature -> lost_card "card"
+  with name 'card' 'sign',
+       description "LOST PROPERTY. RING ONCE. DOWNSTREAM COUNTER.";
+
+! RING BELL brings Mrs. Thrumble (ThrumbleRing, section 11).
+Object -> bell "bell"
+  with name 'bell' 'bracket',
+       description "A small brass bell on a bracket by the hatch.",
+       before [;
+         Ring, Push, Pull: return ThrumbleRing();
+       ],
+  has  static scenery;
+
+! The mooring rope: on deck and on the pier while the ship is made fast
+! here. UNTIE it to cast off (passage 3). Its parse_name answers to SHIP as
+! well, but only on the Main Deck (on the pier, SHIP means the ship itself),
+! so UNTIE SHIP works in both places.
+Object mooring_rope "mooring rope"
+  with parse_name [ n w;
+           for (::) {
+               w = NextWord();
+               if (w == 'mooring' or 'rope' or 'line' or 'painter') { n++; continue; }
+               if (w == 'ship' && location == main_deck) { n++; continue; }
+               return n;
+           }
+       ],
+       found_in [;
+           return (ship_at == PIER && location == main_deck or stone_pier);
+       ],
+       description "The ship's mooring rope, made fast to the iron ring on
+           the pier.",
+       before [;
+         Untie, Take, Pull: return CastOffPier();
+       ],
+  has  static scenery;
+
+! The cast-off for the Stone Pier, with its two gates, in order. Each
+! refusal says what is missing. A refused cast-off still passes a turn.
+[ CastOffPier;
+    if (lucan_state ~= DEAD) "Lucan, from the bank: ~Not yet! Twenty years
+        I've sung this bank!~";
+    if (~~IndirectlyContains(player, lifebelt)) "Not without something that
+        floats. Every song about this river ends in white water.";
+    if (location == stone_pier) {
+        if (thrumble in stone_pier) {
+            remove thrumble;
+            print "The shutter closes.^^";
+        }
+        PlayerTo(main_deck, 1);
+        print "You slip the rope off the iron ring and step aboard as the
+            current takes the ship.";
+    }
+    else print "You cast off. The rope runs out through the iron ring and
+        falls in the water.";
+    print " The old side slides away behind you, green and warm and quiet.^";
+    CastOff(3);
+    rtrue;
+];
+
+! --- 11. The Mine Heads -----------------------------------------------------------
+
+! The signpost for Lucan's death is here, before it happens: the bright,
+! stone-ringed patches, and (EXAMINE PATCHES) the warm air leaking round
+! the stones.
+Room mine_heads "The Mine Heads"
+  with landing PIER,
+       description "Timber headframes stand over capped shafts, grey with
+           age. Iron grates in the grass breathe warm air, and low chimney
+           vents give off a steady glow that never flickers. Here and there
+           the grass is a brighter green, smooth as baize, each patch ringed
+           with small white stones. The pier is back south; the bank rises
+           north, and to the east a roofline shows above the grass.",
+       s_to stone_pier,
+       n_to hollow_green,
+       e_to buried_hall;
+
+Feature -> headframes "headframes"
+  with name 'timber' 'headframes' 'headframe' 'shafts' 'shaft' 'capped',
+       description "Old timber, older than the Ascendancy. The shafts under
+           them are capped with iron. Something down there is warm.",
+       before [;
+         Enter, Climb: "You don't. It isn't that you can't.";
+       ],
+  has  pluralname;
+
+Feature -> grates "grates"
+  with name 'iron' 'grates' 'grate' 'vents' 'vent' 'chimney' 'chimneys'
+           'glow',
+       description "The grates breathe warm air. The chimney vents glow,
+           steadily, the way nothing on the Mingus side ever has. It never
+           flickers.",
+       before [;
+         Enter, Open: "You don't. It isn't that you can't.";
+       ],
+  has  pluralname;
+
+! PATCH and PATCHES are different words even in z5 (both under nine
+! letters), so one object can answer to both. Stepping on the patches is
+! never deadly to you: before Lucan's death you are steered off them, and
+! after it you remember.
+Object -> mine_patches "bright patches"
+  with name 'patch' 'patches' 'bright' 'baize' 'turf' 'white' 'stones'
+           'stone' 'ring',
+       description "Patches of turf a brighter green than the rest, smooth as
+           baize, each one ringed with small white stones. Warm air leaks
+           out round the stones, as if the grass were a lid.",
+       before [;
+         Enter: return StepOnPatch();
+         Take, Pull, Dig: "The turf is tight and smooth, and warm under your
+             hand. You leave it.";
+       ],
+  has  static scenery pluralname;
+
+! STEP ON PATCH, ENTER PATCH, STAND ON PATCH: one answer for both rooms.
+[ StepOnPatch;
+    if (lucan_state == DEAD) "You remember Lucan. You don't.";
+    if (lucan in location) "Lucan is standing on the best one, singing.";
+    "Something about the bright turf makes you keep to the plain grass.";
+];
+
+! --- 12. Outside the Half-Buried Hall --------------------------------------------
+
+! The old side is never entered. IN, DOWN, ENTER and OPEN DOOR all get the
+! same line; the exits are routines that print it and stay put.
+Room buried_hall "Outside the Half-Buried Hall"
+  with landing PIER,
+       description "A roofline at the height of the grass, and below it a row
+           of windows at ground level, with warm light in them. A door stands
+           half below the turf, with steps going down to it. Nobody comes to
+           the windows. The mine heads are back west.",
+       w_to mine_heads,
+       in_to [; "You don't. It isn't that you can't."; ],
+       d_to  [; "You don't. It isn't that you can't."; ];
+
+Feature -> hall_door "door"
+  with name 'door' 'steps' 'hall' 'roofline' 'roof' 'windows' 'window'
+           'light',
+       description "The door is half below the turf, and the steps go down to
+           it. The light in the windows is warm and steady.",
+       before [;
+         Enter, Open, Push, Climb: "You don't. It isn't that you can't.";
+       ];
+
+! --- 13. The Hollow Green -----------------------------------------------------------
+
+! P6 lives here, and so does Lucan's death (section 11). Before it: the
+! patches and the lifebelt. After it: the hole and his hat. DOWN is always
+! refused, with a different line once he is gone.
+Room hollow_green "The Hollow Green"
+  with landing PIER,
+       riverside true,
+       description [;
+           print "Here the green bank goes down to the water, the way the song
+               says. There are more of the bright patches, ringed with white
+               stones, all across the hollow";
+           if (lucan_state == DEAD) print ", and among them is a dark hole in
+               the bright turf, ringed with white stones, breathing warm air.
+               Lucan's hat lies at its edge";
+           print ".";
+           if (lifebelt in hollow_green) print " A white lifebelt hangs on a
+               post at the water's edge.";
+           else print " A bare post stands at the water's edge.";
+           "^^The mine heads are back south. To the north, the bank runs on to
+           an old fence.";
+       ],
+       s_to mine_heads,
+       n_to old_fence,
+       d_to [;
+           if (lucan_state == DEAD) "You remember Lucan. You don't.";
+           "The bank goes down to the water here, and the water goes on
+           without you.";
+       ];
+
+Object -> green_patches "bright patches"
+  with name 'patch' 'patches' 'bright' 'baize' 'turf' 'green' 'white'
+           'stones' 'stone',
+       description "Bright turf, smooth as a stage, ringed with small white
+           stones. Warm air leaks round the stones.",
+       before [;
+         Enter: return StepOnPatch();
+         Take, Pull, Dig: "The turf is tight and smooth, and warm under your
+             hand. You leave it.";
+       ],
+  has  static scenery pluralname;
+
+Feature -> lifebelt_post "post"
+  with name 'post' 'wooden',
+       description "A weathered post at the water's edge.";
+
+! P6: the lifebelt. Points come with taking it (in `after`, so the library
+! has already moved it to you). It is clothing, so WEAR LIFEBELT works -- and
+! wearing it is what P10 checks.
+! Its parse_name lets RING mean the lifebelt (Lucan calls it "a ring on a
+! post"), except at the Stone Pier, where RING means the iron ring.
+Object -> lifebelt "lifebelt"
+  with parse_name [ n w;
+           for (::) {
+               w = NextWord();
+               if (w == 'lifebelt' or 'life' or 'belt' or 'cork' or 'white'
+                   or 'buoy' or 'lifebuoy') { n++; continue; }
+               if (w == 'ring' && location ~= stone_pier) { n++; continue; }
+               return n;
+           }
+       ],
+       describe [; rtrue; ],    ! the room description mentions it
+       description "A ring of cork, painted white, older than anything on
+           the Mingus side. It still floats; you can tell by the weight.",
+       after [;
+         Take:
+           Achieved(TASK_LIFEBELT);
+           "You lift the lifebelt off its post. Cork, painted white. The song
+           was right about this.";
+       ],
+  has  clothing;
+
+! After Lucan's death, LucanDies (section 11) moves these two here.
+Object lucan_hole "hole"
+  with name 'dark' 'hole' 'trap' 'warm' 'air',
+       description "A dark hole in the bright turf, ringed with white stones,
+           breathing warm air. You can't see the bottom.",
+       before [;
+         Enter, Search, Climb: "You remember Lucan. You don't.";
+       ],
+  has  static scenery;
+
+Object lucan_hat "Lucan's hat"
+  with name 'hat' 'velvet' 'band' 'lucan^s',
+       description "Velvet band. A Thursday hat.",
+       before [;
+         Take, Pull, Wear: "You leave it where he can find it.";
+       ],
+  has  static scenery;
+
+! --- 14. The Old Fence ---------------------------------------------------------------
+
+! A glimpse, and nothing more: there is nothing to take, and nothing is
+! explained.
+Room old_fence "The Old Fence"
+  with landing PIER,
+       description "A long, low, grass-covered hill behind an old fence. A
+           gate that hasn't opened in years. You could walk past it a hundred
+           times. The hollow green is back south.",
+       s_to hollow_green;
+
+Feature -> fence "old fence"
+  with name 'old' 'fence' 'gate' 'hill' 'grass' 'grassy' 'long' 'low',
+       description "From the road it is nothing. From here it is a long, low
+           hill, and a fence, and a gate that hasn't opened in years.",
+       before [;
+         Climb, Open, Enter, Push, Unlock, JumpOver:
+           "Not today. Something about that hill makes your hands want to
+           hold on to the fence.";
+       ];
+
+
+! ============================================================================
+!  9. PART FOUR: THE GILDED SPAN  --  mid-river (rooms 15-16)
+! ----------------------------------------------------------------------------
+!  Passage 3's window is THROW GRAPNEL AT CHAIN (P7); miss it and the ship
+!  dies under the broken end. Up the chain: the diver's tag (N4) and the
+!  civic key in its velvet box (P8). You can't leave without the key.
+! ============================================================================
+
+! --- The grapnel's routines (it is used in Part Two as well) -----------------
+
+! GrapnelThrown(target): THROW GRAPNEL, THROW GRAPNEL AT/INTO <target> and
+! DROP GRAPNEL all end up here. target 0 means "no target". Throwing it
+! astern while aground is the kedge (P4); at the chain, P7; anything else is
+! refused, so it can never be lost.
+[ GrapnelThrown target;
+    if (target == 0 or verdance) {
+        if (location == stern && ship_at == SANDBAR) return Kedge();
+        "You'd lose it.";
+    }
+    if (target == chain) return ThrowAtChain();
+    "You'd lose it.";
+];
+
+! P4, part one. The gate: you can't kedge off without a way to steer.
+[ Kedge;
+    if (~~sweep_shipped) "You'd be off the bar and into the river with no way
+        to steer. Even a funeral ship deserves better.";
+    remove grapnel;
+    kedge_set = true;
+    MoveFloatingObjects();          ! the kedge line appears at once
+    "You swing the grapnel and throw it out over the stern. It splashes down
+    in the deep water, sinks, and bites into the riverbed astern. The line
+    comes taut.";
+];
+
+! P4, part two: PULL LINE is the cast-off for passage 2.
+[ PullKedge;
+    kedge_set = false;
+    move grapnel to player;
+    Achieved(TASK_KEDGE);
+    print "You haul on the line, hand over hand. For a long moment nothing
+        happens. Then the ship comes grinding off the bar stern first, into
+        deep water, and swings, and the current has it. You bring the grapnel
+        in, dripping.^";
+    CastOff(2);
+    rtrue;
+];
+
+! P7: the window. ThrowAtChain is only reachable where the chain is in scope:
+! the Prow during passage 3, or once the ship hangs from it.
+[ ThrowAtChain;
+    if (location ~= prow) "You're already up here with it.";
+    if (grapnel_hooked) "It's already holding the chain.";
+    if (drift < 3) "The chain is still well ahead.";
+    move grapnel to prow;
+    grapnel_hooked = true;
+    ShipTo(SPAN);
+    Achieved(TASK_CHAIN);
+    "You swing the grapnel twice and let it go. The grapnel goes up, over, and
+    bites. The line snaps taut, the ship swings, and hangs, shuddering, under
+    the broken end. The current goes on without you.";
+];
+
+! The cast-off for the Span, with its gate: everything downstream was built
+! by Vaunt, and the key opens anything Vaunt built.
+[ UnhookGrapnel;
+    if (~~IndirectlyContains(player, civic_key)) "Up there on the girder, the
+        velvet box says VAUNT CIVIC KEY -- OPENS ANYTHING VAUNT BUILT.
+        Everything downstream was built by Vaunt. You're not leaving it.";
+    grapnel_hooked = false;
+    move grapnel to player;
+    print "You work the grapnel free. The ship drops away from the chain, the
+        current takes it, and the broken end slides away overhead. You coil
+        the line and keep the grapnel.^";
+    CastOff(4);
+    rtrue;
+];
+
+! The chain: at the Prow (during passage 3 and while held) and at the Broken
+! End. CLIMB CHAIN goes up from the Prow; CLIMB (DOWN) CHAIN goes down from
+! the Broken End. HOOK CHAIN WITH GRAPNEL is PullWith (section 15) and means
+! the same as THROW GRAPNEL AT CHAIN.
+Object chain "chain"
+  with name 'chain' 'shackle' 'links',
+       found_in [;
+           if (location == broken_end) rtrue;
+           if (location ~= prow) rfalse;
+           return (ship_at == SPAN || (ship_at == ADRIFT && passage == 3));
+       ],
+       description [;
+           if (location == broken_end) "The chain hangs from the last girder's
+               top shackle down to the prow of your ship.";
+           if (ship_at == SPAN) "Your grapnel is bitten into it, and the ship
+               hangs from it. You could climb it.";
+           "A heavy chain hanging from the broken end of the span, down toward
+           the water. If anything on this river could hold a ship, that
+           could.";
+       ],
+       before [;
+         Climb:
+           if (location == broken_end) <<Go d_obj>>;
+           if (ship_at == SPAN) <<Go u_obj>>;
+           "It's out over the water, ahead. You'd need to hook it first.";
+         PullWith:
+           if (second == grapnel) return GrapnelThrown(self);
+         Take, Pull: "It's a span's worth of chain. It isn't coming with you.";
+       ],
+  has  static scenery;
+
+! --- 15. The Broken End ---------------------------------------------------------
+
+! The lore's shared nightmare, written straight. EAST, OUT (WALK OUT) and
+! GET ON GIRDER are river attempts; the girder's own line is the warning.
+Room broken_end "The Broken End"
+  with landing SPAN,
+       riverside true,
+       river_line "The planks tilt under your first step, very slightly,
+           toward the water. You step back.",
+       description "The end of Lord Vaunt's gilded suspension span. Behind
+           you, VAUNT is written on both towers in letters taller than a
+           house. In front of you the planks tilt very slightly toward the
+           water, and the last girder hangs out over the current like a
+           sentence nobody could finish. A chain hangs from its top shackle
+           down to your ship. Out on the girder sits a small velvet box. The
+           span runs back west.",
+       w_to span_deck,
+       d_to prow,
+       e_to   [; return RiverAttempt(self.river_line); ],
+       out_to [; return RiverAttempt(self.river_line); ];
+
+! The girder: GET ON / STAND ON / ENTER it is a river attempt.
+Feature -> girder "last girder"
+  with name 'last' 'girder' 'planks' 'plank' 'towers' 'tower' 'span',
+       description "It hangs out over the current like a sentence nobody could
+           finish. The velvet box is on it, out of reach.",
+       before [;
+         Enter, Climb: return RiverAttempt(broken_end.river_line);
+       ];
+
+! N4: the only applicant there ever was.
+LostName -> diver_tag "diver's tag"
+  with name 'diver^s' 'tag' 'divers' 'applicant' 'brass',
+       task TASK_TAG,
+       reading "Applicant No. 1",
+       initial "A brass tag hangs from the chain's top shackle.",
+       description "VERDANCE FOUNDATION DIVERS -- APPLICANT No. 1. Stamped
+           underneath: M. QUILLAN. There was never an applicant No. 2.";
+
+! P8: the velvet box, out on the girder. TAKE is refused (not a river
+! attempt, just a refusal). PULL / HOOK / GET BOX WITH PIKE reaches it.
+Object -> velvet_box "velvet box"
+  with name 'velvet' 'box' 'ribbon' 'ceremonial',
+       describe [; rtrue; ],    ! the room description mentions it
+       description [;
+           if (self has open) "The ceremonial box for ~Phase 2: Far Bank~,
+               open and empty on the planks.";
+           "A ceremonial velvet box with a ribbon, labelled in gilt: PHASE 2:
+           FAR BANK. VAUNT CIVIC KEY -- OPENS ANYTHING VAUNT BUILT.";
+       ],
+       before [;
+         Take, Pull, Push:
+           if (self has open) "It's empty. Leave it.";
+           "Out on the girder. The planks between you tilt.";
+         PullWith:
+           if (self has open) "It's empty. Leave it.";
+           if (second ~= pike) "It doesn't reach. You'd need something
+               long.";
+           give self open;
+           move civic_key to player;
+           Achieved(TASK_KEY);
+           "You reach the pike out over the girder, catch the box by its
+           ribbon, and ease it home. It falls open: on the velvet lies a
+           gilded key, stamped VAUNT CIVIC KEY. You take it.";
+       ],
+  has  static;
+
+Object civic_key "Vaunt civic key"
+  with name 'vaunt' 'civic' 'key' 'gilded',
+       description "A gilded key stamped VAUNT CIVIC KEY. OPENS ANYTHING VAUNT
+           BUILT, says the box it came from.",
+       before [;
+         Take: if (self in stop_switch) "It stays in the switch. Vaunt's last
+             civic act.";
+       ];
+
+! --- 16. The Span Deck ---------------------------------------------------------
+
+Room span_deck "The Span Deck"
+  with landing SPAN,
+       description "The span's deck, gilded and empty. A tollbooth stands with
+           its window down. On a post is the roadmap plaque, and on the
+           tollbooth is a recruiting poster. Back toward the Mingus bank the
+           span is closed by a chained gate: BRIDGE CLOSED FOR PHASE 2. The
+           broken end is east.",
+       e_to broken_end,
+       w_to "The gate is chained: BRIDGE CLOSED FOR PHASE 2.";
+
+Feature -> tollbooth "tollbooth"
+  with name 'tollbooth' 'toll' 'booth',
+       description "TOLL: ONE $ALT. EXACT CHANGE. Nobody has ever paid it.";
+
+Feature -> roadmap_plaque "roadmap plaque"
+  with name 'roadmap' 'plaque' 'post',
+       description "PHASE 1: BRIDGE. PHASE 2: FAR BANK.";
+
+Feature -> poster "poster"
+  with name 'poster' 'recruiting' 'divers' 'foundation',
+       description "THE VERDANCE FOUNDATION DIVERS. JOIN THE FIRST DEEP-WATER
+           TEAM ON THE RIVER! Generous token allocation. Vesting schedule
+           TBD.";
+
+Feature -> span_gate "chained gate"
+  with name 'chained' 'gate' 'chains',
+       description "BRIDGE CLOSED FOR PHASE 2.",
+       before [;
+         Open, Unlock, Climb: "It's chained, and Phase 2 never came.";
+       ];
+
+
+! ============================================================================
+!  10. PART FIVE: THE INTAKE  --  the Mingus bank (rooms 17-19)
+! ----------------------------------------------------------------------------
+!  The current pins the ship to the intake screen. Sandwich is pinned there
+!  too, holding N5. Vaunt's key in Vaunt's switch stops the pump (P9); the
+!  next turn you are aboard, the ship comes off the screen into the Race.
+! ============================================================================
+
+! --- 17. The Intake Screen ---------------------------------------------------
+
+Room intake_screen "The Intake Screen"
+  with landing INTAKE,
+       riverside true,
+       description [;
+           print "A catwalk along the vast gilded grating of PUMPING STATION
+               No. 2 -- INTAKE. It pumps the Verdance up the mountain, the
+               one thing in the Ascendancy that goes uphill";
+           if (pump_stopped) print ". It is still now, and the water goes
+               through the grating slowly";
+           else print ", and the whole screen hums with it";
+           ". By the catwalk rail is a stop switch. Far off along the Mingus
+           bank the verdlings stand in silent rows, watching. Your ship is
+           back in; a shed stands to the west, and to the north a road comes
+           down to the water.";
+       ],
+       in_to main_deck,
+       w_to divers_shed,
+       n_to drowned_road;
+
+Feature -> grating "grating"
+  with name 'gilded' 'grating' 'screen' 'intake' 'pump' 'station',
+       description [;
+           if (pump_stopped) "Still. For the first time in its life, the
+               Ascendancy has stopped drinking the river.";
+           "PUMPING STATION No. 2 -- INTAKE. It is drinking the Verdance and
+           sending it up the mountain.";
+       ];
+
+! P9. PUT KEY IN SWITCH sends the switch a ##Receive (it is not a container,
+! but `before` runs before the library would refuse). UNLOCK SWITCH WITH KEY
+! and TURN SWITCH WITH KEY are ##Unlock. It is `transparent`, so the key
+! is still visible once it is in.
+Object -> stop_switch "stop switch"
+  with name 'stop' 'switch' 'emergency' 'keyhole',
+       description [;
+           if (pump_stopped) "EMERGENCY STOP -- VAUNT CIVIC KEY ONLY. The
+               civic key is in it, turned.";
+           "EMERGENCY STOP -- VAUNT CIVIC KEY ONLY. There is a keyhole.";
+       ],
+       before [;
+         Receive, Unlock:
+           if ((action == ##Receive && noun ~= civic_key) ||
+               (action == ##Unlock && second ~= civic_key))
+               "It takes a Vaunt civic key, and only that.";
+           return StopPump();
+         Push, Pull, Turn, SwitchOff:
+           if (pump_stopped) "It's done.";
+           "EMERGENCY STOP -- VAUNT CIVIC KEY ONLY. The keyhole waits.";
+       ],
+  has  static scenery transparent;
+
+[ StopPump;
+    if (pump_stopped) "It's done.";
+    pump_stopped = true;
+    move civic_key to stop_switch;
+    Achieved(TASK_PUMP);
+    print "You put the civic key in the switch and turn it. The pump runs down
+        with a sound like the mountain exhaling. For the first time in its
+        life, the Ascendancy stops drinking the river.^";
+    SandwichPaysUp();
+    rtrue;
+];
+
+! N5: Sandwich holds it until the pump stops (section 11).
+LostName sutt_plaque "funeral plaque"
+  with name 'funeral' 'plaque' 'sutt' 'amberline' 'councillor' 'seed'
+           'words',
+       task TASK_PLAQUE,
+       reading "Amberline Sutt",
+       description "A funeral plaque: AMBERLINE SUTT -- COUNCILLOR, and twelve
+           seed words, very small. It is the Floor Price's plaque, from the
+           launch register.",
+       before [;
+         Take, Remove:
+           if (self in sandwich) "~Unpin me first, chief. Then we'll talk.~";
+       ];
+
+! --- 18. The Divers' Shed ------------------------------------------------------
+
+Room divers_shed "The Divers' Shed"
+  with landing INTAKE,
+       description "The Verdance Foundation Divers' recruiting shed, never
+           used. A sign-up sheet is pinned to the wall, and a diving helmet
+           sits on a shelf. The catwalk is back east.",
+       e_to intake_screen;
+
+Feature -> signup_sheet "sign-up sheet"
+  with name 'sign-up' 'signup' 'sheet' 'wall',
+       description "The sign-up sheet has room for a hundred divers. The first
+           line has been torn off. The rest are blank.";
+
+Feature -> helmet "diving helmet"
+  with name 'diving' 'helmet' 'shelf',
+       description "It has never been wet.";
+
+! --- 19. The Drowned Road ------------------------------------------------------
+
+! Written straight: no jokes here. DOWN, EAST and WALK DOWN ROAD are river
+! attempts, with the road's own warning line.
+Room drowned_road "The Drowned Road"
+  with landing INTAKE,
+       riverside true,
+       river_line "You take one step down the road toward the water, and the
+           water seems to take one step toward you. You step back.",
+       description "A road comes down out of the Ascendancy and runs straight
+           into the Verdance. Its centre line goes on under the water, a
+           little blurred, for as far as you can see into the green. At the
+           top of the road a car stands with its engine ticking and its
+           headlights on, pointed down the road. The driver's door is open.
+           There is nobody in it and nobody near it, and the road is very
+           clearly meant to be driven. The intake is back south.",
+       s_to intake_screen,
+       d_to [; return RiverAttempt(self.river_line); ],
+       e_to [; return RiverAttempt(self.river_line); ];
+
+Feature -> the_road "road"
+  with name 'road' 'centre' 'center' 'line' 'tarmac',
+       description "The centre line goes on under the water, a little
+           blurred, as far as you can see.",
+       before [;
+         Enter: return RiverAttempt(drowned_road.river_line);
+       ];
+
+Feature -> the_car "car"
+  with name 'car' 'engine' 'headlights' 'door' 'driver^s',
+       description "The engine is ticking. The headlights are on. The driver's
+           door is open. Nobody is in it.",
+       before [;
+         Enter, Drive, Open, Close: "You don't. You know exactly where it
+             goes.";
+       ];
+
+! The Verdance itself: in every riverside room. ENTER RIVER / JUMP IN RIVER /
+! SWIM IN RIVER are river attempts, with the room's own line.
+Object verdance "Verdance"
+  with name 'verdance' 'river' 'water' 'current' 'stream',
+       found_in [; return location.riverside; ],
+       description "Broad and green and fast, older and stranger than the
+           Ascendancy. It goes by quick and quiet.",
+       before [;
+         Enter, JumpIn, Swim: return RiverAttempt(location.river_line);
+         Drink: "It tastes of a long way down.";
+         Take: "It runs through your fingers, on its way somewhere.";
+       ],
+  has  scenery proper;
+
+
+! ============================================================================
+!  11. NPCS  --  Lucan (the showcase), Sandwich, Mrs. Thrumble
+! ----------------------------------------------------------------------------
+!  Three patterns:
+!    LUCAN     a companion: follows, leads, talks, reacts, dies on a timer
+!    SANDWICH  an antagonist on a fixed, learnable schedule
+!    THRUMBLE  a stationary service NPC who answers a bell
+!  Each NPC's end-of-turn behaviour is ONE routine (LucanTick, SandwichTick),
+!  and the dispatcher in section 12 calls them in a fixed order. Nothing an
+!  NPC does at the end of a turn happens anywhere else.
+! ============================================================================
+
+! ------------------------------------------------------------------------------
+!  LUCAN FAIRWEATHER, the Thursday tenor
+! ------------------------------------------------------------------------------
+!  LESSON: the state machine. One Global, lucan_state, says what he is doing:
+!
+!    HIDDEN     not in play (stowed away in the hold)
+!       | passage 1, drift 2: he climbs out          (LucanTick)
+!    FOLLOWING  walks after you, on the ship and at the landing it is at
+!       | the end of the turn the ship lands at the Stone Pier
+!    GUIDING    goes ahead of you: Stone Pier -> Mine Heads -> Hollow Green
+!       | you and he are both in the Hollow Green
+!    ARRIVED    lucan_timer counts: 1 = the verse, 2 = the death
+!       | timer 2, whatever you do
+!    DEAD       removed from play; his hat and the hole remain
+!
+!  Rule of thumb: the STATE decides what he does at the end of a turn
+!  (LucanTick); his `life` and `before` decide how he reacts to what YOU do.
+!  Copy this split for any NPC of your own.
+! ------------------------------------------------------------------------------
+
+! He starts off-stage: an object defined with no `->` and no location is in
+! no room at all. LucanTick moves him in when his moment comes.
+Person lucan "Lucan Fairweather"
+  with name 'lucan' 'fairweather' 'tenor' 'large' 'man' 'singer'
+           'waistcoat',
+       ! LESSON: `describe` is the line the room description prints for
+       ! him -- one per state, so what you see matches what he is doing.
+       describe [;
+           switch (lucan_state) {
+             FOLLOWING: "^Lucan Fairweather is here, humming, his hat pushed
+                 back.";
+             GUIDING:   "^Lucan Fairweather is here, impatient to go on.";
+             ARRIVED:   "^Lucan Fairweather stands at the edge of the bright
+                 green, singing to the water.";
+           }
+       ],
+       description "A large, kind man in a velvet waistcoat and a hat with a
+           velvet band, magnificently theatrical even when standing still.
+           He has sung about the old side for twenty years.",
+       ! LESSON: the greeting. HELLO, HI, SAY HELLO, SAY HELLO TO LUCAN and
+       ! GREET LUCAN all come here (HelloSub, section 15).
+       greeting "Lucan sweeps a bow that nearly takes him over the rail.
+           ~Your servant, chief.~",
+       ! LESSON: physical actions on an NPC go through `before`, like any
+       ! object. These are the ways a player might try to save him -- and
+       ! why none of them can: the scene is scripted on purpose.
+       before [;
+         Take, Pull, Warn:
+           "He waves you off mid-verse.";
+         Push:
+           "He doesn't budge. A tenor is built on a firm foundation.";
+       ],
+       ! LESSON: `life` handles the conversational and social actions.
+       ! ASK and TELL share one topic table (LucanTopic); ANSWER (SAY X TO
+       ! LUCAN) uses it too. GIVE and SHOW share one reaction table.
+       life [;
+         Ask, Tell, Answer:
+           return LucanTopic();
+         Give, Show:
+           return LucanReacts(noun);
+         Kiss:
+           "He offers a cheek, theatrically. ~Thursdays only.~";
+         Attack:
+           "You'd sooner hit the river. He's the only friend you have down
+           here.";
+       ],
+       ! LUCAN, SING (an order) gets the fallback line.
+       orders [;
+           "Lucan considers this, then sings a line about something else
+           entirely.";
+       ],
+  has  male proper;
+
+! LESSON: conversation -- a topic table, read top to bottom. AskedAbout
+! (below) is true when any of its words is in the topic the player typed
+! ("ask lucan about the old side"). The first row that matches answers; the
+! last line is the FALLBACK, for anything the table doesn't know. One
+! exception comes first: TELLING him about the patches is a warning, and
+! he waves it off.
+[ LucanTopic;
+    if (action == ##Tell && AskedAbout('patches', 'patch', 'turf', 'green',
+        'stones')) "He waves you off mid-verse.";
+    if (AskedAbout('old', 'side', 'across', 'far', 'bank'))
+        "~Twenty years I've sung it. Lamplight and low ceilings in one song, a
+        green field over a sleeping city in the next. Tonight I find out
+        which.~";
+    if (AskedAbout('song', 'songs', 'verse', 'poets'))
+        "~~Where the green bank goes down to the water, there's a door that
+        was never a door.~ That one. It's always been that one.~";
+    if (AskedAbout('sandwich', 'runner', 'boards', 'scull'))
+        "~He's always first, that one, and he's never once arrived anywhere.
+        Reach for the gilt and he'll have it -- he has never wanted anything
+        plain in his life.~";
+    if (AskedAbout('verdlings', 'verdling'))
+        "~They bowed to you. To you. I'd have given my voice for that.~";
+    if (AskedAbout('river', 'verdance', 'current', 'water'))
+        "~No one comes back. That's the line everybody knows. Nobody knows the
+        next line, because nobody came back to write it.~";
+    if (AskedAbout('lantern'))
+        "~Beckoning or warning. I sing it both ways, alternate Thursdays.~";
+    if (AskedAbout('ascendancy', 'mingus', 'mountain', 'ballroom'))
+        "~Thursdays in the ballroom, upside down, for $ALT. I don't miss it. I
+        miss the acoustics.~";
+    if (AskedAbout('lucan', 'tenor', 'himself', 'you'))
+        "~Lucan Fairweather. Tenor. Thursdays. Retired, as of last night.~";
+    if (AskedAbout('patches', 'patch', 'turf', 'green', 'stones'))
+        "~Like little stages! The song says the green is a floor.~";
+    if (AskedAbout('ship', 'funeral', 'plaque'))
+        "~It was built for the dead. I'm hiding in it. Draw your own
+        conclusions; I have.~";
+    if (AskedAbout('lifebelt', 'ring', 'belt'))
+        "~Everything that floats is a song waiting to happen.~";
+    "Lucan considers this, then sings a line about something else
+    entirely.";
+];
+
+! AskedAbout(w1 ... w6): true if any of the given words appears anywhere in
+! the topic of the current ASK/TELL/ANSWER. The parser leaves the topic's
+! first word number in consult_from and its length in consult_words.
+[ AskedAbout w1 w2 w3 w4 w5 w6  i w;
+    wn = consult_from;
+    for (i = 0 : i < consult_words : i++) {
+        w = NextWord();
+        if (w ~= 0 && (w == w1 or w2 or w3 or w4 or w5 or w6)) rtrue;
+    }
+    rfalse;
+];
+
+! LESSON: reacting to GIVE and SHOW, item by item. He never keeps anything:
+! the routine prints and returns true, so the library never moves the item.
+[ LucanReacts item;
+    if (item == coat) "~Esme's coat! I sang at her wedding. Both weddings.
+        Same song.~";
+    if (item == pike) "He steps back. ~Not to me, chief. They'd never forgive
+        either of us.~";
+    if (item ofclass LostName) {
+        print "He reads one name aloud, quietly -- ~", (string) item.reading,
+            "~ -- and takes his hat off. ~Somebody should sing them.~^";
+        rtrue;
+    }
+    if (item == lifebelt) "~Ha! The song was right about something.~";
+    "Lucan admires it politely and gives it back.";
+];
+
+! LESSON: the route. Leading needs to know "how far along" a room is, so the
+! route is an array and RouteIndex looks a room up in it (-1 = not on it).
+Array lucan_route --> stone_pier mine_heads hollow_green;
+
+[ RouteIndex room  i;
+    for (i = 0 : i < 3 : i++) if (lucan_route-->i == room) return i;
+    return -1;
+];
+
+! LucanTick: everything Lucan does at the end of a turn, by state. Called by
+! the dispatcher (section 12) after the river and before Sandwich.
+[ LucanTick;
+    switch (lucan_state) {
+      HIDDEN:    LucanStowaway();
+      FOLLOWING: LucanFollows();
+      GUIDING:   LucanLeads();
+      ARRIVED:   LucanArrived();
+    }
+];
+
+! LESSON: a hidden NPC that announces itself. Passage 1, drift 1: a sneeze
+! (a clue). Drift 2: the entrance, worded for where you are standing.
+[ LucanStowaway;
+    if (passage ~= 1) return;
+    if (drift == 1) {
+        if (location == hold) print "^From under the medallions, someone
+            sneezes.^";
+        else print "^From the hold, someone sneezes.^";
+        return;
+    }
+    if (drift ~= 2) return;
+    move lucan to location;
+    lucan_state = FOLLOWING;
+    if (location == hold) print "^The medallions shift, and slide, and a large
+        man in a velvet waistcoat climbs out of them, brushing off $ALT.";
+    else print "^The hatch bangs open, and a large man in a velvet waistcoat
+        climbs up through it, brushing off $ALT.";
+    print " ~Lucan Fairweather. Tenor. Thursdays.~ In one breath he explains
+        that he has sung about the old side for twenty years, that a Mingan
+        on the valley floor gets poked, and that this ship is his only
+        chance.^";
+];
+
+! LESSON: following. If he isn't in your room, and your room is somewhere
+! he can go (the ship, or the landing it is at), he moves there and says so.
+! The landing ends this state: the turn the ship reaches the Stone Pier, he
+! is over the rail first, and GUIDING begins.
+[ LucanFollows;
+    if (ship_at == PIER) {
+        move lucan to stone_pier;
+        lucan_state = GUIDING;
+        print "^Lucan is over the rail and onto the pier before the ship has
+            stopped moving.^";
+        return;
+    }
+    if (lucan in location) return;
+    if (location ofclass ShipRoom || location.landing == ship_at) {
+        move lucan to location;
+        print "^Lucan follows you, humming.^";
+    }
+];
+
+! LESSON: leading, with catch-up. The first rule that matches applies:
+!  (a) WAIT, THEN GO ON: you are in his room and were already there when the
+!      turn began (you didn't just arrive) -- he goes one room on. So when
+!      you arrive he waits one turn, and any action at all lets him go.
+!  (b) CATCH UP: you are further along the route than he is -- he hurries
+!      after you. You can't outrun the script.
+!  (c) CALL YOU ON: you are elsewhere on the old-side bank or on the ship.
+!  (d) ARRIVAL, checked after the rest: you are both in the Hollow Green.
+! "You just arrived" is location ~= last_location: the dispatcher saves
+! last_location at the end of every turn.
+[ LucanLeads  here mine;
+    here = RouteIndex(parent(lucan));
+    mine = RouteIndex(location);
+    if (lucan in location && location == last_location && here < 2) {
+        move lucan to lucan_route-->(here + 1);
+        print "^Lucan goes north, singing. ~This way!~^";
+    }
+    else if (mine > here) {
+        move lucan to location;
+        print "^Lucan hurries up behind you, out of breath. ~Wait for me!~^";
+    }
+    else if (lucan notin location &&
+             (location.landing == PIER || location ofclass ShipRoom))
+        print "^Somewhere ahead, Lucan is singing, and calling for you to keep
+            up.^";
+    if (lucan in hollow_green && location == hollow_green) {
+        lucan_state = ARRIVED;
+        lucan_timer = 0;
+        print "^~There!~ Lucan points. ~A ring on a post, where the green bank
+            goes down to the water. The song never said what for.~^";
+    }
+];
+
+! LESSON: a scripted, timed event. Once ARRIVED, a timer counts turns, and
+! nothing the player does changes it: timer 1 is the verse (and the step
+! back, onto the bright green); timer 2 is the death. The text depends on
+! whether you are there to see it; the event does not.
+[ LucanArrived;
+    lucan_timer++;
+    if (lucan_timer == 1) {
+        if (location == hollow_green) print "^Lucan sings the verse through
+            once, softly, for the first time in the place it was written
+            about. Then he steps back to take it all in, onto the bright
+            green.^";
+        return;
+    }
+    LucanDies();
+];
+
+! LESSON: what persists after death. Remove the NPC, then leave his traces
+! in the world: the hole and his hat here, his nest in the Hold (the Hold's
+! description checks lucan_state), Mrs. Thrumble's line and his songbook
+! (ThrumbleRing), Sandwich's question (SandwichTick), and a line in the
+! ending (section 13).
+[ LucanDies;
+    remove lucan;
+    lucan_state = DEAD;
+    move lucan_hole to hollow_green;
+    move lucan_hat to hollow_green;
+    if (location == hollow_green) print "^The bright turf gives under him
+        without a sound, the way a stage trap opens. For a moment there is a
+        hole in the grass, and warm air coming up out of it, and the last
+        note of the verse. Then Lucan is gone.^";
+    else print "^From somewhere behind you, the song stops in the middle of a
+        line.^";
+];
+
+! FOLLOW LUCAN works even when he has gone on ahead and is out of sight. A
+! scope routine (FollowScope, section 15) puts him in scope for this one
+! verb, wherever he is, so the parser can match his name.
+[ FollowLucan;
+    if (lucan in location) "He's right here, singing at you.";
+    if (lucan_state == GUIDING && RouteIndex(location) >= 0 &&
+        RouteIndex(parent(lucan)) == RouteIndex(location) + 1) <<Go n_obj>>;
+    "You can't see where he went.";
+];
+
+! ------------------------------------------------------------------------------
+!  SANDWICH, the front-runner
+! ------------------------------------------------------------------------------
+!  LESSON: an antagonist on a fixed schedule. Every appearance is listed in
+!  sandwich_state's constants (section 1), and his interference follows one
+!  rule he says out loud, so it is learnable: "Whatever you reach for, I'll
+!  have reached for it first." He never takes what you already carry.
+! ------------------------------------------------------------------------------
+
+Person sandwich "Sandwich" gangplank_foot
+  with name 'sandwich' 'front-runner' 'frontrunner' 'thin' 'boards'
+           'sandwich-boards' 'scull' 'slippage' 'boathook',
+       describe [;
+           switch (sandwich_state) {
+             SW_UPSTREAM: "^Offshore, a thin man in sandwich boards sits in a
+                 narrow gilded scull, eating a sandwich and watching the
+                 ship.";
+             SW_AHEAD, SW_WAITING: "^Sandwich sits on the wreck's upturned
+                 side, a boathook across his knees, eating a sandwich.";
+             SW_HOLDING:
+                 print "^Sandwich sits on the wreck's upturned side, holding ";
+                 if (child(self)) print (the) child(self);
+                 " up for you to admire.";
+             SW_INTAKE: "^Sandwich's scull is pinned against the screen next
+                 to your ship. Sandwich sits in it, holding a funeral plaque
+                 against his chest like a menu.";
+           }
+       ],
+       description "A thin, cheerful Mingan in sandwich boards. The front one
+           says FIRST! and the back one says THANKS FOR THE ALPHA. He is
+           eating a sandwich. Everybody on the river calls him Sandwich,
+           because he's always just in front of you and just behind you. He
+           floated down the Verdance years ago and never went back: ~Why would
+           I? Everything rolls downhill. I just wait at the bottom.~",
+       greeting "He waves a sandwich at you.",
+       no_answer "He taps his front board. FIRST!",
+       before [;
+         Take, Pull, Push: "He's already out of reach, smiling. Latency.";
+       ],
+       life [;
+         Give:
+           if (noun == coat) return SandwichTakesCoat();
+           "~Floor price: zero. Pass.~";
+         Show:
+           "~Floor price: zero. Pass.~";
+         Attack, Kiss:
+           "He's already out of reach, smiling. Latency.";
+       ],
+  has  male proper transparent;
+
+! The front-run rule, as an action. Called from the Wreck's `before` for
+! every TAKE there while he is present; returning false lets the take go on.
+[ SandwichGrab item;
+    if (item ~= sweep or grapnel or strongbox or nameboard) rfalse;
+    if (sandwich_state == SW_HOLDING) {
+        if (item in sandwich) "He's already out of reach, smiling. Latency.";
+        if (item ~= strongbox) rfalse;      ! the rest are yours for the taking
+        move child(sandwich) to wreck;
+        print "~Better offer!~ He drops what he was holding, hooks the
+            strongbox instead, and tucks it under one arm.";
+        return SandwichRowsOff(true);
+    }
+    if (sandwich_state ~= SW_WAITING) rfalse;
+    if (item == strongbox) {
+        print "His boathook flicks past your hand, and he has the strongbox
+            first. ~FIRST!~ He tucks it under one arm.";
+        return SandwichRowsOff(true);
+    }
+    move item to sandwich;
+    sandwich_state = SW_HOLDING;
+    print_ret "His boathook flicks past your hand, and he has ", (the) item,
+        " first. ~FIRST!~ He holds it up and smiles. ~Yours for the coat.~";
+];
+
+! GIVE COAT TO SANDWICH: while he holds a decoy, the trade. It always works,
+! and it never scores P2.
+[ SandwichTakesCoat;
+    if (sandwich_state ~= SW_HOLDING) "He looks at the coat the way a man
+        looks at a price. ~Not yet, chief.~";
+    print "He hands you ", (the) child(sandwich), " and takes the coat, and
+        puts it on over his boards. You paid the front-runner. Everyone
+        does.";
+    move child(sandwich) to player;
+    remove coat;
+    return SandwichRowsOff(false);
+];
+
+! He leaves the Sandbar: the beached scull goes with him, and he goes ahead
+! to the intake, where he will be pinned with the plaque (Part Five).
+[ SandwichRowsOff with_box;
+    if (with_box) {
+        remove strongbox;
+        Achieved(TASK_FEINT);
+    }
+    remove beached_scull;
+    move sandwich to intake_screen;
+    move sutt_plaque to sandwich;
+    sandwich_state = SW_INTAKE;
+    print " He rows away downstream, and is gone from the Sandbar.^";
+    rtrue;
+];
+
+! P9's payoff: the pump stops, the screen lets him go, he pays up.
+[ SandwichPaysUp;
+    move sutt_plaque to player;
+    remove sandwich;
+    sandwich_state = SW_RACING;
+    print "^Sandwich's scull comes loose from the slackening screen. He looks
+        at the switch, and at you, and tosses you the plaque. ~Fair's fair.
+        You front-ran the front-runner.~ Then he pushes off and rows away
+        downstream, to be first at the bottom.^";
+];
+
+! SandwichTick: his schedule, at the end of the turn, after Lucan.
+[ SandwichTick;
+    ! Passage 1, drift 1: he shoots past, to be at the Wreck first.
+    if (sandwich_state == SW_UPSTREAM && passage == 1 && drift == 1) {
+        move sandwich to wreck;
+        sandwich_state = SW_AHEAD;
+        print "^A narrow gilded scull shoots past downstream, oars flashing.
+            The man in it has FIRST! painted on his chest. ~FIRST!~^";
+        return;
+    }
+    ! Your first entrance at the Wreck: he says the rule out loud.
+    if (sandwich_state == SW_AHEAD && location == wreck) {
+        sandwich_state = SW_WAITING;
+        print "^Sandwich looks up from his sandwich. ~Morning, chief. Here's
+            how it works down here. Whatever you reach for, chief, I'll have
+            reached for it first. Nothing personal. It's latency.~^";
+        return;
+    }
+    ! At the intake, once: he asks after Lucan. (`general` is a spare
+    ! attribute every object has; here it means "has asked".)
+    if (sandwich_state == SW_INTAKE && location == intake_screen &&
+        sandwich hasnt general) {
+        give sandwich general;
+        print "^~Where's your tenor?~ Sandwich asks, and then looks at your
+            face. A beat. ~Oh.~^";
+        return;
+    }
+    ! The Race, drift 2: he goes past you, into the white water.
+    if (sandwich_state == SW_RACING && passage == 5 && drift == 2) {
+        sandwich_state = SW_GONE;
+        print "^Sandwich goes past you like a thrown knife, both oars up,
+            shouting ~FIRST ACROSS!~, and into the white water ahead. A moment
+            later his scull breaks up on the rocks.^";
+    }
+];
+
+! ------------------------------------------------------------------------------
+!  MRS. THRUMBLE, Clerk of Lost Property
+! ------------------------------------------------------------------------------
+!  LESSON: a stationary service NPC. She is only in play while you are at
+!  the pier and have rung: RING BELL moves her in, leaving the pier removes
+!  her (the Stone Pier's `before`). She never looks up.
+! ------------------------------------------------------------------------------
+
+Person thrumble "Mrs. Thrumble"
+  with name 'mrs' 'thrumble' 'clerk' 'woman',
+       describe [;
+           "^Behind the bars of the hatch, Mrs. Thrumble is writing in a
+           ledger. She does not look up.";
+       ],
+       description "A small grey woman in a cardigan, behind bars, writing in
+           a ledger. She does not look up.",
+       greeting "~Lost property, dear. Downstream counter.~ She doesn't look
+           up.",
+       life [;
+         Ask, Tell, Answer:
+           return ThrumbleTopic();
+         Give, Show:
+           "~Is it lost? Then it isn't mine to take, dear.~";
+         Attack, Kiss:
+           "There are bars in the way, and she is busy.";
+       ],
+  has  female proper;
+
+! Her topic table: the same pattern as Lucan's.
+[ ThrumbleTopic;
+    if (AskedAbout('ascendancy', 'mingus', 'empire'))
+        "~I'm sorry, I don't know what you're referring to.~";
+    if (AskedAbout('mountain', 'above', 'sky'))
+        "~I wouldn't know, dear. I don't look up.~";
+    if (AskedAbout('ship', 'funeral'))
+        "~Another one. They do keep coming.~";
+    if (AskedAbout('lucan', 'tenor')) {
+        if (lucan_state == DEAD) return ThrumbleTowelLine();
+        "~I don't know the gentleman.~";
+    }
+    if (AskedAbout('sandwich', 'boards'))
+        "~A gentleman in boards? He's never once rung. He shouts.~";
+    if (AskedAbout('explorers', 'lost', 'people'))
+        "~People do turn up from time to time, soaked and blue with cold. We
+        give them a towel and a cup of tea, and they generally decide to
+        stay.~";
+    if (AskedAbout('river', 'verdance'))
+        "~It goes on, dear. They do.~";
+    "~Is that all? I've a queue.~";
+];
+
+[ ThrumbleTowelLine;
+    "~We had a gentleman come down the old drainage shaft just now. I'm afraid
+    he was past a towel, dear.~";
+];
+
+! RING BELL. The first ring after Lucan's death hands over his songbook.
+[ ThrumbleRing;
+    if (thrumble in stone_pier) "~She's already here, dear.~ She doesn't
+        look up.";
+    move thrumble to stone_pier;
+    print "Footsteps on a ladder, somewhere below. The shutter behind the
+        bars slides up, and a small grey woman in a cardigan opens a ledger.
+        She does not look up. ~Lost property. Downstream counter.~^";
+    if (lucan_state == DEAD && ~~songbook_given) {
+        songbook_given = true;
+        move songbook to player;
+        print "^Then she pushes a small battered book through the bars.
+            ~We had a gentleman come down the old drainage shaft just now.
+            I'm afraid he was past a towel, dear. He'd want somebody to have
+            it, I expect. Sign here.~ You sign. It is Lucan's songbook.^";
+    }
+    rtrue;
+];
+
+! N3: his songbook, off-stage until she hands it over.
+LostName songbook "Lucan's songbook"
+  with name 'lucan^s' 'songbook' 'book' 'battered',
+       task TASK_SONGBOOK,
+       reading "L. Fairweather",
+       description "A small battered songbook. Inside the cover: L. FAIRWEATHER
+           -- THURSDAYS. On the first page, in his hand: ~Where the green bank
+           goes down to the water, there's a door that was never a door.~",
+  has  proper;
+
+
+! ============================================================================
+!  12. THE DISPATCHER  --  the one end-of-turn daemon
+! ----------------------------------------------------------------------------
+!  world_clock is the only daemon in the game, and nothing else prints at the
+!  end of a turn. Every turn that passes time runs it once: first the river,
+!  then Lucan, then Sandwich, then it remembers where you are. Meta commands
+!  (SCORE, SAVE, UNDO...) and commands the parser rejects pass no time, so
+!  they never run it; everything else does -- LOOK, EXAMINE, INVENTORY,
+!  WAIT, ASK, and refused actions included.
+! ============================================================================
+
+Object world_clock "world clock"
+  with daemon [;
+           RiverTick();
+           if (deadflag) return;      ! the river may end the game
+           LucanTick();
+           SandwichTick();
+           last_location = location;
+       ];
+
+! The passages' lines, by passage and drift. Drift 3 is the landing (or the
+! window); RiverTick decides what happens after it.
+[ PassageLine;
+    switch (passage * 10 + drift) {
+      11: print "The current turns the ship's high prow downstream and takes
+              it, quick and quiet.";
+      12: print "The Mingus bank slides by, and the verdlings on it, still
+              bowed.";
+      13: print "The ship runs up onto a long pale sandbar and stops: the way,
+              by the look of it, they all do.";
+      21: print "The ship swings out into the main stream. Ahead, the old-side
+              bank begins to lean closer.";
+      22: print "The old-side bank is near now: green, quiet, low. Something
+              like a pier shows ahead.";
+      23: print "The old-side bank is alongside: a stone pier, an iron ring. If
+              you are going to steer for it, steer east now.";
+      31: print "The current picks up. Far ahead, the gilded span reaches out
+              over the river from the Mingus bank, and stops. A chain hangs
+              from its broken end.";
+      32: print "The broken end of the span is close now, and the chain hangs
+              from it into the current, swinging.";
+      33: print "The broken end is overhead, and the chain hangs from it, dead
+              ahead and coming fast. Throw now or not at all.";
+      41: print "The ship swings away under the broken end and runs on
+              downstream, toward the Mingus bank.";
+      42: print "A great gilded grating rises out of the water ahead, on the
+              Mingus bank, and the river is bending toward it.";
+      43: print "The intake pulls the ship sideways, gently, then not gently,
+              against the grating. PUMPING STATION No. 2 -- INTAKE, says the
+              gilt above you. The ship is pinned.";
+      51: print "The ship comes off the screen, and the Verdance takes it,
+              faster than before. White water ahead. Every song about this
+              stretch ends the same way: hold on to something that floats --
+              and it had better be on you.";
+      52: print "The river steepens. Rocks show white on both sides.";
+          if (lifebelt hasnt worn) print " If you are going to put that
+              lifebelt on, now would be the time.";
+      53: print "The river narrows to a throat of white water, and the old-side
+              bank comes at you sideways, all rock. The high prow goes first.
+              Then everything does.";
+    }
+];
+
+! RiverTick: the current. Exact rules (the spec's, in code order):
+!  1. Pinned at the intake, pump stopped, you aboard: the ship comes off the
+!     screen (passage 5's cast-off) -- and step 3 runs on the same turn.
+!  2. A window that was open last turn (drift 3 on passage 2 or 3) and you
+!     didn't act: the eddy brings you round (2) or the broken end kills (3).
+!  3. Adrift: drift + 1, print that drift's line and the counter. Drift 3
+!     on passages 1, 4 and 5 lands automatically.
+[ RiverTick;
+    if (ship_at == INTAKE && pump_stopped && location ofclass ShipRoom)
+        CastOff(5);
+    if (ship_at ~= ADRIFT) return;
+    if (drift == 3) {
+        if (passage == 2) {
+            drift = 1;
+            print "^The pier slides past. Behind the point the river turns
+                back on itself, and the eddy brings you round for another
+                try.^";
+            PrintCurrent();
+            return;
+        }
+        if (passage == 3) {
+            print "^The current takes the ship under the broken end, where
+                everything that ever fell off the Gilded Span is waiting just
+                under the surface. The hull opens like a letter.^";
+            deadflag = 1;
+            return;
+        }
+    }
+    drift++;
+    new_line;
+    PassageLine();
+    new_line;
+    PrintCurrent();
+    if (drift < 3) return;
+    switch (passage) {
+      1: ShipTo(SANDBAR);
+      4: ShipTo(INTAKE);
+      5: TheWreck();
+    }
+];
+
+
+! ============================================================================
+!  13. FINALE: THE OLD-SIDE SHORE  (room 20)
+! ----------------------------------------------------------------------------
+!  Reached only by the wreck. Wearing the lifebelt, you are carried ashore
+!  and the game ends with the win (deadflag 3); without it, the river.
+! ============================================================================
+
+[ TheWreck;
+    if (lifebelt hasnt worn) { new_line; RiverDeath(); return; }
+    Achieved(TASK_RACE);
+    PlayerTo(old_side_shore);
+    deadflag = 3;
+];
+
+Room old_side_shore "The Old-Side Shore"
+  with description [;
+           print "You come up in the shallows with the cork ring under your
+               arms, and the river lets go of you, the way it has never let
+               go of anyone. You are on the old-side bank. Behind you, what
+               is left of the funeral ship is breaking up on the rocks, and
+               the current is taking the pieces south, quick and quiet. The
+               custody chest has washed up beside you, lid shut, still saying
+               NOTHING HAS EVER BEEN WITHDRAWN. In the reeds a painted board
+               lies face up: FIRST! Of the man who wore it there is no sign.
+               Somewhere upstream, a hat with a velvet band is waiting at the
+               edge of a bright green. Across the water, very small, the
+               lights of the Ascendancy are flickering, the way they always
+               do. Behind you the bank is green and warm, and a few low
+               chimney vents give off a steady light that never flickers.
+               Somewhere up there, a long way upstream, is home. You have
+               gone further down the Verdance than anyone. Nobody has ever
+               come back. Somebody has to be first.^";
+       ];
+
+! How many names made it into the chest (for the teaser).
+[ NamesInChest  o n;
+    objectloop (o in custody_chest) if (o ofclass LostName) n++;
+    return n;
+];
+
+
+! ============================================================================
+!  14. ENTRY POINTS  --  routines the library calls if the game provides them
+! ============================================================================
+
+! Initialise runs once, before the banner. It must set `location`; anything
+! it prints appears above the story's title. StartDaemon starts the
+! dispatcher; its first run is at the end of your first command.
+[ Initialise;
+    location = gangplank_foot;
+    last_location = gangplank_foot;
+    move pike to player;
+    move coat to player;
+    StartDaemon(world_clock);
+    lookmode = 2;                 ! VERBOSE: full descriptions on every visit
+    print "^^Last night you came down the Mingus with Lady Vaunt's coat and a
+        verdling's pike, and the verdlings of the valley floor bowed to you.
+        They made you a lane to the water. At the end of it was a funeral
+        ship.^^The verdlings are still bowed. They have been bowed all night.
+        In the grey light the lane they made for you still runs to the
+        water, and at the end of it the funeral ship rocks at the mouth of
+        the Sluice, its gangplank down, its blank plaque polished on the
+        mast. Nobody who has floated down the Verdance has ever come back.
+        Nobody here is going to stop you trying.^";
+];
+
+! deadflag 3 (set by TheWreck) ends the game with our own words; deadflag 1
+! (every death) gets the library's own "You have died".
+[ DeathMessage;
+    if (deadflag == 3) print "You have gone further than anyone";
+];
+
+! The library calls PrintRank straight after "...in N turns". It must
+! return true, or the library adds a full stop of its own. A win is always
+! Furthest Downstream, whatever the score; the teaser comes with it.
+[ PrintRank  n;
+    print ", earning you the rank of ";
+    if (deadflag == 3) {
+        print "Furthest Downstream.^^You have reached the end of MINGUS II:
+            EVERYTHING ROLLS DOWNHILL. ";
+        n = NamesInChest();
+        switch (n) {
+          0: print "No names are in the chest";
+          1: print "One name is in the chest";
+          2: print "Two names are in the chest";
+          3: print "Three names are in the chest";
+          4: print "Four names are in the chest";
+          5: print "Five names are in the chest";
+        }
+        if (songbook in custody_chest) print "; one of them used to sing on
+            Thursdays";
+        print ". Somewhere downstream, a man in sandwich boards is telling
+            nobody that he got there first.^^Coming next: MINGUS III: THE OLD
+            SIDE. Nobody has ever come back. Somebody has to be first.^";
+        rtrue;
+    }
+    if (score >= 75) "Front-Runner.";
+    if (score >= 50) "Downstream Validator.";
+    if (score >= 25) "Liquidity Provider.";
+    "Ballast.";
+];
+
+! Names for FULL SCORE, one per task number in section 1.
+[ PrintTaskName task;
+    switch (task) {
+      TASK_LAUNCH:    "launching the funeral ship";
+      TASK_FEINT:     "front-running the front-runner";
+      TASK_SWEEP:     "shipping the sweep";
+      TASK_KEDGE:     "kedging off the Sandbar";
+      TASK_CROSSING:  "crossing the Verdance";
+      TASK_LIFEBELT:  "finding what the song was right about";
+      TASK_CHAIN:     "catching the chain";
+      TASK_KEY:       "fishing up the civic key";
+      TASK_PUMP:      "stopping the pump";
+      TASK_RACE:      "surviving the Race";
+      TASK_REGISTER:  "keeping the launch register";
+      TASK_NAMEBOARD: "keeping the Expedition's names";
+      TASK_SONGBOOK:  "keeping Lucan's songbook";
+      TASK_TAG:       "keeping the diver's tag";
+      TASK_PLAQUE:    "keeping Councillor Sutt's plaque";
+    }
+];
+
+
+! ============================================================================
+!  15. GRAMMAR  --  the standard verbs, then the game's own
+! ============================================================================
+
+Include "Grammar";
+
+! --- Talking: HELLO, HI, GREET LUCAN, SAY HELLO, SAY HELLO TO LUCAN -----------
+! The std grammar's SAY line is `* topic 'to' creature`. 'first' puts these
+! two lines ahead of it, so SAY HELLO never needs a TO. HelloSub greets the
+! person you named, or the first one present (Lucan, then Sandwich, then Mrs.
+! Thrumble), using that person's `greeting` property.
+[ HelloSub p;
+    p = noun;
+    if (p == 0) {
+        if (lucan in location) p = lucan;
+        else if (sandwich in location) p = sandwich;
+        else if (thrumble in location) p = thrumble;
+    }
+    if (p == 0 || ~~(p ofclass Person)) "Nobody answers. The river doesn't.";
+    PrintOrRun(p, greeting);
+    rtrue;
+];
+
+Verb 'hello' 'hi' 'greetings'
+    *                                   -> Hello
+    * creature                          -> Hello;
+
+Verb 'greet' 'salute'
+    * creature                          -> Hello;
+
+Extend 'say' first
+    * 'hello'/'hi'                      -> Hello
+    * 'hello'/'hi' 'to' creature        -> Hello;
+
+! WARN LUCAN (ABOUT THE PATCHES): Lucan's `before` waves it off.
+[ WarnSub; "Nobody here is listening for a warning."; ];
+
+Verb 'warn' 'caution'
+    * creature                          -> Warn
+    * creature 'about'/'of' topic       -> Warn;
+
+! --- FOLLOW LUCAN / FOLLOW HIM ----------------------------------------------------
+! A SCOPE ROUTINE as a grammar token. The parser calls FollowScope with
+! scope_stage 2 to ask "what can be named here?": we add Lucan wherever he
+! is, and return false so the usual scope is added too. That is how FOLLOW
+! LUCAN can name someone who has walked out of sight.
+[ FollowScope;
+    switch (scope_stage) {
+      1: rfalse;                      ! no multiple objects
+      2: if (lucan_state == FOLLOWING or GUIDING or ARRIVED)
+             PlaceInScope(lucan);
+         rfalse;
+      3: "You can't see anyone like that to follow.";
+    }
+];
+
+[ FollowSub;
+    if (noun == lucan) return FollowLucan();
+    if (noun == sandwich) "Nobody follows Sandwich. Everybody arrives after
+        him.";
+    if (noun in location) "It's right here.";
+    "You can't see where it went.";
+];
+
+Verb 'follow' 'chase' 'pursue'
+    * scope=FollowScope                 -> Follow;
+
+! --- The launch: BOW (P1) -----------------------------------------------------
+[ BowSub;
+    if (location == main_deck && ship_at == SLUICE) {
+        if (lines_let_go) "They have let go already. The lever is yours.";
+        lines_let_go = true;
+        "You bow to the verdlings on the bank. A thousand small hands let go
+        of the lines at once.";
+    }
+    if (location == gangplank_foot or sluice_mouth) "The verdlings bow back,
+        lower. The drill wants the passenger aboard.";
+    "You bow to nobody in particular. The river does not bow back.";
+];
+
+Verb 'bow' 'kneel' 'curtsey' 'curtsy'
+    *                                   -> Bow
+    * noun                              -> Bow
+    * 'to'/'before' noun                -> Bow;
+
+! BOARD SHIP, EMBARK SHIP: the funeral ship's `before` walks you aboard.
+Verb 'board' 'embark'
+    * noun                              -> Enter;
+
+! --- Steering: STEER EAST, STEER FOR PIER (P5) ---------------------------------
+! noun=ADirection takes a compass direction (the std grammar's own filter
+! routine); the second line takes any words after FOR/TO/TOWARD, as a topic,
+! so STEER FOR PIER works without a pier object in scope on the ship.
+[ SteerSub;
+    return Steer(noun == e_obj);
+];
+
+[ SteerForSub;
+    return Steer(AskedAbout('pier', 'bank', 'ring', 'shore', 'east', 'side'));
+];
+
+[ Steer east;
+    if (location ~= stern || ~~sweep_shipped) "You'd need to be at the stern,
+        with something to steer with.";
+    if (~~(east && ship_at == ADRIFT && passage == 2)) "The river has its own
+        ideas about that.";
+    if (drift < 3) "Not yet -- the bank is still too far.";
+    ShipTo(PIER);
+    Achieved(TASK_CROSSING);
+    "No one crosses the Verdance. You lean on the sweep, and the ship turns
+    its high prow toward the old side, and crosses. It bumps along a stone
+    pier, and you make fast to an iron ring. Far behind you, on the Mingus
+    bank, the verdlings have turned their backs.";
+];
+
+Verb 'steer' 'helm'
+    * noun=ADirection                   -> Steer
+    * 'for'/'to'/'toward'/'towards' topic -> SteerFor;
+
+! --- Throwing, hooking, pulling: the grapnel and the pike ------------------------
+! THROW GRAPNEL INTO RIVER and THROW GRAPNEL OVERBOARD (the std grammar has
+! THROW X and THROW X AT Y; both are ##ThrowAt).
+Extend 'throw'
+    * held 'into'/'in'/'over' noun      -> ThrowAt
+    * held 'overboard'/'astern'         -> ThrowAt;
+
+! PULL BOX WITH PIKE (P8), HOOK BOX WITH PIKE, GET BOX WITH PIKE, and HOOK
+! CHAIN WITH GRAPNEL (P7): one action, ##PullWith, which the box and the
+! chain answer in their own `before`.
+[ PullWithSub; "Nothing comes of it."; ];
+
+Extend 'pull'
+    * noun 'with' held                  -> PullWith;
+
+Extend 'get'
+    * noun 'with' held                  -> PullWith;
+
+Verb 'hook' 'snag'
+    * noun 'with' held                  -> PullWith;
+
+! TURN SWITCH WITH KEY (P9) is UNLOCK, as UNLOCK SWITCH WITH KEY already is.
+Extend 'turn'
+    * noun 'with' held                  -> Unlock;
+
+! UNHOOK / FREE / RELEASE GRAPNEL: the Span's cast-off.
+[ UnhookSub; "It isn't hooked on anything."; ];
+
+Verb 'unhook' 'free' 'release'
+    * noun                              -> Unhook;
+
+! UNTIE ROPE / UNTIE LINE / UNTIE SHIP / CAST OFF: the Pier's cast-off.
+[ UntieSub; "There's nothing there to untie."; ];
+
+Verb 'untie' 'unfasten' 'unmoor' 'unhitch'
+    * noun                              -> Untie;
+
+[ CastOffSub;
+    if (ship_at == PIER && location == main_deck or stone_pier)
+        <<Untie mooring_rope>>;
+    "There's nothing here to cast off.";
+];
+
+Verb 'cast'
+    * 'off'                             -> CastOff
+    * 'off' noun                        -> CastOff;
+
+! CLIMB DOWN CHAIN (the std grammar has CLIMB X and CLIMB UP/OVER X).
+Extend 'climb'
+    * 'down' noun                       -> Climb;
+
+! --- The river: JUMP OVERBOARD, SWIM IN RIVER, STEP ON PATCH, WALK DOWN ROAD ----
+Extend 'jump'
+    * 'overboard'                       -> Jump;
+
+Extend 'swim'
+    * 'in'/'into' noun                  -> Swim;
+
+Verb 'step'
+    * 'on'/'onto'/'in'/'into' noun      -> Enter;
+
+! `last`, so plain GO DOWN still means the direction.
+Extend 'go' last
+    * 'down'/'along' noun               -> Enter;
+
+! --- Ringing and driving -------------------------------------------------------
+[ RingSub; "Nothing rings."; ];
+
+Verb 'ring' 'buzz'
+    * noun                              -> Ring;
+
+[ DriveSub;
+    if (location == drowned_road) "You don't. You know exactly where it goes.";
+    "There's nothing here to drive.";
+];
+
+Verb 'drive'
+    *                                   -> Drive
+    * noun                              -> Drive;
