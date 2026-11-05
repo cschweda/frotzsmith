@@ -33,7 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   always reopens: names Frotzsmith makes up avoid device names (a test called
   "Con" is saved as `tests/con_.txt`), and files kept from before these rules
   whose names a project can no longer hold are left out of the download —
-  kept in your browser, never deleted — and the download message names them.
+  kept in your browser, never deleted — and the download message names them,
+  along with any extension saved under a new name (update its Include line).
 - **Safer messages.** File names in messages are cleaned of invisible and
   layout-changing characters (emoji such as 👩‍💻 stay whole), shortened, and quoted; hidden files a project
   carries are named when you open and download it.
