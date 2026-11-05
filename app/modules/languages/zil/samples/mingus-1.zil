@@ -13,7 +13,7 @@
   good way to learn either language.
 
   THE STORY
-    The Mingan Ascendancy, a crypto-gilded palace built on top of a mountain,
+    The Mingan Ascendancy, a gilded palace built on top of a mountain,
     crashed last night. Everyone has gone. You are the actual dev -- the one
     competent engineer Lady Esme Vaunt hired, for $SHRUG -- and your only
     ticket asks you to fetch her coat from the bottom of the mountain. The
@@ -110,7 +110,7 @@
 
 <CONSTANT GAME-BANNER
 "Mingus I: Elevated Returns|
-A Frotzsmith sample: a crypto satire in three acts.">
+A Frotzsmith sample: a fall from great heights, in three acts.">
 
 ;"--- Scoring ----------------------------------------------------------------
   USE-SCORING? switches on zillib's scoring module (SCORE, FULL SCORE, the

@@ -74,7 +74,7 @@ both).
 
 ### Added — 2026-11-05 Mingus I: Elevated Returns (Inform 6 and ZIL samples)
 - **A second longer sample game, in both languages.** *Mingus I: Elevated
-  Returns* is a crypto satire in three acts: 20 rooms, 10 puzzles and 5 lore
+  Returns* is a fall from great heights in three acts: 20 rooms, 10 puzzles and 5 lore
   points, 60 in all. It ships as an Inform 6 sample and as a ZIL sample
   (zillib, one file), both targeting z5 and loading exactly as written. The
   two are the same game: the same rooms, puzzles and score, the same

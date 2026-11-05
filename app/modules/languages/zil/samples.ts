@@ -113,7 +113,7 @@ export const ZIL_SAMPLES: ZilSample[] = [
   {
     id: 'zil-mingus-1',
     name: 'Mingus I: Elevated Returns · longer game',
-    description: 'A crypto satire in three acts: 20 rooms, 10 puzzles, a three-poke finale',
+    description: 'A fall from great heights in three acts: 20 rooms, 10 puzzles, a three-poke finale',
     target: 'z5',
     source: mingus1Src,
   },

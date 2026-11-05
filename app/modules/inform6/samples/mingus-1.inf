@@ -9,7 +9,7 @@
 !  trip over by accident.
 !
 !  THE STORY
-!    The Mingan Ascendancy, a crypto-gilded palace built on top of a mountain,
+!    The Mingan Ascendancy, a gilded palace built on top of a mountain,
 !    crashed last night. Everyone has gone. You are the actual dev -- the one
 !    competent engineer Lady Esme Vaunt hired, for $SHRUG -- and your only
 !    ticket asks you to fetch her coat from the bottom of the mountain. The
@@ -100,7 +100,7 @@
 ! ============================================================================
 
 Constant Story      "Mingus I: Elevated Returns";
-Constant Headline   "^A Frotzsmith sample: a crypto satire in three acts.^";
+Constant Headline   "^A Frotzsmith sample: a fall from great heights, in three acts.^";
 
 ! --- Scoring ----------------------------------------------------------------
 ! The library's task system: task_scores holds what each task is worth, and
