@@ -73,6 +73,8 @@ export const frotzsmith = {
     zilFiles: 'frotzsmith:project-files',
     /** Per-game solution text ({ v, buckets: { [storyKey]: { text } } }); namespaced per language. */
     solutions: 'frotzsmith:solutions',
+    /** The bundled sample this language's editor holds ({ id, storyKey, length, hash }); cleared by New/Open/package/share link. */
+    loadedSample: 'frotzsmith:loaded-sample',
   },
 
   // ── Inline play (Parchment) ───────────────────────────────────────────────

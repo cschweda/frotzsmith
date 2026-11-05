@@ -21,6 +21,7 @@ import { useZilProjectFiles } from './useZilProjectFiles'
 import { useLanguage } from './useLanguage'
 import { runReplayController, type WorkerLike } from './useReplay'
 import { solutionCommands } from './solution-text'
+import { useOutsideSource } from './outside-source'
 import { runReplay } from '~/modules/inform6/engine/replayCore'
 import demoSource from '~/modules/inform6/samples/demo.inf?raw'
 
@@ -185,6 +186,18 @@ describe('useSolutionGenerator — generate', () => {
     useIde().loadSource('Constant Story "Other";\n')
     _cancels.at(-1)!() // a new source stops nothing by itself; settle the hung replay
     const r = await pending
-    expect(r.ok).toBe(false)
+    expect(r).toMatchObject({ ok: false, superseded: true })
+  })
+
+  it('a source from outside (package, link, opened file) is not replayed until the author plays it (F2)', async () => {
+    useOutsideSource().markOutside()
+    const r = await useSolutionGenerator().generate(['north'])
+    expect(r).toEqual({
+      ok: false,
+      message: 'This game came from outside Frotzsmith, so press Play or Run once before making its solution.',
+    })
+    expect(_compile).not.toHaveBeenCalled()
+    useOutsideSource().trust() // Play / Run
+    expect((await useSolutionGenerator().generate(['north'])).ok).toBe(true)
   })
 })

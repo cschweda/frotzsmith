@@ -2,6 +2,7 @@ import type { TurnRecord } from '~/modules/inform6/engine/StoryEngine'
 import { formatSolution } from './solution-text'
 import { ReplayEngineError, ReplayTimeoutError } from './useReplay'
 import { replayBudgetMs } from './useTranscript'
+import { useOutsideSource } from './outside-source'
 
 export type GenerateResult =
   | { ok: true; text: string; note?: string }
@@ -29,11 +30,15 @@ export function useSolutionGenerator() {
     const call = ++latestCall
     cancelInFlight?.()
     cancelInFlight = null
+    // Defence in depth (audit F2): a source from a package, link or opened
+    // file is not run headlessly until the author has played or run it once.
+    if (useOutsideSource().untrusted.value)
+      return { ok: false, message: 'This game came from outside Frotzsmith, so press Play or Run once before making its solution.' }
     const gen = ide.sourceGen.value
     const moved = (): GenerateResult | null => {
       if (call !== latestCall) return SUPERSEDED
       if (ide.sourceGen.value !== gen)
-        return { ok: false, message: 'A different game was loaded while the solution was being made.' }
+        return { ok: false, message: 'A different game was loaded while the solution was being made.', superseded: true }
       return null
     }
 
