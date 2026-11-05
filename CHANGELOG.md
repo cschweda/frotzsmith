@@ -36,6 +36,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a plain source file asks before replacing edited source.
 - A game titled "Constructor" (or similar) no longer breaks its test scripts.
 
+### Security — 2026-11-04 interpreter, analytics and deployment (red/blue audit)
+- **A game can no longer run JavaScript through the Z-machine interpreter.**
+  A story whose custom character table used one particular private character
+  could break out of the interpreter's generated code and run script with the
+  IDE's own access (shown with a story compiled by Frotzsmith's own compiler).
+  Both interpreters — Play and the headless test runner — are fixed, and the
+  build now checks the fix every time.
+- **A game from a project file or a shared link doesn't run until you say so.**
+  Skein auto-run waits on the first Compile of such a game, with a one-line
+  note in the Skein panel; pressing Play or Run once (or loading a sample or a
+  new project) lets it auto-run as usual. This lasts until you do, even across
+  a reload, and is kept per language.
+- **Analytics script is a reviewed copy** served from Frotzsmith itself instead
+  of a live pass-through of the analytics provider's script; the desktop
+  build has no analytics at all.
+- **Tighter Content Security Policy:** `blob:` can no longer be used as a
+  script, worker or frame source, and a test pins every security header.
+- **Supply chain:** checksums and sources recorded for every vendored file
+  (player, jQuery, analytics); CI's GitHub Actions pinned by commit; the
+  Netlify build installs exactly the locked dependency versions.
+- **Smaller fixes:** the Play page only accepts a story created by this site
+  (not merely any `blob:` link); a project whose file headers claim encryption
+  only locally is refused; a room called "constructor" (or similar) no longer
+  breaks the Map; new tests for the message, iframe and encryption checks.
+
 ### Added — 2026-11-04 .frotzsmith projects
 - **Download project / Open project.** The toolbar's **Download project** saves
   the whole project — source, uploaded includes, test scripts and the Skein —

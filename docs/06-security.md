@@ -15,8 +15,9 @@ Frotzsmith is a static, client-only app: no backend, no accounts, no user data l
 | The DOM | XSS via rendered game output or error text | Treat all interpreter output and compiler stderr as untrusted text; no `innerHTML` of unsanitized content. |
 | Exported bundle recipients | A shared `.html` doing something unexpected | Bundle contains only pinned runtime + the author's story; no remote requests; self-contained. |
 | Imported projects | Malicious project JSON | Strict validation, text-only treatment, never `eval`. |
+| The IDE's origin | A hostile game source (package, share link) compiled and run by the IDE's own interpreters, which share the IDE's origin | ZVM's JIT injection patched (§3); outside sources don't auto-run (§6.1); CSP (§9). |
 
-There is no remote attacker surface (no server). The realistic risks are **self-inflicted** (a runaway game freezing the tab) and **XSS via untrusted text** (game output, error messages, pasted source).
+There is no remote attacker surface (no server). The realistic risks are **self-inflicted** (a runaway game freezing the tab), **XSS via untrusted text** (game output, error messages, pasted source), and **a hostile story reaching the interpreters**: a package or share link delivers *source*, the author compiles it, and the compiled story runs in interpreters that share the IDE's origin (the Play iframe is `allow-same-origin allow-scripts`; the replay worker is same-origin). The play page's blob: gate (§3) stops *other people's* story files, not a story the author compiles.
 
 ## 2. WASM compiler sandboxing
 
@@ -28,7 +29,11 @@ There is no remote attacker surface (no server). The realistic risks are **self-
 ## 3. Interpreter / story-file sandboxing
 
 - Story files are untrusted by definition (the author may paste/import someone else's `.inf`, or compile experimental code).
-- Interpreters (ZVM/Quixe via Parchment) run in the browser sandbox; the Z-machine/Glulx VMs cannot escape to the host.
+- Interpreters run in the browser sandbox and cannot escape to the host. Two copies of the pure-JS Z-machine **ZVM** ship: the vendored Parchment build (`public/play/web/zvm.js`, the Play tab) and ifvms 1.1.6 from npm (bundled into the headless replay worker). Glulx is not played in the browser (Quixe is not vendored).
+- **They are not an origin boundary.** The Play iframe needs `allow-same-origin allow-scripts` (the IDE reads its DOM and feeds Send to Play), so code running in it can reach the IDE's DOM and storage; the replay worker is same-origin too. Anything a story can make the interpreter *execute* is therefore same-origin script. Long term, an opaque-origin sandbox for both (talking over `postMessage`) would close this class; it is not built yet.
+- **ZVM JIT injection, patched (audit 2026-11-04, F2).** ZVM compiles any string that uses an abbreviation into `Function('return"…"')`, using U+E000 as the placeholder around `+this.abbr(N)+`, after escaping only `\`, `"` and `\r`. A story whose Unicode table maps a character to U+E000 (Inform 6: `Zcharacter table + '@{E000}';`) put a bare `"` into that source and ran arbitrary JavaScript — proven with a story compiled by our own inform6.wasm, in both copies. Both copies now map a Unicode-table entry of U+E000 or a C0 control other than 13 to U+FFFD, and also escape `\n`, U+2028 and U+2029. The vendored file is patched in place (header comment; `public/play/web/README.md`); ifvms is patched at build time by `tools/ifvms-text-fix.mjs`, which **fails the build** if either line changes in an upgrade. `app/modules/inform6/engine/zvm-text-jit.test.ts` runs the PoC against unpatched ifvms (must fire), patched ifvms and the vendored copy (must not); `tools/smoke-replay-worker.mjs` replays the PoC fixture in the **built** worker after every `generate`.
+- **The Play page's story gate:** `public/play/index.html` accepts `?story=` only as a blob URL minted by this origin (`blob:<origin>/…`, the IDE's own compiled output) and otherwise plays the bundled demo, so a crafted link can't hand the player someone else's story file (`tools/play-page.test.ts`).
+- **Messages from the Play iframe** are accepted only from our origin, from that iframe's own window (`e.source`), and tagged by our play page (`app/utils/play-message.ts`); their values are text, never executed.
 - **Headless replay runs in a Web Worker** (one fresh worker per run, terminated afterwards), so an infinite game loop or huge output doesn't lock the main thread. Each run has a wall-clock budget of 15 s + 250 ms per command, capped at 2 minutes (`replayBudgetMs`); overruns terminate the worker and are reported cleanly. There is no separate turn cap — a run executes exactly the script's commands.
 - Output volume is bounded: each turn's captured text is capped at 256 KB with a visible "output truncated" notice (`MAX_TURN_OUTPUT_CHARS` in `headless-glkote.ts`), so a game that prints forever can't grow the worker's memory until the timeout.
 
@@ -43,7 +48,7 @@ Where Frotzsmith itself renders any of this (Transcript, Results), it uses text 
 
 ## 5. Export hygiene
 
-- **Filenames** sanitized on every download (path traversal, invalid chars, length) — reuse the markdown editor's util.
+- **Filenames** for downloads come from `slugify` (`app/utils/slug.ts`): the story title is reduced to lowercase ASCII letters, digits and hyphens, so a title can't carry a path, a separator or an invalid character.
 - **Playable bundle**: assembled from pinned local runtime + the author's story bytes only. No remote `<script src>`, no fetches → the artifact can't be a vector for pulling in remote code, and works offline.
 - **Project export JSON**: plain data; no executable content.
 
@@ -64,32 +69,57 @@ A `.frotzsmith` file is untrusted input, read entirely in the browser.
 - **Names are shown safely:** every name or title quoted in a message goes through `displayPath` — controls, format, separator, private-use and unassigned characters and the Hangul fillers become U+FFFD, combining marks are capped at 2 per character, names are cut to 60 characters + "…" — and is quoted (“…”), so a file name can't pose as part of the sentence.
 - **Test scripts are capped:** at most 200 per package and 1 MiB of script text in all (they live in localStorage); beyond either the package is refused, and the writer refuses the same. Test-script buckets are a prototype-free map, so a game titled "Constructor" works.
 - **Source only:** everything read is treated as text. Compiled stories (`.z3 .z4 .z5 .z8 .ulx .blb .zblorb`) are ignored, never written.
-- **Nothing runs:** opening loads text into the editor, extensions, test scripts and Skein. It does not compile, play, replay or run the Skein, and no imported string is evaluated.
-- **Refusal is whole:** any violation (wrong language, over the uploaded-extension budget, a bad path, a manifest nested deeper than 64 levels, a plain `.zip`) refuses the entire package with one sentence; every check runs before the first write, so nothing is ever half-applied. Opening over existing work — edited source, different uploaded extensions, or test scripts / a Skein already saved for the game the package opens as — asks first, and the dialog names what would be replaced.
+- **Nothing runs on open:** opening loads text into the editor, extensions, test scripts and Skein. It does not compile, play, replay or run the Skein, and no imported string is evaluated.
+- **…and nothing runs on the first Compile either.** The Skein's *Auto-run on compile* (on by default) would replay the opened game in the headless interpreter on Compile, with no Play click. A source that came from outside — a package or a share link — is marked (`app/composables/outside-source.ts`; `frotzsmith:<lang>:outside-source` in localStorage, so it lasts as long as the autosaved source it describes, per language), and auto-run waits while the mark is set; the Skein panel says so in one line. Only the author's Play or Skein Run in that language clears it, or replacing the source with their own (a bundled sample, New). Editing doesn't. A plain `.inf`/`.zil` Open is not marked.
+- **Refusal is whole:** any violation (wrong language, over the uploaded-extension budget, a bad path, a manifest nested deeper than 64 levels, a plain `.zip`) refuses the entire package with one sentence; every check runs before the first write, so a refused package changes nothing. Once accepted, the open is applied in full in the IDE; if browser storage refuses a write (quota), the open still completes in memory and the storage-full notice says the work isn't safely saved. Opening over existing work — edited source, different uploaded extensions, or test scripts / a Skein already saved for the game the package opens as — asks first, and the dialog names what would be replaced.
 - **A Skein is rebuilt, never trusted:** every tree that is loaded — from a package, a `.skein` import, or an IndexedDB restore — goes through `sanitizeTree`, which rebuilds it into fresh objects holding only the known node fields (so a `__v_isRef`/`value` pair can't make Vue show and replay another command, and deep junk can't break saving or download) and refuses node ids outside `^[A-Za-z0-9_-]{1,64}$` or starting `__` (Vue's `__v_*` keys, `__proto__`). The live tree is held `markRaw`, not as a deep reactive proxy. A `.skein` document nested more than 64 levels deep is refused. A `.skein` import is capped at 8 MiB and asks before replacing a Skein that has nodes; opening a plain source file asks before replacing edited source.
 - **A Skein that can't be opened is kept, not refused:** a Skein that doesn't parse, is nested too deeply, has a bad node id, isn't a single tree (cyclic, orphaned), or is over 10,000 nodes / 10,000 levels deep is not loaded; it is kept byte-for-byte as a hidden file, written back on the next download, and the user is told "The project's Skein couldn't be opened".
 
 ## 7. localStorage hygiene
 
-- Namespaced keys (`frotzsmith:*`) to avoid collisions.
+- Frotzsmith's own keys are namespaced (`frotzsmith:*`, per language as `frotzsmith:<lang>:*`) to avoid collisions. **Exception:** the vendored Parchment player writes its own `autosave:<story-hash>` keys (same origin); the IDE removes them when a new source loads, on every compile and before Send to Play (`clearPlayAutosave`), so a game restarts from the beginning.
 - Quota-exceeded handled gracefully (warn, continue in memory) — the markdown editor's pattern.
 - No secrets are ever stored (there are none — no auth).
 
 ## 8. Dependency pinning
 
 - `inform6.wasm`, the standard library, PunyInform, and the Parchment runtime are **pinned** in-repo (the swappable-bundle model lets them be updated deliberately, with review, not silently). This is both a reproducibility and a supply-chain measure.
+- **Vendored files have recorded provenance** (audit 2026-11-04, F16): `tools/vendored-files.json` lists each served third-party file (Parchment's `public/play/web/*`, jQuery 3.5.1, the Plausible tracker `public/pa/script.js`) with its source and the sha256 of the committed bytes; `tools/vendored-files.test.ts` fails on any unrecorded change, and also undoes our local patches to check the upstream hashes. The exact Parchment release wasn't recorded when it was vendored; jQuery is byte-identical to the official 3.5.1 file (less a trailing newline).
+- npm dependencies install from `yarn.lock` with `--frozen-lockfile`, in CI and on Netlify (`netlify.toml` build command). CI's GitHub Actions are pinned by full commit SHA (tag in a comment; Dependabot updates them), and the one `npx -y` tool is pinned to a version (`tools/supply-chain.test.ts`).
+- **Analytics** are first-party: the Plausible tracker is the vendored file above (not a live proxy of plausible.io's script — audit F5), and only the event beacon `/pa/event` is proxied (`public/_redirects`). The desktop build loads no analytics.
 
 ## 9. Content Security Policy (deployment)
 
-Even as a static site, ship a CSP via `netlify.toml` headers: restrict `script-src`/`connect-src` appropriately. WASM may require `'wasm-unsafe-eval'` (or `'unsafe-eval'` depending on instantiation path) in `script-src` — documented as the one necessary relaxation, scoped as tightly as the chosen instantiation allows. No `connect-src` to third parties (the app makes no API calls).
+`netlify.toml` sends this policy for every path; `tools/netlify-headers.test.ts` pins it exactly, along with `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` that turns off camera, microphone, geolocation and payment.
+
+```
+default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval';
+style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:;
+connect-src 'self' blob:; worker-src 'self'; frame-src 'self'; child-src 'self';
+frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'
+```
+
+It is honest to say this is **loose**: script-src allows inline script and eval site-wide. Why each relaxation is there:
+
+| Source | Why it is needed |
+|---|---|
+| `script-src 'unsafe-eval'` | ZVM is a JIT: it compiles z-code routines and abbreviated strings to JavaScript with `new Function` (both copies, §3). The replay worker also runs the sloppy-mode `glkapi.js` through indirect `eval`. This is what makes the F2 injection (§3) dangerous, and why ZVM's code generation is patched rather than trusted. |
+| `script-src 'wasm-unsafe-eval'` | `inform6.wasm` and the .NET ZILF runtime are instantiated from bytes. |
+| `script-src 'unsafe-inline'` | The Play page (`public/play/index.html`) has inline scripts (the story gate, the command/room reporters) and Nuxt's static SPA output has an inline bootstrap. Moving them to files or hashes is possible future work. |
+| `style-src 'unsafe-inline'` | Nuxt UI / Vue style bindings and GlkOte's inline styles. |
+| `img-src data:`, `font-src data:` | Inlined icons and fonts. |
+| `connect-src blob:` | Parchment `fetch()`es the compiled story from the blob URL the IDE hands it. |
+| `frame-ancestors 'self'` / `frame-src 'self'` | The IDE frames its own Play page; nobody else may frame the IDE. |
+
+**No third-party origin appears anywhere** (analytics is first-party, §8). **`blob:` was removed** from `script-src`, `worker-src`, `frame-src` and `child-src` (audit 2026-11-04, F11): every worker is a same-origin module file, the Play iframe loads `/play/index.html`, and blob URLs are only fetched (the story) or used as `<a download>` targets. This was checked in Chrome under the tightened policy with a `report-uri`: an Inform 6 compile, Play, a headless replay, a ZIL compile and Play raised no violation (a test blob worker was blocked and reported).
 
 ### 9.1 Service worker (offline website)
 
 The website registers a Workbox service worker (`@vite-pwa/nuxt`, configured under `pwa` in `nuxt.config.ts`) so it works offline after the first visit. Its scope is deliberately small:
 
 - **Precache: the app's own files only** — the pages, the `_nuxt/` chunks and workers (the Inform 6 compiler's wasm among them), the Parchment player under `play/`, the demo story, fonts and icons. Explicitly excluded: `zilf/**`, `pa/**`, `og-image.*`, `200.html`, `404.html`. Precached entries are revisioned by Workbox; outdated caches are cleaned up on activation.
-- **One runtime cache: `frotzsmith-zilf`.** Requests whose path is `/zilf/r<rev>/_framework/*` (the ZILF .NET runtime, ~13 MB) are served **CacheFirst** and stored only on a **200** response — never a 404, an error or an opaque response, so a bad fetch can't poison the compiler for good. The path carries the ZILF revision, so CacheFirst can't serve a stale runtime after an upgrade. Nothing is downloaded until ZIL is used.
-- **Never cached:** `/pa/` (the first-party Plausible proxy — pageviews stay live and offline visits simply aren't counted) and **any third-party response** — the app makes no cross-origin requests (CSP `connect-src 'self' blob:`, §9), and the one runtime route keeps only status 200, which an opaque cross-origin response never has.
+- **One runtime cache: `frotzsmith-zilf`.** Requests whose **pathname** is `/zilf/r<rev>/_framework/*` (the route matches the path only, whatever the origin — harmless, because the app makes no cross-origin requests and an opaque cross-origin response has status 0, never the 200 the route requires) (the ZILF .NET runtime, ~13 MB) are served **CacheFirst** and stored only on a **200** response — never a 404, an error or an opaque response, so a bad fetch can't poison the compiler for good. The path carries the ZILF revision, so CacheFirst can't serve a stale runtime after an upgrade. Nothing is downloaded until ZIL is used.
+- **Never cached:** `/pa/` (the vendored Plausible tracker and the event proxy — pageviews stay live and offline visits simply aren't counted) and **any third-party response** — the app makes no cross-origin requests (CSP `connect-src 'self' blob:`, §9), and the one runtime route keeps only status 200, which an opaque cross-origin response never has.
 - **Updates never apply without the author.** `registerType: 'prompt'`, `skipWaiting: false`: a new worker installs and waits. The page offers *"A new version of Frotzsmith is ready"* (**Reload** / **Later**); only the author's **Reload** tells the waiting worker to take over, and only that tab reloads, after its pending saves are written. Other tabs keep their offer. `sw.js` and `manifest.webmanifest` are served `no-cache` (`netlify.toml`), so a deploy is noticed, not stuck behind an HTTP cache.
 - **Nuxt's own reloads are off.** Nuxt 4 by default polls `builds/latest.json` hourly and reloads the page on the next in-app navigation once a new build exists, and reloads on a chunk that fails to load — both without writing the pending saves. `nuxt.config.ts` sets `experimental.checkOutdatedBuildInterval: false` and `experimental.emitRouteChunkError: 'manual'`; a chunk error shows the update offer instead (`plugins/service-worker.client.ts`, `app:chunkError`). A long-lived tab still learns of a deploy: the plugin calls `registration.update()` hourly, which can only raise the offer.
 - `tools/check-sw.mjs` (run by `postgenerate`) reads the built `sw.js` and fails the build if any excluded path is precached, the `/` app shell is missing, or the ZILF runtime route is missing or not a pathname-matched, 200-only `CacheFirst`.
@@ -98,4 +128,4 @@ The website registers a Workbox service worker (`@vite-pwa/nuxt`, configured und
 
 ## 10. Summary
 
-The static, client-only architecture is the biggest security win — there's almost nothing to attack remotely. The real work is (a) sandboxing/timeouts so untrusted source and story files can't hang or exhaust the tab, and (b) treating all compiler and game text as untrusted plain text in the DOM. Both are well-understood and cheap to get right.
+The static, client-only architecture is the biggest security win — there's almost nothing to attack remotely. The real work is (a) sandboxing/timeouts so untrusted source and story files can't hang or exhaust the tab, (b) treating all compiler and game text as untrusted plain text in the DOM, and (c) remembering that the interpreters share the IDE's origin, so their code generation must not be steerable by a story (§3) and outside sources must not run without the author's click (§6.1).

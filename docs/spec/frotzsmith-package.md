@@ -144,10 +144,11 @@ The Skein is the tree of commands and the game's replies recorded from play, kep
 - The tree **MUST** be a single tree: every node reachable from `root` exactly once, every link resolvable, at most 10,000 nodes and 10,000 levels.
 - The document **MUST NOT** nest arrays and objects more than 64 levels deep (the document itself is level 1).
 - A reader rebuilds the tree from the fields above only: any other field of a node is dropped.
+- Inside a package the Skein belongs to the package's game and language, so Frotzsmith's reader takes only `tree` and doesn't check `v`, `lang` or `storyKey` (the writer always sets them). A standalone `.skein` import, outside a package, is refused when its `lang` is another language's.
 
 A Skein that breaks any of these rules is one the reader cannot make sense of (below).
 
-The manifest's `skein` field is authoritative for where the Skein is. When it is absent, a reader uses `<stem>.skein` if that file is present. A writer that writes a Skein **MUST** set `skein`.
+The manifest's `skein` field is authoritative for where the Skein is. When it is absent, a reader uses `<stem>.skein` if that file is present, matching the name the way §2 compares paths (NFKC + case fold — so `Story.SKEIN` is found for `story.inf`). A writer that writes a Skein **MUST** set `skein`.
 
 A reader that cannot make sense of the file (it does not parse, or its shape is wrong) **MUST NOT** refuse the package: it keeps the file as an unrecognised file (§3) and tells the user it was not opened. A reader **MUST NOT** run a Skein when it opens a package (§12).
 
