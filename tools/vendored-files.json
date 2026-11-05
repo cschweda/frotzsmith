@@ -1,0 +1,46 @@
+{
+  "$comment": "Vendored third-party files served by the site (audit 2026-11-04, F16). sha256 is of the file as committed; upstreamSha256 is of the original download when known. tools/vendored-files.test.ts fails on any change: update this file deliberately after reviewing the new bytes.",
+  "files": [
+    {
+      "path": "public/play/web/main.js",
+      "sha256": "a9aa860682ac472fb022594dd2682a65c91ba88b2f5507dab708d16d58c634ba",
+      "source": "Parchment web build (github.com/curiousdannii/parchment, MIT). Vendored 2026-06-28 in commit c776d55; the exact upstream release was not recorded then."
+    },
+    {
+      "path": "public/play/web/zvm.js",
+      "sha256": "0fe07f13807e058fd1894efe15272f6684ecccedead7002d5ea66ce7e316c28c",
+      "source": "Parchment web build (github.com/curiousdannii/parchment, MIT). Vendored 2026-06-28 in commit c776d55; the exact upstream release was not recorded then. ZVM is ifvms.js (github.com/curiousdannii/ifvms.js, MIT) as bundled by Parchment.",
+      "upstreamSha256": "4aa639f3d644e8696656671006e54484c87a1beff71e1fb28565fd1443f68abf",
+      "patched": "2026-11-04 audit F2: Unicode-table U+E000/C0 → U+FFFD and \\n/U+2028/U+2029 escaped in the abbreviation JIT, plus a header comment. See the header of the file and tools/ifvms-text-fix.mjs."
+    },
+    {
+      "path": "public/play/web/ie.js",
+      "sha256": "6d885b5763741e7f311f16c72133c72f7f9ad5b06c3e0a8410c1b1a53187fc52",
+      "source": "Parchment web build (github.com/curiousdannii/parchment, MIT). Vendored 2026-06-28 in commit c776d55; the exact upstream release was not recorded then."
+    },
+    {
+      "path": "public/play/web/web.css",
+      "sha256": "d13ab4eb6723bafdb23a61706fc86e509c91f1bdf0c4ad1977152127611155a5",
+      "source": "Parchment web build (github.com/curiousdannii/parchment, MIT). Vendored 2026-06-28 in commit c776d55; the exact upstream release was not recorded then."
+    },
+    {
+      "path": "public/play/web/waiting.gif",
+      "sha256": "a5f0061830d5ae41d5b2d350d70430939ffc46365d0d1f2bafac844e9b95087c",
+      "source": "Parchment web build (github.com/curiousdannii/parchment, MIT). Vendored 2026-06-28 in commit c776d55; the exact upstream release was not recorded then."
+    },
+    {
+      "path": "public/play/web/jquery.min.js",
+      "sha256": "6150a35c0f486c46cadf0e230e2aa159c7c23ecfbb5611b64ee3f25fcbff341f",
+      "source": "jQuery 3.5.1 (https://code.jquery.com/jquery-3.5.1.min.js, MIT), as shipped in the Parchment build.",
+      "upstreamSha256": "f7f6a5894f1d19ddad6fa392b2ece2c5e578cbf7da4ea805b6885eb6985b6e3d",
+      "note": "Byte-identical to the official file except the official one ends with a newline (checked 2026-11-04)."
+    },
+    {
+      "path": "public/pa/script.js",
+      "sha256": "1e19c9bf3c33a193c76689fe674404860c9ee94592a17eaca872ec5633d37a06",
+      "source": "Plausible tracker https://plausible.io/js/pa-2FCOIzY7AvsOrnssGbGde.js (MIT), fetched with curl 2026-11-04.",
+      "upstreamSha256": "5db9dd138315d67c65623a7c685d0a8981351667d4864d81c5acae3d306963b2",
+      "patched": "Provenance header comment only (12 lines); the upstream bytes follow it unchanged."
+    }
+  ]
+}

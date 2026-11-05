@@ -1,4 +1,4 @@
-/*! Vendored ZVM from Parchment (see ../VENDORED.md for source and checksums).
+/*! Vendored ZVM from Parchment (provenance + checksums: tools/vendored-files.json, public/play/web/README.md).
  * PATCHED by Frotzsmith (audit 2026-11-04, F2): two in-place edits, nothing else.
  *  1. make_unicode: a story's Unicode-table entry of U+E000 or a C0 control
  *     other than 13 becomes U+FFFD (`e[155+r]=String.fromCharCode(...)`).
