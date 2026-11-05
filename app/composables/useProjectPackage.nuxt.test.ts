@@ -937,13 +937,47 @@ describe('useProjectPackage — ZIL projects carry all their .zil files', () => 
     await expect(useProjectPackage().inspect(new File([bytes as Uint8Array<ArrayBuffer>], 'g.frotzsmith'))).resolves.toBeTruthy()
   })
 
-  it('a project with no extra files downloads its main as story.zil', async () => {
+  const TITLED = '<CONSTANT GAME-BANNER "The Damp Cellar">\n<ROUTINE GO () <QUIT>>\n'
+
+  it('a main path never set by a package (the default story.zil) downloads named after the title', async () => {
     const ide = await boot('zil')
-    ide.loadSource(ZMAIN)
+    ide.loadSource(TITLED)
+    await settle()
+    expect(useZilProjectFiles().mainPath.value).toBe('story.zil')
+    const back = await readProjectPackage((await useProjectPackage().buildPackage()).bytes)
+    expect(back.project.main.name).toBe('the-damp-cellar.zil')
+    expect(back.project.includes).toEqual([])
+  })
+
+  it('…also with extra files, which travel unchanged', async () => {
+    const ide = await boot('zil')
+    ide.loadSource(TITLED)
+    useZilProjectFiles().replaceAll([{ path: 'rooms.zil', text: '<ROOM A>\n' }], 'story.zil')
     await settle()
     const back = await readProjectPackage((await useProjectPackage().buildPackage()).bytes)
+    expect(back.project.main.name).toBe('the-damp-cellar.zil')
+    expect(back.project.includes).toEqual([{ path: 'rooms.zil', text: '<ROOM A>\n' }])
+  })
+
+  it('…but keeps story.zil when the title would collide with an extra file', async () => {
+    const ide = await boot('zil')
+    ide.loadSource('<CONSTANT GAME-BANNER "Rooms">\n<ROUTINE GO () <QUIT>>\n')
+    useZilProjectFiles().replaceAll([{ path: 'Rooms.zil', text: '<ROOM A>\n' }], 'story.zil')
+    await settle()
+    const { bytes, leftOut } = await useProjectPackage().buildPackage()
+    expect(leftOut).toEqual([])
+    const back = await readProjectPackage(bytes)
     expect(back.project.main.name).toBe('story.zil')
-    expect(back.project.includes).toEqual([])
+    expect(back.project.includes.map(i => i.path)).toEqual(['Rooms.zil'])
+  })
+
+  it('a main path a package set is kept, whatever the title', async () => {
+    const ide = await boot('zil')
+    ide.loadSource(TITLED)
+    useZilProjectFiles().replaceAll([], 'src/game.zil')
+    await settle()
+    const back = await readProjectPackage((await useProjectPackage().buildPackage()).bytes)
+    expect(back.project.main.name).toBe('src/game.zil')
   })
 })
 

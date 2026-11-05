@@ -1,7 +1,7 @@
 import { COMPILED, readProjectPackage, splitPackable, writeProjectPackage, type ProjectSnapshot } from '~/project-package/project'
 import { PackageError, displayPath } from '~/project-package/errors'
 import { LIMITS } from '~/project-package/container'
-import { pathProblem, safeStem } from '~/project-package/paths'
+import { pathKey, pathProblem, safeStem } from '~/project-package/paths'
 import type { Target } from '~/project-package/manifest'
 import { countNodes, createTree, type SkeinTree } from '~/composables/skein-tree'
 import { getExtrasStore, type ProjectExtras } from '~/composables/project-extras-store'
@@ -11,7 +11,7 @@ import { includeNameOf, includePathOf, libraryFileFor, planUploaded } from '~/co
 import { BUNDLED_EXTENSIONS } from '~/modules/inform6/extensions'
 import { SEED_SCRIPT } from '~/composables/useTestScripts'
 import { useZilProjectFiles } from '~/composables/useZilProjectFiles'
-import { planZilFiles, type ZilProjectFile } from '~/modules/zil/zil-project'
+import { planZilFiles, ZIL_DEFAULT_MAIN_PATH, type ZilProjectFile } from '~/modules/zil/zil-project'
 import { safeGetItem, safeSetItem } from '~/utils/safe-storage'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
@@ -251,9 +251,16 @@ export function useProjectPackage() {
 
     const mainExt = lang === 'i6' ? '.inf' : '.zil'
     const fallbackMain = `${safeStem(slugify(title ?? '') || 'story')}${mainExt}`
+    // ZIL: a main path a package set is kept; the default one (never set)
+    // takes the title, as before multi-file ZIL, unless that names a file the project carries.
+    const zilMain = zilFiles.mainPath.value
+    const titleFits = ![...zilFiles.files.value, ...(extras?.entries ?? [])]
+      .some(f => pathKey(f.path) === pathKey(fallbackMain))
     const main =
       lang === 'zil'
-        ? zilMainName(zilFiles.mainPath.value, fallbackMain)
+        ? zilMain === ZIL_DEFAULT_MAIN_PATH && titleFits
+          ? fallbackMain
+          : zilMainName(zilMain, fallbackMain)
         : extras?.main?.toLowerCase().endsWith(mainExt) && pathProblem(extras.main) === null
           ? extras.main
           : fallbackMain
