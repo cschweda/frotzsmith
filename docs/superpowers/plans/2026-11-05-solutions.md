@@ -105,7 +105,32 @@
 
 - [ ] **Step 1:** Write the golden tests (they fail with no walkthroughs). **Step 2:** Write the walkthroughs. **Step 3:** Run the gates, `ZIL_SAMPLE_GOLDEN=1 npx vitest run app/modules/zil`, then generate + postgenerate. **Step 4: Commit** `feat(solutions): a walkthrough for every bundled sample`.
 
-### Task 4: The Solution tab, recording, regenerate, download, clear
+### Task 4: The Solution tab, recording (record / pause / resume / stop / continue), load, copy, regenerate, download, clear
+
+> **Revised 2026-11-05 (author's follow-up):**
+> - **States and lights:** three states, Recording (green), Paused (amber) and Stopped (red), each shown as a dot plus a word.
+> - **Controls:**
+>   - **Record** starts from scratch and asks before replacing.
+>   - **Pause** saves the captured commands as the solution (via `generate`), then stops capture so the author can edit.
+>   - **Resume** and **Continue recording** both restart Play, feed it every `solutionCommands(currentText)` via `useIde().sendToPlay`, switch to the Play tab first, then capture and append.
+>   - **Stop** is "save": it saves the same way Pause does and ends the session.
+>   - **Load file…** opens a `.txt` (≤ 1 MiB), asks before replacing, and Continue can carry on from its end.
+>   - **Copy** puts the text on the clipboard.
+> - **Automatic changes:** a recompile pauses the session, a game switch stops it, and a reload ends it with a notice.
+> - **Recorder interface:** `{ state: Ref<'recording' | 'paused' | 'stopped'>; record(); pause(); resume(); stop(); continueRecording() }`, where each returns a result `{ ok } | { ok: false; message }`.
+> - **Tests:**
+>   - Pause, then edit (delete a `> ` line), then Resume feeds the edited command list to `sendToPlay` and appends new captures after it.
+>   - Load a partial file, then Continue, then type two commands, then Stop gives a solution with the file's commands plus the two.
+>   - A recompile while recording pauses the session.
+>   - Copy writes the text to the clipboard (stub `navigator.clipboard`).
+>
+> - **Layout (author, 2026-11-05):** when a session starts, the right pane shows Play and the left pane opens `solution.txt`.
+>   - While Recording, the left-pane solution is read-only and regenerates live: debounced about 300 ms, after each captured command, scrolled to the end.
+>   - While Paused or Stopped, it is editable.
+>   - The light plus Pause/Resume and Stop sit at the top of that left-pane tab.
+>   - This needs Task 5's `solution` explorer tab id. Task 4 adds the live-regenerate and the read-only flag through `useSolutions`, and Task 5 renders the left-pane header controls. Note this in Task 5's dispatch.
+>
+> Where this note conflicts with the text below, this note wins.
 
 **Files:**
 - Modify: `app/components/ide/RightPaneTabs.vue` (new tab `solution` after `map`, icon `i-lucide-book-open-check`) and the `RightTab` type.
