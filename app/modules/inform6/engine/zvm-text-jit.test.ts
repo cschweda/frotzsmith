@@ -35,8 +35,11 @@ const g = globalThis as G
 
 /** Compile a bare (no library) story with -e so `Abbreviate` is used. */
 async function compile(source: string): Promise<Uint8Array> {
-  // @ts-expect-error — no types for the Emscripten module
-  const mod = await import('../wasm/inform6.mjs')
+  type Inform = {
+    FS: { mkdir(p: string): void; chdir(p: string): void; writeFile(p: string, d: string): void; readFile(p: string): Uint8Array }
+    callMain(args: string[]): number
+  }
+  const mod = (await import('../wasm/inform6.mjs')) as unknown as { default: (o: Record<string, unknown>) => Promise<Inform> }
   const out: string[] = []
   const m = await mod.default({
     print: (l: string) => out.push(l),
@@ -48,7 +51,7 @@ async function compile(source: string): Promise<Uint8Array> {
   m.FS.writeFile('/work/story.inf', source)
   const code = m.callMain(['-e', '-Cu', '-v5', 'story.inf', 'story.z5'])
   if (code !== 0) throw new Error(`compile failed:\n${out.join('\n')}`)
-  return m.FS.readFile('/work/story.z5') as Uint8Array
+  return m.FS.readFile('/work/story.z5')
 }
 
 // `Zcharacter table +` adds U+E000 (ZSCII 155+n) and U+000A to the story's
