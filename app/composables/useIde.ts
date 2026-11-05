@@ -12,7 +12,7 @@ import { sampleById as zilSampleById } from '~/modules/languages/zil/samples'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 
 export type CompileStatus = 'idle' | 'compiling' | 'success' | 'error'
-export type RightTab = 'results' | 'play' | 'transcript' | 'testscript' | 'skein' | 'map'
+export type RightTab = 'results' | 'play' | 'transcript' | 'testscript' | 'skein' | 'map' | 'solution'
 export type ProfileMode = 'auto' | ProfileId
 
 /** The bundled sample a language's editor holds: its id, the game it is, and
@@ -537,6 +537,15 @@ export function useIde() {
     playNonce.value += 1
   }
 
+  /** Restart Play from the game's first move, whatever an autosave holds
+   *  (a solution recording must not miss the opening). */
+  function playFromStart() {
+    if (!canPlay.value) return
+    clearPlayAutosave()
+    pendingScript.value = null
+    playStory()
+  }
+
   /** Run a script in the live game: clear the autosave so it plays from the start,
    *  queue the commands, and (re)boot Play. PlayPanel feeds them once the game is ready. */
   function sendToPlay(commands: string[]) {
@@ -584,6 +593,7 @@ export function useIde() {
     loadOpenedFile,
     newProject,
     playStory,
+    playFromStart,
     sendToPlay,
   }
 }

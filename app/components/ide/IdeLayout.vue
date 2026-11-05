@@ -25,8 +25,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
 
 const { consumeShareFragment } = useShareLink()
 const { restore: restoreSkein } = useSkein()
+const { restore: restoreSolutions } = useSolutions()
+const { noticeAfterReload } = useSolutionRecorder()
 onMounted(() => {
   restore()
+  restoreSolutions()
+  // A reload that cut a solution recording short says so, once.
+  noticeAfterReload()
   // After restore, so the pristine-buffer check sees the real recovered state.
   consumeShareFragment()
   // Skein bucket for the restored game (async — IndexedDB).

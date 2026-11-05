@@ -2,6 +2,8 @@
 import type { RightTab } from '~/composables/useIde'
 
 const { activeTab, status } = useIde()
+// Announces recorder state changes once (several recorder bars can be mounted).
+const { state: recState, announcement } = useSolutionRecorder()
 
 const tabs: { id: RightTab; label: string; icon: string }[] = [
   { id: 'results', label: 'Results', icon: 'i-lucide-clipboard-list' },
@@ -10,6 +12,7 @@ const tabs: { id: RightTab; label: string; icon: string }[] = [
   { id: 'testscript', label: 'Test Script', icon: 'i-lucide-scroll-text' },
   { id: 'skein', label: 'Skein', icon: 'i-lucide-git-branch' },
   { id: 'map', label: 'Map', icon: 'i-lucide-map' },
+  { id: 'solution', label: 'Solution', icon: 'i-lucide-book-open-check' },
 ]
 
 // Arrow-key navigation + focus-follows-selection (ARIA tabs pattern), mirroring
@@ -67,6 +70,14 @@ async function onKeydown(event: KeyboardEvent) {
               class="size-2 rounded-full bg-success"
               aria-hidden="true"
             />
+            <span
+              v-if="t.id === 'solution' && recState !== 'stopped'"
+              :class="['size-2 rounded-full', recState === 'recording' ? 'bg-success' : 'bg-warning']"
+              aria-hidden="true"
+            />
+            <span v-if="t.id === 'solution' && recState !== 'stopped'" class="sr-only">
+              {{ recState === 'recording' ? '— recording' : '— recording paused' }}
+            </span>
             <span v-if="t.id === 'results' && (status === 'error' || status === 'success')" class="sr-only">
               {{ status === 'error' ? '— compile failed' : '— compiled cleanly' }}
             </span>
@@ -84,6 +95,8 @@ async function onKeydown(event: KeyboardEvent) {
       <TestScriptPanel v-else-if="activeTab === 'testscript'" />
       <SkeinPanel v-else-if="activeTab === 'skein'" />
       <MapPanel v-else-if="activeTab === 'map'" />
+      <SolutionPanel v-else-if="activeTab === 'solution'" />
     </div>
+    <p class="sr-only" aria-live="polite" role="status">{{ announcement }}</p>
   </div>
 </template>

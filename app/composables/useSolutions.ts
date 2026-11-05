@@ -43,6 +43,27 @@ export function useSolutions() {
   const text = computed<string | null>(() => ownText(buckets.value, activeStoryKey.value))
   const has = computed(() => text.value !== null)
 
+  /** While a recording runs, the solution is regenerated live after each
+   *  captured command (useSolutionRecorder). That text is shown, not saved:
+   *  Pause or Stop saves. Memory only, for the game it was made for. */
+  const live = useState<{ key: string; text: string } | null>('frotz:solution-live', () => null)
+  /** The recorder's state (owned by useSolutionRecorder; read here so the
+   *  store needs no recorder import). */
+  const recState = useState<'recording' | 'paused' | 'stopped'>('frotz:solution-rec-state', () => 'stopped')
+  /** True while recording: the solution can't be edited by hand. */
+  const readOnly = computed(() => recState.value === 'recording')
+  /** What the solution's editor shows: the live text while recording, else the saved text. */
+  const view = computed<string | null>(() => {
+    const l = live.value
+    if (readOnly.value && l && l.key === activeStoryKey.value) return l.text
+    return text.value
+  })
+  /** Show `next` as the live text of the active game (null drops it). */
+  function setLive(next: string | null) {
+    live.value = next === null ? null : { key: activeStoryKey.value, text: next }
+  }
+  const READ_ONLY: Plan = { ok: false, message: 'The solution can’t be edited while recording, so press Pause first.' }
+
   function otherTotal(key: string): number {
     const raw = toRaw(buckets.value)
     let n = 0
@@ -135,6 +156,7 @@ export function useSolutions() {
 
   /** An edit typed in the solution's tab: memory now, written after ~1 s idle. */
   function edit(next: string): Plan {
+    if (readOnly.value) return READ_ONLY
     syncLanguage()
     const key = activeStoryKey.value
     const plan = planSolution(next, otherTotal(key))
@@ -159,5 +181,5 @@ export function useSolutions() {
     persist()
   }
 
-  return { text, has, set, edit, clear, restore, flushPendingSave }
+  return { text, has, view, readOnly, setLive, set, edit, clear, restore, flushPendingSave }
 }
