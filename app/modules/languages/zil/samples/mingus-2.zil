@@ -50,6 +50,7 @@
     decides how far YOU get.
 
   HOW THIS FILE IS ORGANISED  (search for the banner text to jump)
+     0. HOW THIS GAME IS BUILT  the overview block, just below this header
      1. SETUP ............ banner, scoring switch, ALL game state
      2. GO ............... the entry point: intro text, first room
      3. LIBRARY .......... INSERT-FILE parser, the score table, the two
@@ -69,44 +70,10 @@
     13. FINALE ........... The Old-Side Shore  (room 20)
     14. GRAMMAR .......... the game's own SYNTAX lines and V- routines
 
-  THE MAP  (20 rooms; the river runs SOUTH, the Mingus bank is west, the
-            old-side bank east)
-
-    PART ONE  Inside the Sluice -w/e- Sluice Mouth -w/e- Foot of the Gangplank
-                                                            | up/in/board
-    THE SHIP (four fixed rooms)                         Main Deck --n/s-- Prow
-                                                            |  \--s/n-- Stern
-                                                            | down/up
-                                                           Hold [custody chest]
-
-    OUT from the Main Deck (and IN back) depends on SHIP-AT:
-      SANDBAR  The Sandbar -e/w- Expedition Wreck
-      PIER     Stone Pier -n/s- Mine Heads -n/s- Hollow Green -n/s- Old Fence
-                                    | e/w
-                              Outside the Half-Buried Hall
-      SPAN     (Prow) -up/climb chain/down- Broken End -w/e- Span Deck
-      INTAKE   Intake Screen -w/e- Divers' Shed ; Intake Screen -n/s- Drowned
-                                                                      Road
-    FINALE    (the Race) --wreck--> The Old-Side Shore
-
-    The voyage: Sluice -> passage 1 -> Sandbar -> passage 2 -> Stone Pier ->
-    passage 3 -> Gilded Span -> passage 4 -> Intake -> passage 5, the Race
-    -> wrecked on the old-side bank.
-
-  THE PUZZLES  (10 puzzles x 8 points + 5 names x 4 points = 100)
-    P1  The launch       bow first, then the lever  -> BOW, PULL LEVER
-    P2  The feint        reach for the gilt         -> TAKE STRONGBOX
-    P3  Ship the sweep   a steering oar             -> PUT SWEEP IN SOCKET
-    P4  Kedge off        grapnel astern, haul       -> THROW GRAPNEL, PULL LINE
-    P5  The crossing     the one-turn window        -> STEER EAST
-    P6  The lifebelt     where Lucan leads you      -> TAKE LIFEBELT
-    P7  The chain        the one-turn window        -> THROW GRAPNEL AT CHAIN
-    P8  The civic key    a long reach               -> PULL BOX WITH PIKE
-    P9  Stop the pump    Vaunt's key, Vaunt's pump  -> PUT KEY IN SWITCH
-    P10 The Race         wear what floats           -> WEAR LIFEBELT
-    N1-N5 The five names, each PUT IN CHEST: the launch register, the
-    Expedition's nameboard, Lucan's songbook, the diver's tag, and
-    Councillor Sutt's plaque.
+  THE MAP, THE PUZZLES, THE SCORE AND THE STATE
+    All in HOW THIS GAME IS BUILT, the block right after this one: the
+    maps part by part, the puzzle dependency chain, the scoring table, the
+    state table and the walkthrough map.
 
   TECHNIQUES WORTH STEALING
     - ONE end-of-turn dispatcher (I-WORLD, section 12): a single interrupt,
@@ -150,7 +117,372 @@
 
 
 ;"============================================================================
+  HOW THIS GAME IS BUILT  --  the overview, for a long game
+ ----------------------------------------------------------------------------
+  Read this first. A game this long is easy to get lost in; these pages
+  are the map of the CODE, not just of the rooms: how the game is divided,
+  which puzzle opens what, where every point comes from, every piece of
+  state and who touches it, and how the walkthrough runs through it all.
+  Section banners further down say WHY each part is built the way it is.
+
+  A. A SHIP, FIVE LANDINGS, FIVE PASSAGES -- AND WHY THE SPLIT
+     The ship    Main Deck, Prow, Stern, Hold      always with you  rooms 1-4
+     Part One    The Sluice      (the Mingus bank)  SLUICE          rooms 5-7
+     Part Two    The Sandbar     (mid-river)        SANDBAR         rooms 8-9
+     Part Three  The old side    (the far bank)     PIER          rooms 10-14
+     Part Four   The Gilded Span (mid-river)        SPAN          rooms 15-16
+     Part Five   The Intake      (the Mingus bank)  INTAKE        rooms 17-19
+     Finale      The Old-Side Shore                 (the wreck)       room 20
+
+     A river voyage only goes one way, so the game is a CHAIN of chapters:
+     the ship lands, you go ashore, you cast off, and the current carries you
+     to the next landing. The split does four jobs:
+     - Each Part is one landing: one value of SHIP-AT, one section of code
+       (6 to 10), its own rooms, its puzzles and one of the five names.
+     - The ship is the constant: the same four rooms in every Part, with the
+       custody chest in the Hold, so every landing has a home to come back
+       to. Only SHIP-AT changes; the rooms never move.
+     - Between landings, a PASSAGE is three turns on the current, counted on
+       screen ([CURRENT: n/3]). Passages 2 and 3 end in a one-turn WINDOW
+       (P5, P7); the others land on their own. Landing, passage, landing:
+       the game alternates free time with a little pressure.
+     - The river does not go back. So each landing will not let you cast
+       off until you hold what the NEXT part needs, and says why (section C).
+       The names are the one thing you may leave behind: they only cost
+       points, and the river says so as you leave.
+
+  B. THE MAP, PART BY PART  (20 rooms; the river runs SOUTH, the Mingus
+                             bank is west and the old side east. On a link
+                             'a/b', a leads up the page (or to the right)
+                             and b leads back)
+
+     THE SHIP -- four fixed rooms; OUT from the Main Deck goes ashore at
+     whatever landing the ship is at (and IN comes back)
+
+          The Prow  (UP the chain, only while the ship hangs at the SPAN)
+             |
+            n/s
+             |
+         Main Deck --d/u-- The Hold  [the custody chest]
+             |
+            n/s
+             |
+         The Stern  [the socket; STEER from here]
+
+     PART ONE -- moored at the SLUICE (start: Foot of the Gangplank)
+
+       Inside the Sluice --e/w-- The Sluice Mouth --e/w-- Foot of the
+       [N1: the register]        [the launch drill]       Gangplank (START)
+                                                          up/in: Main Deck
+
+     PART TWO -- aground on the SANDBAR
+
+       The Sandbar --e/w-- The Expedition Wreck  [Sandwich; the sweep, the
+       in: Main Deck                              grapnel, the strongbox,
+                                                  N2: the nameboard]
+
+     PART THREE -- made fast at the Stone PIER (the old side)
+
+       The Old Fence
+             |
+            n/s
+             |
+       The Hollow Green  [P6: the lifebelt; where Lucan stops]
+             |
+            n/s
+             |
+       The Mine Heads --e/w-- Outside the Half-Buried Hall
+             |                (the old side is never entered)
+            n/s
+             |
+       The Stone Pier  [the bell: Mrs. Thrumble; N3 comes from her]
+       in: Main Deck
+
+     PART FOUR -- hanging from the chain at the SPAN (no shore: OUT is
+     refused; the way off is up the chain, from the Prow)
+
+       The Span Deck --e/w-- The Broken End  [N4: the tag; P8: the box]
+       (west: the gate is     down: the Prow (and the Prow's UP comes back)
+        chained shut)
+
+     PART FIVE -- pinned to the INTAKE screen (the Mingus bank)
+
+                                The Drowned Road
+                                       |
+                                      n/s
+                                       |
+       The Divers' Shed --e/w-- The Intake Screen  [the stop switch;
+                                in: Main Deck       Sandwich, with N5]
+
+     FINALE -- the Race ends in a wreck; the only way in is the river:
+       The Old-Side Shore (the game is won as you arrive)
+
+  C. THE PUZZLES, IN DEPENDENCY ORDER
+     Each line: what it needs -> what it opens. Each landing's last line
+     is its CAST-OFF, with the gate that holds you there.
+
+     PART ONE  (SLUICE)
+       N1  the register    TAKE it inside the Sluice (any time before
+                           the launch)
+       P1  Launch          aboard, BOW (the verdlings  -> passage 1
+                           let go), PULL LEVER; the
+                           drill states the order
+       passage 1, no window: Sandwich shoots ahead (drift 1), Lucan climbs
+       out of the hold (drift 2), the ship runs aground (drift 3)
+     PART TWO  (SANDBAR)
+       P2  Feint           TAKE STRONGBOX while       -> Sandwich takes it
+                           Sandwich watches              and rows away; the
+                                                         rest is yours
+                           (Reach for anything else first and he holds it
+                           as a decoy: TAKE STRONGBOX still wins P2, and
+                           GIVE COAT buys the decoy back for no points.)
+       N2  the nameboard   at the Wreck, once Sandwich has made his grab
+       P3  Sweep           the sweep in the stern's   -> steering (P5), and
+                           socket                        the kedge (P4)
+       P4  Kedge           THROW GRAPNEL at the       -> passage 2
+                           stern (needs P3: the
+                           gate), then PULL LINE
+       P5  Crossing        passage 2's window:        -> the PIER
+                           STEER EAST at the stern,
+                           on drift 3. Miss it and the eddy brings you
+                           round for another try (no death)
+     PART THREE  (PIER)
+       Lucan leads you up the bank (Stone Pier -> Mine Heads -> Hollow
+       Green). Two turns after you both arrive he dies, whatever you do.
+       P6  Lifebelt        TAKE LIFEBELT at the       -> P10, later
+                           Hollow Green
+       N3  the songbook    RING BELL at the pier once Lucan is dead
+       cast-off            gates: Lucan is dead, and  -> passage 3
+                           you carry the lifebelt;
+                           UNTIE ROPE
+       P7  Chain           passage 3's window: THROW  -> the SPAN
+                           GRAPNEL AT CHAIN from the
+                           Prow, on drift 3. Miss it and the ship breaks up
+                           under the broken end (a death)
+     PART FOUR  (SPAN)
+       N4  the tag         CLIMB CHAIN, TAKE TAG
+       P8  Civic key       PULL BOX WITH PIKE (the    -> the key, for P9
+                           pike from Mingus I)
+       cast-off            gate: you carry the key;   -> passage 4
+                           UNHOOK GRAPNEL
+       passage 4, no window: pinned to the intake screen (drift 3)
+     PART FIVE  (INTAKE)
+       P9  Pump            PUT KEY IN SWITCH          -> Sandwich hands you
+                                                         N5, the plaque
+       cast-off            gate: the pump is          -> passage 5, the
+                           stopped; at the end of        Race
+                           any turn you spend aboard, the ship comes off
+       P10 The Race        drift 3 of passage 5, with -> the Old-Side Shore:
+                           the lifebelt WORN (P6 +       the win. Not worn:
+                           WEAR)                         the river
+
+     Why this order: the river runs one way, so a landing is the player's
+     LAST chance at what it holds. That is why every cast-off has a gate,
+     and why each gate is the thing the next part needs (the sweep before
+     open water; the lifebelt before the white water; the key before
+     Vaunt's pump). Tools reach forward: the grapnel kedges (P4) and later
+     catches the chain (P7); the sweep is shipped (P3) and later steers
+     (P5); the lifebelt is found (P6) and later saves you (P10); the key is
+     fished up (P8) and later stops the pump (P9). The two windows are
+     graded: P5's miss loops you round, so the player LEARNS the window;
+     P7's miss is fatal, once the pattern is known. Lucan's scripted death
+     sits in the middle, on the old side, where the game is quietest.
+
+  D. THE SCORING TABLE  (SCORING-ACHIEVEMENTS, section 3; awarded by
+                         AWARD-POINTS, which grants each one only once)
+     achievement      pts  earned by                  awarded in
+     P1  LAUNCH        8   PULL LEVER, after BOW      CHOCK-LEVER-F
+     P2  FEINT         8   TAKE STRONGBOX (Sandwich   SANDWICH-ROWS-OFF
+                           takes it)
+     P3  SWEEP         8   PUT SWEEP IN SOCKET        SOCKET-F
+     P4  KEDGE         8   PULL LINE (after THROW     PULL-KEDGE
+                           GRAPNEL at the stern)
+     P5  CROSSING      8   STEER EAST, passage 2's    STEER
+                           window
+     P6  LIFEBELT      8   TAKE LIFEBELT              LIFEBELT-OFF-POST
+     P7  CHAIN         8   THROW GRAPNEL AT CHAIN,    THROW-AT-CHAIN
+                           passage 3's window
+     P8  KEY           8   PULL BOX WITH PIKE         VELVET-BOX-F
+     P9  PUMP          8   PUT KEY IN SWITCH          STOP-PUMP
+     P10 RACE          8   the wreck, lifebelt worn   THE-WRECK
+     N1  REGISTER      4   PUT REGISTER IN CHEST      CUSTODY-CHEST-F: each
+     N2  NAMEBOARD     4   PUT NAMEBOARD IN CHEST       name's achievement
+     N3  SONGBOOK      4   PUT SONGBOOK IN CHEST        comes from NAME-ACH
+     N4  TAG           4   PUT TAG IN CHEST
+     N5  PLAQUE        4   PUT PLAQUE IN CHEST
+                      ---
+     MAX-SCORE        100  (10 x 8 + 5 x 4. The names are optional, and P2
+                           is lost on the coat route: a win can score less)
+     Rank ladder (PRINT-RANK, section 3): 0-24 Ballast, 25-49 Liquidity
+     Provider, 50-74 Downstream Validator, 75 and up Front-Runner. A WIN is
+     always Furthest Downstream, whatever the score, and the teaser counts
+     the names in the chest.
+
+  E. THE STATE TABLE  (every GLOBAL in section 1: meaning / set by / read by)
+     The constants in section 1 name the values: SLUICE..ADRIFT for
+     SHIP-AT, HIDDEN..DEAD for LUCAN-STATE, SW-UPSTREAM..SW-GONE for
+     SANDWICH-STATE.
+
+     SHIP-AT         where the ship is      SHIP-TO ONLY (from   OUTSIDE-VIEW,
+                                            CAST-OFF, RIVER-TICK, SHIP-OUT,
+                                            STEER,               CAST-OFF,
+                                            THROW-AT-CHAIN)      RIVER-TICK,
+                                                                 STEER,
+                                                                 FLOAT-OBJECTS,
+                                                                 PROW-F,
+                                                                 PROW-UP-F,
+                                                                 CHAIN-F,
+                                                                 CHOCK-LEVER-F,
+                                                                 LUCAN-FOLLOWS,
+                                                                 GRAPNEL-THROWN,
+                                                                 V-BOW,
+                                                                 V-CAST-OFF
+     PASSAGE         which passage (1-5)    CAST-OFF             PASSAGE-LINE,
+                                                                 RIVER-TICK,
+                                                                 STEER, PROW-F,
+                                                                 FLOAT-OBJECTS,
+                                                                 LUCAN-STOWAWAY,
+                                                                 SANDWICH-TICK
+     DRIFT           turns into it (0-3)    CAST-OFF (0),        PASSAGE-LINE,
+                                            RIVER-TICK (+1; the  RIVER-TICK,
+                                            eddy: back to 1)     STEER,
+                                                                 PRINT-CURRENT,
+                                                                 THROW-AT-CHAIN,
+                                                                 LUCAN-STOWAWAY,
+                                                                 SANDWICH-TICK
+     LUCAN-STATE     Lucan's state machine  LUCAN-STOWAWAY,      LUCAN-TICK,
+                                            LUCAN-FOLLOWS,       LUCAN-DESC,
+                                            LUCAN-LEADS,         CAST-OFF-PIER,
+                                            LUCAN-DIES           HOLD-F,
+                                                                 HOLLOW-GREEN-F,
+                                                                 HOLLOW-DOWN-F,
+                                                                 STEP-ON-PATCH,
+                                                                 FOLLOW-LUCAN,
+                                                                 V-FOLLOW,
+                                                                 THRUMBLE-TOPIC,
+                                                                 THRUMBLE-RING
+     LUCAN-TIMER     turns since ARRIVED    LUCAN-LEADS (0),     LUCAN-ARRIVED
+                                            LUCAN-ARRIVED (+1)
+     LAST-LOC        where you ended the    GO, I-WORLD (every   LUCAN-LEADS
+                     last turn              turn)
+     SANDWICH-STATE  Sandwich's schedule    SANDWICH-TICK,       SANDWICH-DESC,
+                                            SANDWICH-GRAB,       SANDWICH-TICK,
+                                            SANDWICH-ROWS-OFF,   SANDWICH-GRAB,
+                                            SANDWICH-PAYS-UP     SANDWICH-TAKES-
+                                                                 COAT
+     SANDWICH-ASKED  he has asked after     SANDWICH-TICK        SANDWICH-TICK
+                     Lucan at the intake
+     RIVER-WARNED    the one warning used   RIVER-ATTEMPT        RIVER-ATTEMPT
+     PUMP-STOPPED    P9 done                STOP-PUMP            RIVER-TICK,
+                                                                 STOP-PUMP,
+                                                                 INTAKE-SCREEN-F,
+                                                                 GRATING-F,
+                                                                 STOP-SWITCH-F
+     LINES-LET-GO    P1: the lines let go   V-BOW                CHOCK-LEVER-F,
+                                                                 V-BOW
+     SWEEP-SHIPPED   P3 done                SOCKET-F             KEDGE, STEER,
+                                                                 STERN-F,
+                                                                 SOCKET-F,
+                                                                 SWEEP-F
+     KEDGE-SET       P4: the grapnel bites  KEDGE (on),          STERN-F,
+                     astern                 PULL-KEDGE (off)     FLOAT-OBJECTS
+     GRAPNEL-HOOKED  P7: the ship hangs     THROW-AT-CHAIN (on), GRAPNEL-DESC,
+                     from the chain         UNHOOK-GRAPNEL (off) GRAPNEL-F,
+                                                                 CHAIN-F,
+                                                                 THROW-AT-CHAIN
+     SONGBOOK-GIVEN  N3 handed over         THRUMBLE-RING        THRUMBLE-RING
+     MINGUS-WON      the game was won       THE-WRECK            PRINT-GAME-OVER,
+                                                                 PRINT-RANK
+
+     State that needs NO global, because the object tree already says it:
+     - which names are saved = the NAMEBIT objects in the custody chest
+                          (NAMES-IN-CHEST counts them; ABOARD? tells
+                          CAST-OFF if one is left behind)
+     - P6 done / P10 ready  = the lifebelt has TOUCHBIT / has WORNBIT
+     - the Pier's gate      = the lifebelt is carried
+     - the Span's gate      = the civic key is carried;  P8 done = the
+                              velvet box has OPENBIT
+     - where each NPC is    = <LOC ,LUCAN>, <LOC ,SANDWICH>, Thrumble in the
+                              Stone Pier (each moved only by its own code)
+     Rule used here: if an object can carry a fact (where it is, a flag),
+     let it; add a GLOBAL only for facts no object holds. (Two facts the
+     Inform version keeps elsewhere are GLOBALs here: SANDWICH-ASKED, which
+     Inform keeps in the spare `general` attribute, and MINGUS-WON, which
+     Inform reads from deadflag.)
+
+  F. THE WALKTHROUGH MAP
+     The shared walkthrough (app/modules/samples-shared/
+     mingus-2.walkthrough.txt) is 74 commands; none is a meta command.
+     Numbers below are its line numbers. Both versions are tested on it.
+
+     PART ONE, the Sluice  (lines 1-10)
+        1-6   WEST, READ DRILL (the launch order), WEST, TAKE REGISTER (N1),
+              EAST, EAST
+        7-10  UP (aboard), READ RECEIPT (Sandwich's calling card), BOW,
+              PULL LEVER (P1, +8, line 10) -- passage 1 begins [1/3]
+     PASSAGE 1  (lines 11-12)
+       11-12  DOWN [2/3: Lucan climbs out], PUT REGISTER IN CHEST (N1, +4,
+              line 12) [3/3: aground]
+     PART TWO, the Sandbar  (lines 13-30)
+       13-14  SAY HELLO, ASK LUCAN ABOUT SANDWICH (the hint: reach for the
+              gilt)
+       15-17  UP, OUT, EAST: the Wreck, where Sandwich states his rule
+       18     TAKE STRONGBOX (P2, +8): he takes it and rows away
+       19-21  TAKE SWEEP, TAKE GRAPNEL, TAKE NAMEBOARD
+       22-26  back to the Hold: PUT NAMEBOARD IN CHEST (N2, +4, line 25)
+       27-28  SOUTH, PUT SWEEP IN SOCKET (P3, +8, line 28)
+       29-30  THROW GRAPNEL, PULL LINE (P4, +8, line 30) -- passage 2 [1/3]
+     PASSAGE 2  (lines 31-33)
+       31-32  ASK LUCAN ABOUT OLD SIDE, ABOUT SONGS (the turns until the
+              window: [2/3], [3/3])
+       33     STEER EAST (P5, +8): the Stone Pier; Lucan is ashore first
+     PART THREE, the old side  (lines 34-50)
+       34-37  NORTH, OUT, RING BELL (Mrs. Thrumble), ASK THRUMBLE ABOUT
+              ASCENDANCY -- Lucan goes on ahead
+       38-40  NORTH, EXAMINE PATCHES (the warning, before it happens),
+              NORTH: the Hollow Green; Lucan has ARRIVED
+       41-42  TAKE LIFEBELT (P6, +8; Lucan sings), WEAR LIFEBELT (Lucan
+              dies, on the second turn)
+       43-45  SOUTH, SOUTH, RING BELL: Mrs. Thrumble hands over the songbook
+       46-50  IN, DOWN, PUT SONGBOOK IN CHEST (N3, +4, line 48), UP, UNTIE
+              ROPE -- passage 3 [1/3]
+     PASSAGE 3  (lines 51-53)
+       51-53  NORTH (the Prow) [2/3], EXAMINE CHAIN [3/3: throw now], THROW
+              GRAPNEL AT CHAIN (P7, +8, line 53)
+     PART FOUR, the Span  (lines 54-65)
+       54-56  CLIMB CHAIN, TAKE TAG, PULL BOX WITH PIKE (P8, +8, line 56)
+       57-58  WEST, EAST (the Span Deck: scenery only)
+       59-62  DOWN, SOUTH, DOWN, PUT TAG IN CHEST (N4, +4, line 62)
+       63-65  UP, NORTH, UNHOOK GRAPNEL -- passage 4 [1/3]
+     PASSAGE 4  (lines 66-67)
+       66-67  SOUTH [2/3], WAIT [3/3: pinned at the intake]
+     PART FIVE, the Intake  (lines 68-72)
+       68-69  OUT (Sandwich asks after Lucan), PUT KEY IN SWITCH (P9, +8;
+              Sandwich tosses you the plaque)
+       70-71  NORTH, SOUTH (the Drowned Road: scenery and a warning only)
+       72     IN: you are aboard, so the ship comes off the screen --
+              passage 5, the Race [1/3]
+     PASSAGE 5, the Race  (lines 73-74)
+       73-74  DOWN [2/3: Sandwich goes past, into the white water], PUT
+              PLAQUE IN CHEST (N5, +4) [3/3: the wreck; the lifebelt is
+              worn, so P10, +8] -- the Old-Side Shore. 100 of 100.
+ ============================================================================"
+
+
+;"============================================================================
   1. SETUP  --  banner, scoring switch, and all game state
+  ----------------------------------------------------------------------------
+  WHY IT IS BUILT THIS WAY
+    In a long game most bugs are STATE bugs, so every GLOBAL is here, on one
+    screen, and the state table in the overview (E) says who sets and reads
+    each one. Two habits keep that table small and readable:
+    - 'Where is the ship?' is three numbers (SHIP-AT, PASSAGE, DRIFT), and
+      each NPC is ONE variable (LUCAN-STATE, SANDWICH-STATE). Named
+      constants give every value a word, so the tests read like sentences:
+      <==? ,SHIP-AT ,ADRIFT>; <==? ,LUCAN-STATE ,GUIDING>.
+    - Scoring uses zillib's achievements: AWARD-POINTS grants each one only
+      once, so the chest and the puzzles can call it without flags of their
+      own.
  ============================================================================"
 
 <CONSTANT RELEASEID 1>
@@ -267,6 +599,13 @@ ever come back. Nobody here is going to stop you trying." CR CR>
 
 ;"============================================================================
   3. LIBRARY  --  zillib, the score table, and the two endings
+  ----------------------------------------------------------------------------
+  WHY IT IS BUILT THIS WAY
+    Two endings, one GLOBAL: MINGUS-WON is false for every death (the river,
+    the broken end, the Race unprotected) and true for the win, and
+    PRINT-GAME-OVER and PRINT-RANK both read it. The closing teaser rides in
+    PRINT-RANK because the rank is the last thing the library prints for a
+    finished game.
  ============================================================================"
 
 ;"PRINT-GAME-OVER and PRINT-RANK are library routines we replace below;
@@ -423,6 +762,24 @@ to be first." CR>)>>>
   And the properties:
     LANDING       which landing a room belongs to (SLUICE ... INTAKE)
     RIVER-LINE    the room's own line for the first river attempt
+
+  WHY IT IS BUILT THIS WAY
+    - Rules ask the ROOM, not a list of rooms. The river rule asks for
+      RIVERSIDEBIT; Lucan's following rule asks the LANDING property; each
+      room supplies its own RIVER-LINE. A new riverside room needs a flag
+      and a property, not an edit to every rule that cares. SHIPBIT marks
+      the four ship rooms, and NAMEBIT gives the chest one test for the five
+      names.
+    - ONE WRITER for the ship's position: SHIP-AT changes only in SHIP-TO,
+      so finding every move of the ship is one search, and FLOAT-OBJECTS is
+      rerun every time, with no way to forget.
+    - Every landing ends the same way, so casting off is one routine
+      (CAST-OFF): each landing's own action prints its own text, then hands
+      over. The passage, the drift reset and the left-a-name warning are
+      written once.
+    - The warn-once river rule is one routine and one GLOBAL (RIVER-ATTEMPT,
+      RIVER-WARNED). Every way into the water, in every room, calls it, so
+      the rule is the same everywhere and cannot be half-applied.
  ============================================================================"
 
 ;"--- Features: scenery you can look at --------------------------------------
@@ -663,6 +1020,20 @@ water." CR>
   is; OUTSIDE-VIEW and SHIP-OUT turn that into what you see and where OUT
   goes. All four rooms have SHIPBIT and RIVERSIDEBIT: the river is always
   over the rail.
+
+  WHY FIXED ROOMS AND ONE VARIABLE
+    The obvious way to build a vehicle is to MOVE it: re-link its exits at
+    every stop and carry the player and everything aboard along. That is a
+    lot of code that can go wrong, and every exit would be changing under
+    the player. Here the four rooms never move and their exits never
+    change. Where the ship is lives in one variable, and three routines do
+    most of the work of turning it into the world: OUTSIDE-VIEW (what you
+    see over the rail), SHIP-OUT (where OUT leads) and RIVER-TICK (what the
+    current does next); a few objects read it for their own text (the
+    Prow, the chock lever). Things that come and go with the ship's
+    position (the chain, the mooring rope, the verdlings on the bank) are
+    placed by FLOAT-OBJECTS, which reads SHIP-AT. Adding a landing means
+    one constant, one case in each of those, and the landing's own rooms.
  ============================================================================"
 
 ;"--- The player's own belongings --------------------------------------------
@@ -1064,6 +1435,13 @@ wrapper. Lucan travelled with what he could carry.")
  ----------------------------------------------------------------------------
   The start. The launch drill (read at the Sluice Mouth) tells you the order
   of P1: aboard, bow, lever. N1, the launch register, is inside the Sluice.
+
+  WHY IT IS BUILT THIS WAY
+    The first landing teaches the game's contract: the sign tells you the
+    answer (the drill states P1's order outright), and order matters (BOW
+    before the lever). N1 sits one room off the start, inside the Sluice,
+    so the first name already shows that names are short detours -- and
+    optional ones: the launch never checks for it.
  ============================================================================"
 
 ;"--- 5. Foot of the Gangplank (start) -----------------------------------------
@@ -1248,6 +1626,14 @@ Amberline Sutt.\" After it, nothing: that was the last ship before the jam.")>
   The ship runs aground on its own. Sandwich is at the Wreck first, and his
   front-run rule decides P2. The sweep (P3) and the grapnel (P4) are here,
   and so is N2, the Expedition's nameboard.
+
+  WHY IT IS BUILT THIS WAY
+    Sandwich says his rule out loud before it can bite ('Whatever you reach
+    for, I'll have reached for it first'), and Lucan, asked about him,
+    hints at the answer (reach for the gilt). So P2 is learnable, not a
+    trap. All four salvage items sit in the one room, so the rule always
+    has something to choose between. The kedge's gate (no sweep, no kedge)
+    is the first of the cast-off gates, and like all of them it says why.
  ============================================================================"
 
 ;"--- 8. The Sandbar -------------------------------------------------------------"
@@ -1407,6 +1793,16 @@ GRUND, BEN OKORO. Under them, in the same hand: GOT THIS FAR.")>
   The old side is seen only from outside, and never explained. Mrs.
   Thrumble answers the bell at the pier. N3, Lucan's songbook, reaches you
   through her.
+
+  WHY IT IS BUILT THIS WAY
+    Lucan's death is a SCRIPTED event, on purpose: the story needs it, so
+    nothing the player does prevents it (LUCAN-F waves off the rescues a
+    player will try), but it is signposted first (the warm air round the
+    stones at the Mine Heads). The pier's cast-off waits for it -- you
+    cannot sail on with Lucan alive on the bank -- which removes a whole
+    branch of story the rest of the game would have to handle. And the
+    consequence comes back to the player through another NPC: Mrs.
+    Thrumble's bell is how his songbook (N3) reaches you.
  ============================================================================"
 
 ;"--- 10. The Stone Pier -------------------------------------------------------
@@ -1822,6 +2218,13 @@ hold on to the fence." CR>)
   Passage 3's window is THROW GRAPNEL AT CHAIN (P7); miss it and the ship
   dies under the broken end. Up the chain: the diver's tag (N4) and the
   civic key in its velvet box (P8). You can't leave without the key.
+
+  WHY IT IS BUILT THIS WAY
+    P7 is the second one-turn window, and the first that can kill. That is
+    deliberate: P5's window forgave a miss (the eddy), so by now the player
+    knows exactly how a window looks on screen ([CURRENT: 3/3], 'Throw now
+    or not at all'). The Span's gate quotes the box ('OPENS ANYTHING VAUNT
+    BUILT'), so the refusal is also the hint for Part Five.
  ============================================================================"
 
 ;"--- The grapnel's routines (it is used in Part Two as well) -----------------
@@ -2099,6 +2502,13 @@ RIVER! Generous token allocation. Vesting schedule TBD.")
   The current pins the ship to the intake screen. Sandwich is pinned there
   too, holding N5. Vaunt's key in Vaunt's switch stops the pump (P9); the
   next turn you are aboard, the ship comes off the screen into the Race.
+
+  WHY IT IS BUILT THIS WAY
+    The ship comes off the screen only at the end of a turn you spend
+    ABOARD, so stopping the pump from the catwalk can never strand you: the
+    ship waits for you. Sandwich's payoff is called by the pump's own code
+    (STOP-PUMP -> SANDWICH-PAYS-UP); he never checks for it. When one
+    puzzle triggers an NPC's reaction, let the puzzle call the NPC.
  ============================================================================"
 
 ;"--- 17. The Intake Screen ---------------------------------------------------"
@@ -2327,6 +2737,16 @@ somewhere." CR>)>>
       two versions of this game printing the same thing on the same turn.
   Rule of thumb: the TICK decides what an NPC does; the ACTION decides how
   it reacts to what YOU do. Copy this split for any NPC of your own.
+
+  WHY A STATE MACHINE FOR LUCAN
+    Lucan does different things at different points in the story: hidden,
+    following, leading, waiting, gone. One variable holding one of five
+    named states, plus one routine per state, means that each behaviour can
+    be read on its own, every change of state is one visible SETG you can
+    search for, and impossible mixtures (dead but still following) cannot
+    happen. Sandwich is built differently, as a SCHEDULE -- one clause per
+    appointment -- because his part is a sequence of events rather than a
+    set of modes. Pick the shape that matches the character.
  ============================================================================"
 
 ;"------------------------------------------------------------------------------
@@ -2693,8 +3113,9 @@ CR>)>>
           (<VERB? TAKE PULL PUSH ATTACK KISS>
            <TELL "He's already out of reach, smiling. Latency." CR>)>>
 
-;"LESSON: a rule the player can learn. The front-run rule, as an action. Called from the Wreck's M-BEG for every
-  TAKE there while he is present; returning false lets the take go on."
+;"LESSON: a rule the player can learn. The front-run rule, as an action.
+  Called from the Wreck's M-BEG for every TAKE there while he is present;
+  returning false lets the take go on."
 <ROUTINE SANDWICH-GRAB (ITEM)
     <COND (<NOT <EQUAL? .ITEM ,SWEEP ,GRAPNEL ,STRONGBOX ,NAMEBOARD>> <RFALSE>)
           (<==? ,SANDWICH-STATE ,SW-HOLDING>
@@ -2905,7 +3326,16 @@ the water, there's a door that was never a door.\"")>
   returns, so Lucan and Sandwich don't get a turn -- the same as Inform,
   where the daemon stops once deadflag is set. The routine returns false:
   an interrupt that returns true tells V-WAIT 'something happened, stop
-  waiting', which with one-turn waits makes no difference either way."
+  waiting', which with one-turn waits makes no difference either way.
+
+  WHY ONE DISPATCHER
+    If several interrupts and M-END handlers each printed at the end of a
+    turn, the order of their text would depend on the order the library
+    happens to run them in. With one, the order is written down: the river
+    first (it can end the game, and it counts the drift that Lucan's and
+    Sandwich's appointments are keyed to), then Lucan, then Sandwich. It is
+    also what lets the ZIL and Inform versions print the same text on the
+    same turns."
 <ROUTINE I-WORLD ()
     <RIVER-TICK>
     <LUCAN-TICK>
@@ -3000,6 +3430,12 @@ The hull opens like a letter.">)>)>
   the winning banner, and JIGS-UP prints the last lines and ends the game.
   Without the lifebelt, the river. (A worn lifebelt is still IN the player;
   WORNBIT only marks it worn.)
+
+  WHY IT IS BUILT THIS WAY
+    The ending is not a special case: it is how passage 5's drift 3 lands,
+    exactly as passages 1 and 4 land on their own (RIVER-TICK calls
+    THE-WRECK). The one test, the lifebelt worn, was set up three Parts ago
+    (P6) and is warned about on drift 2.
  ============================================================================"
 
 <ROUTINE THE-WRECK ()
@@ -3051,6 +3487,11 @@ flickers. Somewhere up there, a long way upstream, is home.")
   the one defined LATER -- which is how this section can replace a few of
   zillib's own lines (INVENTORY, READ, SWIM, JUMP, TELL ... ABOUT) without
   touching the library.
+
+  WHY IT IS BUILT THIS WAY
+    A verb belongs to the whole game, not to one object, so every new verb
+    is here, each with a note naming the puzzle it serves; the objects
+    answer the actions in their own ACTION routines.
  ============================================================================"
 
 ;"--- INVENTORY is a turn ------------------------------------------------------
