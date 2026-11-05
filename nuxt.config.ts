@@ -2,6 +2,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { frotzsmith } from './frotzsmith.config'
 import { ifvmsThisFix } from './tools/ifvms-this-fix.mjs'
+import { ifvmsTextFix } from './tools/ifvms-text-fix.mjs'
 import { buildCommit, frotzsmithVersion } from './tools/version.mjs'
 
 // All app-wide constants live in frotzsmith.config.ts (single source of truth).
@@ -120,6 +121,10 @@ export default defineNuxtConfig({
   // wrapper turns into a crash in the production build — every headless
   // replay died with "reading 'e'". Applied to both the worker and the client
   // graphs (see tools/ifvms-this-fix.mjs).
+  //
+  // ifvmsTextFix: a story's Unicode table could inject JavaScript through
+  // ifvms's abbreviation JIT (audit 2026-11-04, F2). Same build-fails-if-the-
+  // line-moves style (see tools/ifvms-text-fix.mjs).
   vite: {
     define: {
       __FROTZSMITH_VERSION__: JSON.stringify(VERSION),
@@ -127,10 +132,10 @@ export default defineNuxtConfig({
       __FROTZSMITH_COMMIT_DATE__: JSON.stringify(COMMIT?.date ?? ''),
       __FROTZSMITH_DESKTOP__: JSON.stringify(DESKTOP),
     },
-    plugins: [ifvmsThisFix()],
+    plugins: [ifvmsThisFix(), ifvmsTextFix()],
     worker: {
       format: 'es',
-      plugins: () => [ifvmsThisFix()],
+      plugins: () => [ifvmsThisFix(), ifvmsTextFix()],
     },
   },
 
