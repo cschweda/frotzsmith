@@ -13,23 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A project can no longer replace a library file.** An include named like a
   Standard Library or PunyInform file (`VerbLib.h`, `Parser.h`, `puny.h`, …,
   any case) refuses the whole project; uploading such a file yourself is
-  refused with a clear message; and the compiler now writes the library after
-  your extensions, so the library always wins unless you explicitly chose to
-  replace it. Opening a project that adds or turns on any extension always
+  refused with a clear message (choosing to replace a library file isn't
+  offered yet); and the compiler now writes the library after your
+  extensions, so the library always wins. A library-named extension you
+  uploaded earlier is kept in your browser but no longer used, and you're
+  told so once. Opening a project that adds or turns on any extension always
   asks first and names each one.
 - **Skeins are rebuilt on every load** (project, `.skein` import, browser
   storage), keeping only the fields Frotzsmith knows; node ids are checked.
   A booby-trapped Skein can no longer crash the panel, replay a different
   command from the one shown, or stop you downloading your project.
-- **Stricter project files.** Archive comments, Unicode Path/Comment extra
-  fields, links and special files from any host, a file that is also a
+- **Stricter project files.** Archive comments, Unicode Comment fields and
+  Unicode Path fields that give a file a second name (one that only repeats
+  the name, as Linux `zip` writes, is fine), links and special files from any host, a file that is also a
   folder, data after a compressed stream, Windows device names (`CON`,
   `nul.txt`, …), names Windows or macOS can't hold, and invisible or
   look-alike characters are all refused; names that differ only by case or
-  compatibility form (`ß`/`ss`, `ﬀ`/`ff`) count as the same. Downloads refuse
-  the same, so a download always reopens.
+  compatibility form (`ẞ`/`ß`/`ss`, `ﬀ`/`ff`) count as the same. A download
+  always reopens: names Frotzsmith makes up avoid device names (a test called
+  "Con" is saved as `tests/con_.txt`), and files kept from before these rules
+  whose names a project can no longer hold are left out of the download —
+  kept in your browser, never deleted — and the download message names them.
 - **Safer messages.** File names in messages are cleaned of invisible and
-  layout-changing characters, shortened, and quoted; hidden files a project
+  layout-changing characters (emoji such as 👩‍💻 stay whole), shortened, and quoted; hidden files a project
   carries are named when you open and download it.
 - **Limits.** At most 200 test scripts and 1 MB of script text per project; a
   `.skein` import is capped at 8 MB and asks before replacing a Skein; opening
@@ -42,12 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   could break out of the interpreter's generated code and run script with the
   IDE's own access (shown with a story compiled by Frotzsmith's own compiler).
   Both interpreters — Play and the headless test runner — are fixed, and the
-  build now checks the fix every time.
-- **A game from a project file or a shared link doesn't run until you say so.**
+  build now checks the fix every time — and fails if the fix was never
+  applied; the development server's test runner is fixed too.
+- **A game from a project file, an opened source file or a shared link doesn't run until you say so.**
   Skein auto-run waits on the first Compile of such a game, with a one-line
   note in the Skein panel; pressing Play or Run once (or loading a sample or a
   new project) lets it auto-run as usual. This lasts until you do, even across
-  a reload, and is kept per language.
+  a reload, and is kept per language (so is the note).
 - **Analytics script is a reviewed copy** served from Frotzsmith itself instead
   of a live pass-through of the analytics provider's script; the desktop
   build has no analytics at all.
@@ -55,7 +62,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   script, worker or frame source, and a test pins every security header.
 - **Supply chain:** checksums and sources recorded for every vendored file
   (player, jQuery, analytics); CI's GitHub Actions pinned by commit; the
-  Netlify build installs exactly the locked dependency versions.
+  Netlify build installs exactly the locked dependency versions, including
+  Netlify's own automatic install that runs before the build.
 - **Smaller fixes:** the Play page only accepts a story created by this site
   (not merely any `blob:` link); a project whose file headers claim encryption
   only locally is refused; a room called "constructor" (or similar) no longer
