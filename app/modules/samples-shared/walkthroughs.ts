@@ -53,6 +53,7 @@ const WALKTHROUGHS: Record<string, string> = Object.assign(Object.create(null) a
   'std-mingus-1': mingus1,
   'zil-mingus-1': mingus1,
   'std-mingus-2': mingus2,
+  'zil-mingus-2': mingus2,
 
   'std-skeleton': stdSkeleton,
   'std-two-rooms': demo,

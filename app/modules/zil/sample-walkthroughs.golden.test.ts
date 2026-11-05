@@ -61,6 +61,7 @@ const FINALE: Record<string, { text: string; ended?: boolean }> = {
   'zil-daemon': { text: 'The candle gutters and goes out' },
   'zil-architect-legacy': { text: 'The work continues', ended: true },
   'zil-mingus-1': { text: '*** You have reached the bottom of the Mingus ***', ended: true },
+  'zil-mingus-2': { text: '*** You have gone further than anyone ***', ended: true },
 }
 
 let compile: (source: string, version: number) => string

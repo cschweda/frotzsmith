@@ -36,8 +36,8 @@ describe('sampleById', () => {
 // ---------------------------------------------------------------------------
 
 describe('ZIL_SAMPLES registry', () => {
-  it('has exactly 9 samples', () => {
-    expect(ZIL_SAMPLES).toHaveLength(9)
+  it('has exactly 10 samples', () => {
+    expect(ZIL_SAMPLES).toHaveLength(10)
   })
 
   it('all IDs are unique', () => {
@@ -64,8 +64,8 @@ describe('ZIL_SAMPLES registry', () => {
     }
   })
 
-  it('every concept sample has target z3; the two longer games target z5', () => {
-    const LONGER_GAMES = ['zil-architect-legacy', 'zil-mingus-1']
+  it('every concept sample has target z3; the three longer games target z5', () => {
+    const LONGER_GAMES = ['zil-architect-legacy', 'zil-mingus-1', 'zil-mingus-2']
     for (const s of ZIL_SAMPLES) {
       expect(s.target).toBe(LONGER_GAMES.includes(s.id) ? 'z5' : 'z3')
     }
@@ -166,5 +166,21 @@ describe('ZIL_SAMPLES concept checks', () => {
     expect(s.source).toContain(',MINGUS-WON')
     expect(s.source).toContain('M-END')
     expect(s.source).toContain('<SYNTAX TYPE TOPIC = V-TYPE>')
+  })
+
+  it('zil-mingus-2 is the third longer game: the NPC showcase, the one dispatcher, both endings', () => {
+    const s = sampleById('zil-mingus-2')!
+    expect(s.name).toBe('Mingus II: Everything Rolls Downhill · longer game')
+    expect(s.description).toBe('A river voyage in five landings: 20 rooms, 10 puzzles, a guide and a trickster')
+    expect(s.source).toContain('11. NPCS')
+    expect(s.source).toContain('LESSON: the state machine')
+    expect(s.source).toContain('<QUEUE ,I-WORLD -1>')
+    expect(s.source).toContain('SCORING-ACHIEVEMENTS')
+    expect(s.source).toContain('<REPLACE-DEFINITION PRINT-GAME-OVER')
+    expect(s.source).toContain(',MINGUS-WON')
+    // INVENTORY is a turn: mapped to a game action zillib's GAME-VERB? skips.
+    expect(s.source).toContain('<SYNTAX INVENTORY = V-TURN-INVENTORY>')
+    // Parity rule 4: no room prints at M-END; the one interrupt does.
+    expect(s.source.match(/<QUEUE ,/g)).toHaveLength(1)
   })
 })
