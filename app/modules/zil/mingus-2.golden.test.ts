@@ -413,6 +413,88 @@ describe.skipIf(!process.env['ZIL_SAMPLE_GOLDEN'])(
     }, 60_000)
   })
 
+  describe('review fixes: nothing you need can be lost, and the small things', () => {
+    /** The walkthrough with `cmds` inserted after command #n. */
+    const ins = (n: number, cmds: string[]) => [...to(n), ...cmds, ...walkthrough.slice(n)]
+
+    it("no Lucan reply opens with two quote marks; the verse is nested in single quotes", async () => {
+      const topics = [
+        'old side', 'songs', 'sandwich', 'verdlings', 'river', 'lantern', 'ascendancy',
+        'lucan', 'patches', 'ship', 'lifebelt', 'weather',
+      ]
+      const outs = await tail(to(14), [
+        ...topics.map(t => `ask lucan about ${t}`), 'tell lucan about patches', 'show coat to lucan',
+        'give pike to lucan', 'lucan, sing',
+      ])
+      for (const o of outs) expect(o).not.toContain('""')
+      expect(outs[1]).toContain(`"'Where the green bank goes down to the water`)
+      expect(outs[1]).toContain(`never a door.' That one.`)
+      const turns = await play(walkthrough)
+      expect(turns.filter(t => t.command === 'ask lucan about songs')[0]!.output).not.toContain('""')
+    }, 60_000)
+
+    it('the pike cannot be dropped or thrown, and the game is still won', async () => {
+      const [drop, put, thrw] = await tail(to(16), ['drop pike', 'put down pike', 'throw pike'])
+      expect(drop).toContain("The verdlings' chief does not put down the pike")
+      expect(put).toContain("The verdlings' chief does not put down the pike")
+      expect(thrw).toContain('You keep hold of the pike')
+      const turns = await play(ins(16, ['drop pike', 'throw pike']))
+      expect(turns.at(-1)!.output).toMatch(/scored 100 points out of a possible 100/)
+      expect(turns.filter(t => t.command === 'pull box with pike')[0]!.output).toContain('VAUNT CIVIC KEY')
+    }, 60_000)
+
+    it('the lifebelt, once taken, stays on you; the game is still won', async () => {
+      const [drop, off, thrw] = await tail(to(46), ['drop lifebelt', 'take off lifebelt', 'throw lifebelt'])
+      expect(drop).toContain('You keep hold of the lifebelt')
+      expect(off).toContain('You leave it on')
+      expect(thrw).toContain('You keep hold of the lifebelt')
+      const turns = await play(ins(46, ['drop lifebelt', 'take off lifebelt']))
+      expect(turns.at(-1)!.output).toMatch(/scored 100 points out of a possible 100/)
+    }, 60_000)
+
+    it('the Hollow Green stops describing the lifebelt on its post once it is taken', async () => {
+      const [before] = await tail(to(40), ['look'])
+      expect(before).toContain('A white lifebelt hangs on a post')
+      const [after] = await tail(to(41), ['look'])
+      expect(after).toContain('A bare post stands at the water')
+      expect(after).not.toContain('hangs on a post')
+      // WEAR straight off the post takes it first, with the same points.
+      const [wear, score] = await tail(to(40), ['wear lifebelt', 'score'])
+      expect(wear).toContain('You lift the lifebelt off its post')
+      expect(score).toMatch(/you've scored 56 points out of a possible 100/)
+    }, 60_000)
+
+    it('the teaser is singular when the songbook is the only name in the chest', async () => {
+      const onlySongbook = walkthrough.map(c =>
+        c.startsWith('put ') && c.endsWith(' in chest') && c !== 'put songbook in chest' ? 'wait' : c)
+      const turns = await play(onlySongbook)
+      const last = turns.at(-1)!.output
+      expect(last).toContain('Furthest Downstream')
+      expect(last).toContain('One name is in the chest; it used to sing on Thursdays.')
+      expect(last).not.toContain('one of them')
+    }, 60_000)
+
+    it('FOLLOW, SING, LISTEN and an order to Lucan get the game\'s own answers', async () => {
+      const [coat, sing, listen, order, greet] = await tail(to(14), [
+        'follow coat', 'sing', 'listen', 'lucan, sing', 'lucan, hello',
+      ])
+      expect(coat).toContain('You have it.')
+      expect(sing).toContain('Lucan joins in, a third above you')
+      expect(listen).toContain('You hear nothing unexpected.')
+      expect(order).toContain('sings a line about something else entirely')
+      expect(greet).toContain('sings a line about something else entirely')
+      const [alone] = await tail([], ['sing'])
+      expect(alone).toContain("The river doesn't join in.")
+    }, 60_000)
+
+    it('bare STEER asks a question and passes no turn', async () => {
+      const turns = await play([...to(30), 'steer', 'wait'])
+      expect(turns.at(-2)!.output).toContain('What do you want to steer?')
+      expect(turns.at(-2)!.output).not.toContain('[CURRENT:')
+      expect(turns.at(-1)!.output).toContain('[CURRENT: 2/3]')
+    }, 60_000)
+  })
+
   it('understands the phrasings beyond the walkthrough', async () => {
     const expectLast = async (prefix: string[], cmds: string[], text: string) => {
       const outs = await tail(prefix, cmds)

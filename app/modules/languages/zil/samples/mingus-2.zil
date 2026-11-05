@@ -21,6 +21,26 @@
   turns, so comparing them side by side is a good way to learn either
   language.
 
+  WHERE THE TWO VERSIONS DIFFER  (on purpose; none of these changes the
+  game's state, its puzzles, or what the walkthrough prints)
+    1. No implicit pick-up for a second item that must be held. PULL BOX
+       WITH TAG, SHOW COAT TO LUCAN and the like say 'You aren't holding
+       that' here, where Inform's parser picks the item up first. Our own
+       SYNTAX lines say HAVE, not TAKE, on purpose: zillib's TAKE flag calls
+       TRY-TAKE directly, which would skip the custody chest's refusal, the
+       hooked grapnel and the lifebelt's points.
+    2. Some commands Inform's parser rejects (so no time passes) are
+       answered by game code here, and pass a turn: FOLLOW SANDWICH when he
+       isn't there, for one. Bare STEER is the exception that is matched:
+       it asks 'What do you want to steer?' and passes no turn (section 14).
+    3. A topic word that is in no dictionary list (ASK THRUMBLE ABOUT
+       PARSNIPS) gets zillib's 'I don't know the word', not the NPC's
+       fallback line; Inform's parser accepts any word in a topic. The
+       topic words section (section 3) VOCs the likely ones.
+    4. Stock library wording: 'Taken.', 'You don't see that here.', the
+       inventory layout, the score line, and parser questions and errors
+       are each library's own. Game text is the same in both.
+
   THE STORY
     Mingus I ended at the foot of a funeral ship's gangplank, with thousands
     of verdlings bowed to the pike in your hand. Mingus II starts there, the
@@ -256,6 +276,13 @@ ever come back. Nobody here is going to stop you trying." CR CR>
 
 <INSERT-FILE "parser">
 
+;"EXTRA-GAME-VERBS: actions the main loop treats like SCORE or SAVE -- no
+  M-END, no CLOCKER, so no turn passes. The library has already put SCORE
+  and FULL SCORE on this list, so we add to it (the ! splices the old list
+  in) rather than replace it. Ours is STEER on its own, which just asks a
+  question (section 14)."
+<SETG EXTRA-GAME-VERBS (STEER-WHERE !,EXTRA-GAME-VERBS)>
+
 ;"--- The score table ---------------------------------------------------------
   One line per achievement. AWARD-POINTS n ,ACH?NAME grants it exactly once
   (the library remembers), so it is always safe to call it again, and FULL
@@ -314,8 +341,11 @@ DOWNHILL. ">
                      (<==? .N 3> <TELL "Three names are in the chest">)
                      (<==? .N 4> <TELL "Four names are in the chest">)
                      (ELSE <TELL "Five names are in the chest">)>
-               <COND (<IN? ,SONGBOOK ,CUSTODY-CHEST>
-                      <TELL "; one of them used to sing on Thursdays">)>
+               ;"'one of them' needs more than one name; with only the
+                 songbook in the chest, the name is simply 'it'."
+               <COND (<NOT <IN? ,SONGBOOK ,CUSTODY-CHEST>>)
+                     (<==? .N 1> <TELL "; it used to sing on Thursdays">)
+                     (ELSE <TELL "; one of them used to sing on Thursdays">)>
                <TELL ". Somewhere downstream, a man in sandwich boards is telling
 nobody that he got there first.|
 |
@@ -326,8 +356,17 @@ to be first." CR>)>>>
   Words that only ever appear in ASK/TELL ... ABOUT topics, STEER FOR ...,
   or SAY .... A word must be in the dictionary for the code to name it as
   ,W?WORD, and for the parser to accept it at all (an unknown word stops the
-  command with 'I don't know the word'). Words that are already the name of
-  some object (SANDWICH, RIVER, SHIP...) are in the dictionary anyway."
+  command with 'I don't know the word' -- Inform's parser takes any word in
+  a topic, so this is one place the two versions differ). Words that are
+  already the name of some object (SANDWICH, RIVER, SHIP...) or a verb
+  (HELLO, HI) are in the dictionary anyway.
+  Be careful what you VOC as a NOUN. The parser reads LUCAN, HELLO as a
+  list of nouns ('Lucan and hello') if HELLO is a noun, and then finds no
+  verb at all; as a plain verb, HELLO makes it an order to Lucan.
+  The last few words are here so that a likely question gets the NPC's
+  fallback line instead of 'I don't know the word'. WEATHER is the one the
+  walkthrough test asks Lucan about (ASK LUCAN ABOUT WEATHER) to check his
+  fallback."
 <VOC "OLD" NOUN>
 <VOC "SIDE" NOUN>
 <VOC "ACROSS" NOUN>
@@ -354,8 +393,12 @@ to be first." CR>)>>>
 <VOC "PIER" NOUN>
 <VOC "SHORE" NOUN>
 <VOC "WEATHER" NOUN>
-<VOC "HELLO" NOUN>
-<VOC "HI" NOUN>
+<VOC "LOVE" NOUN>
+<VOC "HOME" NOUN>
+<VOC "DEATH" NOUN>
+<VOC "MUSIC" NOUN>
+<VOC "TEA" NOUN>
+<VOC "HELP" NOUN>
 
 
 ;"============================================================================
@@ -560,18 +603,43 @@ a hand. You climb back.")
            "You stand at the edge, and the Verdance goes by, quick and quiet,
 close enough to touch. You step back.")>>
 
-;"--- The pike: never lost ---------------------------------------------------------
-  KEEP-PIKE?: the pike can't be given away (except to Lucan, who refuses it
-  in character), put in anything or thrown at anything. In Inform the pike
-  hears about GIVE and PUT IN first; in ZIL the person or container (PRSI)
-  hears first, so every PRSI handler that could receive the pike asks this
-  before anything else."
-<ROUTINE KEEP-PIKE? ()
-    <COND (<AND <PRSO? ,PIKE>
+;"--- The gear you keep: the pike and the lifebelt -------------------------------
+  KEEP-GEAR?: two things never leave you, because the game can't be won
+  without them -- and a thing left behind on some bank would make the game
+  unwinnable without a word of warning.
+    - The pike (P8 at the Broken End needs it): it can't be given away
+      (except to Lucan, who refuses it in character), put in or on
+      anything, thrown, or dropped.
+    - The lifebelt, once you have it (the Race needs it worn): it can't be
+      put in or on anything, thrown, dropped, or taken off. SHOW is let
+      through, and so is GIVE while it is only in your hands (everyone you
+      could give it to hands it back); once you are wearing it, GIVE and
+      TAKE LIFEBELT are a TAKE OFF, as Inform's library treats them, and
+      get the same answer.
+  In Inform the item hears about GIVE and PUT IN first; in ZIL the person
+  or container (PRSI) hears first, so every PRSI handler that could
+  receive one of them asks this before anything else. The two items' own
+  ACTIONs ask it too, for the verbs that have no PRSI (DROP, THROW)."
+<ROUTINE KEEP-GEAR? ()
+    <COND (<AND <PRSO? ,PIKE> <VERB? DROP>>
+           <TELL "The verdlings' chief does not put down the pike. You keep hold
+of it." CR>
+           <RTRUE>)
+          (<AND <PRSO? ,PIKE>
                 <OR <VERB? PUT-IN PUT-ON THROW-AT THROW-AWAY>
                     <AND <VERB? GIVE> <NOT <PRSI? ,LUCAN>>>>>
            <TELL "You keep hold of the pike. Down here, it is the only thing
 anyone respects." CR>
+           <RTRUE>)
+          (<AND <PRSO? ,LIFEBELT> <IN? ,LIFEBELT ,WINNER>
+                <VERB? DROP PUT-IN PUT-ON THROW-AT THROW-AWAY>>
+           <TELL "You keep hold of the lifebelt. Every song about this river
+ends in white water." CR>
+           <RTRUE>)
+          (<AND <PRSO? ,LIFEBELT> <VERB? UNWEAR TAKE GIVE>
+                <FSET? ,LIFEBELT ,WORNBIT>>
+           <TELL "You leave it on. Every song about this river ends in white
+water." CR>
            <RTRUE>)>
     <RFALSE>>
 
@@ -599,9 +667,11 @@ anyone respects." CR>
 
 ;"--- The player's own belongings --------------------------------------------
   The pike: Mingus I's rules carry over. It can't be given away, put in
-  anything or thrown (KEEP-PIKE?, section 4), so it can never be lost for
-  good; DROP leaves it where it falls. The pike's ACTION also runs when it is
-  PRSI (PULL BOX WITH PIKE), so it checks that it is PRSO first."
+  anything, thrown or dropped (KEEP-GEAR?, section 4), so it can never be
+  lost: P8 at the Broken End needs it, and a pike left behind on some bank
+  would leave the ship hanging from the Span's chain for ever. The pike's
+  ACTION also runs when it is PRSI (PULL BOX WITH PIKE), so it checks that
+  it is PRSO first."
 <OBJECT PIKE
     (DESC "pike")
     (SYNONYM PIKE STAFF SPEAR POLE)
@@ -614,7 +684,7 @@ Thousands of verdlings bowed to it. It is a very long reach.")
 
 <ROUTINE PIKE-F ()
     <COND (<NOT <PRSO? ,PIKE>> <RFALSE>)
-          (ELSE <KEEP-PIKE?>)>>
+          (ELSE <KEEP-GEAR?>)>>
 
 ;"Lady Vaunt's coat, the real one. Nothing needs it; Sandwich will take it as
   a price (section 11), and Lucan knows it. WEARBIT lets you WEAR it;
@@ -826,7 +896,7 @@ The main deck is north." CR>)
     (ACTION SOCKET-F)>
 
 <ROUTINE SOCKET-F ()
-    <COND (<KEEP-PIKE?> <RTRUE>)
+    <COND (<KEEP-GEAR?> <RTRUE>)
           (<AND <VERB? EXAMINE> <PRSO? ,SOCKET>>
            <COND (,SWEEP-SHIPPED
                   <TELL "The sweep sits in it as if it had never left." CR>)
@@ -930,7 +1000,7 @@ Ascendancy is worth.")
     (ACTION CUSTODY-CHEST-F)>
 
 <ROUTINE CUSTODY-CHEST-F ()
-    <COND (<KEEP-PIKE?> <RTRUE>)
+    <COND (<KEEP-GEAR?> <RTRUE>)
           (<AND <VERB? PUT-IN PUT-ON> <PRSI? ,CUSTODY-CHEST>>
            <COND (<NOT <FSET? ,PRSO ,NAMEBIT>>
                   <TELL "The chest is for names." CR>)
@@ -1079,7 +1149,7 @@ silent rows, watching. They keep well away from the intake. It is a hole." CR>)
 why. Nobody had to." CR>)
                  (ELSE <TELL "Thousands of small mud-coloured heads, bowed. Down by
 the water, a few hundred small hands hold the ship's lines." CR>)>)
-          (<KEEP-PIKE?> <RTRUE>)
+          (<KEEP-GEAR?> <RTRUE>)
           (<OR .ARG
                <VERB? ASK-ABOUT TELL-ABOUT KISS ATTACK WAKE WARN>
                <AND <VERB? GIVE SHOW THROW-AT> <PRSI? ,VERDLINGS>>>
@@ -1604,7 +1674,7 @@ the hollow">
                   <TELL ", and among them is a dark hole in the bright turf,
 ringed with white stones, breathing warm air. Lucan's hat lies at its edge">)>
            <TELL ".">
-           <COND (<IN? ,LIFEBELT ,HOLLOW-GREEN>
+           <COND (<NOT <FSET? ,LIFEBELT ,TOUCHBIT>>
                   <TELL " A white lifebelt hangs on a post at the water's
 edge.">)
                  (ELSE <TELL " A bare post stands at the water's edge.">)>
@@ -1643,8 +1713,17 @@ air leaks round the stones.")
 ;"P6: the lifebelt. TRY-TAKE does the library's normal checks and moves it;
   the T argument keeps it quiet so that we can print our own message. The
   points come with taking it. WEARBIT lets you WEAR it -- and wearing it is
-  what P10 checks. NDESCBIT: the room description mentions it. RING is one
-  of its words (RING-GENERIC-F, above, settles which ring you mean)."
+  what P10 checks. RING is one of its words (RING-GENERIC-F, above, settles
+  which ring you mean).
+  'Still on its post' is 'TOUCHBIT not set': TRY-TAKE sets TOUCHBIT on
+  every way of picking a thing up (TAKE, WEAR straight off the post, the
+  library's implicit takes), which is how zillib marks 'has been handled'.
+  (Inform's equivalent is the `moved` attribute.) While it is on the post,
+  the Hollow Green's own text describes it, so NDESCBIT keeps it out of the
+  list of things here; the first take clears NDESCBIT (LIFEBELT-OFF-POST).
+  Once you have it, it stays on you, like the pike (KEEP-GEAR?, section 4):
+  the Race needs it worn, and a lifebelt left on some bank would make the
+  Race a death you had no warning of."
 <OBJECT LIFEBELT
     (DESC "lifebelt")
     (SYNONYM LIFEBELT BELT BUOY LIFEBUOY RING)
@@ -1657,17 +1736,26 @@ It still floats; you can tell by the weight.")
     (ACTION LIFEBELT-F)>
 
 <ROUTINE LIFEBELT-F ()
-    <COND (<AND <VERB? TAKE> <PRSO? ,LIFEBELT> <NOT <IN? ,LIFEBELT ,WINNER>>>
-           <COND (<TRY-TAKE ,LIFEBELT T>
-                  <AWARD-POINTS 8 ,ACH?LIFEBELT>
-                  <TELL "You lift the lifebelt off its post. Cork, painted white.
-The song was right about this." CR>)>
-           <RTRUE>)
-          (<AND <VERB? WEAR> <IN? ,LIFEBELT ,WINNER>>
-           ;"WEAR LIFEBELT straight off the post takes it first, without a
-             TAKE action -- it still scores, as it would in Inform."
-           <AWARD-POINTS 8 ,ACH?LIFEBELT>
-           <RFALSE>)>>
+    <COND (<NOT <PRSO? ,LIFEBELT>> <RFALSE>)>
+    ;"zillib's own implicit takes (WEAR LIFEBELT straight off the post, PUT
+      LIFEBELT IN ...) pick it up silently, with no TAKE action for us to
+      see. Holding it with NDESCBIT still set means that has just happened,
+      so do the first take's work now; then the action goes on as usual."
+    <COND (<AND <IN? ,LIFEBELT ,WINNER> <FSET? ,LIFEBELT ,NDESCBIT>>
+           <LIFEBELT-OFF-POST>)>
+    <COND (<KEEP-GEAR?> <RTRUE>)
+          (<AND <VERB? TAKE> <NOT <IN? ,LIFEBELT ,WINNER>>>
+           <COND (<TRY-TAKE ,LIFEBELT T> <LIFEBELT-OFF-POST>)>
+           <RTRUE>)>>
+
+;"The first take, however it happens: off the post for good (NDESCBIT
+  cleared, so from now on the library lists it like anything else), the
+  points (AWARD-POINTS grants them only once), and the line."
+<ROUTINE LIFEBELT-OFF-POST ()
+    <FCLEAR ,LIFEBELT ,NDESCBIT>
+    <AWARD-POINTS 8 ,ACH?LIFEBELT>
+    <TELL "You lift the lifebelt off its post. Cork, painted white. The song was
+right about this." CR>>
 
 ;"After Lucan's death, LUCAN-DIES (section 11) moves these two here."
 <OBJECT LUCAN-HOLE
@@ -2067,7 +2155,7 @@ Verdance and sending it up the mountain." CR>)>)
     (ACTION STOP-SWITCH-F)>
 
 <ROUTINE STOP-SWITCH-F ()
-    <COND (<KEEP-PIKE?> <RTRUE>)
+    <COND (<KEEP-GEAR?> <RTRUE>)
           (<AND <VERB? PUT-IN PUT-ON> <PRSI? ,STOP-SWITCH>>
            <COND (<NOT <PRSO? ,CIVIC-KEY>>
                   <TELL "It takes a Vaunt civic key, and only that." CR>)
@@ -2265,13 +2353,13 @@ somewhere." CR>)>>
   parser can't find him and the library never describes him. LUCAN-STOWAWAY
   MOVEs him in when his moment comes.
 
-  LESSON: the DESCFCN is the line a room description prints for him -- one
-  per state, so what you see matches what he is doing. The library first
+  LESSON: the room line. The DESCFCN is the line a room description prints
+  for him -- one per state, so what you see matches what he is doing. The library first
   asks 'will you describe yourself?' (M-OBJDESC?; true means yes), then
   asks him to do it (M-OBJDESC).
 
-  LESSON: the greeting is a property, GREETING, so V-HELLO (section 14) can
-  print any person's greeting the same way: HELLO, HI, SAY HELLO, SAY HELLO
+  LESSON: the greeting. It is a property, GREETING, so V-HELLO (section 14)
+  can print any person's greeting the same way: HELLO, HI, SAY HELLO, SAY HELLO
   TO LUCAN and GREET LUCAN all end up there."
 <OBJECT LUCAN
     (DESC "Lucan Fairweather")
@@ -2296,9 +2384,13 @@ servant, chief.\"")
            <TELL "Lucan Fairweather stands at the edge of the bright green,
 singing to the water." CR>)>>
 
-;"LESSON: an NPC's ACTION, top to bottom.
+;"LESSON: reacting to what you do. In ZIL that is the NPC's ACTION, top to
+  bottom (Inform splits the same work between `before` and `life`):
     - ARG set: you gave him an order (LUCAN, SING). He answers it with the
       conversation's fallback line.
+    - KEEP-GEAR? (section 4) goes first, as in every handler that can be
+      PRSI: the lifebelt you are wearing is not handed over. (GIVE PIKE TO
+      LUCAN is let through to him, so that he can refuse it himself.)
     - GIVE and SHOW: here he is PRSI ('give the coat TO LUCAN'). PERFORM
       asks PRSI before PRSO, so he sees it before the coat does. One
       reaction table serves both verbs (LUCAN-REACTS, below).
@@ -2310,6 +2402,7 @@ singing to the water." CR>)>>
     <COND (.ARG
            <TELL "Lucan considers this, then sings a line about something else
 entirely." CR>)
+          (<KEEP-GEAR?> <RTRUE>)
           (<AND <VERB? GIVE SHOW> <PRSI? ,LUCAN>> <LUCAN-REACTS ,PRSO>)
           (<NOT <PRSO? ,LUCAN>> <RFALSE>)
           (<VERB? ASK-ABOUT TELL-ABOUT> <LUCAN-TOPIC>)
@@ -2329,7 +2422,11 @@ here." CR>)>>
   last line is the FALLBACK, for anything the table doesn't know. In ZIL a
   'table' of replies is simply one COND, one clause per row. One exception
   comes first: TELLING him about the patches is a warning, and he waves it
-  off. SAY ... TO LUCAN arrives here as an ASK (V-SAY, section 14)."
+  off. SAY ... TO LUCAN arrives here as an ASK (V-SAY, section 14).
+  One ZIL catch: the fallback only ever sees words the game's dictionary
+  knows. A word that is in no SYNONYM, SYNTAX or VOC is stopped by the
+  parser first ('I don't know the word'), so the topic words section
+  (section 3) VOCs the words a player is likely to ask about."
 <ROUTINE LUCAN-TOPIC ()
     <COND (<AND <VERB? TELL-ABOUT>
                 <ABOUT? ,W?PATCHES ,W?PATCH ,W?TURF ,W?GREEN ,W?STONES>>
@@ -2339,8 +2436,8 @@ here." CR>)>>
 song, a green field over a sleeping city in the next. Tonight I find out
 which.\"" CR>)
           (<ABOUT? ,W?SONG ,W?SONGS ,W?VERSE ,W?POETS>
-           <TELL "\"\"Where the green bank goes down to the water, there's a door
-that was never a door.\" That one. It's always been that one.\"" CR>)
+           <TELL "\"'Where the green bank goes down to the water, there's a door
+that was never a door.' That one. It's always been that one.\"" CR>)
           (<ABOUT? ,W?SANDWICH ,W?RUNNER ,W?BOARDS ,W?SCULL>
            <TELL "\"He's always first, that one, and he's never once arrived
 anywhere. Reach for the gilt and he'll have it -- he has never wanted anything
@@ -2400,9 +2497,10 @@ of us.\"" CR>)
         <COND (<==? <GET ,LUCAN-ROUTE .I> .RM> <RETURN .I>)>>
     -1>
 
-;"LUCAN-TICK: everything Lucan does at the end of a turn, by state. Called
-  by the dispatcher (section 12) after the river and before Sandwich.
-  DEAD (and HIDDEN outside passage 1) does nothing at all."
+;"LESSON: one tick routine per NPC. LUCAN-TICK is everything Lucan does at
+  the end of a turn, by state: one routine per state, below. It is called
+  by the dispatcher (section 12) after the river and before Sandwich. DEAD
+  (and HIDDEN outside passage 1) does nothing at all."
 <ROUTINE LUCAN-TICK ()
     <COND (<==? ,LUCAN-STATE ,HIDDEN> <LUCAN-STOWAWAY>)
           (<==? ,LUCAN-STATE ,FOLLOWING> <LUCAN-FOLLOWS>)
@@ -2557,7 +2655,8 @@ just behind you. He floated down the Verdance years ago and never went back:
     (GREETING "He waves a sandwich at you.")
     (ACTION SANDWICH-F)>
 
-;"His line in a room description, one per state of his schedule."
+;"LESSON: one room line per appointment. As with Lucan, the DESCFCN follows
+  the state, so where he is and what he is doing always match."
 <ROUTINE SANDWICH-DESC (ARG)
     <COND (<==? .ARG ,M-OBJDESC?> <RTRUE>)
           (<==? ,SANDWICH-STATE ,SW-UPSTREAM>
@@ -2575,9 +2674,11 @@ his knees, eating a sandwich." CR>)
 Sandwich sits in it, holding a funeral plaque against his chest like a menu."
 CR>)>>
 
+;"LESSON: an NPC who wants one thing. Everything physical misses him;
+  everything you offer is refused -- except the coat."
 <ROUTINE SANDWICH-F ("OPT" ARG)
     <COND (.ARG <TELL "Sandwich has better things to do." CR>)
-          (<KEEP-PIKE?> <RTRUE>)
+          (<KEEP-GEAR?> <RTRUE>)
           (<AND <VERB? GIVE> <PRSI? ,SANDWICH>>
            <COND (<PRSO? ,COAT> <SANDWICH-TAKES-COAT>)
                  (ELSE <TELL "\"Floor price: zero. Pass.\"" CR>)>)
@@ -2592,7 +2693,7 @@ CR>)>>
           (<VERB? TAKE PULL PUSH ATTACK KISS>
            <TELL "He's already out of reach, smiling. Latency." CR>)>>
 
-;"The front-run rule, as an action. Called from the Wreck's M-BEG for every
+;"LESSON: a rule the player can learn. The front-run rule, as an action. Called from the Wreck's M-BEG for every
   TAKE there while he is present; returning false lets the take go on."
 <ROUTINE SANDWICH-GRAB (ITEM)
     <COND (<NOT <EQUAL? .ITEM ,SWEEP ,GRAPNEL ,STRONGBOX ,NAMEBOARD>> <RFALSE>)
@@ -2618,8 +2719,8 @@ first. \"FIRST!\" He tucks it under one arm.">
 first. \"FIRST!\" He holds it up and smiles. \"Yours for the coat.\"" CR>
            <RTRUE>)>>
 
-;"GIVE COAT TO SANDWICH: while he holds a decoy, the trade. It always works,
-  and it never scores P2."
+;"LESSON: a trade. GIVE COAT TO SANDWICH: while he holds a decoy, the trade.
+  It always works, and it never scores P2."
 <ROUTINE SANDWICH-TAKES-COAT ("AUX" (HELD <FIRST? ,SANDWICH>))
     <COND (<N==? ,SANDWICH-STATE ,SW-HOLDING>
            <TELL "He looks at the coat the way a man looks at a price. \"Not yet,
@@ -2631,8 +2732,10 @@ boards. You paid the front-runner. Everyone does.">
     <REMOVE ,COAT>
     <SANDWICH-ROWS-OFF <>>>
 
-;"He leaves the Sandbar: the beached scull goes with him, and he goes ahead
-  to the intake, where he will be pinned with the plaque (Part Five)."
+;"LESSON: an NPC who moves on ahead. He leaves the Sandbar: the beached
+  scull goes with him, and he goes ahead to the intake, where he will be
+  pinned with the plaque (Part Five). Moving him is just MOVE; his state
+  says which room line he prints there."
 <ROUTINE SANDWICH-ROWS-OFF (WITH-BOX)
     <COND (.WITH-BOX
            <REMOVE ,STRONGBOX>
@@ -2644,7 +2747,8 @@ boards. You paid the front-runner. Everyone does.">
     <TELL " He rows away downstream, and is gone from the Sandbar." CR>
     <RTRUE>>
 
-;"P9's payoff: the pump stops, the screen lets him go, he pays up."
+;"LESSON: a payoff another puzzle triggers. P9: the pump stops, the screen
+  lets him go, he pays up. The pump's code calls this; he never checks."
 <ROUTINE SANDWICH-PAYS-UP ()
     <MOVE ,SUTT-PLAQUE ,WINNER>
     <REMOVE ,SANDWICH>
@@ -2705,9 +2809,11 @@ does not look up.")
 up.")
     (ACTION THRUMBLE-F)>
 
+;"LESSON: a few reactions are enough. A small part needs only the actions a
+  player will really try: talk, give, and the rude ones."
 <ROUTINE THRUMBLE-F ("OPT" ARG)
     <COND (.ARG <TELL "Mrs. Thrumble has better things to do." CR>)
-          (<KEEP-PIKE?> <RTRUE>)
+          (<KEEP-GEAR?> <RTRUE>)
           (<AND <VERB? GIVE SHOW> <PRSI? ,THRUMBLE>>
            <TELL "\"Is it lost? Then it isn't mine to take, dear.\"" CR>)
           (<NOT <PRSO? ,THRUMBLE>> <RFALSE>)
@@ -2715,7 +2821,10 @@ up.")
           (<VERB? ATTACK KISS>
            <TELL "There are bars in the way, and she is busy." CR>)>>
 
-;"Her topic table: the same pattern as Lucan's."
+;"LESSON: the same topic table, reused. Her topic table is the same pattern
+  as Lucan's: rows read top to bottom, the fallback last. One row depends on
+  the story so far (Lucan's death), so the same question changes its
+  answer."
 <ROUTINE THRUMBLE-TOPIC ()
     <COND (<ABOUT? ,W?ASCENDANCY ,W?MINGUS ,W?EMPIRE>
            <TELL "\"I'm sorry, I don't know what you're referring to.\"" CR>)
@@ -2736,11 +2845,16 @@ CR>)
            <TELL "\"It goes on, dear. They do.\"" CR>)
           (ELSE <TELL "\"Is that all? I've a queue.\"" CR>)>>
 
+;"LESSON: a line that depends on the story. Her answer about Lucan once he
+  is dead, in a routine of its own so the topic row above stays one line.
+  (RING BELL breaks the same news in its own words, below.)"
 <ROUTINE THRUMBLE-TOWEL-LINE ()
     <TELL "\"We had a gentleman come down the old drainage shaft just now. I'm
 afraid he was past a towel, dear.\"" CR>>
 
-;"RING BELL. The first ring after Lucan's death hands over his songbook."
+;"LESSON: an NPC who comes when called. RING BELL moves her in (a MOVE is
+  all it takes); the first ring after Lucan's death hands over his
+  songbook, once (SONGBOOK-GIVEN)."
 <ROUTINE THRUMBLE-RING ()
     <COND (<IN? ,THRUMBLE ,STONE-PIER>
            <TELL "\"She's already here, dear.\" She doesn't look up." CR>
@@ -3061,7 +3175,9 @@ flickers. Somewhere up there, a long way upstream, is home.")
 <ROUTINE V-WARN ()
     <TELL "Nobody here is listening for a warning." CR>>
 
-;"SHOW mirrors zillib's GIVE (including SHOW LUCAN THE COAT)."
+;"SHOW mirrors zillib's GIVE (including SHOW LUCAN THE COAT). HAVE, not
+  TAKE: SHOW COAT TO LUCAN wants the coat in your hands already (divergence
+  1 in the header: Inform would pick it up first)."
 <SYNTAX SHOW OBJECT (HAVE HELD CARRIED) TO OBJECT (FIND PERSONBIT) = V-SHOW>
 <SYNTAX SHOW OBJECT (FIND PERSONBIT) OBJECT (HAVE HELD CARRIED) = V-SSHOW>
 <VERB-SYNONYM SHOW DISPLAY>
@@ -3084,8 +3200,8 @@ flickers. Somewhere up there, a long way upstream, is home.")
   of sight, and an OBJECT slot only finds things the parser can see. V-FOLLOW
   reads the word itself: LUCAN, TENOR, FAIRWEATHER (or HIM, once he is in
   play) is Lucan; Sandwich, if he is here, is a joke; anything else in
-  the room is 'right here' (and anything you carry has gone nowhere you
-  can see); and anything else is nobody to follow."
+  the room is 'right here', and anything you carry you already have;
+  and anything else is nobody to follow."
 <SYNTAX FOLLOW TOPIC = V-FOLLOW>
 <VERB-SYNONYM FOLLOW CHASE PURSUE>
 
@@ -3097,7 +3213,7 @@ flickers. Somewhere up there, a long way upstream, is home.")
           (<AND <==? .W ,W?SANDWICH> <IN? ,SANDWICH ,HERE>>
            <TELL "Nobody follows Sandwich. Everybody arrives after him." CR>)
           (<THING-NAMED .W ,HERE <>> <TELL "It's right here." CR>)
-          (<THING-NAMED .W ,WINNER <>> <TELL "You can't see where it went." CR>)
+          (<THING-NAMED .W ,WINNER <>> <TELL "You have it." CR>)
           (ELSE <TELL "You can't see anyone like that to follow." CR>)>>
 
 ;"--- The launch: BOW (P1) ------------------------------------------------------"
@@ -3140,6 +3256,16 @@ back." CR>)>>
 <ROUTINE V-STEER ()
     <STEER <EQUAL? <GETWORD? <+ ,P-V-WORDN 1>> ,W?EAST ,W?E>>>
 
+;"STEER on its own. Inform's parser answers it with a question and no time
+  passes; here a syntax line with no object catches it and asks the same
+  question. STEER-WHERE is on zillib's list of 'game verbs' (EXTRA-GAME-VERBS,
+  section 3), so the main loop runs no M-END and no CLOCKER for it: no turn
+  passes, and the current does not move."
+<SYNTAX STEER = V-STEER-WHERE>
+
+<ROUTINE V-STEER-WHERE ()
+    <TELL "What do you want to steer?" CR>>
+
 <ROUTINE V-STEER-FOR ()
     <STEER <ABOUT? ,W?PIER ,W?BANK ,W?RING ,W?SHORE ,W?EAST ,W?SIDE>>>
 
@@ -3165,7 +3291,7 @@ verdlings have turned their backs." CR>)>
   THROW GRAPNEL OVERBOARD and THROW GRAPNEL ASTERN are our THROW-AWAY: a
   throw with no target (Inform's ThrowAt with no second noun). THROW
   GRAPNEL INTO RIVER is zillib's THROW-AT. The grapnel's ACTION catches both,
-  and so does KEEP-PIKE? for the pike."
+  and so does KEEP-GEAR? for the pike and the lifebelt."
 <SYNTAX THROW OBJECT (HAVE HELD CARRIED) = V-THROW-AWAY>
 <SYNTAX THROW OBJECT (HAVE HELD CARRIED) OVERBOARD OBJECT (FIND KLUDGEBIT) = V-THROW-AWAY>
 <SYNTAX THROW OBJECT (HAVE HELD CARRIED) ASTERN OBJECT (FIND KLUDGEBIT) = V-THROW-AWAY>
@@ -3180,7 +3306,10 @@ verdlings have turned their backs." CR>)>
 
 ;"PULL BOX WITH PIKE (P8), HOOK BOX WITH PIKE, GET BOX WITH PIKE, and HOOK
   CHAIN WITH GRAPNEL (P7): one action, PULL-WITH, which the box and the
-  chain answer in their own ACTIONs. The second object must be held."
+  chain answer in their own ACTIONs. The second object must be held, and
+  is never picked up for you: HAVE, not TAKE (divergence 1 in the header).
+  PULL BOX WITH TAG while the tag is still on the shackle says 'You aren't
+  holding that', where Inform would take the tag first."
 <SYNTAX PULL OBJECT WITH OBJECT (HAVE HELD CARRIED) = V-PULL-WITH>
 <SYNTAX GET OBJECT WITH OBJECT (HAVE HELD CARRIED) = V-PULL-WITH>
 <SYNTAX HOOK OBJECT WITH OBJECT (HAVE HELD CARRIED) = V-PULL-WITH>
@@ -3285,3 +3414,23 @@ verdlings have turned their backs." CR>)>
 
 <ROUTINE V-DIG ()
     <TELL "Digging would achieve nothing here." CR>>
+
+;"--- Singing and listening --------------------------------------------------------
+  A game with a tenor in it answers SING itself, the same way in both
+  versions, instead of zillib's stock line (this SYNTAX, defined later,
+  replaces the library's). zillib has no LISTEN at all; these lines give it
+  the Inform library's answer, word for word."
+<SYNTAX SING = V-SING-ALONG>
+
+<ROUTINE V-SING-ALONG ()
+    <COND (<IN? ,LUCAN ,HERE>
+           <TELL "Lucan joins in, a third above you, and makes it sound
+intentional." CR>)
+          (ELSE <TELL "The river doesn't join in." CR>)>>
+
+<SYNTAX LISTEN = V-LISTEN>
+<SYNTAX LISTEN TO OBJECT = V-LISTEN>
+<VERB-SYNONYM LISTEN HEAR>
+
+<ROUTINE V-LISTEN ()
+    <TELL "You hear nothing unexpected." CR>>

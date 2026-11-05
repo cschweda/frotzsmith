@@ -159,7 +159,7 @@ describe('ZIL_SAMPLES concept checks', () => {
   it('zil-mingus-1 is the second longer game: acts, the timed Runout, both endings', () => {
     const s = sampleById('zil-mingus-1')!
     expect(s.name).toBe('Mingus I: Elevated Returns · longer game')
-    expect(s.description).toBe('A fall from great heights in three acts: 20 rooms, 10 puzzles, a three-poke finale')
+    expect(s.description).toBe('A fall from great heights, in three acts: 20 rooms, 10 puzzles, a three-poke finale')
     expect(s.source).toContain('FINALE: THE RUNOUT')
     expect(s.source).toContain('SCORING-ACHIEVEMENTS')
     expect(s.source).toContain('<REPLACE-DEFINITION PRINT-GAME-OVER')

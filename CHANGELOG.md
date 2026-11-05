@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed — 2026-11-05 Mingus I
 - **Mingus I's empire now has a name:** the Mingan Ascendancy, in both the Inform 6 and ZIL samples and in the lore.
+- **Mingus I's tagline is now "a fall from great heights, in three acts"** — no "crypto". The in-game banner and the Samples dropdown description use the same wording, in both languages.
 
 ### Added — 2026-11-05 Solutions
 - **Every game can have a solution:** the game told as it plays — the
@@ -81,7 +82,7 @@ both).
 
 ### Added — 2026-11-05 Mingus I: Elevated Returns (Inform 6 and ZIL samples)
 - **A second longer sample game, in both languages.** *Mingus I: Elevated
-  Returns* is a fall from great heights in three acts: 20 rooms, 10 puzzles and 5 lore
+  Returns* is a fall from great heights, in three acts: 20 rooms, 10 puzzles and 5 lore
   points, 60 in all. It ships as an Inform 6 sample and as a ZIL sample
   (zillib, one file), both targeting z5 and loading exactly as written. The
   two are the same game: the same rooms, puzzles and score, the same

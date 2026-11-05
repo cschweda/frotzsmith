@@ -397,9 +397,12 @@ Class LostName
 ! --- The player's own belongings --------------------------------------------
 
 ! The pike: Mingus I's rules carry over. It can't be given away, put in
-! anything or thrown, so it can never be lost for good; DROP leaves it where
-! it falls. GIVE PIKE TO LUCAN is let through to Lucan, who refuses it in
-! character (section 11): a `before` returning false lets the action go on.
+! anything, thrown or dropped, so it can never be lost: P8 at the Broken End
+! needs it, and a pike left behind on some bank would leave the ship hanging
+! from the Span's chain for ever. (THROW PIKE on its own is DROP in Inform's
+! grammar, so the Drop line covers it too.) GIVE PIKE TO LUCAN is let through
+! to Lucan, who refuses it in character (section 11): a `before` returning
+! false lets the action go on.
 Object pike "pike"
   with name 'pike' 'verdling^s' 'staff' 'spear' 'pole',
        description "A verdling's pike: a long pole of river wood, its point
@@ -413,6 +416,9 @@ Object pike "pike"
          PutOn, Insert, ThrowAt:
            "You keep hold of the pike. Down here, it is the only thing anyone
            respects.";
+         Drop:
+           "The verdlings' chief does not put down the pike. You keep hold of
+           it.";
        ];
 
 ! Lady Vaunt's coat, the real one. Nothing needs it; Sandwich will take it
@@ -1124,7 +1130,7 @@ Room hollow_green "The Hollow Green"
                the bright turf, ringed with white stones, breathing warm air.
                Lucan's hat lies at its edge";
            print ".";
-           if (lifebelt in hollow_green) print " A white lifebelt hangs on a
+           if (lifebelt hasnt moved) print " A white lifebelt hangs on a
                post at the water's edge.";
            else print " A bare post stands at the water's edge.";
            "^^The mine heads are back south. To the north, the bank runs on to
@@ -1159,6 +1165,17 @@ Feature -> lifebelt_post "post"
 ! wearing it is what P10 checks.
 ! Its parse_name lets RING mean the lifebelt (Lucan calls it "a ring on a
 ! post"), except at the Stone Pier, where RING means the iron ring.
+! `moved` is the library's own "has ever been picked up" attribute, so
+! "hasnt moved" means "still on its post": only then does the Hollow Green's
+! text describe it (and `describe` keep it out of the list of things here).
+! Once you have it, it stays on you, like the pike: the Race needs it worn,
+! and a lifebelt left on some bank would make the Race a death you had no
+! warning of. So DROP, THROW, PUT IN / PUT ON and TAKE OFF are refused here,
+! in its `before` (THROW LIFEBELT on its own is DROP in Inform's grammar).
+! SHOW is let through, and so is GIVE while it is only in your hands
+! (everyone you could give it to hands it back). Once you wear it, the
+! library turns TAKE LIFEBELT and GIVE LIFEBELT into a TAKE OFF first
+! (Disrobe), so they get the Disrobe answer.
 Object -> lifebelt "lifebelt"
   with parse_name [ n w;
            for (::) {
@@ -1169,9 +1186,28 @@ Object -> lifebelt "lifebelt"
                return n;
            }
        ],
-       describe [; rtrue; ],    ! the room description mentions it
+       describe [;
+           if (self hasnt moved) rtrue;    ! on its post: the room text has it
+           rfalse;
+       ],
        description "A ring of cork, painted white, older than anything on
            the Mingus side. It still floats; you can tell by the weight.",
+       before [;
+         Drop, PutOn, Insert, ThrowAt:
+           if (self in player) "You keep hold of the lifebelt. Every song
+               about this river ends in white water.";
+         Disrobe:
+           if (self has worn) "You leave it on. Every song about this river
+               ends in white water.";
+         Wear:
+           ! WEAR LIFEBELT straight off the post: this library's WEAR
+           ! won't pick it up for you, so take it first (a real Take, which
+           ! scores and prints the line below), then let the WEAR go on.
+           if (self notin player) {
+               <Take self>;
+               if (self notin player) rtrue;
+           }
+       ],
        after [;
          Take:
            Achieved(TASK_LIFEBELT);
@@ -1633,8 +1669,10 @@ Object verdance "Verdance"
 Person lucan "Lucan Fairweather"
   with name 'lucan' 'fairweather' 'tenor' 'large' 'man' 'singer'
            'waistcoat',
-       ! LESSON: `describe` is the line the room description prints for
-       ! him -- one per state, so what you see matches what he is doing.
+       ! LESSON: the room line. `describe` is the line the room description
+       ! prints for him -- one per state, so what you see matches what he is
+       ! doing. Returning true (any string does) means "I printed my own
+       ! line; don't list me".
        describe [;
            switch (lucan_state) {
              FOLLOWING: "^Lucan Fairweather is here, humming, his hat pushed
@@ -1647,22 +1685,25 @@ Person lucan "Lucan Fairweather"
        description "A large, kind man in a velvet waistcoat and a hat with a
            velvet band, magnificently theatrical even when standing still.
            He has sung about the old side for twenty years.",
-       ! LESSON: the greeting. HELLO, HI, SAY HELLO, SAY HELLO TO LUCAN and
-       ! GREET LUCAN all come here (HelloSub, section 15).
+       ! LESSON: the greeting. It is a property, `greeting`, so HelloSub
+       ! (section 15) can print any person's greeting the same way: HELLO,
+       ! HI, SAY HELLO, SAY HELLO TO LUCAN and GREET LUCAN all end up there.
        greeting "Lucan sweeps a bow that nearly takes him over the rail.
            ~Your servant, chief.~",
-       ! LESSON: physical actions on an NPC go through `before`, like any
-       ! object. These are the ways a player might try to save him -- and
-       ! why none of them can: the scene is scripted on purpose.
+       ! LESSON: reacting to what you do. In Inform that is split in two.
+       ! Physical actions on an NPC go through `before`, like any object.
+       ! These are the ways a player might try to save him -- and why none
+       ! of them can: the scene is scripted on purpose.
        before [;
          Take, Pull, Warn:
            "He waves you off mid-verse.";
          Push:
            "He doesn't budge. A tenor is built on a firm foundation.";
        ],
-       ! LESSON: `life` handles the conversational and social actions.
-       ! ASK and TELL share one topic table (LucanTopic); ANSWER (SAY X TO
-       ! LUCAN) uses it too. GIVE and SHOW share one reaction table.
+       ! (The same lesson, part two.) `life` handles the conversational and
+       ! social actions -- the ones only a person can receive. ASK and TELL
+       ! share one topic table (LucanTopic); ANSWER (SAY X TO LUCAN) uses it
+       ! too. GIVE and SHOW share one reaction table (LucanReacts).
        life [;
          Ask, Tell, Answer:
            return LucanTopic();
@@ -1695,8 +1736,8 @@ Person lucan "Lucan Fairweather"
         green field over a sleeping city in the next. Tonight I find out
         which.~";
     if (AskedAbout('song', 'songs', 'verse', 'poets'))
-        "~~Where the green bank goes down to the water, there's a door that
-        was never a door.~ That one. It's always been that one.~";
+        "~'Where the green bank goes down to the water, there's a door that
+        was never a door.' That one. It's always been that one.~";
     if (AskedAbout('sandwich', 'runner', 'boards', 'scull'))
         "~He's always first, that one, and he's never once arrived anywhere.
         Reach for the gilt and he'll have it -- he has never wanted anything
@@ -1761,8 +1802,10 @@ Array lucan_route --> stone_pier mine_heads hollow_green;
     return -1;
 ];
 
-! LucanTick: everything Lucan does at the end of a turn, by state. Called by
-! the dispatcher (section 12) after the river and before Sandwich.
+! LESSON: one tick routine per NPC. LucanTick is everything Lucan does at the
+! end of a turn, by state: one routine per state, below. It is called by the
+! dispatcher (section 12) after the river and before Sandwich. DEAD (and
+! HIDDEN outside passage 1) does nothing at all.
 [ LucanTick;
     switch (lucan_state) {
       HIDDEN:    LucanStowaway();
@@ -1881,9 +1924,11 @@ Array lucan_route --> stone_pier mine_heads hollow_green;
         line.^";
 ];
 
-! FOLLOW LUCAN works even when he has gone on ahead and is out of sight. A
-! scope routine (FollowScope, section 15) puts him in scope for this one
-! verb, wherever he is, so the parser can match his name.
+! LESSON: following the leader. FOLLOW LUCAN works even when he has gone on
+! ahead and is out of sight. A scope routine (FollowScope, section 15) puts
+! him in scope for this one verb, wherever he is, so the parser can match
+! his name. If he is one room ahead on his route, <<Go n_obj>> takes you
+! there exactly as NORTH would.
 [ FollowLucan;
     if (lucan in location) "He's right here, singing at you.";
     if (lucan_state == GUIDING && RouteIndex(location) >= 0 &&
@@ -1900,9 +1945,13 @@ Array lucan_route --> stone_pier mine_heads hollow_green;
 !  have reached for it first." He never takes what you already carry.
 ! ------------------------------------------------------------------------------
 
+! `transparent` lets you see (and name) whatever he is holding up for you to
+! admire -- a decoy, the plaque -- while it is in his hands.
 Person sandwich "Sandwich" gangplank_foot
   with name 'sandwich' 'front-runner' 'frontrunner' 'thin' 'boards'
            'sandwich-boards' 'scull' 'slippage' 'boathook',
+       ! LESSON: one room line per appointment. As with Lucan, `describe`
+       ! follows the state, so where he is and what he is doing always match.
        describe [;
            switch (sandwich_state) {
              SW_UPSTREAM: "^Offshore, a thin man in sandwich boards sits in a
@@ -1927,6 +1976,8 @@ Person sandwich "Sandwich" gangplank_foot
            I? Everything rolls downhill. I just wait at the bottom.~",
        greeting "He waves a sandwich at you.",
        no_answer "He taps his front board. FIRST!",
+       ! LESSON: an NPC who wants one thing. Everything physical misses him;
+       ! everything you offer is refused -- except the coat.
        before [;
          Take, Pull, Push: "He's already out of reach, smiling. Latency.";
        ],
@@ -1941,7 +1992,7 @@ Person sandwich "Sandwich" gangplank_foot
        ],
   has  male proper transparent;
 
-! The front-run rule, as an action. Called from the Wreck's `before` for
+! LESSON: a rule the player can learn. The front-run rule, as an action. Called from the Wreck's `before` for
 ! every TAKE there while he is present; returning false lets the take go on.
 [ SandwichGrab item;
     if (item ~= sweep or grapnel or strongbox or nameboard) rfalse;
@@ -1965,8 +2016,8 @@ Person sandwich "Sandwich" gangplank_foot
         " first. ~FIRST!~ He holds it up and smiles. ~Yours for the coat.~";
 ];
 
-! GIVE COAT TO SANDWICH: while he holds a decoy, the trade. It always works,
-! and it never scores P2.
+! LESSON: a trade. GIVE COAT TO SANDWICH: while he holds a decoy, the trade.
+! It always works, and it never scores P2.
 [ SandwichTakesCoat;
     if (sandwich_state ~= SW_HOLDING) "He looks at the coat the way a man
         looks at a price. ~Not yet, chief.~";
@@ -1978,8 +2029,10 @@ Person sandwich "Sandwich" gangplank_foot
     return SandwichRowsOff(false);
 ];
 
-! He leaves the Sandbar: the beached scull goes with him, and he goes ahead
-! to the intake, where he will be pinned with the plaque (Part Five).
+! LESSON: an NPC who moves on ahead. He leaves the Sandbar: the beached scull
+! goes with him, and he goes ahead to the intake, where he will be pinned
+! with the plaque (Part Five). Moving him is just `move`; his state says
+! which room line he prints there.
 [ SandwichRowsOff with_box;
     if (with_box) {
         remove strongbox;
@@ -1993,7 +2046,8 @@ Person sandwich "Sandwich" gangplank_foot
     rtrue;
 ];
 
-! P9's payoff: the pump stops, the screen lets him go, he pays up.
+! LESSON: a payoff another puzzle triggers. P9: the pump stops, the screen
+! lets him go, he pays up. The pump's code calls this; he never checks.
 [ SandwichPaysUp;
     move sutt_plaque to player;
     remove sandwich;
@@ -2004,7 +2058,9 @@ Person sandwich "Sandwich" gangplank_foot
         downstream, to be first at the bottom.^";
 ];
 
-! SandwichTick: his schedule, at the end of the turn, after Lucan.
+! LESSON: a schedule is a tick routine with one clause per appointment.
+! SandwichTick runs at the end of the turn, after Lucan, and handles at most
+! one event per turn (the first clause that matches, then `return`).
 [ SandwichTick;
     ! Passage 1, drift 1: he shoots past, to be at the Wreck first.
     if (sandwich_state == SW_UPSTREAM && passage == 1 && drift == 1) {
@@ -2058,6 +2114,8 @@ Person thrumble "Mrs. Thrumble"
            a ledger. She does not look up.",
        greeting "~Lost property, dear. Downstream counter.~ She doesn't look
            up.",
+       ! LESSON: a few reactions are enough. A small part needs only the
+       ! actions a player will really try: talk, give, and the rude ones.
        life [;
          Ask, Tell, Answer:
            return ThrumbleTopic();
@@ -2068,7 +2126,9 @@ Person thrumble "Mrs. Thrumble"
        ],
   has  female proper;
 
-! Her topic table: the same pattern as Lucan's.
+! LESSON: the same topic table, reused. Her topic table is the same pattern
+! as Lucan's: rows read top to bottom, the fallback last. One row depends on
+! the story so far (Lucan's death), so the same question changes its answer.
 [ ThrumbleTopic;
     if (AskedAbout('ascendancy', 'mingus', 'empire'))
         "~I'm sorry, I don't know what you're referring to.~";
@@ -2091,12 +2151,17 @@ Person thrumble "Mrs. Thrumble"
     "~Is that all? I've a queue.~";
 ];
 
+! LESSON: a line that depends on the story. Her answer about Lucan once he
+! is dead, in a routine of its own so the topic row above stays one line.
+! (RING BELL breaks the same news in its own words, below.)
 [ ThrumbleTowelLine;
     "~We had a gentleman come down the old drainage shaft just now. I'm afraid
     he was past a towel, dear.~";
 ];
 
-! RING BELL. The first ring after Lucan's death hands over his songbook.
+! LESSON: an NPC who comes when called. RING BELL moves her in (a `move`
+! is all it takes); the first ring after Lucan's death hands over his
+! songbook, once (songbook_given).
 [ ThrumbleRing;
     if (thrumble in stone_pier) "~She's already here, dear.~ She doesn't
         look up.";
@@ -2320,8 +2385,12 @@ Room old_side_shore "The Old-Side Shore"
           4: print "Four names are in the chest";
           5: print "Five names are in the chest";
         }
-        if (songbook in custody_chest) print "; one of them used to sing on
-            Thursdays";
+        ! "one of them" needs more than one name; with only the songbook in
+        ! the chest, the name is simply "it".
+        if (songbook in custody_chest) {
+            if (n == 1) print "; it used to sing on Thursdays";
+            else print "; one of them used to sing on Thursdays";
+        }
         print ". Somewhere downstream, a man in sandwich boards is telling
             nobody that he got there first.^^Coming next: MINGUS III: THE OLD
             SIDE. Nobody has ever come back. Somebody has to be first.^";
@@ -2415,6 +2484,7 @@ Verb 'warn' 'caution'
     if (noun == lucan) return FollowLucan();
     if (noun == sandwich) "Nobody follows Sandwich. Everybody arrives after
         him.";
+    if (noun in player) "You have it.";
     if (noun in location) "It's right here.";
     "You can't see where it went.";
 ];
@@ -2553,3 +2623,16 @@ Verb 'ring' 'buzz'
 Verb 'drive'
     *                                   -> Drive
     * noun                              -> Drive;
+
+! --- Singing --------------------------------------------------------------------
+! A game with a tenor in it answers SING itself, the same way in both
+! versions, instead of the library's stock line. `replace` throws away the
+! std grammar's lines for the verb and keeps only ours.
+[ SingAlongSub;
+    if (lucan in location) "Lucan joins in, a third above you, and makes it
+        sound intentional.";
+    "The river doesn't join in.";
+];
+
+Extend 'sing' replace
+    *                                   -> SingAlong;
