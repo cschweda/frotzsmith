@@ -1,28 +1,47 @@
-"The Burning Candle -- daemon / timed event demo.
-Demonstrates the QUEUE mechanism from zillib/events.zil for per-turn events.
-A burning candle counts down 5 turns then goes out, plunging the room into
-darkness. The daemon fires automatically after each player action via CLOCKER.
-Hand-written for the Frotzsmith sample set.
+;"The Burning Candle -- daemon / timed event demo.
+ Hand-written for the Frotzsmith sample set.
 
-Key forms:
-  <QUEUE ,CANDLE-BURN -1>  -- register a routine to run every turn
-  <DEQUEUE ,CANDLE-BURN>   -- remove the routine from the queue
-  CLOCKER (called by MAIN-LOOP) advances the queue each turn.
+ WHAT THIS SAMPLE TEACHES
+   - A daemon: a routine that runs by itself after every turn. zillib keeps
+     a queue of them (zillib/events.zil); MAIN-LOOP calls CLOCKER after each
+     command, and CLOCKER runs whatever is queued.
+       <QUEUE ,CANDLE-BURN -1>  -- run CANDLE-BURN every turn (-1 = forever)
+       <DEQUEUE ,CANDLE-BURN>   -- take it off the queue again
+   - What a queued routine returns matters: true means 'I printed something
+     the player should see', which also stops a WAIT early. zillib's WAIT
+     (Z) normally lets several turns pass at once.
+   - A global variable as a countdown, and darkness when the light runs out.
 
-Try: press Z (wait) five times to watch the candle burn down."
+ HOW THE GAME FLOWS
+   You are in a dark cellar holding a lit candle, the only light. Each turn
+   the candle burns down and says how long it has left. Press Z (wait) five
+   times: on the fifth it goes out and the cellar goes dark. No puzzle and
+   no ending; nothing more happens after that."
 
+;"NOTE: there is no <VERSION> form here on purpose. Frotzsmith adds it when
+  it compiles, from the story version picked in the toolbar (z3 for this one)."
+
+;"RELEASEID is the release number zillib prints in the banner."
 <CONSTANT RELEASEID 1>
 
+;"GAME-BANNER: the title lines V-VERSION prints at startup (| is a line break)."
 <CONSTANT GAME-BANNER
 "The Burning Candle|
 A ZIL Daemon and Timed Event Demo">
 
-;"Candle burn counter: starts at 5, decremented each turn by CANDLE-BURN."
+;"Candle burn counter: starts at 5, taken down by one each turn by
+  CANDLE-BURN. A GLOBAL keeps its value across turns (a local would not)."
 <GLOBAL CANDLE-LIFE 5>
 
-;"CANDLE-BURN -- the daemon routine, called every turn via QUEUE.
-  Each turn: decrement CANDLE-LIFE.
-  When it reaches 0: dequeue self, clear LIGHTBIT, trigger NOW-DARK?."
+;"CANDLE-BURN -- the daemon, run by CLOCKER after every turn.
+  Each turn it takes one off CANDLE-LIFE (SETG sets a global).
+    - Light left (CANDLE-LIFE 1 or more): report it, in the singular for the
+      last turn. Return true (RTRUE): the player has been told something, so
+      a WAIT stops here and each Z is one turn of candle.
+    - None left (L? is 'less than'): take the daemon off the queue so it
+      never runs again, clear the candle's LIGHTBIT so it gives no light,
+      and call NOW-DARK?, zillib's routine for 'the light just went', which
+      prints the darkness message."
 <ROUTINE CANDLE-BURN ()
     <SETG CANDLE-LIFE <- ,CANDLE-LIFE 1>>
     <COND (<L? ,CANDLE-LIFE 1>
@@ -32,9 +51,16 @@ A ZIL Daemon and Timed Event Demo">
            <NOW-DARK?>
            <RTRUE>)
           (ELSE
-           <TELL "The candle flickers (" N ,CANDLE-LIFE " turns of light remain)." CR>
-           <RFALSE>)>>
+           <TELL "The candle flickers (" N ,CANDLE-LIFE>
+           <COND (<1? ,CANDLE-LIFE> <TELL " turn of light remains)." CR>)
+                 (ELSE <TELL " turns of light remain)." CR>)>
+           <RTRUE>)>>
 
+;"GO runs first: print the opening, put the player in the Cellar (HERE is
+  zillib's current-room global, and the PLAYER object must be moved there
+  too), start the candle's daemon, describe the room, then start zillib's
+  command loop, which never returns. The QUEUE comes before MAIN-LOOP so the
+  candle is already burning on the first turn."
 <ROUTINE GO ()
     <CRLF> <CRLF>
     <TELL "A demonstration of the QUEUE daemon mechanism for timed events." CR CR>
@@ -46,6 +72,10 @@ A ZIL Daemon and Timed Event Demo">
     <V-LOOK>
     <MAIN-LOOP>>
 
+;"zillib: the parser, the standard verbs, the PLAYER and the event queue
+  (QUEUE, DEQUEUE, CLOCKER). The world below comes after it, so it can use
+  the library's flags. CANDLE-BURN above names the CANDLE before it is
+  defined; ZIL allows that, since names are resolved for the whole file."
 <INSERT-FILE "parser">
 
 "Rooms"
@@ -59,8 +89,9 @@ The only exit is up through the hatch.")>
 
 "Objects"
 
-;"The candle starts lit (LIGHTBIT set) in the player's inventory.
-  SEARCH-FOR-LIGHT finds it there and illuminates the room."
+;"The candle starts lit (LIGHTBIT) in the player's hands (IN PLAYER), so the
+  cellar can be seen from the first turn. CANDLE-BURN clears LIGHTBIT when
+  it runs out."
 <OBJECT CANDLE
     (DESC "wax candle")
     (SYNONYM CANDLE)

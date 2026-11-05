@@ -1,31 +1,60 @@
-"The Dark Cellar -- light and darkness demo.
-Demonstrates a dark room, a switchable light source (DEVICEBIT), and the
-NOW-LIT? / NOW-DARK? routines that handle light-state transition messages.
-Adapted from zillib/tests/test-light.zil (ZILF project, rev 5262550, GPLv3).
-Adaptation: converted from test harness to a playable single-file game.
+;"The Dark Cellar -- light and darkness demo.
+ Adapted from zillib/tests/test-light.zil (ZILF project, rev 5262550, GPLv3).
+ Adaptation: converted from test harness to a playable single-file game.
 
-Try: TURN ON LANTERN, then TURN OFF LANTERN"
+ WHAT THIS SAMPLE TEACHES
+   - A dark room: a ROOM without LIGHTBIT. zillib lets you see in it only
+     while something lit (an object with LIGHTBIT) is here or carried.
+   - A light source you switch: DEVICEBIT makes TURN ON and TURN OFF apply
+     to the lantern, and its ACTION routine sets or clears LIGHTBIT.
+   - NOW-LIT? and NOW-DARK?: the zillib routines to call after the light
+     changes. They notice the change, print the standard message (and, on
+     the way to light, describe the room you can now see).
+   - HERE-LIT: zillib's 'can the player see here?' global, set up at start.
 
+ HOW THE GAME FLOWS
+   You start in the dark cellar holding an unlit lantern: it is pitch black.
+   TURN ON LANTERN and the room appears. EXAMINE LANTERN says it is burning.
+   TURN OFF LANTERN and the dark comes back. No puzzle and no ending."
+
+;"NOTE: there is no <VERSION> form here on purpose. Frotzsmith adds it when
+  it compiles, from the story version picked in the toolbar (z3 for this one)."
+
+;"RELEASEID is the release number zillib prints in the banner."
 <CONSTANT RELEASEID 1>
 
+;"GAME-BANNER: the title lines V-VERSION prints at startup (| is a line break)."
 <CONSTANT GAME-BANNER
 "The Dark Cellar|
 A ZIL Light and Darkness Demo">
 
+;"GO runs first: print the opening, put the player in the Cellar (HERE is
+  zillib's current-room global, and the PLAYER object must be moved there
+  too), describe it, then start zillib's command loop, which never returns.
+
+  HERE-LIT is zillib's record of whether the player can see. It starts out
+  true and zillib only recomputes it when something changes (a move, a light
+  switched), so a game that STARTS in the dark sets it itself, with zillib's
+  SEARCH-FOR-LIGHT. Without that line the opening LOOK would describe a
+  pitch-black room as if it were lit."
 <ROUTINE GO ()
     <CRLF> <CRLF>
     <TELL "A demonstration of light, darkness, and a switchable light source." CR CR>
     <V-VERSION> <CRLF>
     <SETG HERE ,CELLAR>
     <MOVE ,PLAYER ,HERE>
+    <SETG HERE-LIT <SEARCH-FOR-LIGHT>>
     <V-LOOK>
     <MAIN-LOOP>>
 
+;"zillib: the parser, the standard verbs and the PLAYER. The world below
+  comes after it, so it can use the library's flags."
 <INSERT-FILE "parser">
 
 "Rooms"
 
-;"No LIGHTBIT -- this room is dark without a light source."
+;"No LIGHTBIT -- this room is dark without a light source. Its LDESC is only
+  shown while the player can see."
 <ROOM CELLAR
     (DESC "Dark Cellar")
     (IN ROOMS)
@@ -34,9 +63,10 @@ A ladder leads back up through the hatch to the north.")>
 
 "Objects"
 
-;"The lantern is a DEVICEBIT object so the library recognises TURN ON / TURN OFF.
-  The custom action handler LANTERN-R intercepts those verbs to manage LIGHTBIT
-  and call NOW-LIT? / NOW-DARK? for the light-transition messages."
+;"The lantern starts in the player's hands (IN PLAYER), switched off: no
+  LIGHTBIT yet. DEVICEBIT lets TURN ON / TURN OFF be aimed at it; zillib's
+  own versions of those verbs only set ONBIT, which says nothing about light,
+  so LANTERN-R takes them over."
 <OBJECT LANTERN
     (DESC "brass lantern")
     (SYNONYM LANTERN LAMP LIGHT)
@@ -45,10 +75,15 @@ A ladder leads back up through the hatch to the north.")>
     (FLAGS TAKEBIT DEVICEBIT)
     (ACTION LANTERN-R)>
 
-;"LANTERN-R manages the lantern's LIGHTBIT.
-  TURN ON:  sets LIGHTBIT, calls NOW-LIT? (prints can-see message + look).
-  TURN OFF: clears LIGHTBIT, calls NOW-DARK? (prints plunged-into-darkness).
-  EXAMINE:  describes the lantern and its on/off state."
+;"LANTERN-R -- the lantern's ACTION routine. Each clause handles one verb and
+  returns true (RTRUE) to end the turn; anything else returns false and is
+  left to the library.
+    TURN-ON  -- set LIGHTBIT (FSET): the lantern is now a light. Then
+                NOW-LIT? tells zillib the light has changed; it prints
+                'You can see your surroundings now.' and describes the room.
+    TURN-OFF -- clear LIGHTBIT (FCLEAR), then NOW-DARK?, which prints
+                zillib's 'plunged into darkness' message.
+    EXAMINE  -- says whether it is lit, read from the flag with FSET?."
 <ROUTINE LANTERN-R ()
     <COND (<VERB? TURN-ON>
            <FSET ,LANTERN ,LIGHTBIT>
