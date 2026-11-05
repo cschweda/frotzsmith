@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { feedScript } from '~/composables/play-feed'
+import { acceptPlayMessage } from '~/utils/play-message'
 
 const { result, playNonce, canPlay, pendingScript } = useIde()
 const { record, reset } = usePlayTranscript()
@@ -84,20 +85,12 @@ async function runPendingScript(commands: string[]) {
   }
 }
 
-interface PlayMessage {
-  source?: string
-  type?: string
-  value?: unknown
-  name?: unknown
-  text?: unknown
-}
-// Only trust same-origin messages tagged by our play page (instruction-source
-// boundary). The value is data — appended to a list, never executed.
+// Only trust same-origin messages from the play iframe's own window, tagged by
+// our play page (instruction-source boundary; ~/utils/play-message). The value
+// is data — appended to a list, never executed.
 function onMessage(e: MessageEvent) {
-  if (e.origin !== window.location.origin) return
-  if (e.source !== playFrame.value?.contentWindow) return
-  const data = e.data as PlayMessage | null
-  if (!data || data.source !== 'frotzsmith-play') return
+  const data = acceptPlayMessage(e, playFrame.value?.contentWindow, window.location.origin)
+  if (!data) return
   if (data.type === 'command' && typeof data.value === 'string') {
     record(data.value)
     recordCommand(data.value)

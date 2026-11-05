@@ -1,14 +1,20 @@
 # Netlify configuration for Frotzsmith
 # Static Nuxt 4 build (ssr: false). On Netlify, Nitro's Netlify preset writes the
 # static site to `dist` (locally `dist` is a symlink to `.output/public`), so we
-# publish `dist`. Headers/CSP can be tightened later (see docs/06-security.md §9).
+# publish `dist`. Headers/CSP: see the [[headers]] notes below and docs/06-security.md §9.
 
 [build]
-  command = "yarn generate"
+  # Install from yarn.lock exactly (audit 2026-11-04, F16). Netlify runs its
+  # own `yarn install $YARN_FLAGS` BEFORE this command, and that install is
+  # not frozen by default — it would rewrite a drifted lockfile, and the
+  # frozen install below would then pass. YARN_FLAGS (below) freezes
+  # Netlify's own install; the explicit one stays as a second check (cached).
+  command = "yarn install --frozen-lockfile && yarn generate"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "22"
+  YARN_FLAGS = "--frozen-lockfile"
 
 # NOTE on redirects: on Netlify this build runs Nitro's netlify preset, which
 # emits its own `_redirects` catch-all — [[redirects]] blocks here are
@@ -16,15 +22,22 @@
 # apply). Custom rules therefore live in `public/_redirects` (the Plausible
 # first-party proxy), where Nitro appends its catch-all after them.
 
-# Security headers, tuned so the in-browser toolchain actually works:
+# Security headers, tuned so the in-browser toolchain actually works. Every
+# loose source is explained in docs/06-security.md §9 and pinned by
+# tools/netlify-headers.test.ts:
 #  - X-Frame-Options SAMEORIGIN: the IDE embeds the Parchment player in a
 #    same-origin <iframe> (DENY would block it).
-#  - 'wasm-unsafe-eval': inform6.wasm (the compiler).
-#  - 'unsafe-eval': the ZVM player is a JIT — it compiles z-code to JS at runtime.
-#  - 'unsafe-inline': the player page's inline init + styles.
-#  - blob:: the compiled story is handed to the player as a blob URL.
-# Loose by necessity for a client-side compiler+interpreter; tighten with
-# nonces/hashes per docs/06-security.md §9. No secrets or backend are at risk.
+#  - 'wasm-unsafe-eval': inform6.wasm and the .NET ZILF runtime.
+#  - 'unsafe-eval': the ZVM player is a JIT (compiles z-code to JS at
+#    runtime), and the replay worker evals the sloppy-mode glkapi.js.
+#  - 'unsafe-inline' (scripts): the player page's inline init and Nuxt's
+#    inline SPA bootstrap; (styles) Nuxt UI + the player's inline styles.
+#  - connect-src blob:: Parchment fetch()es the compiled story from a blob URL.
+#  - blob: was dropped from script-src, worker-src, frame-src and child-src
+#    (audit 2026-11-04, F11): nothing loads a blob script, worker or frame
+#    (workers are same-origin module files; blob URLs are only fetched or used
+#    as <a download> targets). Verified in Chrome with a report-uri: I6 compile,
+#    Play, headless replay, ZIL compile and Play raised no violation.
 [[headers]]
   for = "/*"
   [headers.values]
@@ -32,7 +45,7 @@
     X-Content-Type-Options = "nosniff"
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' blob:; worker-src 'self' blob:; frame-src 'self' blob:; child-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' blob:; worker-src 'self'; frame-src 'self'; child-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
 
 # The service worker and the web manifest are unfingerprinted and are how a
 # browser learns of a new deploy: always revalidated. (workbox-*.js is

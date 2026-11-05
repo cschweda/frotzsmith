@@ -13,6 +13,23 @@ const { useMap } = await import('./useMap')
 describe('useMap', () => {
   beforeEach(() => { useMap().reset() })
 
+  it('rooms named like Object.prototype members are ordinary rooms', () => {
+    const m = useMap()
+    for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf']) {
+      expect(m.details(name)).toMatchObject({ exits: [], objects: [], seenObjects: [], description: '' })
+      m.recordRoom(name, `${name}\nA room called ${name}.\n\nYou can see a lamp here.\n\nObvious exits: north.`)
+      expect(m.details(name)).toMatchObject({
+        description: `A room called ${name}.`,
+        objects: ['lamp'],
+        seenObjects: ['lamp'],
+        exits: ['n'],
+      })
+    }
+    expect(m.graph.value.rooms).toHaveLength(5)
+    expect(Object.getPrototypeOf(m.roomText.value)).toBe(null)
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined()
+  })
+
   it('records the start room with no edge', () => {
     const m = useMap()
     m.recordRoom('Cottage', 'A cosy cottage.')

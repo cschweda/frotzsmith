@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { emptyGraph, parseDirection, parseRoomName, addStep, layout, exitsOf, connectedDirs, parseObjects, parseExits, fitViewBox } from './map-graph'
 
 describe('parseDirection', () => {
+  it('is not fooled by Object.prototype member names', () => {
+    for (const c of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) expect(parseDirection(c)).toBeNull()
+  })
+
   it('maps abbreviations, full words, and "go X" to a Dir', () => {
     expect(parseDirection('n')).toBe('n')
     expect(parseDirection('north')).toBe('n')

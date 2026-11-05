@@ -19,9 +19,11 @@ export type ShareLang = 'i6' | 'zil'
  *  caller tells the author to Save As / export instead. */
 export const SHARE_FRAGMENT_MAX_CHARS = 32_000
 
-/** Largest source a decoded link may yield. A link we'd never have encoded
- *  (oversized payload, or a deflate bomb) is rejected instead of inflated
- *  into an arbitrarily large string in the opener's tab. */
+/** Largest source a decoded link may yield. The payload IS inflated first and
+ *  then refused when longer than this; what bounds that inflate is
+ *  SHARE_FRAGMENT_MAX_CHARS: 32,000 base64url chars are 24,000 bytes, and
+ *  deflate expands at most ~1,032:1, so a bomb tops out near 25 MB in the
+ *  opener's tab, briefly, before it is dropped. */
 export const SHARE_SOURCE_MAX_CHARS = 4_000_000
 
 function toBase64Url(bytes: Uint8Array): string {

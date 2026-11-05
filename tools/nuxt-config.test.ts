@@ -12,6 +12,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 type Config = {
   experimental?: { checkOutdatedBuildInterval?: number | false; emitRouteChunkError?: string }
   pwa?: { registerType?: string; selfDestroying?: boolean; workbox?: { skipWaiting?: boolean } }
+  app?: { head?: { script?: Array<{ src?: string }> } }
+  vite?: {
+    plugins?: Array<{ name?: string }>
+    optimizeDeps?: { rolldownOptions?: { plugins?: Array<{ name?: string }> } }
+    worker?: { plugins?: () => Array<{ name?: string }> }
+  }
 }
 
 async function load(env: Record<string, string | undefined> = {}): Promise<Config> {
@@ -46,5 +52,20 @@ describe('nuxt.config', () => {
   it('ships the normal worker unless FROTZSMITH_SW_KILL=1', async () => {
     expect((await load({ FROTZSMITH_SW_KILL: '' })).pwa?.selfDestroying).toBe(false)
     expect((await load({ FROTZSMITH_SW_KILL: '1' })).pwa?.selfDestroying).toBe(true)
+  })
+
+  it('the website loads first-party analytics; the desktop build loads none', async () => {
+    expect((await load({ FROTZSMITH_DESKTOP: '' })).app?.head?.script?.map(s => s.src)).toEqual(['/pa/init.js'])
+    expect((await load({ FROTZSMITH_DESKTOP: '1' })).app?.head?.script ?? []).toEqual([])
+  })
+
+  // Review (fix B) minor 6: `nuxt dev` pre-bundles ifvms, skipping `vite.plugins`.
+  it('applies both ifvms fixes to the client, every worker, and the dev pre-bundle', async () => {
+    const config = await load()
+    const names = (list?: Array<{ name?: string }>) => (list ?? []).map(p => p.name)
+    const both = ['frotzsmith:ifvms-this-fix', 'frotzsmith:ifvms-text-fix']
+    expect(names(config.vite?.plugins)).toEqual(expect.arrayContaining(both))
+    expect(names(config.vite?.worker?.plugins?.())).toEqual(expect.arrayContaining(both))
+    expect(names(config.vite?.optimizeDeps?.rolldownOptions?.plugins)).toEqual(expect.arrayContaining(both))
   })
 })

@@ -1,0 +1,5 @@
+Abbreviate "the ";
+Zcharacter table + '@{E000}';
+[ Main;
+  print "Into the X@{E000}+(globalThis.__frotzPwned=1)+@{E000}Y^";
+];

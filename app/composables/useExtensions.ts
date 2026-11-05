@@ -1,9 +1,109 @@
 import type { Extension } from '~/modules/inform6/extensions'
 import { BUNDLED_EXTENSIONS } from '~/modules/inform6/extensions'
+import { PROFILES } from '~/modules/inform6/profiles'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 import { safeSetItem } from '~/utils/safe-storage'
 import { ZipLimitError, EXTENSIONS_TOTAL_MAX_BYTES } from '~/utils/zip-limits'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
+import { PackageError, quotedPath } from '~/project-package/errors'
+import { pathProblem, safeStem } from '~/project-package/paths'
+import { libraryNamedNote } from '~/utils/package-messages'
+
+/** The Include name a packaged `.h` file mounts under: its file name without
+ *  `.h`, sanitized like an upload (`ext/lamp.h` → `lamp`). */
+export function includeNameOf(path: string): string {
+  const base = path.slice(path.lastIndexOf('/') + 1)
+  return base.replace(/\.h$/i, '').replace(/[^A-Za-z0-9_]/g, '_') || 'ext'
+}
+
+/** Every library file of every profile (Standard Library and PunyInform),
+ *  keyed by its lower-case Include name: `verblib` → `VerbLib.h`. */
+const LIBRARY_FILES = new Map<string, string>()
+for (const p of Object.values(PROFILES)) {
+  for (const f of p.libraryFileNames) {
+    const key = f.replace(/\.h$/i, '').toLowerCase()
+    if (!LIBRARY_FILES.has(key)) LIBRARY_FILES.set(key, f)
+  }
+}
+
+/**
+ * The library file an extension would stand in for, or null. `nameOrPath` is
+ * an Include name (`VerbLib`), a file name (`verblib.h`) or a package path
+ * (`ext/Parser.h`); it is compared, ignoring case, by the Include name it
+ * would mount under — against every profile, not just the active one, since
+ * uploads are shared by both.
+ */
+export function libraryFileFor(nameOrPath: string): string | null {
+  return LIBRARY_FILES.get(includeNameOf(nameOrPath).toLowerCase()) ?? null
+}
+
+/** An upload named like a library file that the author never chose to let
+ *  replace it (stored before audit F1): kept, but never mounted. */
+function isShadowed(e: Pick<Extension, 'origin' | 'name' | 'overridesLibrary'>): boolean {
+  return e.origin === 'uploaded' && !e.overridesLibrary && libraryFileFor(e.name) !== null
+}
+
+/** Where an uploaded extension sits in a `.frotzsmith` package: its original
+ *  file name (a package path, for one opened from a package) when that is a
+ *  valid `.h` path, else `<name>.h` — `<name>_.h` when the name is a Windows
+ *  device name (`aux` → `aux_.h`, review I-1). */
+export function includePathOf(ext: Pick<Extension, 'name' | 'title'>): string {
+  return /\.h$/i.test(ext.title) && pathProblem(ext.title) === null ? ext.title : `${safeStem(ext.name)}.h`
+}
+
+/**
+ * Plan replacing every uploaded extension with a package's include files —
+ * pure, so a caller can check a package BEFORE anything changes. Throws
+ * `ZipLimitError` past EXTENSIONS_TOTAL_MAX_BYTES and `PackageError` when two
+ * files would mount under one Include name (the browser mounts them flat).
+ * `enabledNames` are manifest names: a bundled extension's name or an
+ * include's package path; any other name comes back in `unknown`.
+ */
+export function planUploaded(
+  files: { path: string; text: string }[],
+  enabledNames: string[],
+): { uploaded: Extension[]; enabledIds: string[]; unknown: string[] } {
+  // Same measure as addUploaded (UTF-16 length of the stored text).
+  const total = files.reduce((n, f) => n + f.text.length, 0)
+  if (total > EXTENSIONS_TOTAL_MAX_BYTES) {
+    const mb = Math.round(EXTENSIONS_TOTAL_MAX_BYTES / 1024 / 1024)
+    throw new ZipLimitError(
+      `This project's include files are larger than the ${mb} MB the browser editor can keep for uploaded extensions.`,
+    )
+  }
+  const byId = new Map<string, string>()
+  const uploaded: Extension[] = []
+  for (const f of files) {
+    // A package can't replace a library file for every game (audit F1).
+    if (libraryFileFor(f.path) !== null) {
+      throw new PackageError(
+        'library-name-clash',
+        `This project has an include file named like a library file, which could replace it for every game: ${quotedPath(f.path)}.`,
+      )
+    }
+    const name = includeNameOf(f.path)
+    const id = `uploaded:${name}`
+    const other = byId.get(id)
+    if (other !== undefined) {
+      throw new PackageError(
+        'include-name-clash',
+        `This project has two include files the browser editor can't keep apart: ${quotedPath(other)} and ${quotedPath(f.path)}.`,
+      )
+    }
+    byId.set(id, f.path)
+    uploaded.push({
+      id, name, title: f.path, description: 'Uploaded extension.', library: 'any', content: f.text, origin: 'uploaded',
+    })
+  }
+  const enabledIds: string[] = []
+  const unknown: string[] = []
+  for (const n of enabledNames) {
+    const id = BUNDLED_EXTENSIONS.find(b => b.name === n)?.id ?? uploaded.find(u => u.title === n)?.id
+    if (id === undefined) unknown.push(n)
+    else if (!enabledIds.includes(id)) enabledIds.push(id)
+  }
+  return { uploaded, enabledIds, unknown }
+}
 
 /**
  * Manages Inform 6 extensions: the bundled catalog plus the author's uploaded
@@ -24,7 +124,11 @@ export function useExtensions() {
   function persist() {
     if (!import.meta.client) return
     const data = {
-      uploaded: uploaded.value.map(u => ({ id: u.id, name: u.name, title: u.title, content: u.content })),
+      uploaded: uploaded.value.map(u => ({
+        id: u.id, name: u.name, title: u.title, content: u.content,
+        ...(u.overridesLibrary ? { overridesLibrary: true } : {}),
+        ...(u.libraryNoticed ? { libraryNoticed: true } : {}),
+      })),
       enabled: enabledIds.value,
     }
     // QuotaExceededError → keep working in memory, but tell the author once.
@@ -44,19 +148,51 @@ export function useExtensions() {
       }
       const data = JSON.parse(raw) as { uploaded?: Extension[]; enabled?: string[] }
       uploaded.value = Array.isArray(data.uploaded)
-        ? data.uploaded.map(u => ({
+        ? data.uploaded.map(({ overridesLibrary, libraryNoticed, ...u }) => ({
             ...u,
-            description: 'Uploaded extension.',
+            description:
+              overridesLibrary !== true && libraryFileFor(String(u.name)) !== null
+                ? 'Not used: it has the same name as a library file.'
+                : 'Uploaded extension.',
             library: 'any' as const,
             origin: 'uploaded' as const,
+            // Only an explicit, recorded choice overrides the library.
+            ...(overridesLibrary === true ? { overridesLibrary: true as const } : {}),
+            ...(libraryNoticed === true ? { libraryNoticed: true as const } : {}),
           }))
         : []
       enabledIds.value = Array.isArray(data.enabled) ? data.enabled : []
+      noticeLibraryNamed()
     } catch {
       // corrupt — start clean
       uploaded.value = []
       enabledIds.value = []
     }
+  }
+
+  /** Tell the author, once, about uploads stored before audit F1 that are
+   *  named like a library file: kept, but the library now wins and they are
+   *  not mounted (review I-2). The "told" mark is stored with each upload. */
+  function noticeLibraryNamed() {
+    const fresh = uploaded.value.filter(u => isShadowed(u) && !u.libraryNoticed)
+    const note = libraryNamedNote(fresh.map(u => u.title))
+    if (note === null) return
+    try {
+      useToast().add({
+        title: 'An uploaded extension no longer replaces the library',
+        description: note,
+        color: 'warning',
+        icon: 'i-lucide-triangle-alert',
+        duration: 0,
+      })
+    } catch {
+      // Not shown: don't mark it told, so the next load tries again.
+      console.warn(`[frotzsmith] ${note}`)
+      return
+    }
+    const ids = new Set(fresh.map(u => u.id))
+    uploaded.value = uploaded.value.map(u => (ids.has(u.id) ? { ...u, libraryNoticed: true as const } : u))
+    persist()
   }
 
   const all = computed<Extension[]>(() => [...BUNDLED_EXTENSIONS, ...uploaded.value])
@@ -71,10 +207,20 @@ export function useExtensions() {
 
   /** Add (or replace) an uploaded extension from a filename + its `.h` content.
    *  Throws ZipLimitError when the upload would push the cumulative stored
-   *  total past EXTENSIONS_TOTAL_MAX_BYTES (ExtensionsModal surfaces it). */
-  function addUploaded(filename: string, content: string): Extension {
+   *  total past EXTENSIONS_TOTAL_MAX_BYTES, and PackageError
+   *  ('library-name-clash') when it is named like a library file — unless
+   *  the caller passes `overrideLibrary` because the author explicitly chose
+   *  to replace that file (ExtensionsModal surfaces both). */
+  function addUploaded(filename: string, content: string, opts: { overrideLibrary?: boolean } = {}): Extension {
     const name = (filename.replace(/\.h$/i, '').replace(/[^A-Za-z0-9_]/g, '_') || 'ext')
     const id = `uploaded:${name}`
+    const library = libraryFileFor(name)
+    if (library !== null && !opts.overrideLibrary) {
+      throw new PackageError(
+        'library-name-clash',
+        `${quotedPath(filename)} has the same name as a library file (${library}), so it can’t be added as an extension.`,
+      )
+    }
     // Replacing the same id counts its old size out.
     const otherBytes = uploaded.value.filter(e => e.id !== id).reduce((n, e) => n + e.content.length, 0)
     if (otherBytes + content.length > EXTENSIONS_TOTAL_MAX_BYTES) {
@@ -91,11 +237,24 @@ export function useExtensions() {
       library: 'any',
       content,
       origin: 'uploaded',
+      ...(library !== null && opts.overrideLibrary ? { overridesLibrary: true as const } : {}),
     }
     uploaded.value = [...uploaded.value.filter(e => e.id !== id), ext]
     if (!isEnabled(id)) enabledIds.value = [...enabledIds.value, id] // auto-enable on add
     persist()
     return ext
+  }
+
+  /** Replace every uploaded extension and the enabled set at once (opening a
+   *  `.frotzsmith` project). Validates first — over-budget throws
+   *  `ZipLimitError` with nothing changed. Returns the enabled names that match
+   *  no extension here, for the caller to keep. */
+  function replaceUploaded(files: { path: string; text: string }[], enabledNames: string[]): string[] {
+    const plan = planUploaded(files, enabledNames)
+    uploaded.value = plan.uploaded
+    enabledIds.value = plan.enabledIds
+    persist()
+    return plan.unknown
   }
 
   function removeUploaded(id: string) {
@@ -112,9 +271,12 @@ export function useExtensions() {
     persist()
   }
 
-  /** The files to mount for a compile: each enabled extension as { name, content }. */
+  /** The files to mount for a compile: each enabled extension as { name, content },
+   *  plus `overridesLibrary` when the author chose to replace a library file. */
   const enabledFiles = computed(() =>
-    all.value.filter(e => isEnabled(e.id)).map(e => ({ name: e.name, content: e.content })),
+    all.value
+      .filter(e => isEnabled(e.id) && !isShadowed(e))
+      .map(e => (e.overridesLibrary ? { name: e.name, content: e.content, overridesLibrary: true as const } : { name: e.name, content: e.content })),
   )
   const enabledCount = computed(() => enabledFiles.value.length)
 
@@ -124,6 +286,7 @@ export function useExtensions() {
     isEnabled,
     toggle,
     addUploaded,
+    replaceUploaded,
     removeUploaded,
     updateUploaded,
     enabledFiles,

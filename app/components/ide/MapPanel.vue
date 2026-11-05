@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { connectedDirs, oppositeDir, fitViewBox, type Dir } from '~/composables/map-graph'
+import { roomOf } from '~/composables/useMap'
 const { layout, currentRoom, details, graph, noRoomName, roomObjects, roomExits, mapMode, toggleMapMode } = useMap()
 
 const CELL = 120, ROOM_W = 96, ROOM_H = 48, PAD = 60
@@ -323,7 +324,7 @@ const devObjectsByRoom = computed(() => {
   const m = new Map<string, { items: string[]; more: number }>()
   if (mapMode.value !== 'dev') return m
   for (const r of layout.value.rooms) {
-    const objs = roomObjects.value[r.name] ?? []
+    const objs = roomOf(roomObjects.value, r.name) ?? []
     if (!objs.length) continue
     const items = objs.slice(0, DEV_MAX_LINES).map(o => (o.length > DEV_OBJ_MAX ? o.slice(0, DEV_OBJ_MAX - 1) + '…' : o))
     m.set(r.name, { items, more: Math.max(0, objs.length - DEV_MAX_LINES) })
@@ -357,7 +358,7 @@ const UNEXPLORED_GEOM: Record<Dir, StubGeom> = {
 const unexploredStubs = computed(() => {
   const out: (StubGeom & { key: string })[] = []
   for (const r of layout.value.rooms) {
-    const advertised = roomExits.value[r.name]
+    const advertised = roomOf(roomExits.value, r.name)
     if (!advertised?.length) continue
     const connected = new Set(connectedDirs(graph.value, r.name))
     const p = pos(r.name)
@@ -395,9 +396,9 @@ const srRoomList = computed(() =>
     // unexplored exits — the same set the map draws.
     for (const e of graph.value.edges) if (e.from === r.name && !seen.has(e.dir)) { parts.push(`${dirWord[e.dir]} to ${e.to}`); seen.add(e.dir) }
     for (const e of graph.value.edges) if (e.to === r.name) { const d = oppositeDir(e.dir); if (!seen.has(d)) { parts.push(`${dirWord[d]} to ${e.from}`); seen.add(d) } }
-    for (const d of roomExits.value[r.name] ?? []) if (!seen.has(d)) parts.push(`${dirWord[d]} (unexplored)`)
+    for (const d of roomOf(roomExits.value, r.name) ?? []) if (!seen.has(d)) parts.push(`${dirWord[d]} (unexplored)`)
     const exitText = parts.length ? parts.join(', ') : 'no exits'
-    const objs = roomObjects.value[r.name] ?? []
+    const objs = roomOf(roomObjects.value, r.name) ?? []
     return { name: r.name, exitText, objText: objs.length ? objs.join(', ') : '' }
   }),
 )

@@ -17,7 +17,7 @@ const DIRS: Record<string, Dir> = {
 /** Parse a command to a movement direction, else null. n/north/'go north'/ne/up/in/out. */
 export function parseDirection(command: string): Dir | null {
   const c = command.trim().toLowerCase().replace(/^(go|walk|run|head)\s+/, '')
-  return DIRS[c] ?? null
+  return Object.hasOwn(DIRS, c) ? DIRS[c]! : null // 'constructor' is not a direction
 }
 
 /** Room name from a status-line string: the left text before the score/moves gap. */

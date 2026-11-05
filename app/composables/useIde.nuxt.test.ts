@@ -26,6 +26,7 @@ import { useExtensions } from './useExtensions'
 import { useProjectFiles } from './useProjectFiles'
 import { useTestScripts } from './useTestScripts'
 import { usePlayTranscript } from './usePlayTranscript'
+import { useOutsideSource } from './outside-source'
 import { useLanguage } from './useLanguage'
 
 // Stub usePlayTranscript global — usePlayTranscript calls useIde() inside
@@ -192,6 +193,13 @@ describe('useIde — sendToPlay side-effects', () => {
     const before = playNonce.value
     sendToPlay(['look'])
     expect(playNonce.value).toBe(before + 1)
+  })
+
+  it('Play trusts an outside (package/link) source, so Skein auto-run resumes (F2)', () => {
+    const ide = setupSuccessResult()
+    useOutsideSource().markOutside()
+    ide.playStory()
+    expect(useOutsideSource().untrusted.value).toBe(false)
   })
 
   it('sendToPlay sets activeTab to "play"', () => {
@@ -381,6 +389,39 @@ describe('useIde — loadSample (async, lazy sample bodies)', () => {
     expect(ide.status.value).toBe('idle')
     expect(ide.result.value).toBeNull()
     expect(ide.activeTab.value).toBe('results')
+  })
+
+  it('a bundled sample or New clears the outside-source mark; editing and plain loadSource do not (F2)', async () => {
+    const ide = useIde()
+    useOutsideSource().markOutside()
+    ide.source.value += '\n! edited'
+    ide.loadSource('Constant Story "X";')
+    expect(useOutsideSource().untrusted.value).toBe(true)
+    await ide.loadSample('std-skeleton')
+    expect(useOutsideSource().untrusted.value).toBe(false)
+    useOutsideSource().markOutside()
+    ide.newProject('std')
+    expect(useOutsideSource().untrusted.value).toBe(false)
+  })
+
+  // Ruling (fix round): a plain .inf/.zil opened from disk is delivered like
+  // a package — outside source until the author presses Play or Run.
+  it('opening a plain source file marks it as outside source', () => {
+    const ide = useIde()
+    ide.newProject('std')
+    expect(useOutsideSource().untrusted.value).toBe(false)
+    ide.loadOpenedFile('Constant Story "From Disk";\n')
+    expect(ide.source.value).toBe('Constant Story "From Disk";\n')
+    expect(useOutsideSource().untrusted.value).toBe(true)
+    ide.newProject('std')
+    expect(useOutsideSource().untrusted.value).toBe(false)
+  })
+
+  it('a sample that is unknown leaves the mark in place', async () => {
+    const ide = useIde()
+    useOutsideSource().markOutside()
+    await ide.loadSample('no-such-sample')
+    expect(useOutsideSource().untrusted.value).toBe(true)
   })
 
   it('is a no-op for an unknown sample id', async () => {

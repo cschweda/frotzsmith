@@ -8,9 +8,42 @@ export interface TestScript {
   text: string
 }
 
+export interface Bucket {
+  scripts: TestScript[]
+  activeId: string
+}
+
+/** Story key → that game's scripts. Always a NULL-PROTOTYPE object read with
+ *  bucketOf: a game titled "Constructor" (key `constructor`) or a stored key
+ *  like `toString` / `__proto__` must never hit Object.prototype (audit F7). */
+export type Buckets = Record<string, Bucket>
+
 export interface PersistedV2 {
   v: 2
-  buckets: Record<string, { scripts: TestScript[]; activeId: string }>
+  buckets: Buckets
+}
+
+export function emptyBuckets(): Buckets {
+  return Object.create(null) as Buckets
+}
+
+/** The bucket stored under `key` — an own entry only, never an inherited
+ *  member. Read through the property descriptor, not `buckets[key]`: Vue's
+ *  reactive proxy answers a `hasOwnProperty` key with its own function. */
+export function bucketOf(buckets: Buckets, key: string): Bucket | undefined {
+  return Object.getOwnPropertyDescriptor(buckets, key)?.value as Bucket | undefined
+}
+
+/** A new prototype-free map: `buckets` with `key` set to `bucket`. */
+export function withBucket(buckets: Buckets, key: string, bucket: Bucket): Buckets {
+  const out = emptyBuckets()
+  for (const k of Object.keys(buckets)) out[k] = buckets[k]!
+  out[key] = bucket // on a null-prototype object even `__proto__` is an own key
+  return out
+}
+
+function isBucket(v: unknown): v is { scripts: TestScript[]; activeId?: unknown } {
+  return typeof v === 'object' && v !== null && Array.isArray((v as { scripts?: unknown }).scripts)
 }
 
 /**
@@ -22,38 +55,40 @@ export interface PersistedV2 {
  */
 export function migrateScriptStore(raw: unknown, currentKey: string): PersistedV2 {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-    return { v: 2, buckets: {} }
+    return { v: 2, buckets: emptyBuckets() }
   }
   const data = raw as Record<string, unknown>
 
-  // Already v2
+  // Already v2 — copied into a prototype-free map, own entries only, dropping
+  // anything that isn't bucket-shaped.
   if (
     data.v === 2 &&
     data.buckets !== null &&
     typeof data.buckets === 'object' &&
     !Array.isArray(data.buckets)
   ) {
-    return {
-      v: 2,
-      buckets: data.buckets as Record<string, { scripts: TestScript[]; activeId: string }>,
+    const raw = data.buckets as Record<string, unknown>
+    let buckets = emptyBuckets()
+    for (const key of Object.keys(raw)) {
+      const b = raw[key]
+      if (isBucket(b)) buckets = withBucket(buckets, key, { scripts: b.scripts, activeId: typeof b.activeId === 'string' ? b.activeId : '' })
     }
+    return { v: 2, buckets }
   }
 
   // Old flat v1 shape (data.scripts is an array and data.v is absent)
   if (Array.isArray(data.scripts)) {
     return {
       v: 2,
-      buckets: {
-        [currentKey]: {
-          scripts: data.scripts as TestScript[],
-          activeId: typeof data.activeId === 'string' ? data.activeId : '',
-        },
-      },
+      buckets: withBucket(emptyBuckets(), currentKey, {
+        scripts: data.scripts as TestScript[],
+        activeId: typeof data.activeId === 'string' ? data.activeId : '',
+      }),
     }
   }
 
   // Corrupt / unrecognised
-  return { v: 2, buckets: {} }
+  return { v: 2, buckets: emptyBuckets() }
 }
 
 export function upsertScript(list: TestScript[], script: TestScript): TestScript[] {

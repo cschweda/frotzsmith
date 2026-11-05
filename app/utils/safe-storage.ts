@@ -26,3 +26,12 @@ export function safeSetItem(key: string, value: string): boolean {
     return false
   }
 }
+
+/** Remove a key; a no-op when storage is unavailable. */
+export function safeRemoveItem(key: string): void {
+  try {
+    localStorage.removeItem(key)
+  } catch {
+    /* storage unavailable */
+  }
+}

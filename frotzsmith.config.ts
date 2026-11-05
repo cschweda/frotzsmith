@@ -59,6 +59,12 @@ export const frotzsmith = {
     scripts: 'frotzsmith:scripts',
     /** Skein auto-rerun-on-compile toggle ('on'/'off'; trees live in IndexedDB). */
     skeinAutoRun: 'frotzsmith:skein-autorun',
+    /** Story key of the game the last opened .frotzsmith project belongs to —
+     *  its hidden files (IndexedDB extras) are used only while this matches. */
+    extrasOwner: 'frotzsmith:extras-owner',
+    /** '1' while this profile's source came from a package/share link and
+     *  hasn't been played or run by hand — Skein auto-run waits (audit F2). */
+    outsideSource: 'frotzsmith:outside-source',
   },
 
   // ── Inline play (Parchment) ───────────────────────────────────────────────

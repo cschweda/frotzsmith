@@ -9,8 +9,9 @@ export interface CompileOpts {
   ext?: StoryExt
   /** Std/Puny library profile selector (Inform 6 only). */
   profileId?: 'std' | 'puny'
-  /** User-uploaded extension files to mount (Inform 6 only). */
-  extensions?: { name: string; content: string }[]
+  /** User-uploaded extension files to mount (Inform 6 only). One named like
+   *  a library file replaces it only with `overridesLibrary`. */
+  extensions?: { name: string; content: string; overridesLibrary?: true }[]
 }
 
 /**

@@ -2,6 +2,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { frotzsmith } from './frotzsmith.config'
 import { ifvmsThisFix } from './tools/ifvms-this-fix.mjs'
+import { ifvmsTextFix } from './tools/ifvms-text-fix.mjs'
 import { buildCommit, frotzsmithVersion } from './tools/version.mjs'
 
 // All app-wide constants live in frotzsmith.config.ts (single source of truth).
@@ -120,6 +121,16 @@ export default defineNuxtConfig({
   // wrapper turns into a crash in the production build — every headless
   // replay died with "reading 'e'". Applied to both the worker and the client
   // graphs (see tools/ifvms-this-fix.mjs).
+  //
+  // ifvmsTextFix: a story's Unicode table could inject JavaScript through
+  // ifvms's abbreviation JIT (audit 2026-11-04, F2). Same build-fails-if-the-
+  // line-moves style (see tools/ifvms-text-fix.mjs).
+  //
+  // optimizeDeps: in `nuxt dev`, Vite pre-bundles the CommonJS ifvms with
+  // Rolldown and the `plugins` transforms above never see it — so the dev
+  // replay worker would run UNPATCHED ifvms. The same two plugins go into the
+  // pre-bundle itself (review of fix B, minor 6; pinned by
+  // tools/nuxt-config.test.ts).
   vite: {
     define: {
       __FROTZSMITH_VERSION__: JSON.stringify(VERSION),
@@ -127,10 +138,15 @@ export default defineNuxtConfig({
       __FROTZSMITH_COMMIT_DATE__: JSON.stringify(COMMIT?.date ?? ''),
       __FROTZSMITH_DESKTOP__: JSON.stringify(DESKTOP),
     },
-    plugins: [ifvmsThisFix()],
+    plugins: [ifvmsThisFix(), ifvmsTextFix()],
+    optimizeDeps: {
+      rolldownOptions: {
+        plugins: [ifvmsThisFix(), ifvmsTextFix()],
+      },
+    },
     worker: {
       format: 'es',
-      plugins: () => [ifvmsThisFix()],
+      plugins: () => [ifvmsThisFix(), ifvmsTextFix()],
     },
   },
 
@@ -260,11 +276,15 @@ export default defineNuxtConfig({
         // declare every route a duplicate of the homepage.
       ],
       // Privacy-friendly analytics by Plausible (no cookies, no personal
-      // data), served FIRST-PARTY via the netlify.toml /pa/* proxy — closes
-      // the audit's SRI item (no third-party script execution) and lets CSP
-      // drop plausible.io. The bootstrap is a real file (public/pa/init.js),
-      // not an inline script.
-      script: [
+      // data), first-party: the tracker is a VENDORED, reviewed copy
+      // (public/pa/script.js, sha256 in tools/vendored-files.json), and only
+      // the event beacon /pa/event is proxied to plausible.io by
+      // public/_redirects (not netlify.toml — Nitro's catch-all shadows toml
+      // redirects). That closes the 2026-06-30 SRI item / 2026-11-04 F5 and
+      // lets CSP drop plausible.io. The bootstrap is a real file
+      // (public/pa/init.js), not an inline script. The desktop build ships
+      // no analytics at all.
+      script: DESKTOP ? [] : [
         // One entry only: init.js runs the queue shim + init() and then
         // injects the async library itself. Two head entries raced — unhead's
         // capo sorting hoists async scripts above blocking ones, so the

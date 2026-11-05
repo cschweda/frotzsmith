@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import type { ProfileId } from '~/modules/inform6/profiles'
+import type { PendingOpen } from '~/composables/useProjectPackage'
+import { formatNameList, mismatchNames } from '~/utils/mismatch-list'
+import { DOWNLOAD_FAILED, OPEN_FAILED, downloadedNote, openDialogNotes, openedNotes, refusalSentence, renamedNote } from '~/utils/package-messages'
+import { isPristine } from '~/utils/pristine'
 
-const { source, storyBase, loadSource, newProject } = useIde()
+const { source, storyBase, loadOpenedFile, newProject } = useIde()
 const { togglePanel, panelOpen } = useProjectFiles()
 const { profile } = useLanguage()
 const { copyShareLink } = useShareLink()
+const pkg = useProjectPackage()
+const toast = useToast()
 function onShare() {
   void copyShareLink() // outcome lands in a toast either way
 }
@@ -21,18 +27,168 @@ function create() {
 
 // Open a local .inf into the editor.
 const fileInput = shallowRef<HTMLInputElement | null>(null)
+const openButton = ref<{ $el?: HTMLElement } | null>(null)
+/** The file picker's modal opens asynchronously, so nothing restores focus for
+ *  us: put it back on Open so keyboard users never land on <body>. */
+async function focusOpen() {
+  await nextTick()
+  openButton.value?.$el?.focus()
+}
 function openFile() {
   fileInput.value?.click()
 }
 function onFileChange(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  if (file) {
+  if (file && file.name.toLowerCase().endsWith('.frotzsmith')) {
+    void openPackage(file)
+  } else if (file) {
     const reader = new FileReader()
-    reader.onload = () => loadSource(String(reader.result ?? ''))
+    reader.onload = () => openPlain(file.name, String(reader.result ?? ''))
     reader.readAsText(file)
   }
   input.value = '' // allow re-opening the same file later
+}
+
+// A plain source file replaces the editor's text: ask first unless the
+// editor holds nothing the author wrote (or the same text).
+const pendingPlain = shallowRef<{ name: string; text: string } | null>(null)
+const confirmPlain = ref(false)
+function openPlain(name: string, text: string) {
+  if (isPristine(source.value) || text === source.value) {
+    loadOpenedFile(text) // outside source: no Skein auto-run until Play/Run
+    void focusOpen()
+    return
+  }
+  pendingPlain.value = { name, text }
+  confirmPlain.value = true
+}
+function onReplacePlain() {
+  const p = pendingPlain.value
+  confirmPlain.value = false
+  pendingPlain.value = null
+  if (p) loadOpenedFile(p.text)
+  void focusOpen()
+}
+function onCancelPlain() {
+  confirmPlain.value = false
+  pendingPlain.value = null
+  void focusOpen()
+}
+
+// .frotzsmith projects: read + check first, ask before replacing real work,
+// then apply. Nothing is compiled or run by opening.
+const pending = shallowRef<PendingOpen | null>(null)
+/** What the pending open would replace, for the confirmation's wording. */
+const replaces = shallowRef<string[]>([])
+/** The extensions it adds and the hidden files it carries, named in the dialog. */
+const openNotes = shallowRef<string[]>([])
+const confirmOpen = ref(false)
+
+function fail(err: unknown) {
+  toast.add({
+    title: 'Couldn’t open that project',
+    description: refusalSentence(err, OPEN_FAILED),
+    color: 'error',
+    icon: 'i-lucide-circle-alert',
+  })
+}
+
+async function openPackage(file: File) {
+  try {
+    await openPackageInner(file)
+  } finally {
+    // A confirmation dialog takes focus itself and returns it on close.
+    if (!confirmOpen.value) await focusOpen()
+  }
+}
+
+async function openPackageInner(file: File) {
+  try {
+    const p = await pkg.inspect(file)
+    const work = await pkg.whatOpenReplaces(p)
+    // Always ask when the package installs or enables an extension: every
+    // Inform 6 game in this browser uses it, not just this one.
+    if (work.length > 0 || p.extensions.length > 0) {
+      pending.value = p
+      replaces.value = work
+      openNotes.value = openDialogNotes(p)
+      confirmOpen.value = true
+    } else {
+      await applyPending(p)
+    }
+  } catch (err) {
+    fail(err)
+  }
+}
+
+async function applyPending(p: PendingOpen) {
+  try {
+    await pkg.apply(p)
+  } catch (err) {
+    fail(err)
+    return
+  }
+  const notes = openedNotes(p) // names the extensions added and the hidden files
+  toast.add({
+    title: 'Project opened',
+    description: notes.join(' ') || undefined,
+    color: 'success',
+    icon: 'i-lucide-check',
+  })
+  const changed = mismatchNames(p.hashMismatches)
+  if (changed.length > 0) {
+    toast.add({
+      title: 'Some files changed after the package was made',
+      description: `These don't match what the package recorded: ${formatNameList(changed)}.`,
+      color: 'warning',
+      icon: 'i-lucide-triangle-alert',
+    })
+  }
+}
+
+function onReplace() {
+  const p = pending.value
+  confirmOpen.value = false
+  pending.value = null
+  if (p) void applyPending(p).finally(focusOpen)
+  else void focusOpen()
+}
+function onCancelOpen() {
+  confirmOpen.value = false
+  pending.value = null
+  void focusOpen()
+}
+
+async function downloadProject() {
+  try {
+    const { bytes, filename, hidden, leftOut, renamed } = await pkg.buildPackage()
+    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/vnd.frotzsmith.package+zip' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 30_000)
+    // Files the IDE doesn't show still ride along: say which (F15). Files
+    // the package can't hold stay in the browser: say which (review I-2).
+    // Renamed uploads need their Include line updated (re-review N-2).
+    const note = [downloadedNote(hidden, leftOut), renamedNote(renamed)].filter(Boolean).join(' ')
+    if (note) {
+      toast.add({
+        title: 'Project downloaded',
+        description: note,
+        color: leftOut.length > 0 || renamed.length > 0 ? 'warning' : 'neutral',
+        icon: 'i-lucide-package',
+      })
+    }
+  } catch (err) {
+    toast.add({
+      title: 'Couldn’t download the project',
+      description: refusalSentence(err, DOWNLOAD_FAILED),
+      color: 'error',
+      icon: 'i-lucide-circle-alert',
+    })
+  }
 }
 
 // Save As… — a real save dialog where supported (Chromium), else a download.
@@ -81,11 +237,21 @@ async function saveAs() {
     <UIcon name="i-lucide-file-code-2" class="text-muted size-4" />
     <span class="text-muted text-xs font-semibold uppercase tracking-wide">Source</span>
 
-    <input ref="fileInput" type="file" :accept="`.${profile.fileExt},.txt,.h`" class="hidden" @change="onFileChange" />
+    <input ref="fileInput" type="file" :accept="`.${profile.fileExt},.txt,.h,.frotzsmith`" class="hidden" @change="onFileChange" />
 
     <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
-      <UButton color="neutral" variant="subtle" size="sm" icon="i-lucide-folder-open" @click="openFile">
+      <UButton ref="openButton" color="neutral" variant="subtle" size="sm" icon="i-lucide-folder-open" @click="openFile">
         Open
+      </UButton>
+      <UButton
+        color="neutral"
+        variant="subtle"
+        size="sm"
+        icon="i-lucide-package"
+        title="Download this project as a .frotzsmith file — source, includes, test scripts and Skein"
+        @click="downloadProject"
+      >
+        Download project
       </UButton>
 
       <UButton color="neutral" variant="subtle" size="sm" icon="i-lucide-save" @click="saveAs">
@@ -110,6 +276,29 @@ async function saveAs() {
            embedded in the WASM bundle, so hide it outside I6. -->
       <ExtensionsModal v-if="profile.id === 'i6'" />
     </div>
+
+    <OpenProjectModal
+      v-model:open="confirmOpen"
+      :title="pending?.project.title ?? pending?.project.main.name ?? ''"
+      :main-name="pending?.project.main.name ?? ''"
+      :replaces="replaces"
+      :notes="openNotes"
+      @replace="onReplace"
+      @cancel="onCancelOpen"
+      @closed="focusOpen"
+    />
+
+    <OpenProjectModal
+      v-model:open="confirmPlain"
+      :title="pendingPlain?.name ?? ''"
+      :replaces="['the source in the editor']"
+      heading="Replace the source in the editor?"
+      description="Opening this file replaces the source in the editor."
+      confirm-label="Replace"
+      @replace="onReplacePlain"
+      @cancel="onCancelPlain"
+      @closed="focusOpen"
+    />
 
     <UModal v-model:open="open" title="New project" description="Start with a blank editor for the chosen library.">
       <template #body>

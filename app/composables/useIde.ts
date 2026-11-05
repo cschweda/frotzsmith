@@ -1,8 +1,11 @@
 import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { formatI6 } from '~/utils/format-i6'
+import { storyTitleOf } from '~/utils/story-title'
+import { getExtrasStore } from '~/composables/project-extras-store'
 import { formatZil } from '~/utils/format-zil'
-import { safeGetItem, safeSetItem } from '~/utils/safe-storage'
+import { safeGetItem, safeRemoveItem, safeSetItem } from '~/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
+import { useOutsideSource } from '~/composables/outside-source'
 import { PROFILES, detectProfile, type ProfileId } from '~/modules/inform6/profiles'
 import { sampleById, loadSampleSource } from '~/modules/inform6/samples'
 import { sampleById as zilSampleById } from '~/modules/languages/zil/samples'
@@ -59,19 +62,8 @@ export function useIde() {
       : activeProfile.value.defaultExt
   })
 
-  /**
-   * The story title from the source, used for Save-As filenames — language-aware.
-   * I6: reads `Constant Story "…"`.
-   * ZIL: reads the first pipe-segment of `<CONSTANT GAME-BANNER "Title|…">`.
-   */
-  const storyTitle = computed(() => {
-    if (profile.value.id === 'zil') {
-      const banner = /<CONSTANT\s+GAME-BANNER[^"]*"([^"]*)/i.exec(source.value)?.[1] ?? ''
-      const title = banner.split('|')[0]?.trim().replace(/[\r\n]/g, ' ').trim()
-      return title || undefined
-    }
-    return /Constant\s+Story\s+"([^"]*)"/i.exec(source.value)?.[1]?.trim()
-  })
+  /** The story title from the source, used for Save-As filenames — language-aware. */
+  const storyTitle = computed(() => storyTitleOf(profile.value.id === 'zil' ? 'zil' : 'i6', source.value))
   /** Filename stem for Save-As / Download: slug of the title (or 'story'), '-puny' for PunyInform. */
   const storyBase = computed(() => storyBaseName(storyTitle.value, effectiveProfile.value === 'puny'))
 
@@ -266,6 +258,19 @@ export function useIde() {
       notifyStorageFull()
   }
 
+  /** A different source is being loaded: hidden files kept from an opened
+   *  `.frotzsmith` project no longer belong to the editor's game (the owner
+   *  marker and the stored record both go), even when
+   *  the new one has the same title (useProjectPackage re-claims them after
+   *  its own loadSource). Not part of resetForNewSource — that also runs on a
+   *  language-switch restore, which keeps the same game. */
+  function releaseExtras() {
+    if (!import.meta.client) return
+    safeRemoveItem(buildStorageKey(profile.value.stateKey, frotzsmith.storageKeys.extrasOwner))
+    // …and drop the record itself, so the store never outgrows one project.
+    void getExtrasStore().clear(profile.value.stateKey)
+  }
+
   /** Load a built-in sample into the editor, prettified for consistent formatting.
    *  Async: I6 sample bodies live in per-sample lazy chunks (loadSampleSource). */
   async function loadSample(id: string): Promise<void> {
@@ -277,6 +282,8 @@ export function useIde() {
       activeStoryKey.value = storyKey.value
       setTargetMode(s.target)
       resetForNewSource()
+      releaseExtras()
+      useOutsideSource().trust() // the author's own choice of source (F2)
       return
     }
     // I6 path.
@@ -297,6 +304,8 @@ export function useIde() {
     setProfileMode('auto')
     setTargetMode(s.target ?? 'auto')
     resetForNewSource()
+    releaseExtras()
+    useOutsideSource().trust() // the author's own choice of source (F2)
   }
 
   /** Load arbitrary source text (e.g. an opened .inf file) into the editor. */
@@ -305,6 +314,14 @@ export function useIde() {
     // Commit the new game's bucket key AFTER source is set so storyKey reflects the loaded file.
     activeStoryKey.value = storyKey.value
     resetForNewSource()
+    releaseExtras()
+  }
+
+  /** Load a source file the author opened from disk. It arrived from outside
+   *  like a package does, so Skein auto-run waits until Play or Run (F2). */
+  function loadOpenedFile(text: string) {
+    loadSource(text)
+    useOutsideSource().markOutside()
   }
 
   /** Start a fresh project: a blank editor with the chosen library forced. */
@@ -316,6 +333,8 @@ export function useIde() {
     // and persisting 'std' into the ZIL storage bucket is a state smell.
     if (profile.value.id === 'i6') setProfileMode(library)
     resetForNewSource()
+    releaseExtras()
+    useOutsideSource().trust() // a blank project of the author's own (F2)
   }
 
   /** Clear all Parchment autosave entries from localStorage so the next Play boots
@@ -329,6 +348,9 @@ export function useIde() {
 
   function playStory() {
     if (!canPlay.value) return
+    // The author chose to play: a package/share-link source is trusted from
+    // here on, so Skein auto-run resumes (audit F2; see outside-source.ts).
+    useOutsideSource().trust()
     activeTab.value = 'play'
     playNonce.value += 1
   }
@@ -372,6 +394,7 @@ export function useIde() {
     setTargetMode,
     loadSample,
     loadSource,
+    loadOpenedFile,
     newProject,
     playStory,
     sendToPlay,

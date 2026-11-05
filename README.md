@@ -25,6 +25,8 @@ A second source language, **ZIL** — Infocom's original MDL/Lisp-like language 
 
 A power-user testing layer runs arbitrarily long command scripts (`n. examine rock. lift rock.`) through a headless replay engine and shows the per-turn transcript. Playing by hand also records every command you type into a read-only **Transcript**, and one click turns that captured playthrough into a reusable **Test Script** — the linear spine from which a full branching Skein with blessed-output regression diffing later grows.
 
+Projects travel as `.frotzsmith` packages — an open format: [spec](docs/spec/frotzsmith-package.md).
+
 ## Why
 
 Inform 6 is the author's favourite IF language, but browser tooling is fragmented: interpreters play *finished* story files, and the Inform 7 IDE is a desktop app tied to I7's natural-language layer. There is no clean, modern, browser-native place to **write I6, compile it, and immediately play it** with library auto-import and saved test scripts. Frotzsmith fills that gap — primarily for the author's own use, secondarily as a shareable open-source tool.
@@ -114,24 +116,31 @@ Frotzsmith is fully client-side with no backend, no accounts, and no user data l
 
 ## Security audits
 
-Periodic adversarial (red-team) + defensive (blue-team) reviews of the client-side attack surface. Newest first; as audits accumulate, older entries are collapsed under a `<details>` toggle. Each finding is paired with its specific mitigation — applied or recommended.
+Periodic adversarial (red-team) + defensive (blue-team) reviews of the client-side attack surface. The newest audit is shown in full; older ones are condensed below. **Every audit is kept in full** in [`docs/security-audits/`](./docs/security-audits/README.md).
 
-### 2026-06-30 — Red/blue audit (play-transcript release)
+### 2026-11-04 — Red/blue audit (`.frotzsmith` package)
 
-**Scope:** CSP & headers, the `eval`-loaded Glk layer, the `postMessage` capture boundary, the Parchment play `<iframe>` + vendored ZVM JIT, the WebAssembly compiler, user/source/game-text rendering, extension (`.zip`) handling, `localStorage`, supply chain, and analytics.
-**Method:** independent red-team (exploitation) and blue-team (controls) passes, synthesized and verified.
-**Overall posture: strong** — no backend, no accounts; **no `v-html`/`innerHTML` anywhere** (every untrusted text stream renders through escaped interpolation); namespaced, quota-guarded `localStorage`; a fresh-per-run replay worker with a hard wall-clock timeout; a fully vendored interpreter (no runtime CDN code).
+**Scope:** the new `.frotzsmith` project package and everything it can feed (Skein trees, test scripts, extensions, the compiler's include mount, Play and headless replay), the vendored Z-machine interpreters, CSP and headers, analytics, and the supply chain.
+**Method:** a blue-team control review (57 controls) and red-team attack files + probes run against the repo's own modules and compiler, cross-checked with `unzip`, `bsdtar` and Python `zipfile`; three fix rounds, each independently reviewed; a browser check of the production build.
+**Overall posture: strong, after fixes.** Every finding is fixed except one Info item (deferred). Full record: [`docs/security-audits/2026-11-04-red-blue-audit.md`](./docs/security-audits/2026-11-04-red-blue-audit.md).
 
 | Severity | Finding | Mitigation |
 |----------|---------|-----------|
-| **High** | **Remote story delivery + ZVM JIT injection.** The play page accepted *any* `?story=` URL and CSP allowed `data:`, so a crafted link could load an attacker-controlled Z-machine binary. The vendored ZVM compiles z-code to JS via `new Function()`; red-team analysis identified a *potential* JIT-injection path via a malicious Unicode table (not independently PoC-proven) that `'unsafe-eval'` would execute in-origin. | **Fixed** (`084aafa`): the play page now accepts **same-origin `blob:` story URLs only** (the IDE's own compiled output) and falls back to the demo otherwise; `data:` removed from CSP `connect-src`. This closes the external delivery vector, so no attacker-supplied story can reach the interpreter regardless of the JIT path. *Recommended:* track upstream `ifvms` for a codegen-layer patch. |
-| **Medium** | **Zip decompression bomb.** Extension `.zip` import (`ExtensionsModal.vue`) runs `unzipSync()` with no size/entry cap; a crafted archive can crash the tab (self-upload DoS). | **Fixed** (review batch 2026-07-01): `unzipSync` now runs behind an entry filter capping `.h` count (200) and total uncompressed size (5 MB) — `app/utils/zip-limits.ts`; oversized archives are rejected *before* expansion, and single `.h` uploads over 5 MB are refused. |
-| **Medium** | **Compile runs on the main thread.** `inform6.wasm` compiles synchronously with no timeout, so a pathological source can freeze the tab (`docs/06-security.md` overstated Worker isolation here). | **Fixed** (`2ad3296`, 2026-07-09): Inform 6 now compiles in a Web Worker with a 60 s wall-clock timeout and a fail-fast error channel, mirroring the ZILF/replay workers; the main-thread path remains only as an automatic fallback when a worker can't boot. |
-| **Medium** | **Analytics script lacks SRI.** `nuxt.config.ts` loads the remote Plausible script without `integrity=`. | *Recommended:* self-host the script or pin an SRI hash (noting CDN auto-updates can invalidate a static hash). |
-| **Low** | **`postMessage` source not pinned.** The play-command capture listener verified `origin` + a message tag but not the sender window. | **Fixed** (`084aafa`): added an `e.source === iframe.contentWindow` guard. The captured value was already inert data (appended to a list, never executed). |
-| **Low** | **Header/CSP hardening.** Dead `api.iconify.design` in CSP `connect-src` (icons are bundled at build time); no `Permissions-Policy`; silent `localStorage` quota failures. | **Partly fixed** (`084aafa`): removed the dead `connect-src` entry and added `Permissions-Policy` (camera/mic/geolocation/payment denied). *Recommended:* a non-blocking "storage full" cue; a `sandbox` attribute on the play iframe as defense-in-depth. |
+| **High** | **JavaScript injection through the Z-machine JIT** (proven). Both interpreter copies compile abbreviated strings with `Function()`, using U+E000 as a placeholder that becomes `"`. A story mapping a character to U+E000 in its Unicode table could run script on frotzsmith.com. A share link or package plus one Compile was enough, because the Skein auto-replays. This is the June audit's "potential" High: its `blob:`-only gate never covered source you compile yourself. | **Fixed:** both copies patched (U+E000/control characters become U+FFFD; JS line terminators escaped). The build fails if the patch can't apply. Regression tests show exploit before / inert after, and the built worker is smoke-tested on every deploy. Outside source (package, share link, opened file) no longer auto-runs until you press Play or Run. |
+| **High** | **A package could replace a library file** (`VerbLib.h`, `Parser.h`, `puny.h` …) **for every later game**, silently, because package includes became language-wide uploaded extensions mounted over the library. | **Fixed:** library-named packages are refused, the library always wins at compile, and any package that adds an extension asks first and names it. |
+| **Medium** | **Vue-reserved keys / deep junk in a Skein.** These could crash the Skein panel persistently, make a node replay a different command from the one validated, or break download. | **Fixed:** every loaded tree is rebuilt from known fields, with safe node ids and a depth cap. |
+| **Medium** | **Analytics script lacked integrity** (open since June). | **Fixed:** a reviewed copy is vendored with a recorded checksum; only the event beacon is proxied; no analytics on desktop. |
+| **Low** | Zip parser differentials (archive comment, Unicode Path field); symlink check limited to Unix archives; unportable or deceptive file names and case-fold twins; deceptive display names in toasts; prototype-named games breaking Tests and the map; silent `.skein`/Open replacement; uncapped test scripts; trailing compressed bytes; hidden files not named; loose CSP; vendored-file provenance, Actions pins, frozen Netlify install; missing tests. | **All fixed** — stricter reader + writer parity, cleaned names, confirmations and caps, `blob:` dropped from CSP with a header test, checksums, SHA-pinned Actions, `--frozen-lockfile`, and new tests (which found and fixed two more gaps). |
+| **Info** | Extension `.zip` upload isn't atomic; the main-thread compile fallback has no timeout. | Deferred to the next milestone. |
 
-**Verified controls (no change needed):** the `eval` in `engine/glk.ts` runs a **build-time static** asset (not user input); the WASM compiler runs in its own sandbox with output treated as data; the compiler stderr, captured game commands, and replay output all render via escaped `{{ }}` only.
+**Residual:** the interpreters still share the IDE's origin. An opaque-origin sandbox for Play and replay is planned.
+
+<details>
+<summary><strong>Older audits</strong> (condensed — full records in <code>docs/security-audits/</code>)</summary>
+
+- **2026-06-30 — Red/blue audit (play-transcript release).** 1 High, 3 Medium, 2 Low. These were fixed at the time: the remote-story delivery High (play page limited to same-origin `blob:`), the zip bomb, compiling on the main thread, the `postMessage` source pin, and part of the header hardening. The JIT-injection High and the analytics integrity item were closed by the 2026-11-04 audit. [Full record →](./docs/security-audits/2026-06-30-red-blue-audit.md)
+
+</details>
 
 ## License & attribution
 

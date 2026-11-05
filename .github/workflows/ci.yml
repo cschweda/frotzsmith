@@ -17,8 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      # Actions pinned by full commit SHA (audit 2026-11-04, F16): a moved tag
+      # can't change what runs. Dependabot (github-actions) keeps the SHA and
+      # the version comment current.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: yarn
@@ -45,6 +48,7 @@ jobs:
           test -f .output/public/zilf/r5262550/_framework/dotnet.js
           test -f .output/public/zilf/r5262550/_framework/dotnet.native.wasm
           test -f .output/public/pa/init.js
+          test -f .output/public/pa/script.js
           grep -q 'rel="modulepreload"' .output/public/index.html
       # The README's axe-core zero-violation gate, for real: serve the build
       # and fail on any violation on the three routes (full default ruleset).
@@ -55,7 +59,8 @@ jobs:
       # for Testing + chromedriver pair and writes ~/.browser-driver-manager/.env,
       # which @axe-core/cli reads, so the gate no longer depends on the runner.
       - name: Install matched Chrome + chromedriver for axe
-        run: npx -y browser-driver-manager install chrome
+        # Pinned (F16): `npx -y` would otherwise run whatever is newest on npm.
+        run: npx -y browser-driver-manager@2.0.1 install chrome
       - name: Accessibility gate (axe-core, zero violations)
         run: |
           npx serve -l 8080 .output/public &

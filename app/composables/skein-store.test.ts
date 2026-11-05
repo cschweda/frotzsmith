@@ -56,3 +56,45 @@ describe('getSkeinStore', () => {
     expect(await store.load('k')).not.toBeNull()
   })
 })
+
+// F3: a tree saved before the fix (or written by anything else) is checked
+// and rebuilt again on every restore.
+describe('restores are sanitized (F3)', () => {
+  const poisoned = (bad: string) => ({ root: 'r', nodes: {
+    r: { id: 'r', command: '', parentId: null, childIds: [bad], status: 'unblessed' },
+    [bad]: { id: bad, command: 'look', parentId: 'r', childIds: [], status: 'unblessed' },
+  } })
+
+  async function putRaw(key: string, value: unknown) {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open('frotzsmith', 1)
+      req.onupgradeneeded = () => req.result.createObjectStore('skeins')
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => reject(req.error)
+    })
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('skeins', 'readwrite')
+      tx.objectStore('skeins').put(value, key)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+    db.close()
+  }
+
+  it('IndexedDB: a tree with a Vue-reserved node id loads as null', async () => {
+    await putRaw('i6:poison', poisoned('__v_isReactive'))
+    expect(await createIdbSkeinStore().load('i6:poison')).toBeNull()
+  })
+
+  it('IndexedDB: unknown node fields are dropped on load', async () => {
+    const t = { root: 'r', nodes: { r: { id: 'r', command: '', parentId: null, childIds: [], status: 'unblessed', __v_isRef: true, value: 1 } } }
+    await putRaw('i6:extra', t)
+    expect(await createIdbSkeinStore().load('i6:extra')).toEqual({ root: 'r', nodes: { r: { id: 'r', command: '', parentId: null, childIds: [], status: 'unblessed' } } })
+  })
+
+  it('memory store: a poisoned tree loads as null', async () => {
+    const store = createMemorySkeinStore()
+    await store.save('k', poisoned('__v_skip') as never)
+    expect(await store.load('k')).toBeNull()
+  })
+})
