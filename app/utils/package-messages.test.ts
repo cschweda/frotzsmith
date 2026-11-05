@@ -85,6 +85,13 @@ describe('openDialogNotes', () => {
       'It carries a file Frotzsmith doesn’t show, kept and included when you download: “notes/a.md”.',
     ])
   })
+  it('says when the package includes a solution (Solutions)', () => {
+    expect(openDialogNotes({ extensions: [], hiddenNames: ['notes/a.md'], solution: true })).toEqual([
+      'It includes a solution.',
+      'It carries a file Frotzsmith doesn’t show, kept and included when you download: “notes/a.md”.',
+    ])
+    expect(openDialogNotes({ extensions: [], hiddenNames: [], solution: false })).toEqual([])
+  })
   it('is empty when there is nothing to name', () => {
     expect(openDialogNotes({ extensions: [], hiddenNames: [] })).toEqual([])
   })

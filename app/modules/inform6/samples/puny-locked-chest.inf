@@ -45,6 +45,11 @@
 !                                      Include "puny.h";
 !  [ Initialise; location = Room; ]    Constant INITIAL_LOCATION_VALUE = Room;
 !  bare-string opening message         print "message"  inside Initialise
+!
+!  HOW THE GAME FLOWS
+!    One room, a dusty Study, with a brass key and a locked chest. TAKE KEY,
+!    UNLOCK CHEST WITH KEY, OPEN CHEST, TAKE COIN. OPEN CHEST before unlocking
+!    it is refused. The coin is the reward; there is no ending beyond it.
 ! ============================================================================
 
 ! ---------------------------------------------------------------------------
@@ -119,7 +124,7 @@ Object -> chest "wooden chest"
 ! ---------------------------------------------------------------------------
 Object -> -> coin "gold coin"
   with name 'gold' 'coin',
-       description "A gleaming gold coin — treasure at last!";
+       description "A gleaming gold coin -- treasure at last!";
 
 ! ---------------------------------------------------------------------------
 !  INITIALISE ROUTINE

@@ -1,0 +1,20 @@
+plugh
+east
+take scroll
+take knife
+west
+south
+east
+south
+east
+north
+open cabinet
+take key
+south
+west
+west
+north
+west
+west
+unlock door with key
+south

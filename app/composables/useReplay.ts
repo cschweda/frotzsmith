@@ -16,12 +16,21 @@ interface ReplayRequest {
 type WorkerOut =
   | { type: 'progress'; done: number; total: number }
   | { type: 'result'; turns: TurnRecord[]; ms: number }
-  | { type: 'error'; message: string }
+  | { type: 'error'; message: string; turns?: TurnRecord[] }
 
 export class ReplayCancelledError extends Error {
   constructor() {
     super('Replay cancelled')
     this.name = 'ReplayCancelledError'
+  }
+}
+
+/** The engine failed part-way; `turns` are those played before it (banner
+ *  first), empty when it failed at boot. */
+export class ReplayEngineError extends Error {
+  constructor(message: string, public readonly turns: TurnRecord[]) {
+    super(message)
+    this.name = 'ReplayEngineError'
   }
 }
 
@@ -71,7 +80,7 @@ export function runReplayController(
         cleanup()
         resolve({ turns: msg.turns, ms: msg.ms })
       } else if (msg.type === 'error') {
-        fail(new Error(msg.message))
+        fail(new ReplayEngineError(msg.message, msg.turns ?? []))
       }
     }
     worker.onerror = (err: unknown) => fail(err instanceof Error ? err : new Error('Worker error'))

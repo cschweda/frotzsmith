@@ -17,7 +17,7 @@
  *   - Parchment iframe interaction
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 // Import real composables to register them as globals (they use Nuxt auto-imports
 // internally, which our setup file provides). They MUST be imported before useIde.
@@ -631,4 +631,275 @@ describe('useIde — the open ZIL project\'s extra files', () => {
     expect(pf.activeId.value).toBe('zil:rooms.zil')
     expect(ide.jumpSignal.value).toBe(before)
   })
+})
+
+describe('useIde — the loaded sample (Solutions)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    useLanguage().setLanguage('i6')
+  })
+
+  it('loadSample sets loadedSampleId; edits flip sampleEdited, undoing them flips it back', async () => {
+    const ide = useIde()
+    ide.newProject('std')
+    expect(ide.loadedSampleId.value).toBeNull()
+    expect(ide.sampleEdited.value).toBe(false)
+    await ide.loadSample('std-architect-legacy')
+    expect(ide.loadedSampleId.value).toBe('std-architect-legacy')
+    expect(ide.sampleEdited.value).toBe(false)
+    const loaded = ide.source.value
+    ide.source.value += '\n! a note'
+    expect(ide.sampleEdited.value).toBe(true)
+    ide.source.value = loaded
+    expect(ide.sampleEdited.value).toBe(false)
+  })
+
+  it('an unknown sample leaves the loaded sample as it was', async () => {
+    const ide = useIde()
+    await ide.loadSample('std-architect-legacy')
+    await ide.loadSample('no-such-sample')
+    expect(ide.loadedSampleId.value).toBe('std-architect-legacy')
+  })
+
+  it('New, Open and loadSource (share link, package) clear it', async () => {
+    const ide = useIde()
+    await ide.loadSample('std-architect-legacy')
+    ide.newProject('std')
+    expect(ide.loadedSampleId.value).toBeNull()
+    expect(ide.sampleEdited.value).toBe(false)
+
+    await ide.loadSample('std-architect-legacy')
+    ide.loadOpenedFile('Constant Story "From Disk";\n')
+    expect(ide.loadedSampleId.value).toBeNull()
+
+    await ide.loadSample('std-architect-legacy')
+    ide.loadSource('Constant Story "Shared";\n') // share link and package apply both load through this
+    expect(ide.loadedSampleId.value).toBeNull()
+  })
+
+  it('is held per language and survives a language round trip', async () => {
+    const ide = useIde()
+    ide.restore()
+    await ide.loadSample('std-architect-legacy')
+    useSourceDocument().flushPendingSave()
+    useLanguage().setLanguage('zil')
+    ide.restore()
+    expect(ide.loadedSampleId.value).toBeNull() // the ZIL editor holds no sample yet
+    await ide.loadSample('zil-architect-legacy')
+    expect(ide.loadedSampleId.value).toBe('zil-architect-legacy')
+    expect(ide.sampleEdited.value).toBe(false)
+    useSourceDocument().flushPendingSave()
+    useLanguage().setLanguage('i6')
+    ide.restore()
+    expect(ide.loadedSampleId.value).toBe('std-architect-legacy')
+    expect(ide.sampleEdited.value).toBe(false)
+    ide.newProject('std') // clearing one language leaves the other's
+    useLanguage().setLanguage('zil')
+    ide.restore()
+    expect(ide.loadedSampleId.value).toBe('zil-architect-legacy')
+  })
+
+  it('survives a page reload, edited or not, and stays cleared after New', async () => {
+    const stateMap = (window as unknown as { __nuxtStateMap: Map<string, unknown> }).__nuxtStateMap
+    const reload = () => {
+      // The autosave watcher is once-per-session (bound to an earlier test's
+      // state), so drop its pending write and save the current buffer here.
+      useSourceDocument().flushPendingSave()
+      useSourceDocument().save()
+      stateMap.clear()
+      useLanguage().setLanguage('i6')
+      useIde().restore()
+    }
+    await useIde().loadSample('std-architect-legacy')
+    reload()
+    expect(useIde().loadedSampleId.value).toBe('std-architect-legacy')
+    expect(useIde().sampleEdited.value).toBe(false)
+    useIde().source.value += '\n! edited before the reload'
+    reload()
+    expect(useIde().loadedSampleId.value).toBe('std-architect-legacy')
+    expect(useIde().sampleEdited.value).toBe(true)
+    useIde().newProject('std')
+    reload()
+    expect(useIde().loadedSampleId.value).toBeNull()
+  })
+
+  it('a different game restored in its place is not the sample', async () => {
+    await useIde().loadSample('std-architect-legacy')
+    const stateMap = (window as unknown as { __nuxtStateMap: Map<string, unknown> }).__nuxtStateMap
+    stateMap.clear()
+    useSourceDocument().source.value = 'Constant Story "Something Else";\n' // e.g. a lost recovery snapshot
+    useIde().activeStoryKey.value = useIde().storyKey.value
+    expect(useIde().loadedSampleId.value).toBeNull()
+  })
+})
+
+describe('useIde — buildIsCurrent / ensureBuild (compile only when stale)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    useLanguage().setLanguage('i6')
+    _compileMock.mockResolvedValue({
+      ok: true, storyFile: new Uint8Array([1, 2, 3]), storyExt: 'z5' as const,
+      diagnostics: [], rawStderr: '', ms: 1, byteLength: 3, stats: null,
+    })
+  })
+
+  it('is current after a compile, stale after an edit, and ensureBuild compiles only then', async () => {
+    const ide = useIde()
+    ide.loadSource('Constant Story "Fresh";\n')
+    expect(ide.buildIsCurrent.value).toBe(false)
+    expect(await ide.ensureBuild()).toBe(true)
+    expect(_compileMock).toHaveBeenCalledTimes(1)
+    expect(ide.buildIsCurrent.value).toBe(true)
+
+    expect(await ide.ensureBuild()).toBe(true)
+    expect(_compileMock).toHaveBeenCalledTimes(1) // already current: no compile
+
+    ide.source.value += '\n! edit'
+    expect(ide.buildIsCurrent.value).toBe(false)
+    // straight after a compile: the click debounce must not block this one
+    expect(await ide.ensureBuild()).toBe(true)
+    expect(_compileMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the right-pane tab when it compiles, and reports a failed build', async () => {
+    const ide = useIde()
+    ide.loadSource('Constant Story "Tabbed";\n')
+    ide.activeTab.value = 'map'
+    expect(await ide.ensureBuild()).toBe(true)
+    expect(ide.activeTab.value).toBe('map')
+
+    _compileMock.mockResolvedValue({
+      ok: false, storyExt: 'z5' as const, diagnostics: [{ severity: 'error', message: 'x' }],
+      rawStderr: '', ms: 1, byteLength: 0,
+    })
+    ide.source.value += '\n! broken'
+    expect(await ide.ensureBuild()).toBe(false)
+    expect(ide.buildIsCurrent.value).toBe(false)
+    expect(ide.activeTab.value).toBe('results') // the errors are shown
+  })
+
+  it('compiling a stale build leaves the game being played alone (no ephemeral reset)', async () => {
+    const ide = useIde()
+    ide.loadSource('Constant Story "Playing";\n')
+    vi.clearAllMocks()
+    ide.pendingScript.value = ['look']
+    localStorage.setItem('autosave:game', 'state')
+    expect(await ide.ensureBuild()).toBe(true)
+    expect(_compileMock).toHaveBeenCalledTimes(1)
+    expect(_playTranscriptReset).not.toHaveBeenCalled()
+    expect(_transcriptReset).not.toHaveBeenCalled()
+    expect(_mapReset).not.toHaveBeenCalled()
+    expect(ide.pendingScript.value).toEqual(['look'])
+    expect(localStorage.getItem('autosave:game')).toBe('state')
+    // …while the author's own Compile still starts from a clean slate.
+    await new Promise(r => setTimeout(r, 520))
+    await ide.runCompile()
+    expect(_playTranscriptReset).toHaveBeenCalledTimes(1)
+  })
+
+  it('a source that failed to compile is not recompiled until it changes', async () => {
+    const ide = useIde()
+    ide.loadSource('Constant Story "Broken";\n')
+    _compileMock.mockResolvedValue({
+      ok: false, storyExt: 'z5' as const, diagnostics: [{ severity: 'error', message: 'x' }],
+      rawStderr: '', ms: 1, byteLength: 0,
+    })
+    expect(await ide.ensureBuild()).toBe(false)
+    ide.activeTab.value = 'play'
+    expect(await ide.ensureBuild()).toBe(false)
+    expect(_compileMock).toHaveBeenCalledTimes(1)
+    // The cached failure shows its errors, as a real failed compile does.
+    expect(ide.activeTab.value).toBe('results')
+    ide.source.value += '\n! a fix attempt'
+    expect(await ide.ensureBuild()).toBe(false)
+    expect(_compileMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('a compile that starts in the gap after the wait is awaited, not reported as a failure', async () => {
+    const ide = useIde()
+    ide.loadSource('Constant Story "Gap";\n')
+    let finishA!: (v: unknown) => void
+    _compileMock.mockImplementationOnce(() => new Promise(r => { finishA = r }))
+    const first = ide.runCompile()
+    await new Promise(r => setTimeout(r, 120))
+    expect(ide.status.value).toBe('compiling')
+    // Compile B starts in the microtask gap after ensureBuild's wait has
+    // resolved but before ensureBuild resumes. Microtask order once A lands:
+    // [M1 (ours), M2 (Vue's flush → the wait resolves → queues ensureBuild's
+    // resume)]; M1 queues M1b, which therefore runs after the wait resolved
+    // and before the resume.
+    let second: Promise<void> | null = null
+    let armed = true
+    const stop = watch(ide.status, s => {
+      if (s === 'compiling' || !armed) return
+      armed = false
+      queueMicrotask(() => queueMicrotask(() => {
+        // B is a compile from code (e.g. IdeLayout's), not a queued click: past the debounce.
+        const stateMap = (window as unknown as { __nuxtStateMap: Map<string, { value: unknown }> }).__nuxtStateMap
+        stateMap.get('frotz:last-compile-end')!.value = 0
+        second = ide.runCompile()
+      }))
+    }, { flush: 'sync' })
+    const ensured = ide.ensureBuild()
+    finishA({ ok: true, storyFile: new Uint8Array([9]), storyExt: 'z5', diagnostics: [], rawStderr: '', ms: 1, byteLength: 1 })
+    await first
+    expect(second).not.toBeNull()
+    expect(await ensured).toBe(true)
+    await second
+    stop()
+    expect(_compileMock).toHaveBeenCalledTimes(2) // A and B; ensureBuild started none
+  })
+
+  it('waits for a compile already running instead of starting another', async () => {
+    const ide = useIde()
+    ide.loadSource('Constant Story "Busy";\n')
+    let finish!: (v: unknown) => void
+    _compileMock.mockImplementationOnce(() => new Promise(r => { finish = r }))
+    const first = ide.runCompile()
+    await new Promise(r => setTimeout(r, 120)) // past nextPaint
+    expect(ide.status.value).toBe('compiling')
+    const ensured = ide.ensureBuild()
+    finish({ ok: true, storyFile: new Uint8Array([9]), storyExt: 'z5', diagnostics: [], rawStderr: '', ms: 1, byteLength: 1 })
+    await first
+    expect(await ensured).toBe(true)
+    expect(_compileMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useIde — Prettify leaves solution.txt alone', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const st = <T,>(k: string, i: () => T) => ((globalThis as any).useState as (k: string, i: () => T) => { value: T })(k, i)
+  const revealedKey = () => st<string | null>('frotz:solution-revealed', () => null)
+  const storyKey = () => st<string>('frotz:story-key', () => 'untitled')
+  const SOLUTION = '> north\n\nYou walk north.\n\n> south\n'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    useLanguage().setLanguage('i6')
+    revealedKey().value = null
+  })
+
+  for (const shown of [false, true]) {
+    it(`format() with solution.txt active (${shown ? 'visible' : 'hidden'}) changes nothing`, async () => {
+      vi.useFakeTimers()
+      const { useSolutions } = await import('./useSolutions')
+      const ide = useIde()
+      const s = useSolutions()
+      expect(s.set(SOLUTION).ok).toBe(true)
+      if (shown) revealedKey().value = storyKey().value
+      const pf = useProjectFiles()
+      pf.openFile('solution')
+      expect(pf.activeId.value).toBe('solution')
+      const src = ide.source.value
+      ide.format()
+      vi.advanceTimersByTime(2000)
+      expect(s.text.value).toBe(SOLUTION)
+      expect(ide.source.value).toBe(src)
+      vi.useRealTimers()
+      pf.openFile('source')
+    })
+  }
 })

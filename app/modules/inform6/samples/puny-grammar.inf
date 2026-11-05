@@ -19,6 +19,11 @@
 !  verbs must precede the final `Include "Grammar";` — the verbs and action
 !  routines here sit comfortably AFTER puny.h. (Objects that use a library
 !  attribute such as `light` must come after puny.h, so it is already declared.)
+!
+!  HOW THE GAME FLOWS
+!    One room, the Magic Chamber, with a brass lamp. XYZZY (or PLUGH) answers
+!    with a hollow voice; INCANT LAMP (or INVOKE LAMP) makes the lamp flare,
+!    and INCANT anything else does nothing. No puzzle and no ending.
 ! ============================================================================
 
 ! --- Story metadata: title + subtitle shown in the opening banner ------------

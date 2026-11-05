@@ -13,6 +13,9 @@ export interface ProjectFileMeta {
   editable: boolean
 }
 
+/** The explorer id of the game's solution file. */
+export const SOLUTION_ID = 'solution'
+
 const baseName = (path: string) => path.split('/').pop() ?? path
 const hasUpper = (s: string) => /[A-Z]/.test(s)
 
@@ -45,6 +48,9 @@ export function buildProjectFileList(input: {
   /** Extra editable project files (a ZIL project's `zil:<path>` files), listed
    *  after the main file sorted by name. */
   projectFiles?: { id: string; name: string }[]
+  /** The game's solution (`solution.txt`, id `solution`), listed last among
+   *  the project files; absent when the game has none. */
+  solution?: { editable: boolean }
 }): ProjectFileMeta[] {
   const extras = [...(input.projectFiles ?? [])].sort((a, b) =>
     a.name.toLowerCase() < b.name.toLowerCase() ? -1 : a.name.toLowerCase() > b.name.toLowerCase() ? 1 : 0,
@@ -58,6 +64,9 @@ export function buildProjectFileList(input: {
       group: 'project' as const,
       editable: e.origin === 'uploaded',
     })),
+    ...(input.solution
+      ? [{ id: SOLUTION_ID, name: 'solution.txt', group: 'project' as const, editable: input.solution.editable }]
+      : []),
   ]
   const library: ProjectFileMeta[] = input.libraryNames.map(name => ({
     id: `lib:${name}`,

@@ -62,7 +62,7 @@ async function onCloseKey(event: KeyboardEvent, id: string) {
       @keydown.delete="onCloseKey($event, tab.id)"
     >
       <UIcon
-        :name="tab.editable ? 'i-lucide-file-code-2' : 'i-lucide-file-lock-2'"
+        :name="tab.id === 'solution' ? 'i-lucide-book-open-check' : tab.editable ? 'i-lucide-file-code-2' : 'i-lucide-file-lock-2'"
         class="size-3.5 shrink-0"
       />
       <span class="whitespace-nowrap">{{ tab.name }}</span>

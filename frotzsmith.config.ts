@@ -71,6 +71,10 @@ export const frotzsmith = {
     outsideSource: 'frotzsmith:outside-source',
     /** A ZIL project's extra source files ({ v, mainPath, files }), ZIL only. */
     zilFiles: 'frotzsmith:project-files',
+    /** Per-game solution text ({ v, buckets: { [storyKey]: { text } } }); namespaced per language. */
+    solutions: 'frotzsmith:solutions',
+    /** The bundled sample this language's editor holds ({ id, storyKey, length, hash }); cleared by New/Open/package/share link. */
+    loadedSample: 'frotzsmith:loaded-sample',
   },
 
   // ── Inline play (Parchment) ───────────────────────────────────────────────

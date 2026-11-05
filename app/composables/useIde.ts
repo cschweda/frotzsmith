@@ -2,6 +2,7 @@ import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { formatI6 } from '~/utils/format-i6'
 import { storyTitleOf } from '~/utils/story-title'
 import { getExtrasStore } from '~/composables/project-extras-store'
+import { SOLUTION_ID } from '~/composables/project-files'
 import { formatZil } from '~/utils/format-zil'
 import { safeGetItem, safeRemoveItem, safeSetItem } from '~/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
@@ -12,8 +13,42 @@ import { sampleById as zilSampleById } from '~/modules/languages/zil/samples'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 
 export type CompileStatus = 'idle' | 'compiling' | 'success' | 'error'
-export type RightTab = 'results' | 'play' | 'transcript' | 'testscript' | 'skein' | 'map'
+export type RightTab = 'results' | 'play' | 'transcript' | 'testscript' | 'skein' | 'map' | 'solution'
 export type ProfileMode = 'auto' | ProfileId
+
+/** The bundled sample a language's editor holds: its id, the game it is, and
+ *  a fingerprint of the source as loaded (so an edit shows without keeping a
+ *  second copy of a large sample in storage). */
+interface LoadedSample {
+  id: string
+  storyKey: string
+  length: number
+  hash: string
+}
+
+function readLoadedSample(raw: string | null): LoadedSample | null {
+  if (raw === null) return null
+  try {
+    const v = JSON.parse(raw) as Partial<LoadedSample> | null
+    if (v && typeof v.id === 'string' && typeof v.storyKey === 'string' && typeof v.length === 'number' && typeof v.hash === 'string')
+      return { id: v.id, storyKey: v.storyKey, length: v.length, hash: v.hash }
+  } catch { /* corrupt: no sample */ }
+  return null
+}
+
+/** cyrb53: a fast 53-bit string hash (not cryptographic; edit detection only). */
+function sourceHash(str: string): string {
+  let h1 = 0xdeadbeef
+  let h2 = 0x41c6ce57
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i)
+    h1 = Math.imul(h1 ^ ch, 2654435761)
+    h2 = Math.imul(h2 ^ ch, 1597334677)
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36)
+}
 
 /**
  * Central IDE state and actions (composables, no Pinia). Library selection is
@@ -104,6 +139,58 @@ export function useIde() {
   // Send-to-Play: a parsed script queued to feed into the live Parchment game.
   const pendingScript = useState<string[] | null>('frotz:pending-script', () => null)
 
+  /** Per language (profile stateKey): the bundled sample the editor holds, as
+   *  `loadSample` put it in. Persisted, so it survives a reload and a language
+   *  round trip; cleared only by New, Open, a share link or a package (all of
+   *  which load through newProject / loadSource). `null` in the map means
+   *  "cleared this session"; a missing entry falls back to storage. */
+  const loadedSamples = useState<Record<string, LoadedSample | null>>('frotz:loaded-samples', () => ({}))
+  function loadedSampleKey(stateKey: string): string {
+    return buildStorageKey(stateKey, frotzsmith.storageKeys.loadedSample)
+  }
+  const loadedSample = computed<LoadedSample | null>(() => {
+    const stateKey = profile.value.stateKey
+    const s = Object.hasOwn(loadedSamples.value, stateKey)
+      ? loadedSamples.value[stateKey]!
+      : import.meta.client ? readLoadedSample(safeGetItem(loadedSampleKey(stateKey))) : null
+    // A different game in the editor (e.g. the recovery snapshot was lost
+    // and the seed came back) is not the sample, whatever storage says.
+    return s && s.storyKey === activeStoryKey.value ? s : null
+  })
+  function setLoadedSample(s: LoadedSample | null) {
+    const stateKey = profile.value.stateKey
+    loadedSamples.value = { ...loadedSamples.value, [stateKey]: s }
+    if (!import.meta.client) return
+    if (s === null) safeRemoveItem(loadedSampleKey(stateKey))
+    else if (!safeSetItem(loadedSampleKey(stateKey), JSON.stringify(s))) notifyStorageFull()
+  }
+  /** The id of the bundled sample in the editor, or null. */
+  const loadedSampleId = computed(() => loadedSample.value?.id ?? null)
+  /** The loaded sample has been edited since it was loaded. */
+  const sampleEdited = computed(() => {
+    const s = loadedSample.value
+    return s !== null && (source.value.length !== s.length || sourceHash(source.value) !== s.hash)
+  })
+
+  /** Everything a compile reads, as one string: equal keys mean equal builds. */
+  function buildInputKey(): string {
+    return JSON.stringify([
+      profile.value.id,
+      effectiveProfile.value,
+      effectiveExt.value,
+      source.value,
+      enabledFiles.value,
+      profile.value.id === 'zil' ? [zilFiles.files.value, zilFiles.mainPath.value] : null,
+    ])
+  }
+  /** The input key of the build in `result`, when that build succeeded. */
+  const builtInputKey = useState<string | null>('frotz:built-input-key', () => null)
+  /** The input key of the last compile that reported errors: the same input
+   *  is not compiled again from code (ensureBuild) until it changes. */
+  const failedInputKey = useState<string | null>('frotz:failed-input-key', () => null)
+  /** The compiled story is a clean build of exactly what the editor holds now. */
+  const buildIsCurrent = computed(() => canPlay.value && builtInputKey.value === buildInputKey())
+
   /** Restore the persisted profile mode, then the source recovery snapshot. */
   function restore() {
     if (import.meta.client) {
@@ -164,6 +251,8 @@ export function useIde() {
     sourceGen.value += 1
     resetEphemeral()
     result.value = null
+    builtInputKey.value = null
+    failedInputKey.value = null
     status.value = 'idle'
     activeTab.value = 'results'
   }
@@ -191,12 +280,67 @@ export function useIde() {
   async function runCompile() {
     if (status.value === 'compiling') return
     if (import.meta.client && lastCompileEnd.value > 0 && performance.now() - lastCompileEnd.value < 500) return
+    await compileBuild(true)
+  }
+
+  const currentStatus = (): CompileStatus => status.value
+
+  /** Resolves once no compile is running. */
+  function whenNotCompiling(): Promise<void> {
+    if (status.value !== 'compiling') return Promise.resolve()
+    return new Promise(resolve => {
+      const stop = watch(status, s => {
+        if (s === 'compiling') return
+        stop()
+        resolve()
+      })
+    })
+  }
+
+  /** Make sure the compiled story matches the editor, compiling only when it
+   *  is stale (waiting for a compile already running first). Called from code,
+   *  not a click, so the queued-click debounce doesn't apply. A successful
+   *  compile keeps the right-pane tab; a failed one leaves Results showing
+   *  its errors. True when a current, playable build is in place. */
+  async function ensureBuild(): Promise<boolean> {
+    // A compile can start in the gap after the wait resolves (an author's
+    // click): loop back and wait for it rather than reading its half state.
+    for (let round = 0; round < 4; round++) {
+      await whenNotCompiling()
+      if (buildIsCurrent.value) return true
+      if (failedInputKey.value !== null && failedInputKey.value === buildInputKey()) {
+        activeTab.value = 'results' // the errors are shown, as for a real failure
+        return false
+      }
+      if (status.value === 'compiling') continue
+      const ran = await compileBuild(false)
+      if (!ran) continue
+      if (buildIsCurrent.value) return true
+      // Read through a call: TS keeps the pre-await narrowing of status.value.
+      const after = currentStatus()
+      if (after !== 'compiling') {
+        if (after === 'error') activeTab.value = 'results' // show the errors
+        return false
+      }
+    }
+    return buildIsCurrent.value
+  }
+
+  /** Compile the editor's source. `fresh` (the author's Compile) also blanks
+   *  the play artifacts and shows Results; a compile from code (ensureBuild)
+   *  leaves the game being played, its transcripts and the tab alone.
+   *  Resolves false when a compile was already running. */
+  async function compileBuild(fresh: boolean): Promise<boolean> {
+    if (status.value === 'compiling') return false
     status.value = 'compiling'
-    // Fresh build → blank the prior game's artifacts (first room on next Play).
-    resetEphemeral()
-    activeTab.value = 'results'
+    if (fresh) {
+      // Fresh build → blank the prior game's artifacts (first room on next Play).
+      resetEphemeral()
+      activeTab.value = 'results'
+    }
     const pid = effectiveProfile.value
     const gen = sourceGen.value
+    const inputKey = buildInputKey()
     await nextPaint()
     const started = performance.now()
     // The source moved on while this compile ran: its result belongs to a
@@ -204,7 +348,7 @@ export function useIde() {
     // status back to idle).
     const superseded = () => sourceGen.value !== gen
     try {
-      if (superseded()) return
+      if (superseded()) return true
       const r = await compile(source.value, {
         profileId: pid,
         ext: effectiveExt.value,
@@ -214,8 +358,10 @@ export function useIde() {
           ? { files: zilFiles.files.value.map(f => ({ ...f })), mainPath: zilFiles.mainPath.value }
           : {}),
       })
-      if (superseded()) return
+      if (superseded()) return true
       result.value = r
+      builtInputKey.value = r.ok ? inputKey : null
+      failedInputKey.value = r.ok ? null : inputKey
       usedProfile.value = pid
       status.value = r.ok ? 'success' : 'error'
     } catch (err: unknown) {
@@ -223,7 +369,7 @@ export function useIde() {
       // failed — e.g. the lazy inform6.mjs/wasm fetch rejected. Surface it as a
       // failed CompileResult so ResultsPanel shows the reason instead of an
       // empty "0 errors" error state (the ZIL path already does this).
-      if (superseded()) return
+      if (superseded()) return true
       const msg = `Compiler failed to run: ${String(err)}`
       result.value = {
         ok: false,
@@ -233,12 +379,16 @@ export function useIde() {
         ms: Math.round(performance.now() - started),
         byteLength: 0,
       }
+      builtInputKey.value = null
+      // A thrown compiler failure (e.g. a chunk fetch) may be transient: not cached.
+      failedInputKey.value = null
       usedProfile.value = pid
       status.value = 'error'
     } finally {
       // Only a compile whose result landed arms the freeze-click debounce.
       if (import.meta.client && !superseded()) lastCompileEnd.value = performance.now()
     }
+    return true
   }
 
   /** Show `line` of the file a diagnostic names (`file` as the compiler gave
@@ -252,9 +402,11 @@ export function useIde() {
     jumpSignal.value = { line, fileId, nonce: (jumpSignal.value?.nonce ?? 0) + 1 }
   }
 
-  /** Re-indent and tidy the active editable file (source or an uploaded ext). */
+  /** Re-indent and tidy the active editable file (source, an uploaded ext or
+   *  an extra ZIL file). Never solution.txt: it is text, not code, and the
+   *  code formatters would strip its blank lines and indent its `>` commands. */
   function format() {
-    if (!activeFile.value.editable) return
+    if (!activeFile.value.editable || activeFile.value.id === SOLUTION_ID) return
     const src = readFile(activeFile.value.id)
     writeActive(profile.value.id === 'zil' ? formatZil(src) : formatI6(src))
   }
@@ -307,6 +459,7 @@ export function useIde() {
       releaseExtras()
       releaseZilFiles()
       useOutsideSource().trust() // the author's own choice of source (F2)
+      markLoadedSample(id)
       return
     }
     // I6 path.
@@ -330,6 +483,13 @@ export function useIde() {
     releaseExtras()
     releaseZilFiles()
     useOutsideSource().trust() // the author's own choice of source (F2)
+    markLoadedSample(id)
+  }
+
+  /** Remember which sample is in the editor and exactly what it loaded as.
+   *  Every other load clears it (loadSource, newProject). */
+  function markLoadedSample(id: string) {
+    setLoadedSample({ id, storyKey: activeStoryKey.value, length: source.value.length, hash: sourceHash(source.value) })
   }
 
   /** Load arbitrary source text (e.g. an opened .inf file) into the editor. */
@@ -339,6 +499,7 @@ export function useIde() {
     activeStoryKey.value = storyKey.value
     resetForNewSource()
     releaseExtras()
+    setLoadedSample(null) // Open, a share link and a package all load through here
   }
 
   /** Load a source file the author opened from disk. It arrived from outside
@@ -360,6 +521,7 @@ export function useIde() {
     resetForNewSource()
     releaseExtras()
     releaseZilFiles()
+    setLoadedSample(null)
     useOutsideSource().trust() // a blank project of the author's own (F2)
   }
 
@@ -379,6 +541,15 @@ export function useIde() {
     useOutsideSource().trust()
     activeTab.value = 'play'
     playNonce.value += 1
+  }
+
+  /** Restart Play from the game's first move, whatever an autosave holds
+   *  (a solution recording must not miss the opening). */
+  function playFromStart() {
+    if (!canPlay.value) return
+    clearPlayAutosave()
+    pendingScript.value = null
+    playStory()
   }
 
   /** Run a script in the live game: clear the autosave so it plays from the start,
@@ -413,7 +584,12 @@ export function useIde() {
     canPlay,
     playNonce,
     pendingScript,
+    sourceGen,
+    loadedSampleId,
+    sampleEdited,
+    buildIsCurrent,
     runCompile,
+    ensureBuild,
     jumpTo,
     format,
     setProfileMode,
@@ -423,6 +599,7 @@ export function useIde() {
     loadOpenedFile,
     newProject,
     playStory,
+    playFromStart,
     sendToPlay,
   }
 }

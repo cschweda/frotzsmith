@@ -5,6 +5,11 @@
 !  to name each available exit. PunyInform has no Compass direction objects, so
 !  this technique can't be ported as-is (hence no PunyInform version).
 !  Try:  EXITS  in each room.
+!
+!  HOW THE GAME FLOWS
+!    Four rooms: the Great Hall in the middle, with the Library north, the
+!    Kitchen east and the Walled Garden south. Type EXITS (or DIRS) in each
+!    room to see its ways out. No puzzle and no ending.
 ! ============================================================================
 
 ! ---------------------------------------------------------------------------

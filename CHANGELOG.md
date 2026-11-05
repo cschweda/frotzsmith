@@ -9,6 +9,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Added — 2026-11-05 Solutions
+- **Every game can have a solution:** the game told as it plays — the
+  opening, then each `> command` and the game's full reply — made by
+  replaying the commands headlessly. The new **Solution** tab keeps it hidden
+  until you press **Show solution** (it's a complete spoiler), and offers
+  Regenerate, Copy, Download, Load file and Clear; bundled samples come with
+  theirs.
+- **Record a solution by playing.** Record restarts the game and captures
+  what you type; Pause saves so far and lets you edit, Resume and Continue
+  recording carry on from where the solution ends, Stop saves. While you
+  play on the right, **`solution.txt` opens in the left pane** — live and
+  read-only while recording, editable when paused or stopped.
+- **`.frotzsmith` projects carry the solution** as `solution.txt` (text
+  only; it never runs). Opening a project with one says so, replaces the
+  game's solution, and asks first when that game already has a different one.
+
+### Fixed — 2026-11-05 samples
+Every bundled sample now compiles with no errors or warnings and plays
+through its walkthrough without a hitch (a golden test per language checks
+both).
+- **Two compile errors:** The Locked Chest (both libraries) used an em dash,
+  which isn't in the Z-machine's default character set; it is now `--`.
+- **Three warnings:** Magic 8-Ball (both libraries) named itself `'8'`, a
+  character rather than a dictionary word; it is now `'8//'`. The PunyInform
+  Haunted House defined a DeathMessage that PunyInform never called; it is
+  gone.
+- **ZIL samples play as described.** The Dark Cellar's opening look no
+  longer calls the pitch-black cellar lit. One WAIT in The Burning Candle is
+  now one turn, not four, so its hint is right. The Locked Chest says "an
+  iron key" and "a ruby jewel", and stops mentioning the key once you've
+  taken it.
+- **Haunted House knife (both libraries).** Examining or pushing the knife
+  is deadly only while it floats; once you hold it, it is an ordinary
+  knife. A knife dropped in another room can be picked up again (before,
+  the game could no longer be won).
+- **Haunted House XYZZY** works only in the first room, as PLUGH does
+  there; elsewhere XYZZY and SAY XYZZY both say "Nice try.". The GO
+  `<room>` and ZAP `<room>` cheat verbs are kept, and a comment now says
+  what they do and that a game normally removes them before release.
+- **The Architect's Legacy (Inform 6)** answers EMPTY on the wastebasket and
+  CLIMB on the floor panel, as the ZIL version does.
+- **Smaller fixes:** Two Rooms' hint takes the lamp before going north, the
+  Custom Grammar hint names its real verbs (INCANT, INVOKE), and the texts
+  read "an old hermit" and "There is a bucket of water here".
+- **Every sample explains itself.** Each one opens with what it teaches and
+  how the game flows, and the rooms, objects and routines carry plain
+  comments for someone new to the language.
+
 ### Added — 2026-11-05 Mingus I: Elevated Returns (Inform 6 and ZIL samples)
 - **A second longer sample game, in both languages.** *Mingus I: Elevated
   Returns* is a crypto satire in three acts: 20 rooms, 10 puzzles and 5 lore

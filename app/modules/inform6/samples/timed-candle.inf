@@ -59,6 +59,11 @@
 !    attribute from the candle at runtime, extinguishing it mechanically.
 !    If the room has no other light source, this plunges it into darkness.
 !    This is left as an exercise: add `give self ~light;` in the life==0 block.
+!
+!  HOW THE GAME FLOWS
+!    One room, the Study, with a lit candle that burns for five turns. Do
+!    anything (WAIT, EXAMINE CANDLE...) and watch: on the third turn it
+!    gutters, on the fifth it sputters out. No ending.
 ! ============================================================================
 
 ! --- Game metadata constants --------------------------------------------------

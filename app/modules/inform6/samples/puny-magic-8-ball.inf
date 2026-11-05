@@ -6,6 +6,11 @@
 ! ----------------------------------------------------------------------------
 !  Shows: a custom verb (SHAKE), a before handler, and random() driving a
 !  switch for varied output.  Try:  SHAKE BALL  (repeatedly).
+!
+!  HOW THE GAME FLOWS
+!    One room, the Fortune Booth, with a Magic 8-Ball. SHAKE BALL (or ROLL
+!    BALL) as often as you like: each shake shows one of six answers, picked at
+!    random. SHAKE anything else and nothing happens. No ending.
 ! ============================================================================
 
 ! ---------------------------------------------------------------------------
@@ -55,7 +60,10 @@ Object Booth "Fortune Booth"
 !   SHAKE BALL, SHAKE 8-BALL, SHAKE EIGHTBALL, ROLL BALL, etc.
 ! ---------------------------------------------------------------------------
 Object -> eightball "Magic 8-Ball"
-  with name 'magic' '8-ball' 'eight' 'ball' '8' 'eightball',
+  ! '8//' is the dictionary word 8. A single character in single quotes,
+  ! like '8', is a character constant, not a word, so the // marks it
+  ! as a word (the compiler warns about a bare '8' in a name property).
+  with name 'magic' '8-ball' 'eight' 'ball' '8//' 'eightball',
        description "A glossy black sphere with a little window in the bottom.",
 
        ! -----------------------------------------------------------------------

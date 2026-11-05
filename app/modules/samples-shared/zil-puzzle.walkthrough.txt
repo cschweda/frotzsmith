@@ -1,0 +1,6 @@
+take key
+open chest
+unlock chest with key
+open chest
+take jewel
+inventory

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { runReplayController, ReplayCancelledError, ReplayTimeoutError, type WorkerLike } from './useReplay'
+import { runReplayController, ReplayCancelledError, ReplayEngineError, ReplayTimeoutError, type WorkerLike } from './useReplay'
 
 function fakeWorker() {
   const w: WorkerLike & { terminated: boolean; emit: (data: unknown) => void } = {
@@ -54,5 +54,25 @@ describe('runReplayController', () => {
     await assertion
     expect(w.terminated).toBe(true)
     vi.useRealTimers()
+  })
+
+  it('an engine error part-way carries the turns played before it', async () => {
+    const w = fakeWorker()
+    const { promise } = runReplayController(() => w, { story: new Uint8Array(), target: 'zmachine', commands: ['n', 's'] })
+    const turns = [{ command: '', output: 'banner' }, { command: 'n', output: 'Meadow' }]
+    w.emit({ type: 'error', message: 'Illegal opcode', turns })
+    const err = await promise.catch(e => e)
+    expect(err).toBeInstanceOf(ReplayEngineError)
+    expect(err.message).toBe('Illegal opcode')
+    expect(err.turns).toEqual(turns)
+  })
+
+  it('an error from an older worker (no turns) still rejects with its message and no turns', async () => {
+    const w = fakeWorker()
+    const { promise } = runReplayController(() => w, { story: new Uint8Array(), target: 'zmachine', commands: [] })
+    w.emit({ type: 'error', message: 'bad story' })
+    const err = await promise.catch(e => e)
+    expect(err).toBeInstanceOf(ReplayEngineError)
+    expect(err.turns).toEqual([])
   })
 })

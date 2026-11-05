@@ -78,7 +78,7 @@
 !      plus a `runout_fresh` flag so the arrival turn never counts.
 !    - A held item with a state other actions change: the pike is raised or
 !      lowered, and the Runout's `before` lowers it for anything but looking,
-!      waiting and walking.
+!      waiting, walking, examining, listening, fending and inventory.
 !    - Exit routines that move you somewhere ELSE: walking east without the
 !      pike up gets you escorted back to the gondola station.
 !    - One custom verb (TYPE) shared by two puzzles: TypeSub reads the typed
@@ -820,9 +820,11 @@ Feature -> terrace_frames "doorframes"
            in a confident hand.",
   has  pluralname;
 
-! The singular/plural trick, part one. The scenery notices answer to
-! 'notices' only, and the one you can take answers to 'notice' only, so
-! TAKE NOTICE and EXAMINE NOTICES never ask "which do you mean?".
+! The singular/plural trick, part one. These scenery notices answer to
+! 'notices' only, and the one you can take answers to 'notice'. The doorbell's
+! notice and the mesa's notices answer to 'notice' as well, but only while the
+! real notice is out of reach (NoticeNotHere, section 4). So TAKE NOTICE and
+! EXAMINE NOTICES never ask "which do you mean?".
 Feature -> terrace_notices "flapping notices"
   with name 'notices' 'flapping' 'foreclosure',
        description "FORECLOSURE, FORECLOSURE, FINAL NOTICE, FORECLOSURE.
@@ -1035,6 +1037,7 @@ Room wing "Lady Vaunt's Wing"
        sounds "The walkway creaking. The projectors, humming.",
        n_to terrace;
 
+! Scenery for the joke: the token gate is set to WHATEVER and stops nothing.
 Feature -> token_gate "token gate"
   with name 'token' 'gate' 'walkway' 'cantilevered',
        description "A gate with a coin slot and a dial. The dial is set to
@@ -1071,6 +1074,9 @@ Object -> spite_terminal "Spite Terminal"
        ],
   has  static scenery;
 
+! The airdrop tray and its $SHRUG coin. The coin is the collateral Steward
+! Nubbin asks for before he endorses the charter (P6). The tray is a
+! supporter, so the library lists the coin on it until it is taken.
 Object -> airdrop_tray "airdrop tray"
   with name 'airdrop' 'tray',
        description "A gilt tray labelled AIRDROP. TAKE ONE.",
@@ -1123,6 +1129,10 @@ Object -> telescopes "twelve telescopes"
        ],
   has  static scenery pluralname;
 
+! P2: the thirteenth telescope. Its parse_name checks the typed word's real
+! length, so TELESCOPE means this one and TELESCOPES the twelve (see the
+! header: z5 dictionary words keep only 9 letters, so 'telescope' and
+! 'telescopes' would otherwise be the same word).
 Object -> telescope "thirteenth telescope"
   with parse_name [ n w;
            for (::) {
@@ -1339,6 +1349,9 @@ Object -> transactions "pending transactions"
        ],
   has  static scenery pluralname;
 
+! P5: the consensus door. Its description shows the live count of what you
+! carry that counts (Attestations); the Mempool's north exit does the
+! checking.
 Feature -> consensus_door "consensus door"
   with name 'consensus' 'door' 'slots' 'heavy' 'contract' 'union'
            'validator' 'key',
@@ -1388,6 +1401,8 @@ Object union_charter "blank union charter" pending_tray
            approval. ~Solidarity,~ one of them says.";
        ];
 
+! P5, part one: the punch card found in the transaction drift (SEARCH
+! TRANSACTIONS). It is the patch for the contract engine.
 Object punch_card "punch card"
   with name 'punch' 'card' 'patch' 'punched',
        description "A punch card, punched in neat rows. Holding it up to the
@@ -1414,6 +1429,8 @@ Feature -> pit_banner "banner"
        description "DARKNESS IS A LEGACY TECHNOLOGY. Underneath, in chalk:
            ~THEN WHY IS IT SO NICE.~";
 
+! P5: the contract engine, frozen in its infinite loop. Reading it shows the
+! bug the punch card patches.
 Object -> contract_engine "contract engine"
   with name 'brass' 'contract' 'engine' 'error' 'screen' 'code',
        description [;
@@ -1431,6 +1448,9 @@ Object -> contract_engine "contract engine"
        ],
   has  static scenery;
 
+! P5, part two: PUT CARD IN SLOT. `Receive` is the action the library sends
+! to a container when something is put into it; only the punch card is
+! accepted, and it comes back as the debugged contract (an attestation).
 Object -> card_slot "punch-card slot"
   with name 'slot' 'punch-card',
        description "A slot the width of a punch card.",
@@ -1450,6 +1470,8 @@ Object -> card_slot "punch-card slot"
        ],
   has  static scenery container open;
 
+! The debugged contract: one of the two attestations the consensus door
+! wants.
 Object debugged_contract "debugged contract"
   with name 'debugged' 'contract' 'receipt' 'printed',
        description "A printed receipt: CONTRACT rugPull() COMPILED. EXIT
@@ -1477,6 +1499,8 @@ Feature -> whiteboards "whiteboards"
            INSTALLED MORE LIGHTS: 0.",
   has  pluralname;
 
+! The murklings send all talk to the steward; they are part of the break
+! room's scenery, so they are not listed separately.
 Object -> murklings "murklings"
   with name 'murklings' 'murkling' 'miners' 'workers',
        description "Small, pale, big-eyed creatures in hard hats and safety
@@ -1503,6 +1527,8 @@ Feature -> hat_rack "rack of hard hats"
        description "A rack of hard hats with one spare left on the end.",
   has  pluralname;
 
+! Lore: the spare hard hat, for Mrs. Thrumble down the Shared Shaft. GIVE
+! HARD HAT TO THRUMBLE trades it for the claim ticket.
 Object -> spare_hat "hard hat"
   with name 'spare' 'hard' 'hat' 'helmet',
        initial "One spare hard hat hangs on the end of the rack.",
@@ -1659,6 +1685,9 @@ Person -> thrumble "Mrs. Thrumble"
        ],
   has  female proper;
 
+! Mrs. Thrumble's claim ticket, given for the hard hat: pure lore. Its word,
+! THAN, is one of Vaunt's gold words on the ice blocks -- the wrong kind for
+! the keypad, which wants the Trust's plain ones.
 Object claim_ticket "claim ticket"
   with name 'claim' 'ticket' 'copperplate',
        description "A small, crisp claim ticket for one hard hat, dated
@@ -1689,6 +1718,8 @@ Feature -> ledgers "ledgers"
            the pump to the dump. The truth is here, if you can read COBOL.",
   has  pluralname;
 
+! Lore (2 points): the Genesis Block, the range's real charter: the Trust
+! whose name is on the keypad in the Cold Wallet Cavern.
 Object -> genesis_block "Genesis Block"
   with name 'genesis' 'block' 'slab' 'glass' 'charter' 'footnote',
        description [;
@@ -1747,6 +1778,8 @@ Object -> ice_blocks "ice blocks"
        ],
   has  static scenery pluralname;
 
+! P7: the Trust's frozen block. Its description follows wallet_open, which
+! KeypadTyped (section 4) sets when the mnemonic is accepted.
 Object -> trust_block "Trust's block"
   with name 'trust' 'trust^s' 'block' 'large' 'larger' 'split' 'halves',
        description [;
@@ -1761,6 +1794,8 @@ Object -> trust_block "Trust's block"
        ],
   has  static scenery;
 
+! P7: READ KEYPAD shows how far the mnemonic has got. The typing itself is
+! KeypadTyped, reached through TYPE.
 Object -> keypad "keypad"
   with name 'keypad' 'keys' 'label',
        description [;
@@ -1785,6 +1820,8 @@ Object -> hardware_box "box"
        ],
   has  static scenery container openable;
 
+! What thaws out of the Trust's block. The wallet is empty (the joke); the
+! SIM-eject pin beside it is what matters, for the belted verdling (P8).
 Object hardware_wallet "hardware wallet" hardware_box
   with name 'hardware' 'wallet' 'balance',
        description "A hardware wallet. Its screen says BALANCE: 0. It is the
@@ -1875,6 +1912,9 @@ Person -> belted_verdling "belted verdling"
        ],
   has  male transparent;
 
+! The pike starts in the belted verdling's hands (he is `transparent`, so you
+! can see and examine it). He hands it over once the belt is freed (P8);
+! on the Runout it is the only thing that keeps the verdlings back.
 Object pike "pike" belted_verdling
   with name 'pike' 'verdling^s' 'staff' 'spear',
        description [;
@@ -2196,6 +2236,8 @@ Object -> gondola_car "upturned gondola car"
        ],
   has  static scenery;
 
+! The Runout's treasures. They cannot be taken: the Runout's `before` makes
+! any TAKE of them cost a poke on the spot.
 Object -> thrones "thrones"
   with name 'throne' 'thrones' 'gilded' 'chair' 'chairs',
        description "Several gilded thrones, each one a little higher than the
@@ -2222,6 +2264,9 @@ Object -> notebooks "seed-phrase notebooks"
            Somewhere in the pile, almost certainly, a fortune.",
   has  static scenery pluralname;
 
+! The Runout's verdlings: they do not argue, they poke. Most actions on them
+! get one answer; the Runout's own rules (each_turn, before) do the
+! counting.
 Object -> runout_verdlings "verdlings"
   with name 'verdlings' 'verdling' 'crowd' 'elves' 'pikes',
        description "Knee-high, mud-coloured and patient, with a mean streak.
@@ -2317,6 +2362,7 @@ Room river_edge "The River's Edge"
            if (edge_turns >= 2 || part_now) Parting();
        ];
 
+! The bowed crowd at the River's Edge, in the ending: they wait to part.
 Object -> edge_crowd "bowed verdlings"
   with name 'verdlings' 'verdling' 'crowd' 'heads' 'pikes' 'thousands',
        description "Thousands of small heads, bowed. Not one of them is
@@ -2348,6 +2394,8 @@ Object lane "lane"
        ],
   has  scenery;
 
+! The lane and the ship are off-stage (nowhere) until Parting moves them to
+! the River's Edge; walking the lane wins the game.
 Object funeral_ship "ship"
   with name 'ship' 'funeral' 'prow' 'gangplank' 'wallets' 'rail' 'boat',
        description "A ship like the funeral ships: the same high prow, the

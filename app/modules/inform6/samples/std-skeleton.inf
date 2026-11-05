@@ -21,6 +21,11 @@
 !  PunyInform replaces all three with two files (globals.h / puny.h) and uses
 !  the constant INITIAL_LOCATION_VALUE instead of setting `location` by hand
 !  inside Initialise. See puny-skeleton.inf for the PunyInform equivalent.
+!
+!  HOW THE GAME FLOWS
+!    One room, the Starting Room, and nothing in it yet. LOOK shows it again;
+!    everything else gets the library's stock replies. Copy this file to begin
+!    a game of your own.
 ! ============================================================================
 
 ! --- Game identity constants -------------------------------------------------

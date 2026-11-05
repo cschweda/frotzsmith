@@ -39,6 +39,11 @@
 !
 !  [ Initialise; location = Room; ]    Constant INITIAL_LOCATION_VALUE = Room;
 !  bare-string opening message         print "opening message"  in Initialise
+!
+!  HOW THE GAME FLOWS
+!    You start in a Forest Clearing, where an apple lies. TAKE APPLE, then go
+!    NORTH to the Hermit's Hut. EXAMINE HERMIT, ASK HERMIT ABOUT anything, and
+!    GIVE APPLE TO HERMIT: he accepts it. No ending.
 ! ============================================================================
 
 ! ---------------------------------------------------------------------------
@@ -127,6 +132,7 @@ Object Hut "Hermit's Hut"
 ! ---------------------------------------------------------------------------
 Object -> hermit "old hermit"
   with name 'old' 'hermit' 'man',
+       article "an",      ! "an old hermit", not the library's default "a"
        description "Weathered and serene, the hermit watches you calmly.",
        life [;
            Ask, Tell, Answer:     ! ASK/TELL/ANSWER targeting the hermit

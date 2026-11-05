@@ -1,4 +1,4 @@
-!% -~S                      ! compiler option: economy mode (smaller output)
+!% -~S                      ! compiler option: strict mode off (smaller, faster story file)
 !% $OMIT_UNUSED_ROUTINES=1   ! compiler setting: strip routines that are never called
 
 ! ============================================================================
@@ -13,8 +13,47 @@
 !  LibraryMessages object, the Compass-based exit lister, the z5+ ClearScreen),
 !  which is why this version is lean enough to target .z3 — PunyInform's reason
 !  for being. It compiles AND plays at z3 (255-object / 128 KB limits).
+!
+!  WHAT THIS SAMPLE TEACHES
+!    How a whole small game hangs together, rather than one idea at a time:
+!    classes that share behaviour, puzzles that depend on each other, exits
+!    written as routines, a door shared by two rooms, a score, magic words,
+!    and new verbs added with Verb and Extend.
+!
+!  HOW THE GAME FLOWS  (the walkthrough, in order)
+!    1. Outside the house you cannot move, and the front door is stuck. The
+!       crumpled paper here says "Magic word - PLUGH".
+!    2. PLUGH teleports you into the Foyer (1 point). SAY PLUGH works too.
+!    3. The Living Room (east) has a knife floating out of reach and a
+!       scroll on the floor. TAKE SCROLL first: the knife comes within reach,
+!       and TAKE KNIFE (1 point). Anything else done to the knife while it
+!       floats kills you; once you hold it, it is an ordinary knife.
+!    4. In the Kitchen (Foyer, south, east) a suit of armour blocks the way
+!       south until you carry the knife; then it flees.
+!    5. Through the Breakfast Room, east, then north: the second Servant's
+!       Quarters, where a cabinet holds a small key.
+!    6. Back west through the Den to the Foyer, then west twice to the West
+!       End of Hall. UNLOCK DOOR WITH KEY opens the hall door; SOUTH is the
+!       Master Bedroom, where a raging fire blocks the way on.
+!    That is the end of the first floor. The rest of the house, and the
+!    ESCAPE the scroll promises, is not written yet; 2 of the 4 points can
+!    be earned so far.
+!
+!  TWO CHEAT COMMANDS, ON PURPOSE
+!    This sample doubles as a demo of putting cheat / debug commands straight
+!    into a game. GO <room> jumps to any room you have not visited yet, and
+!    ZAP <room> to any room at all. See "CHEAT COMMANDS" at the end of the
+!    file for exactly how they work and why an author adds them.
+!
+!  A NOTE ON STYLE
+!    The name properties here use double quotes ("name" "tag"), an older
+!    habit Inform still accepts there; the other samples use the modern
+!    single quotes ('name' 'tag'). Both give dictionary words.
 ! ============================================================================
 
+! --- Game identity ------------------------------------------------------------
+! Story is the title on the status line, Headline the subtitle in the opening
+! banner (^ is a newline). MAX_SCORE is the score the game is out of.
 Constant Story      "Haunted House";
 Constant Headline   "^A port of Radio Shack's Model I/III adventure (circa 1979) written in Inform 6^";
 Constant MAX_SCORE     = 4;          ! highest score attainable (shown on the status line)
@@ -22,12 +61,17 @@ Include "globals.h";                 ! PunyInform: global variables & config (be
 
 
 
+! puny.h: the rest of PunyInform. The classes and objects of the game come
+! after it.
 Include "puny.h";
 
 ! ============================================================================ !
 ! Classes
 ! ============================================================================ !
 
+! A Room is a lit location. Every room in the house is one, so `has light`
+! is written once here instead of on every room. The empty before/after
+! routines are hooks: a room adds its own by giving the property again.
 Class Room
 with before [;
             
@@ -36,6 +80,9 @@ with before [;
     after [;],
     has     light;
 
+! Scenic: a thing that is only part of the scenery (here, the fire). EXAMINE
+! works as usual (`return false` lets the library carry on), and any other
+! action gets one polite refusal, so the player is not tempted to fiddle.
 Class Scenic
     with before [;
             Examine: return false;
@@ -45,6 +92,8 @@ Class Scenic
     has scenery;
 
 
+! Furniture: heavy things you can put things on but not carry. Taking,
+! pulling or pushing it gets one message; `static supporter` does the rest.
 Class Furniture
     with before [;
         Take,Pull,Push,PushDir:
@@ -56,6 +105,9 @@ Class Furniture
 ! Limbo
 ! ============================================================================ !
 
+! Limbo is an off-stage room: a place to move objects that have left play.
+! (The unfinished bucket-of-water puzzle below used it.) The player never
+! goes there, hence the joke description.
 Object  limbo "Limbo"
     with  description "How the hell did you get in here?";
 
@@ -64,6 +116,9 @@ Object  limbo "Limbo"
 ! Initial inventory
 ! ============================================================================ !
 
+! The name tag the player wears from the start (Initialise moves it to the
+! player). Its before routine answers every action itself, so it can never
+! be dropped or used: it is there for character, not for a puzzle.
 Object nametag "name tag"
     with description "A small tag with your name on it.",
     before [;
@@ -82,12 +137,19 @@ Object nametag "name tag"
 ! Outside the House
 ! ============================================================================ !
 
+! The starting location. There are no exits at all: cant_go is the message
+! for every direction the player tries. The only way in is the magic word
+! (PlughSub, near the end of the file).
 Room    outside_house  "Outside the house"
     with    description "You are at the outside of the house. The front door is closed.", 
      name    "house" "outside",
      cant_go "A mysterious force keeps you planted in place.";
     
 
+! The hint for the magic word. It can only be read while held: its before
+! routine checks the paper's parent (who has it) for EXAMINE and READ
+! (Consult). Its `description` property is left empty, since before always
+! answers first.
 Object   crumpled_paper "crumpled piece of paper" outside_house
     with    description,
             before [;
@@ -102,6 +164,8 @@ Object   crumpled_paper "crumpled piece of paper" outside_house
     name    'paper' 'crumpled' 'piece'
 ;
 
+! The front door is a dead end on purpose: it is locked and its before
+! routine says it is stuck, so the player has to look for another way in.
 Object front_door "front door" outside_house
     with    description "The front door.",
     
@@ -124,6 +188,9 @@ Object front_door "front door" outside_house
 ! The Foyer
 ! ============================================================================ !
 
+! The Foyer, where PLUGH lands you. Its `initial` routine runs when the
+! player arrives; `self hasnt visited` is true only on the first arrival,
+! so the materialising message is printed once. `rfalse` prints nothing.
 Room foyer "The Foyer"
 with description "You are in the foyer.",
 initial [;
@@ -141,6 +208,7 @@ e_to living_room;
 ! The Living Room
 ! ============================================================================ !
 
+! The Living Room: the knife-and-scroll puzzle.
 Room living_room "The Living Room"
 with description "You are in the living room.",
 
@@ -148,11 +216,25 @@ name "living",
 w_to foyer,
 e_to dining_room;
 
+! The levitating knife. Its before routine is the whole puzzle:
+!   Take    -- only once the scroll is held and the knife is still floating
+!              here. Then it is yours, and worth a point. A knife dropped
+!              in any other room lies on the floor, and the library takes
+!              it as it would any object.
+!   Drop    -- dropping it here sets it floating again, and the point goes.
+!   default -- while it FLOATS (its parent is the Living Room), any other
+!              action aimed at it (examine, push...) is fatal: deadflag = 1
+!              is the library's "you have died". Once you hold it, those
+!              actions are harmless and get the library's normal replies.
+! `describe` replaces the library's "You can see a knife here" line in the
+! room description: floating while it is in the room, plain otherwise.
 Object knife "knife" living_room
 with description "A knife.",
 before [; 
 
     Take:
+        if (self in player) rfalse;   ! already held: the library says so
+        if (parent(self) ~= living_room) rfalse;   ! dropped elsewhere: an ordinary knife
         if (parent(scroll)==player && parent(knife)==living_room) {
             move self to player;
              score = score + 1;
@@ -170,6 +252,9 @@ before [;
         }
 
     default:
+        ! Only the FLOATING knife is deadly. Once you hold it (or it lies
+        ! anywhere but here), other actions get the library's usual replies.
+        if (parent(knife) ~= living_room) rfalse;
         deadflag = 1;
         "^Suddenly the knife swoops down and slits your throat.";
     
@@ -181,6 +266,9 @@ describe [;
 name "knife" "levitating";
 
 
+! The scroll: taking it is what brings the knife within reach. It can only
+! be read while held (the parent check again). Both `initial` and `describe`
+! give its line in the room description.
 Object scroll "mysterious scroll" living_room
 with description,
 initial [; "^There is a mysterious scroll on the ground.";],
@@ -210,6 +298,7 @@ name "scroll" "mysterious";
 ! The Dining Room
 ! ============================================================================ !
 
+! Rooms with nothing in them yet, part of the map for the full game.
 Room dining_room "The Dining Room",
 with description "You are in the dining room.",
 name "dining",
@@ -230,6 +319,13 @@ e_to kitchen;
 ! Kitchen
 ! ============================================================================ !
 
+! The Kitchen. Its south exit is a routine instead of a room: it runs when
+! the player goes south, and either returns the room to move to or prints a
+! refusal and returns true (print_ret), which keeps the player here.
+!   - Carrying the knife the first time: the armour flees (armor_fled is a
+!     property used as this room's own memory of that), and you go south.
+!   - Not carrying the knife: the armour blocks you.
+!   - Carrying it after that: straight through.
 Room kitchen "The Kitchen",
 with description "You are in the kitchen.",
 name "kitchen",
@@ -276,6 +372,11 @@ s_to [;
 !        ]
 !  ;
 
+! A bucket, with the water inside it (`has container open`). The rest of a
+! puzzle that used it is the commented-out bucket_of_water above. The
+! getBucketStatus property is a small helper routine: " of water" while
+! the water is still in it, nothing once it is not, so `initial` and
+! `description` always describe it correctly.
 Object bucket "bucket" kitchen
   with name "bucket" "pail",
   getBucketStatus [;
@@ -283,12 +384,14 @@ Object bucket "bucket" kitchen
            return "";
         ],
   initial [;
-        "There is bucket", (string) self.getBucketStatus()," here.";],
+        "There is a bucket", (string) self.getBucketStatus()," here.";],
     description [;
         "It's a bucket", (string) self.getBucketStatus(),".";],
     has container open;
 
 
+! The water starts inside the bucket. article "some" makes the library say
+! "some water", not "a water".
 Object water "water" bucket
     with name "water" "liquid",
     article "some",
@@ -303,6 +406,7 @@ Object water "water" bucket
 ! Breakfast Room
 ! ============================================================================ !
 
+! Beyond the armour. East leads to the servants' quarters.
 Room breakfast_room "The Breakfast Room",
 with description "You are in the breakfast room.",
 name "breakfast",
@@ -317,12 +421,16 @@ e_to servants_quarters_1;
 ! Servant's Quarters 1
 ! ============================================================================ !
 
+! Two rooms share the printed name "The Servant's Quarters", so each also
+! has its own name word (serv1, serv2) for the parser and for GO / ZAP.
 Room servants_quarters_1 "The Servant's Quarters",
 with description "You are in the servant's quarters.",
 name "servants" "quarters" "serv1",
 w_to breakfast_room ,
 n_to servants_quarters_2;
 
+! An empty cabinet: a red herring next to the real one. It is Furniture (it
+! will not move) as well as a container you can open.
 Furniture cabinet_empty "cabinet" servants_quarters_1
   with name "cabinet" "cabinet1",
        description "There is a cabinet on one wall."
@@ -338,11 +446,13 @@ with description "You are in the servant's quarters.",
 name "servants" "quarters" "serv2",
 s_to servants_quarters_1;
 
+! The cabinet that matters: OPEN CABINET shows the small key inside it.
 Object cabinet_with_key "cabinet" servants_quarters_2
   with name "cabinet" "cabinet2",
        description "There is a cabinet on one wall."
   has  container openable;
 
+! The key to the hall door (the door's with_key names it).
 Object hall_door_key "small key" cabinet_with_key
   with name "small" "key",
        description "It's a small key."
@@ -363,6 +473,8 @@ e_to foyer;
 ! West End of Hall
 ! ============================================================================ !
 
+! The West End of Hall. Its south exit is a routine that checks the hall
+! door: locked, closed, or open (then it returns the bedroom to move to).
 Room west_end_of_hall "West End of Hall",
 with description "You are at the west end of the hall.",
 name "west" "hall",
@@ -376,6 +488,14 @@ s_to [;
     }],
 e_to east_end_of_hall;
 
+! The hall door between the West End of Hall and the Master Bedroom.
+! found_in puts one door in BOTH rooms. door_dir and door_to are the
+! library's door properties (which way the door faces, where it leads),
+! worked out from where the player stands; the rooms' own exit routines do
+! the actual moving. describe gives the door's line in each room for each
+! state. after Unlock: unlocking also opens it, so one command does both.
+! `static door openable lockable locked`: fixed in place, a door, can be
+! opened, can be locked, and starts locked.
 Object  -> hall_door "hall door"
   with  name "hall" "door",
         description "It's a door.",
@@ -409,9 +529,13 @@ Object  -> hall_door "hall door"
 ! Master Bedroom
 ! ============================================================================ !
 
+! The Master Bedroom, where the first floor ends: the fire blocks the way
+! south. The north exit back to the hall checks the door the same way the
+! hall's south exit does.
 Room master_bedroom "Master Bedroom",
 with description "You are in the master bedroom.^^A raging fire blocks the door to the south.",
 name "master" "bedroom",
+! South is the fire: an exit routine that only prints, so you stay put.
 s_to [; print_ret "The fire rages, forcing you back."; ],
 
 n_to [; 
@@ -424,6 +548,7 @@ n_to [;
     }],
 ;
 
+! The fire is Scenic: examine it, but nothing else.
 Scenic fire "raging fire" master_bedroom
 with description "The fire is raging. Don't get too close!",
 name "fire" "raging"
@@ -444,6 +569,10 @@ name "fire" "raging"
 ! Entry point routines
 ! ============================================================================ !
 
+! Initialise runs once, before the first turn: the player gets the name tag,
+! lookmode 2 means full room descriptions on every visit, and the game
+! starts outside the house. The string at the end is printed (and returns
+! true) -- the long opening text.
 [ Initialise; 
     move nametag to player;
     lookmode = 2;
@@ -453,7 +582,6 @@ name "fire" "raging"
     ^^As you walk towards the entrance of the house, the wind grows distant and weak. 
     ^^Suddenly, the calm and silence is broken by sounds from within the house!"; ];
 
-[ DeathMessage; print "You have died."; ];
 
 
 
@@ -475,6 +603,9 @@ name "fire" "raging"
 ! ------------------------------------------------------------------------------
 
 
+! EXIT (and EXIT HOUSE) is the game's goal, so it gets its own answer.
+! `Extend 'exit' first` puts these lines before the library's own grammar
+! for EXIT, so they are tried first.
 [ NewExitSub; if (player in outside_house) {
                     "Before you can EXIT the haunted house, you'll need to find a way inside.";
                 } else {
@@ -489,7 +620,24 @@ Extend 'exit' first
 ! ------------------------------------------------------------------------------
 
 
+! Magic words. PLUGH outside the house scores a point and teleports you to
+! the Foyer (<<Teleport foyer>> runs the Teleport action and returns);
+! anywhere else it says "Sorry, only one PLUGH per customer."
+!
+! XYZZY is an homage to the classic magic word of Colossal Cave, and it is
+! deliberately limited to the game's first room: outside the house, XYZZY
+! (or SAY XYZZY) does exactly what PLUGH does; in every other room it is
+! just "Nice try.", like the other famous words. XyzzySub makes that choice,
+! so the plain and SAY forms always agree.
+!   PLUGH, SAY PLUGH                        -> Plugh
+!   XYZZY, SAY XYZZY                        -> Xyzzy (Plugh in the first room)
+!   SESAME, SHAZAM, FROTZ... (and SAY them) -> OldMagic: "Nice try."
+! (Extend 'say' first puts these SAY lines ahead of the library's own.)
 [ OldMagicSub; "Nice try."; ];
+[ XyzzySub;
+    if (player in outside_house) <<Plugh>>;   ! the first room only
+    "Nice try.";
+];
 [ PlughSub; 
     if (player in outside_house) {
         score = score + 1;
@@ -503,23 +651,47 @@ Extend 'exit' first
 
 
 Verb 'xyzzy'
-    *                       -> OldMagic;
+    *                       -> Xyzzy;
 Verb 'plugh'
     *                       -> Plugh;
 Verb 'sesame' 'shazam' 'hocus' 'abracadabra' 'foobar' 'open-sesame' 'frotz'
     *                       -> OldMagic;
 
 Extend 'say' first
-    * 'xyzzy'               -> Plugh
+    * 'xyzzy'               -> Xyzzy
     * 'plugh'               -> Plugh
     * 'sesame'/'shazam'/'hocus'/'abracadabra'/'foobar'/'open-sesame'/'frotz'
                             -> OldMagic;
 
 
-! ------------------------------------------------------------------------------
-!   Teleport
+! ==============================================================================
+!   CHEAT COMMANDS  --  deliberate debug shortcuts (start)
+! ==============================================================================
+!   GO <room>   (also GO TO <room>) jumps straight to any room you have NOT
+!               visited yet, by its name word: GO KITCHEN, GO SERV2.
+!   ZAP <room>  jumps to ANY room, visited or not: ZAP MASTER.
+!   Neither checks exits, doors, darkness or puzzles: the armour, the
+!   locked hall door and the fire are all skipped. (PLUGH uses the same
+!   Teleport action, but only for its one fixed jump.)
+!
+!   Why an author adds commands like these: a long game takes a long time
+!   to replay. A jump straight to the room you are working on lets you test
+!   it now, instead of solving every puzzle before it again after each
+!   change. It is also a small, complete example of adding your own verb
+!   with a scope routine.
+!
+!   Before release you would normally remove them, or hide them from
+!   players -- for example inside #Ifdef DEBUG; ... #Endif; so they exist
+!   only in debug builds (the commented-out #Ifndef lines around ZAP below
+!   are a leftover sketch of that). This sample keeps them on purpose.
 ! ------------------------------------------------------------------------------
 
+! Teleport: the GO <room> and ZAP <room> cheat commands.
+! A scope routine decides which objects the parser may match for a token.
+! The library calls it in stages: at stage 2 it puts every Room the
+! shortcut may reach into scope with PlaceInScope (unvisited rooms for GO,
+! all rooms for ZAP); stage 3 prints the message for a room that is not
+! allowed.
 [ TeleportScope
     obj;
     switch (scope_stage) {
@@ -544,6 +716,8 @@ Extend 'say' first
 
 
 
+! The Teleport action itself: refuse the room you are in, otherwise move
+! the player there (PlayerTo also describes the new room).
 [ TeleportSub;
     if (noun == location) "But you're already here!";
     PlayerTo(noun);
@@ -557,6 +731,10 @@ Extend 'go'
 Verb 'zap'
     * scope=ZapScope       -> Teleport;
 ! #Endif;
+
+! ==============================================================================
+!   CHEAT COMMANDS  (end)
+! ==============================================================================
 
 
 ! ============================================================================ 

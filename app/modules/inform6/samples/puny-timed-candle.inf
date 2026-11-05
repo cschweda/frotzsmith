@@ -53,6 +53,11 @@
 !    You no longer need (and should not try) to set `location` here.
 !    In this file, Initialise() appears after the objects — valid because Inform 6
 !    resolves forward references at link time.
+!
+!  HOW THE GAME FLOWS
+!    One room, the Study, with a lit candle that burns for five turns. Do
+!    anything (WAIT, EXAMINE CANDLE...) and watch: on the third turn it
+!    gutters, on the fifth it sputters out. No ending.
 ! ============================================================================
 
 ! --- Game metadata constants --------------------------------------------------

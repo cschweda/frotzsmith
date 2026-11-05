@@ -7,6 +7,11 @@
 !  Shows: the `switchable` attribute, a before [SwitchOn/SwitchOff] handler, and
 !  using a carried light source to reveal a dark room.
 !  Try:  TAKE LANTERN.  SWITCH ON LANTERN.  DOWN.
+!
+!  HOW THE GAME FLOWS
+!    You start in the lit Workshop with a lantern that is off. TAKE LANTERN,
+!    SWITCH ON LANTERN, go DOWN: the Cellar is lit by the lantern. SWITCH OFF
+!    LANTERN down there and it goes dark. No ending.
 ! ============================================================================
 
 ! ---------------------------------------------------------------------------

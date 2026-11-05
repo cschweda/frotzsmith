@@ -6,7 +6,12 @@
 !    • A takeable object placed inside a room with arrow (→) notation
 !    • The Initialise routine setting a start location and printing a banner
 !    • The three Standard Library includes (Parser / VerbLib / Grammar)
-!  Try: look, north, take lamp, examine lamp, south, inventory
+!  Try: look, take lamp, examine lamp, north, south, inventory
+!
+!  HOW THE GAME FLOWS
+!    You start in the Cottage, where a brass lamp lies. TAKE LAMP (and EXAMINE
+!    it), go NORTH to the Meadow and SOUTH back; INVENTORY shows the lamp.
+!    No puzzle and no ending: a map with one thing in it.
 ! ============================================================================
 
 ! --- Game identity constants -------------------------------------------------
@@ -42,7 +47,7 @@ Include "VerbLib";
 [ Initialise;
     location = Cottage;
     print "^Welcome to the Frotzsmith demo!^^";
-    print "Try: look, north, take lamp, examine lamp, inventory.^";
+    print "Try: look, take lamp, examine lamp, north, south, inventory.^";
 ];
 
 ! --- Room: Cottage ----------------------------------------------------------

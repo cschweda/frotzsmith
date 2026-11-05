@@ -10,6 +10,7 @@ const { record, reset } = usePlayTranscript()
 const { recordPlayCommand, resetPlayCursor } = useSkein()
 const { recordCommand, recordRoom, markNoRoom } = useMap()
 const colorMode = useColorMode()
+const { state: recState } = useSolutionRecorder()
 
 // The compiled story plays in a Parchment iframe (pure-JS ZVM). We hand the
 // in-memory story bytes to it as a same-origin blob URL via ?story=.
@@ -131,7 +132,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="container" class="bg-default relative h-full w-full">
+  <div ref="container" class="bg-default flex h-full w-full flex-col">
+    <!-- A solution being recorded: its light, Pause/Resume and Stop. -->
+    <div v-if="recState !== 'stopped'" class="shrink-0 border-b border-default px-3 py-1.5">
+      <SolutionRecorderBar compact />
+    </div>
+    <div class="relative min-h-0 flex-1">
     <template v-if="src">
       <UButton
         class="absolute right-2 top-2 z-10 opacity-70 hover:opacity-100"
@@ -170,6 +176,7 @@ onBeforeUnmount(() => {
             : 'A clean compile enables the Play button.'
         }}
       </p>
+    </div>
     </div>
   </div>
 </template>

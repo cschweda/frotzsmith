@@ -347,6 +347,9 @@ Class Person
     return compass_names-->((shift_step + 2) % 4);
 ];
 
+! PrintCounter: the Shifting Room's counter so far, as a comma list -- the
+! Fibonacci numbers from step 0 up to shift_step (1, 1, 2, ...). The brass
+! counter and the room description both use it, so they always agree.
 [ PrintCounter  i;
     for (i = 0 : i <= shift_step : i++) {
         if (i > 0) print ", ";
@@ -451,6 +454,8 @@ Feature -> floor_tiles "tiled floor"
            after the fortieth tile. It is not random. It is simply longer
            than your patience.";
 
+! Lore (2 points): reading the calling cards. Achieved() awards a task only
+! once, so reading them again scores nothing more.
 Object -> calling_cards "calling cards"
   with name 'calling' 'card' 'cards' 'stack' 'tray' 'silver' 'table',
        description [;
@@ -531,6 +536,8 @@ Object -> treatise "slim book"
            rtrue;
        ];
 
+! P2: the two halves of the blueprint. PUT one ON (or IN) the other calls
+! JoinHalves (section 4), whichever half is named first.
 Object left_half "left half of a blueprint"
   with name 'left' 'half' 'torn' 'blueprint' 'piece' 'sheet',
        description "The left half of a blueprint on heavy linen paper, torn
@@ -596,6 +603,8 @@ BrassDevice -> brass_horn "brass horn"
            judge, would fall somewhere in the middle: neither as deep as the
            bell nor as shrill as the chime.";
 
+! P3's reward: the floor panel opens once the three notes are played in
+! order (panel_open). ENTER or CLIMB it means going down.
 Feature -> floor_panel "floor panel"
   with name 'panel' 'floor' 'floorboards' 'staircase' 'stair' 'stairs'
            'steps',
@@ -606,7 +615,7 @@ Feature -> floor_panel "floor panel"
            gap you could slide a card into.";
        ],
        before [;
-         Enter: <<Go d_obj>>;
+         Enter, Climb: <<Go d_obj>>;
        ];
 
 ! --- 5. Study ----------------------------------------------------------------
@@ -637,6 +646,8 @@ Feature -> study_clutter "study clutter"
        description "The coat has a pencil in every pocket. The cup has been
            growing something with real architectural ambition.";
 
+! P1: the drawer is locked by its dial, not by a key: OPEN and UNLOCK point
+! at the dial, which does the unlocking (drawer_dial, below).
 Object -> desk_drawer "desk drawer"
   with name 'drawer' 'desk',
        description [;
@@ -651,6 +662,8 @@ Object -> desk_drawer "desk drawer"
        ],
   has  static scenery container openable lockable locked;
 
+! P1: SET DIAL TO 8 (or TURN DIAL TO 8). `setting` remembers the number;
+! 8, the next number after the plaques' 1, 1, 2, 3, 5, unlocks the drawer.
 Object -> drawer_dial "brass dial"
   with name 'brass' 'dial' 'lock' 'combination' 'numbers',
        setting 0,
@@ -693,6 +706,9 @@ Object brass_key "brass key" desk_drawer
   with name 'brass' 'key',
        description "A long brass key, its bow cast in the shape of a spiral.";
 
+! P2's other half. The right half is not in the basket at the start:
+! SEARCH (or EMPTY) puts it there the first time, so it is found rather
+! than seen.
 Object -> wastebasket "wastebasket"
   with name 'wastebasket' 'basket' 'bin' 'wicker' 'drafts' 'crumpled'
            'rubbish',
@@ -700,7 +716,7 @@ Object -> wastebasket "wastebasket"
            elevations, sections, a staircase that seems to go down in both
            directions.",
        before [;
-         Search:
+         Search, Empty:
            if (right_half has general)
                "Nothing else, unless you count beautifully drawn mistakes.";
            give right_half general;     ! `general`: a free-use attribute
@@ -714,6 +730,8 @@ Object -> wastebasket "wastebasket"
        ],
   has  scenery container open;
 
+! The right half, found in the wastebasket; it joins the left half the same
+! way.
 Object right_half "right half of a blueprint"
   with name 'right' 'half' 'torn' 'blueprint' 'piece' 'sheet',
        description "The right half of a blueprint, torn down the middle. A
@@ -725,6 +743,8 @@ Object right_half "right half of a blueprint"
            if (second == left_half) return JoinHalves();
        ];
 
+! The mended blueprint, which JoinHalves gives you in place of the halves. Its
+! spiral is the clue for the lift's symbol dial (P4).
 Object blueprint "blueprint of Quillon House"
   with name 'blueprint' 'plan' 'mended' 'house' 'quillon',
        description "A cross-section of Quillon House, drawn with a
@@ -804,6 +824,8 @@ Room lift_landing "Lift Landing"
            light. You step out again, feeling foolish.";
        ];
 
+! P4, step one: the cage gate takes the brass key (the spiral key); any other
+! key is refused.
 Object -> lift_cage "lift cage"
   with name 'lift' 'brass' 'cage' 'gate' 'elevator' 'crystals' 'cables'
            'pipes' 'copper',
@@ -828,6 +850,8 @@ Object -> lift_cage "lift cage"
        ],
   has  static scenery openable lockable locked;
 
+! P4, step two: SET DIAL TO <symbol>. lift_symbol stores the dictionary word
+! itself ('spiral'), and (address) prints it back. The lever checks it.
 Object -> lift_dial "symbol dial"
   with name 'symbol' 'symbols' 'dial',
        description [;
@@ -850,6 +874,9 @@ Object -> lift_dial "symbol dial"
        ],
   has  scenery;
 
+! P4, last step: the lever starts the lift only with the cage unlocked and
+! the dial on the spiral. The wrong symbol just springs it back: a hint, no
+! harm.
 Object -> lift_lever "iron lever"
   with name 'iron' 'long' 'lever' 'handle',
        description "A long iron lever with a wooden grip, standing upright.
@@ -893,6 +920,7 @@ Room survey_chamber "Survey Chamber"
        e_to great_hall,
        s_to spring_gallery;
 
+! Lore (2 points): reading the marks decodes the lift symbols.
 Feature -> survey_marks "construction marks"
   with name 'construction' 'marks' 'mark' 'symbols' 'tallies' 'lines',
        description [;
@@ -1020,6 +1048,9 @@ Person -> foreman "Foreman"
        ],
   has  male;
 
+! The tuning fork, the Foreman's gift (P5) and the key to P8: striking it
+! in the Resonance Chamber, with the crystal on the pedestal, sings the
+! stones awake. Anywhere else it is just a note.
 Object tuning_fork "tuning fork"
   with name 'steel' 'tuning' 'fork' 'tines',
        description "A steel tuning fork, heavier than it looks, its tines
@@ -1066,6 +1097,9 @@ Feature -> hut_furniture "hut furniture"
            and a single word: GONE. The forms are all addressed to the
            county. You suspect they are addressed to you.";
 
+! The Inspector. Asking her about irregular building practices is a lore
+! point; other topics and actions fall back on the Person class's replies
+! (her no_answer and no_interest lines).
 Person -> inspector "Inspector"
   with name 'inspector' 'woman' 'official' 'thin' 'raincoat' 'badge'
            'lanyard' 'clipboard',
@@ -1125,6 +1159,8 @@ Room spring_gallery "Spring Gallery"
        n_to survey_chamber,
        e_to flooded_passage;
 
+! P6, the ancient half: TURN the wheel to open the old sluice (wheel_turned).
+! CheckSprings drains the passage once the pump is running too.
 Object -> bronze_wheel "bronze wheel"
   with name 'bronze' 'great' 'wheel' 'sluice' 'waterway' 'ancient' 'carved',
        description [;
@@ -1151,6 +1187,10 @@ Object -> bronze_wheel "bronze wheel"
        ],
   has  static scenery;
 
+! P6, the modern half: SWITCH ON PUMP. `has switchable` makes the library
+! handle SWITCH ON / OFF and the `on` attribute; the after routine checks the
+! springs. Once the passage is drained, switching it off is refused, so you
+! cannot strand yourself.
 Object -> pump "electric pump"
   with name 'modern' 'electric' 'pump' 'yellow' 'black' 'hose' 'switch',
        description [;
@@ -1241,6 +1281,9 @@ Room mirror_gallery "Mirror Gallery"
            "The floor is solid stone. Mostly.";
        ];
 
+! P7: each TURN swings the mirror a quarter turn (mirror_facing 0-3: north,
+! east, south, west). Facing east, onto the crystal socket, grows the
+! crystal; the other facings say where the beam lands.
 Object -> great_mirror "great mirror"
   with name 'great' 'mirror' 'pivot' 'frame' 'disc' 'silvered',
        description [;
@@ -1279,12 +1322,17 @@ Feature -> light_shaft "shaft of daylight"
            falls straight onto the mirror, which sends it wherever it is
            pointed.";
 
+! The socket on the east wall, where the crystal grows once the daylight is
+! aimed at it. An open container, so the crystal can sit in it.
 Object -> crystal_socket "crystal socket"
   with name 'socket' 'cut' 'glass' 'wall',
        description "A socket of cut glass, shaped like a cupped hand, set
            into the east wall at head height.",
   has  scenery container open;
 
+! P7's reward. Taking the crystal the first time opens the stairs down
+! (stairs_open) and scores; it is also a light source (`has light`) for the
+! dark rooms below, and P8 needs it on the pedestal.
 Object crystal "glowing crystal"
   with name 'glowing' 'crystal' 'gem' 'stone',
        description "A crystal the size of your fist, grown from daylight. It
@@ -1337,6 +1385,7 @@ Room vault_antechamber "Vault Antechamber"
            return shifting_room;
        ];
 
+! Lore (2 points): checking the formula wall.
 Feature -> formula_wall "formula wall"
   with name 'formula' 'formulas' 'formulae' 'equation' 'equations' 'wall'
            'walls',
@@ -1367,6 +1416,7 @@ Feature -> alcove_lamp "lamp"
        description "The lamp has a wick, a flame and no reservoir. The bench
            is cold, and polished by a great deal of waiting.";
 
+! The Messenger, in the optional alcove: silent, and pointing at the note.
 Person -> messenger "Messenger"
   with name 'messenger' 'figure' 'cloaked' 'hooded' 'cloak' 'hood',
        description "A slight figure in a grey travelling cloak, hood up, face
@@ -1380,6 +1430,8 @@ Person -> messenger "Messenger"
            on the bench with one gloved finger.",
        no_interest "The Messenger shakes their hooded head, very slightly.";
 
+! Lore (2 points): the Messenger's note, a Caesar cipher (shift 3) with the
+! answer already pencilled in.
 Object -> coded_note "folded note"
   with name 'folded' 'note' 'message' 'coded' 'code' 'wax' 'paper',
        initial "A folded note, sealed with grey wax, lies on the bench beside
@@ -1477,6 +1529,8 @@ Room shifting_room "Shifting Room"
        ],
        s_to vault_antechamber;
 
+! The counter shows the sequence so far (PrintCounter): the clue to wait
+! for 13.
 Feature -> brass_counter "brass counter"
   with name 'brass' 'counter' 'numbers' 'column',
        description [;
@@ -1486,6 +1540,7 @@ Feature -> brass_counter "brass counter"
            ". Each is the sum of the two above it.";
        ];
 
+! The arch: EXAMINE says where it stands now; ENTER means going north.
 Feature -> moving_arch "iron arch"
   with name 'iron' 'arch' 'archway' 'shutter' 'stone' 'door' 'doorway',
        description [;
@@ -1525,6 +1580,8 @@ Feature -> standing_stones "standing stones"
            with one deep groove cut round it like a tuning mark.",
   has  pluralname;
 
+! P8, part two: the crystal goes on the pedestal (PUT CRYSTAL ON PEDESTAL);
+! striking the tuning fork then sings the stones awake.
 Object -> pedestal "basalt pedestal"
   with name 'black' 'basalt' 'pedestal',
        description "A pedestal of black basalt with a shallow, cupped top,

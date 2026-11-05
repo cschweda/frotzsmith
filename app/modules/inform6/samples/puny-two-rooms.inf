@@ -7,7 +7,7 @@
 !  The PunyInform port of the "Two Rooms" demo: two rooms, a takeable lamp,
 !  and movement. PunyInform is a compact replacement library aimed at small,
 !  fast Z-machine games. Compiler options are set on the `!%` lines above.
-!  Try:  look, north, take lamp, examine lamp, south, inventory
+!  Try:  look, take lamp, examine lamp, north, south, inventory
 ! ----------------------------------------------------------------------------
 !  HOW THIS FILE IS STRUCTURED
 !  ────────────────────────────
@@ -43,6 +43,11 @@
 !  Default Z format         Z5 / Z8                 Z3 (smaller / faster)
 !  Strict mode              supported               must be disabled (-~S)
 !  Target audience          full-featured games     compact / retro games
+!
+!  HOW THE GAME FLOWS
+!    You start in the Cottage, where a brass lamp lies. TAKE LAMP (and EXAMINE
+!    it), go NORTH to the Meadow and SOUTH back; INVENTORY shows the lamp.
+!    No puzzle and no ending: a map with one thing in it.
 ! ============================================================================
 
 ! --- Game identity constants -------------------------------------------------
@@ -161,5 +166,5 @@ Object Meadow "Meadow"
 
 [ Initialise;
     print "^Welcome to the Frotzsmith demo (PunyInform edition)!^^";
-    print "Try: look, north, take lamp, examine lamp, inventory.^";
+    print "Try: look, take lamp, examine lamp, north, south, inventory.^";
 ];
