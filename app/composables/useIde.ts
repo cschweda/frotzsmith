@@ -202,6 +202,10 @@ export function useIde() {
       if (lastLang.value !== null && lastLang.value !== profile.value.id) {
         resetForNewSource()
         usedProfile.value = null
+        // The spoiler guard is per game, and a story key is not one across
+        // languages: the Inform 6 and the ZIL Mingus I share a title. Shown
+        // in one language is not shown in the other.
+        useState<string | null>('frotz:solution-revealed', () => null).value = null
       }
       lastLang.value = profile.value.id
 

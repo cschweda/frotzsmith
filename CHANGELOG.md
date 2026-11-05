@@ -25,6 +25,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only; it never runs). Opening a project with one says so, replaces the
   game's solution, and asks first when that game already has a different one.
 
+### Fixed — 2026-11-05 a sample's solution never fails silently
+- The Solution tab could show a sample's heading and buttons with no text
+  and no word of why — e.g. after Show solution on the Inform 6 Mingus I,
+  the ZIL Mingus I (same title) opened already "shown" but never made. A
+  language switch now brings the spoiler guard back; the same sample picked
+  again keeps (or, mid-compile, remakes) its solution; two Show solution
+  clicks share one compile; and any other outcome is a plain sentence with
+  **Try again**. While it works, the tab says so — for ZIL, that the first
+  compile can take up to a minute.
+
 ### Fixed — 2026-11-05 samples
 Every bundled sample now compiles with no errors or warnings and plays
 through its walkthrough without a hitch (a golden test per language checks

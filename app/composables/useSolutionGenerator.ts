@@ -6,8 +6,13 @@ import { useOutsideSource } from './outside-source'
 
 export type GenerateResult =
   | { ok: true; text: string; note?: string }
-  /** `superseded`: a later generate() call replaced this one; ignore it. */
-  | { ok: false; message: string; superseded?: true }
+  /**
+   * `superseded`: the result was discarded — a later generate() call replaced
+   * this one, or (`moved`) the editor moved to a new source (a sample picked
+   * again, a restore, another game) while it ran. A `moved` result may be the
+   * same game loaded again, so a caller can check and simply ask again.
+   */
+  | { ok: false; message: string; superseded?: true; moved?: true }
 
 // Module-level so every caller (Solution tab, the live recorder) shares one
 // "latest call wins" sequence and the replay in flight can be stopped.
@@ -38,7 +43,7 @@ export function useSolutionGenerator() {
     const moved = (): GenerateResult | null => {
       if (call !== latestCall) return SUPERSEDED
       if (ide.sourceGen.value !== gen)
-        return { ok: false, message: 'A different game was loaded while the solution was being made.', superseded: true }
+        return { ok: false, message: 'A different game was loaded while the solution was being made.', superseded: true, moved: true }
       return null
     }
 

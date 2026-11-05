@@ -537,6 +537,22 @@ describe('useIde — language-switch artifact reset (restore)', () => {
     expect(ide.pendingScript.value).toBeNull()
   })
 
+  it('switching languages brings the solution’s spoiler guard back (same title, other game)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const revealed = ((globalThis as any).useState as (k: string, i: () => string | null) => { value: string | null })(
+      'frotz:solution-revealed',
+      () => null,
+    )
+    const ide = useIde()
+    ide.restore() // i6 mount
+    revealed.value = 'mingus-i-elevated-returns' // Show solution on the Inform 6 Mingus I
+    ide.restore() // same-language remount keeps it
+    expect(revealed.value).toBe('mingus-i-elevated-returns')
+    useLanguage().setLanguage('zil')
+    ide.restore() // zil mount: the ZIL Mingus I has the same story key
+    expect(revealed.value).toBeNull()
+  })
+
   it('switching languages resets an unforced profile/target to auto', () => {
     const ide = useIde()
     ide.restore()

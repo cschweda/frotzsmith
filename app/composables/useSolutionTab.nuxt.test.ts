@@ -11,10 +11,11 @@ vi.stubGlobal('useToast', () => ({ add: vi.fn() }))
 vi.stubGlobal('useLanguage', useLanguage)
 vi.stubGlobal('useProjectFiles', () => ({ openFile: vi.fn() }))
 
-const _generate = vi.fn(async (commands: string[]) => ({
-  ok: true as const,
-  text: formatSolution('Test Game', 'Opening.', commands.map(c => ({ command: c, output: `You ${c}.` }))),
-}))
+type GenResult = { ok: true; text: string } | { ok: false; message: string; superseded?: true; moved?: true }
+const textFor = (commands: string[]) =>
+  formatSolution('Test Game', 'Opening.', commands.map(c => ({ command: c, output: `You ${c}.` })))
+const defaultGenerate = async (commands: string[]): Promise<GenResult> => ({ ok: true as const, text: textFor(commands) })
+const _generate = vi.fn(defaultGenerate)
 vi.stubGlobal('useSolutionGenerator', () => ({ generate: _generate }))
 
 let ide: ReturnType<typeof makeIde>
@@ -58,6 +59,7 @@ describe('useSolutionTab', () => {
     localStorage.clear()
     sessionStorage.clear()
     _generate.mockClear()
+    _generate.mockImplementation(defaultGenerate)
     ide = makeIde()
     useLanguage().setLanguage('i6')
   })
@@ -218,6 +220,150 @@ describe('useSolutionTab', () => {
         await t.showSolution()
         expect(t.sampleText.value, s.id).toBeTruthy()
       }
+    })
+  })
+
+  /**
+   * Timing: a ZIL sample's first compile takes up to a minute, and things
+   * happen while it runs. The fake below behaves like the real generator
+   * (latest call wins; a source moved under it is discarded) but takes a tick.
+   */
+  describe('a sample’s solution never ends silently', () => {
+    let calls = 0
+    function slowGenerator() {
+      _generate.mockImplementation(async (commands: string[]): Promise<GenResult> => {
+        const call = ++calls
+        const gen = ide.sourceGen.value
+        await new Promise(r => setTimeout(r, 5))
+        if (call !== calls) return { ok: false, message: 'A newer solution request replaced this one.', superseded: true }
+        if (ide.sourceGen.value !== gen)
+          return { ok: false, message: 'A different game was loaded while the solution was being made.', superseded: true, moved: true }
+        return { ok: true, text: textFor(commands) }
+      })
+    }
+    beforeEach(() => {
+      calls = 0
+      slowGenerator()
+      ide.loadedSampleId.value = 'std-architect-legacy'
+    })
+
+    it('the same sample loaded again (restore, picked again) during generation still ends with its text', async () => {
+      const t = useSolutionTab()
+      const p = t.showSolution()
+      ide.sourceGen.value += 1 // resetForNewSource for the same game: the build is dropped, the game is the same
+      await p
+      expect(t.sampleText.value).not.toBeNull()
+      expect(t.sampleBusy.value).toBe(false)
+    })
+
+    it('two Show solution clicks share one generation', async () => {
+      const t = useSolutionTab()
+      const [a, b] = [t.showSolution(), t.showSolution()]
+      await a
+      expect(t.sampleText.value).not.toBeNull()
+      await b
+      expect(_generate).toHaveBeenCalledTimes(1)
+    })
+
+    it('a second component (the left pane’s Show solution) shares the same generation', async () => {
+      const a = useSolutionTab().showSolution()
+      const b = useSolutionTab().showSolution()
+      await Promise.all([a, b])
+      expect(_generate).toHaveBeenCalledTimes(1)
+      expect(useSolutionTab().sampleText.value).not.toBeNull()
+    })
+
+    it('a slow first compile (the background warm-up runs first) does not drop the result', async () => {
+      _generate.mockImplementation(async (commands: string[]) => {
+        await new Promise(r => setTimeout(r, 30))
+        return { ok: true as const, text: textFor(commands) }
+      })
+      const t = useSolutionTab()
+      const p = t.showSolution()
+      expect(t.sampleBusy.value).toBe(true)
+      await p
+      expect(t.sampleText.value).not.toBeNull()
+    })
+
+    it('replaced by another caller (Regenerate, the recorder): a message, not silence', async () => {
+      _generate.mockResolvedValueOnce({ ok: false, message: 'A newer solution request replaced this one.', superseded: true })
+      const t = useSolutionTab()
+      await t.showSolution()
+      expect(t.sampleText.value).toBeNull()
+      expect(t.sampleMessage.value).toMatch(/try again/i)
+    })
+
+    it('a different game loaded during generation: a message for that game, not silence', async () => {
+      const t = useSolutionTab()
+      const p = t.showSolution()
+      ide.activeStoryKey.value = 'game2'
+      ide.sourceGen.value += 1
+      await p
+      ide.activeStoryKey.value = 'game1' // back to the game the request was for
+      expect(t.sampleText.value).toBeNull()
+      expect(t.sampleMessage.value).toMatch(/try again/i)
+    })
+
+    it('a newer request for another game keeps the busy indicator until it finishes', async () => {
+      const t = useSolutionTab()
+      const a = t.showSolution()
+      ide.activeStoryKey.value = 'game2'
+      ide.loadedSampleId.value = 'std-mingus-1'
+      ide.sourceGen.value += 1
+      const b = t.showSolution()
+      await a
+      expect(t.sampleBusy.value).toBe(true)
+      expect(t.sampleMessage.value).toBeNull()
+      await b
+      expect(t.sampleBusy.value).toBe(false)
+      expect(t.sampleText.value).not.toBeNull()
+    })
+
+    it('the same sample loaded again after its solution was made keeps the text', async () => {
+      const t = useSolutionTab()
+      await t.showSolution()
+      ide.sourceGen.value += 1
+      expect(t.sampleText.value).not.toBeNull()
+    })
+
+    it('an edited sample loaded again: no stale text, and a message says to try again', async () => {
+      const t = useSolutionTab()
+      ide.sampleEdited.value = true
+      await t.showSolution()
+      ide.sampleEdited.value = false // picked from Samples again: back to the original
+      ide.sourceGen.value += 1
+      expect(t.sampleText.value).toBeNull()
+      expect(t.sampleMessage.value).toMatch(/try again/i)
+    })
+
+    it('shown, then the game’s own solution cleared: the sample section says what to do', () => {
+      const t = useSolutionTab()
+      expect(t.load(own()).ok).toBe(true) // reveals
+      expect(t.clear({ confirmed: true }).ok).toBe(true)
+      expect(t.mode.value).toBe('sample')
+      expect(t.sampleText.value).toBeNull()
+      expect(t.sampleMessage.value).toMatch(/try again/i)
+    })
+
+    it('the Inform 6 Mingus’s solution is not shown for the ZIL one (same title, same story key)', async () => {
+      ide.activeStoryKey.value = 'mingus-i-elevated-returns'
+      ide.loadedSampleId.value = 'std-mingus-1'
+      const t = useSolutionTab()
+      await t.showSolution()
+      expect(t.sampleText.value).not.toBeNull()
+      ide.sourceGen.value += 1
+      ide.loadedSampleId.value = 'zil-mingus-1' // (useIde's restore also lifts the reveal on a language switch)
+      expect(t.sampleText.value).toBeNull()
+      expect(t.sampleMessage.value).toMatch(/try again/i)
+    })
+
+    it('while busy, ZIL says it can take up to a minute', () => {
+      useLanguage().setLanguage('zil')
+      ide.loadedSampleId.value = 'zil-mingus-1'
+      ide.buildIsCurrent.value = false
+      const t = useSolutionTab()
+      void t.showSolution()
+      expect(t.sampleBusyText.value).toBe('Compiling the game and replaying its walkthrough… ZIL can take up to a minute the first time.')
     })
   })
 })

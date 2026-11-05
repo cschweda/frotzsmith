@@ -8,6 +8,22 @@ export type TabResult =
 
 type Opts = { confirmed?: boolean }
 
+/** How a request for the sample's solution ended: its text is shown, a
+ *  message says what happened, or a newer request took over the tab. */
+export type SampleOutcome = 'text' | 'message' | 'newer'
+
+/** The sample's solution being made right now. Module-level so every
+ *  useSolutionTab() caller (the tab, the left pane's Show solution) joins
+ *  the same request instead of starting a second one that cancels it. */
+let sampleRun: { seq: number; key: string; id: string; promise: Promise<SampleOutcome> } | null = null
+let sampleSeq = 0
+
+/** A request for the same game is retried this many times when the editor
+ *  reloads that game under it (a restore, the sample picked again). */
+const SAMPLE_RETRIES = 2
+
+const CHANGED = 'The game changed while its solution was being made, so press Try again.'
+
 /**
  * The Solution tab's logic (SolutionPanel renders it).
  *
@@ -20,21 +36,34 @@ type Opts = { confirmed?: boolean }
  */
 export function useSolutionTab() {
   const ide = useIde()
+  const { profile } = useLanguage()
   const solutions = useSolutions()
   const recorder = useSolutionRecorder()
 
-  /** The story key the author pressed Show solution for. */
+  /** The story key the author pressed Show solution for (a language switch
+   *  clears it: the Inform 6 and the ZIL Mingus I share a title, so a story
+   *  key alone is not one game — see useIde's restore). */
   const revealedKey = useState<string | null>('frotz:solution-revealed', () => null)
   const revealed = computed(() => revealedKey.value === ide.activeStoryKey.value)
 
-  /** The sample's solution as last made, for the game and source it was made from. */
-  const sample = useState<{ key: string; gen: number; id: string; text: string; note?: string } | null>(
+  /**
+   * The sample's solution as last made: the game, the source generation and
+   * whether the sample had been edited. Loading the same sample again (pick
+   * it again, a restore) bumps the generation but not the game: the text of
+   * an unedited sample still holds.
+   */
+  const sample = useState<{ key: string; gen: number; edited: boolean; id: string; text: string; note?: string } | null>(
     'frotz:solution-sample',
     () => null,
   )
-  const sampleMessage = useState<string | null>('frotz:solution-sample-msg', () => null)
-  const sampleBusy = useState<boolean>('frotz:solution-sample-busy', () => false)
+  /** The last request's failure, for the game it was for. */
+  const failure = useState<{ key: string; id: string; text: string } | null>('frotz:solution-sample-msg', () => null)
+  /** The game whose sample solution is being made, while one is. */
+  const making = useState<{ key: string; id: string } | null>('frotz:solution-sample-busy', () => null)
   const busy = useState<boolean>('frotz:solution-tab-busy', () => false)
+
+  const isCurrent = (g: { key: string; id: string } | null) =>
+    g !== null && g.key === ide.activeStoryKey.value && g.id === ide.loadedSampleId.value
 
   const hasSampleWalkthrough = computed(() => {
     const id = ide.loadedSampleId.value
@@ -42,9 +71,8 @@ export function useSolutionTab() {
   })
   const currentSample = computed(() => {
     const s = sample.value
-    return s && revealed.value && s.key === ide.activeStoryKey.value && s.gen === ide.sourceGen.value && s.id === ide.loadedSampleId.value
-      ? s
-      : null
+    if (!s || !revealed.value || !isCurrent(s)) return null
+    return s.gen === ide.sourceGen.value || (!s.edited && !ide.sampleEdited.value) ? s : null
   })
   /**
    * What the tab presents as the game's solution:
@@ -59,6 +87,29 @@ export function useSolutionTab() {
   })
   const sampleText = computed(() => currentSample.value?.text ?? null)
   const sampleNote = computed(() => currentSample.value?.note ?? null)
+  /** The sample's solution is being made for the game in the editor. */
+  const sampleBusy = computed(() => isCurrent(making.value))
+  /** What the busy indicator says: compiling first (slow for ZIL) or replaying. */
+  const sampleBusyText = computed(() =>
+    ide.buildIsCurrent.value
+      ? 'Replaying the game’s walkthrough…'
+      : profile.value.id === 'zil'
+        ? 'Compiling the game and replaying its walkthrough… ZIL can take up to a minute the first time.'
+        : 'Compiling the game and replaying its walkthrough…',
+  )
+  /**
+   * Why the sample's solution isn't shown, when it is not — never blank: the
+   * last request's failure, or (shown, not busy, no text) that it isn't made
+   * for the game now in the editor.
+   */
+  const sampleMessage = computed<string | null>(() => {
+    if (!revealed.value || sampleBusy.value || sampleText.value !== null || !hasSampleWalkthrough.value) return null
+    if (isCurrent(failure.value)) return failure.value!.text
+    if (mode.value !== 'sample') return null
+    return isCurrent(sample.value)
+      ? 'The game was loaded again since its solution was made, so press Try again.'
+      : 'This game’s solution from the sample isn’t made yet, so press Try again.'
+  })
 
   /** The game's own solution, once revealed (live while recording). */
   const ownText = computed(() => (revealed.value ? solutions.view.value : null))
@@ -71,32 +122,61 @@ export function useSolutionTab() {
     revealedKey.value = ide.activeStoryKey.value
   }
 
-  /** Make the sample's solution (when the editor holds a sample with a walkthrough). */
-  async function makeSample(): Promise<void> {
+  /**
+   * Make the sample's solution (when the editor holds a sample with a
+   * walkthrough). Never silent: it ends with the text shown, a message, or
+   * (`newer`) a newer request — whose own outcome is shown — in charge.
+   * A second call for the same game joins the request already running.
+   */
+  function makeSample(): Promise<SampleOutcome | null> {
     const id = ide.loadedSampleId.value
     const cmds = id ? sampleWalkthrough(id) : null
-    if (!id || !cmds) return
+    if (!id || !cmds) return Promise.resolve(null)
     const key = ide.activeStoryKey.value
-    const gen = ide.sourceGen.value
-    sampleBusy.value = true
-    sampleMessage.value = null
+    if (sampleRun && sampleRun.key === key && sampleRun.id === id) return sampleRun.promise
+    const seq = ++sampleSeq
+    making.value = { key, id }
+    failure.value = null
+    const promise = runSample(seq, key, id, cmds)
+    sampleRun = { seq, key, id, promise }
+    return promise
+  }
+
+  async function runSample(seq: number, key: string, id: string, cmds: string[]): Promise<SampleOutcome> {
+    const fail = (text: string): SampleOutcome => {
+      failure.value = { key, id, text }
+      return 'message'
+    }
+    const sameGame = () => ide.activeStoryKey.value === key && ide.loadedSampleId.value === id
     try {
-      const r = await useSolutionGenerator().generate(cmds)
-      if (!r.ok) {
-        if (!r.superseded) sampleMessage.value = r.message
-        return
+      for (let attempt = 0; ; attempt++) {
+        const gen = ide.sourceGen.value
+        const edited = ide.sampleEdited.value
+        const r = await useSolutionGenerator().generate(cmds)
+        if (seq !== sampleSeq) return 'newer' // another game's request took over; it ends visibly itself
+        if (!sameGame()) return fail(CHANGED)
+        if (r.ok) {
+          sample.value = { key, gen, edited, id, text: r.text, ...(r.note ? { note: r.note } : {}) }
+          return 'text'
+        }
+        if (!r.superseded) return fail(r.message)
+        // The same sample was loaded again under the request (a restore, the
+        // sample picked again): its build was dropped, not its game. Ask again.
+        if (r.moved && attempt < SAMPLE_RETRIES) continue
+        return fail(r.moved ? CHANGED : 'Another solution request replaced this one, so press Try again.')
       }
-      if (ide.activeStoryKey.value !== key || ide.sourceGen.value !== gen) return
-      sample.value = { key, gen, id, text: r.text, ...(r.note ? { note: r.note } : {}) }
     } finally {
-      sampleBusy.value = false
+      if (seq === sampleSeq) {
+        sampleRun = null
+        making.value = null
+      }
     }
   }
 
   /** Show solution: lift the spoiler guard for this game (and make the sample's). */
-  async function showSolution(): Promise<void> {
+  async function showSolution(): Promise<SampleOutcome | null> {
     reveal()
-    await makeSample()
+    return makeSample()
   }
 
   function adoptSample(opts: Opts = {}): TabResult {
@@ -217,6 +297,7 @@ export function useSolutionTab() {
     sampleNote,
     sampleMessage,
     sampleBusy,
+    sampleBusyText,
     sampleEdited: ide.sampleEdited,
     ownText,
     busy,
