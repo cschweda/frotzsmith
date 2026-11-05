@@ -29,6 +29,8 @@ const BARE_RE = /^(error|warning|fatal|note|info)\s+((?:[A-Z]+\d+):\s*.+)$/
 // File-only prefix without a line number: /path/file.zil: error ZIL0050: message
 const FILE_ONLY_RE = /^(.+?):\s*(error|warning|fatal|note|info)\s+((?:[A-Z]+\d+):\s*.+)$/
 
+const TOO_MANY_INSERTS = 'inserted too many times'
+
 function toSeverity(raw: string): Severity {
   if (raw === 'warning' || raw === 'note') return 'warning'
   if (raw === 'fatal') return 'fatal'
@@ -88,5 +90,10 @@ export function parseZilDiagnostics(raw: string[]): Diagnostic[] {
     result.push({ severity: 'error', message: trimmed })
   }
 
-  return result
+  // A circular INSERT-FILE ends with this one diagnostic, buried among dozens
+  // of knock-on errors. Put it first so the author sees the cause (stable
+  // order otherwise).
+  const cause = result.filter(d => d.message.includes(TOO_MANY_INSERTS))
+  if (cause.length === 0) return result
+  return [...cause, ...result.filter(d => !d.message.includes(TOO_MANY_INSERTS))]
 }

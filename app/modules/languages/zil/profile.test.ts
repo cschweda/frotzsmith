@@ -13,7 +13,7 @@ import type { CompileResult } from '~/modules/inform6/types'
 // ---------------------------------------------------------------------------
 
 const { compileMock } = vi.hoisted(() => {
-  const compileMock = vi.fn<(source: string, version: number) => Promise<CompileResult>>()
+  const compileMock = vi.fn<(source: string, version: number, opts?: unknown) => Promise<CompileResult>>()
   return { compileMock }
 })
 
@@ -88,26 +88,32 @@ describe('ZIL_PROFILE — static shape', () => {
 describe('ZIL_PROFILE.compile — version mapping', () => {
   it('maps z3 → numeric version 3', async () => {
     await ZIL_PROFILE.compile('(VERSION ZIP)', { ext: 'z3' })
-    expect(compileMock).toHaveBeenCalledWith('(VERSION ZIP)', 3)
+    expect(compileMock).toHaveBeenCalledWith('(VERSION ZIP)', 3, { files: undefined, mainPath: undefined })
   })
 
   it('maps z5 → numeric version 5', async () => {
     await ZIL_PROFILE.compile('(VERSION ZIP)', { ext: 'z5' })
-    expect(compileMock).toHaveBeenCalledWith('(VERSION ZIP)', 5)
+    expect(compileMock).toHaveBeenCalledWith('(VERSION ZIP)', 5, { files: undefined, mainPath: undefined })
   })
 
   it('maps z8 → numeric version 8', async () => {
     await ZIL_PROFILE.compile('(VERSION ZIP)', { ext: 'z8' })
-    expect(compileMock).toHaveBeenCalledWith('(VERSION ZIP)', 8)
+    expect(compileMock).toHaveBeenCalledWith('(VERSION ZIP)', 8, { files: undefined, mainPath: undefined })
   })
 
   it('defaults to version 3 when opts.ext is undefined', async () => {
     await ZIL_PROFILE.compile('(VERSION ZIP)', {})
-    expect(compileMock).toHaveBeenCalledWith('(VERSION ZIP)', 3)
+    expect(compileMock).toHaveBeenCalledWith('(VERSION ZIP)', 3, { files: undefined, mainPath: undefined })
   })
 
   it('returns the CompileResult from useZilfWasm().compile()', async () => {
     const result = await ZIL_PROFILE.compile('(VERSION ZIP)', { ext: 'z3' })
     expect(result).toBe(FAKE_RESULT)
+  })
+
+  it('passes the project files and main path through', async () => {
+    const files = [{ path: 'rooms.zil', text: '<ROOM R>' }]
+    await ZIL_PROFILE.compile('main', { ext: 'z5', files, mainPath: 'game.zil' })
+    expect(compileMock).toHaveBeenCalledWith('main', 5, { files, mainPath: 'game.zil' })
   })
 })

@@ -21,7 +21,7 @@ const EXT_TO_VERSION: Record<string, number> = {
  * also declares its own target, applied when it is loaded).
  *
  * NOTE: Do NOT prepend a <VERSION> directive in the source here — the ZILF
- * worker already prepends `<VERSION {version}>` before compiling.
+ * wrapper already prepends `<VERSION {version}>` before compiling.
  */
 export const ZIL_PROFILE: LanguageProfile = {
   id: 'zil',
@@ -36,6 +36,9 @@ export const ZIL_PROFILE: LanguageProfile = {
 
   async compile(source: string, opts: CompileOpts): Promise<CompileResult> {
     const version = (opts.ext !== undefined ? EXT_TO_VERSION[opts.ext] : undefined) ?? 3
-    return useZilfWasm().compile(source, version)
+    return useZilfWasm().compile(source, version, {
+      files: opts.files,
+      mainPath: opts.mainPath,
+    })
   },
 }

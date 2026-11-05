@@ -51,6 +51,25 @@ describe('useZilfWasm — worker enabled, error fallback to main thread', () => 
     expect(result.ok).toBe(false)
   })
 
+  it('compile() sends the whole file set (main + extras) in the worker message', async () => {
+    const { spy, instances } = makeFailingWorkerSpy()
+    vi.stubGlobal('Worker', spy)
+
+    const { useZilfWasm } = await import('~/composables/useZilfWasm')
+    await useZilfWasm().compile('main-src', 5, {
+      files: [{ path: 'lib/rooms.zil', text: 'rooms-src' }],
+      mainPath: 'game.zil',
+    })
+    expect(instances[0]!.posted[0]).toMatchObject({
+      files: { 'game.zil': 'main-src', 'lib/rooms.zil': 'rooms-src' },
+      main: 'game.zil',
+      version: 5,
+    })
+
+    await useZilfWasm().compile('solo', 3)
+    expect(instances[0]!.posted[1]).toMatchObject({ files: { 'story.zil': 'solo' }, main: 'story.zil' })
+  })
+
   it('warmZilCompiler respects Data Saver — no ~9 MB download uninvited', async () => {
     // A visitor who opens /zil/ just to LOOK, on a metered connection, must
     // not be committed to the .NET bundle download + ~20 s background warm-up.
