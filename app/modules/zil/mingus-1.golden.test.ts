@@ -54,6 +54,28 @@ const until = (cmd: string) => {
  *  Windward Ledge: the player has just arrived on the Runout with the pike. */
 const RUNOUT_PREFIX = until('dig by gondola')
 
+/** The walkthrough up to the arrival at the River's Edge (its last three
+ *  commands are bow, wait, east). */
+const EDGE = walkthrough.slice(0, -3)
+
+/** A winning run that skips all five lore points: 50 of 60. */
+const NO_LORE = (() => {
+  const lore = new Set([
+    'read plaque', 'listen to busker', 'read terminal', 'read genesis block',
+    'take hard hat', 'give hard hat to thrumble',
+  ])
+  const out: string[] = []
+  for (let i = 0; i < walkthrough.length; i++) {
+    const c = walkthrough[i]!
+    if (lore.has(c)) continue
+    // The detour down the Shared Shaft (down, give hat, up) goes too.
+    if (c === 'down' && walkthrough[i + 1] === 'give hard hat to thrumble') continue
+    if (c === 'up' && walkthrough[i - 1] === 'give hard hat to thrumble') continue
+    out.push(c)
+  }
+  return out
+})()
+
 /** zillib's messages for a command the parser rejected or could not resolve. */
 const PARSER_FAILURES = [
   "I don't understand",
@@ -249,6 +271,11 @@ describe.skipIf(!process.env['ZIL_SAMPLE_GOLDEN'])(
         expect(turns.at(-2)!.output).toContain('NOT CLEAR ENOUGH')
         expect(turns.at(-2)!.output).toContain('decentralized synergy')
         expect(turns.at(-1)!.output).toContain('trustless value-capture')
+        // And on the second line too.
+        const two = await play([...until('type money'), 'type rock', 'type money'])
+        expect(two.at(-2)!.output).toContain('NOT CLEAR ENOUGH')
+        expect(two.at(-2)!.output).toContain('trustless value-capture')
+        expect(two.at(-1)!.output).toContain('elevation-agnostic vertical')
       })
 
       it('a gold word at the keypad resets the mnemonic', async () => {
@@ -262,6 +289,114 @@ describe.skipIf(!process.env['ZIL_SAMPLE_GOLDEN'])(
         expect(turns.at(-1)!.output).toContain('YOU HAVE 1')
         expect(turns.at(-1)!.output).not.toContain('The Archive')
       })
+    })
+
+    describe('the same timing as the other version', () => {
+      it('INVENTORY is a turn on the Runout: three of them kill you', async () => {
+        const turns = await play([...RUNOUT_PREFIX, 'inventory', 'inventory', 'inventory'])
+        expect(turns.at(-3)!.output).toContain('[POKES: *--]')
+        expect(turns.at(-2)!.output).toContain('[POKES: **-]')
+        expect(turns.at(-2)!.output).not.toContain('You have died')
+        expect(turns.at(-1)!.output).toContain('*** You have died ***')
+      })
+
+      it('a treasure grab with one poke already landed kills you', async () => {
+        const turns = await play([...RUNOUT_PREFIX, 'wait', 'take piano'])
+        expect(turns.at(-2)!.output).toContain('[POKES: *--]')
+        const last = turns.at(-1)!.output
+        expect(last).toContain('pokes your hand')
+        expect(last).toContain('*** You have died ***')
+      })
+
+      it('INVENTORY at the River\'s Edge parts the crowd on that turn', async () => {
+        const turns = await play([...EDGE, 'inventory'])
+        expect(turns.at(-1)!.output).toContain('A lane opens')
+      })
+
+      it('movement before the parting goes nowhere, and does not part the crowd', async () => {
+        const turns = await play([...EDGE, 'west'])
+        expect(turns.at(-1)!.output).toContain('closes softly')
+        expect(turns.at(-1)!.output).not.toContain('A lane opens')
+      })
+
+      it('a win below 60 points is still Exit Liquidity', async () => {
+        const turns = await play(NO_LORE)
+        const last = turns.at(-1)!.output
+        expect(last).toContain('*** You have reached the bottom of the Mingus ***')
+        expect(last).toMatch(/scored 50 (points )?out of a possible 60/)
+        expect(last).toContain('Exit Liquidity')
+        expect(last).not.toContain('Early Adopter')
+        expect(last).toContain('EVERYTHING ROLLS DOWNHILL')
+      })
+    })
+
+    describe('natural moves on the Runout', () => {
+      it('LOOK UNDER CAR finds what rolled under it', async () => {
+        const turns = await play([...RUNOUT_PREFIX, 'look under car'])
+        expect(turns.at(-1)!.output).toContain('You drag it out: a long coat')
+      })
+
+      it('a bare DIG asks what to dig, and costs no turn', async () => {
+        const turns = await play([...RUNOUT_PREFIX, 'dig'])
+        expect(turns.at(-1)!.output).toContain('What do you want to dig?')
+        expect(turns.at(-1)!.output).not.toContain('[POKES')
+      })
+
+      it('WAVE PIKE raises the pike, and never lowers a raised one', async () => {
+        const lowered = await play([...RUNOUT_PREFIX, 'wave pike'])
+        expect(lowered.at(-1)!.output).toContain('You raise the pike')
+        expect(lowered.at(-1)!.output).toContain('[POKES: ---]')
+
+        const raised = await play([...RUNOUT_PREFIX, 'raise pike', 'wave pike', 'point pike at verdlings'])
+        for (const t of raised.slice(-2)) {
+          expect(t.output).toContain('The pike is already raised')
+          expect(t.output).not.toContain('(You lower the pike.)')
+          expect(t.output).toContain('[POKES: ---]')
+        }
+      })
+    })
+
+    describe('the belted verdling understands other phrasings', () => {
+      for (const cmd of ['open buckle with pin', 'put pin in pawl', 'push pin into pawl', 'press buckle with pin']) {
+        it(`${cmd} frees the belt`, async () => {
+          const turns = await play([...until('press pawl with pin'), cmd])
+          expect(turns.at(-1)!.output).toContain("I won't need it up here")
+        })
+      }
+      for (const cmd of ['pour oil', 'pour oil on buckle', 'empty can on buckle', 'put oil on buckle']) {
+        it(`${cmd} oils the buckle`, async () => {
+          const turns = await play([...until('oil buckle'), cmd])
+          expect(turns.at(-1)!.output).toContain('hopeful creak')
+        })
+      }
+    })
+
+    it('understands the same phrasings as the other version', async () => {
+      const expectLast = async (prefix: string[], cmds: string[], text: string) => {
+        const turns = await play([...prefix, ...cmds])
+        expectNoParserFailures(turns.slice(-cmds.length))
+        expect(turns.at(-1)!.output, cmds.join(' / ')).toContain(text)
+      }
+      await expectLast(until('fill can'), ['fill can from pump'], 'until it is full')
+      await expectLast(until('fill can'), ['fill can with oil'], 'until it is full')
+      await expectLast(until('turn telescope'), ['move telescope'], 'straight down')
+      await expectLast(until('turn telescope'), ['point telescope down'], 'straight down')
+      await expectLast(until('turn telescope'), ['turn telescope down'], 'straight down')
+      await expectLast(until('type nobody'), ['say nobody'], 'trustless value-capture')
+      await expectLast(until('type they'), ['say they'], '1 OF 4')
+      await expectLast(until('put notice in scanner'), ['put notice on scanner'], 'PROOF OF ADDRESS: RECEIVED')
+      await expectLast(until('search transactions'), ['search drift'], 'a punch card')
+      await expectLast(RUNOUT_PREFIX, ['fend verdlings'], 'You raise the pike')
+      await expectLast(EDGE, ['swim'], 'No one crosses the Verdance')
+      // The endorsement is a card, but CARD means the punch card.
+      await expectLast(until('search transactions'), [
+        'search transactions', 'take charter', 'south', 'take hard hat', 'sign charter',
+        'give charter to steward', 'north', 'east', 'put card in slot',
+      ], 'more efficient')
+      // The mesa's notices point you to the doorbell; the doorbell always has one.
+      await expectLast([], ['take notice'], 'caught on the doorbell')
+      await expectLast(until('take notice'), ['take notice', 'take notice'], 'You already have one')
+      await expectLast(until('take notice'), ['take notice', 'look'], 'caught on the doorbell')
     })
 
     it('understands phrasings beyond the walkthrough', async () => {

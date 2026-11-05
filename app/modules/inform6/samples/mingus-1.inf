@@ -359,6 +359,15 @@ Array trust_words --> 'they' 'never' 'look' 'up';
     wallet and, in a tiny plastic cradle, a SIM-eject pin.";
 ];
 
+! --- P4's proof of address: the notices ----------------------------------------
+! NoticeNotHere: true when the one notice you can carry is neither in your
+! hands nor lying in this room. Two parse_name routines (the mesa's notices
+! and the doorbell's notice) answer to the word 'notice' only then, so
+! whenever the real notice is within reach, NOTICE means that one.
+[ NoticeNotHere;
+    return (notice notin player && notice notin location);
+];
+
 ! --- P3: the ballroom floor -------------------------------------------------
 ! The true order, from the Survey: 1 FOYER, 2 SHAFT, 3 STATION,
 ! 4 OBSERVATORY, 5 SHOP. A wrong tile undoes the whole sequence.
@@ -533,10 +542,30 @@ Object -> expedition_plaque "Lost Expedition plaque"
        ],
   has  static scenery;
 
+! The notices blowing past answer to NOTICES, and to NOTICE as well, since a
+! player is bound to try TAKE NOTICE here. The parse_name routine stands down
+! for 'notice' while the real notice is in reach (held, or lying here), so
+! then NOTICE means that one and the parser never has to ask "which do you
+! mean?". (The test,
+! NoticeNotHere, is in section 4: the doorbell's notice uses it too.)
+! Taking one is refused with a pointer to the notice that does hold still.
 Feature -> mesa_notices "foreclosure notices"
-  with name 'foreclosure' 'notices' 'papers',
+  with parse_name [ n w;
+           for (::) {
+               w = NextWord();
+               if (w == 'foreclosure' or 'notices' or 'papers') { n++; continue; }
+               if (w == 'notice' && NoticeNotHere()) { n++; continue; }
+               return n;
+           }
+       ],
        description "They are addressed to VAUNT PAVILION, SUMMIT, MINGUS
            RANGE, and they are all going the same way: down.",
+       before [;
+         Take, Pull, Remove:
+           "They blow past faster than you can grab one, all going the same
+           way: down. Up at the Pavilion, one has caught on the doorbell;
+           that one will hold still long enough to take.";
+       ],
   has  pluralname;
 
 Feature -> half_bridges "half-bridges"
@@ -587,10 +616,14 @@ Feature -> summit_gondola "stalled gondola"
            The gondolas are not coming back.";
 
 ! P8, part one: the oil. FILL CAN works only here (the std grammar already
-! has FILL; we intercept ##Fill in the can's own `before`). can_full is the
-! state: OIL BUCKLE empties it, and you can always come back and refill, so
-! the oil can never become a dead end. `initial` shows only until the can
-! is first picked up (the library sets `moved` then).
+! has FILL and FILL CAN FROM PUMP; section 9 adds FILL CAN WITH OIL; we
+! intercept ##Fill in the can's own `before`). can_full is the state: OIL
+! BUCKLE empties it, and you can always come back and refill, so the oil can
+! never become a dead end. Pouring the can out (EMPTY, or POUR from section
+! 9) is a way of oiling: onto the buckle, or anywhere on the ledge, it runs
+! the Oil action on the buckle; anywhere else it is refused, so the good
+! stuff is never wasted. `initial` shows only until the can is first picked
+! up (the library sets `moved` then).
 Object -> oil_can "oil can"
   with name 'oil' 'can' 'oilcan' 'empty' 'full',
        initial "An empty oil can hangs on a hook by the pumps.",
@@ -611,7 +644,12 @@ Object -> oil_can "oil can"
            hold the can under the MAINNET pump's leak until it is full of
            thick, golden lubricant. The pump does not mind. It has been
            giving this away all night.";
-         Empty, EmptyT:
+         Empty:
+           if (location == ledge && ~~belt_freed) <<Oil buckle>>;
+           "You'd only have to fill it again.";
+         EmptyT:
+           if (second == buckle or belt_pawl or belted_verdling)
+               <<Oil buckle>>;
            "You'd only have to fill it again.";
        ];
 
@@ -811,15 +849,49 @@ Object -> doorbell "marble doorbell"
        ],
   has  static scenery;
 
-! Notices keep blowing: when the scanner eats this one (section 6), the very
-! same object is moved back here, and since it no longer has `moved` its
-! `initial` text appears again. One object plays every notice in the game.
-Object -> notice "foreclosure notice"
-  with name 'notice' 'foreclosure' 'caught' 'single' 'paper',
-       initial "One foreclosure notice has caught on the doorbell and flaps
-           there, like it is ringing.",
+! Notices keep blowing: there is ALWAYS one caught on the doorbell. Two
+! objects make that work. doorbell_notice is fixed in place (`static`) and
+! never leaves; TAKE on it hands you `notice`, the one you carry, and the wind
+! catches another on the doorbell at once. `describe` prints its line in the
+! room description every time (an `initial` would stop once it had been
+! touched). Its parse_name stands down while the real notice is in reach
+! (NoticeNotHere, section 4), so TAKE NOTICE never asks "which do you mean?".
+! When the scanner eats the notice (section 6), the doorbell still has one.
+Object -> doorbell_notice "foreclosure notice"
+  with parse_name [ n w;
+           if (~~NoticeNotHere()) return 0;
+           for (::) {
+               w = NextWord();
+               if (w == 'notice' or 'foreclosure' or 'final' or 'caught'
+                   or 'single' or 'paper') { n++; continue; }
+               return n;
+           }
+       ],
+       describe [;
+           "^One foreclosure notice has caught on the doorbell and flaps
+           there, like it is ringing.";
+       ],
        description "FINAL NOTICE OF FORECLOSURE. VAUNT PAVILION, SUMMIT,
-           MINGUS RANGE. It is, among other things, an address.";
+           MINGUS RANGE. It is, among other things, an address.",
+       before [;
+         Take, Pull, Remove:
+           move notice to player;
+           "You unhook the notice from the doorbell. Almost at once the wind
+           catches another one there, flapping like it is ringing.";
+       ],
+  has  static;
+
+! The notice you carry. It starts off-stage (no `->`, so it is in no room)
+! until the doorbell's notice hands it over.
+Object notice "foreclosure notice"
+  with name 'notice' 'foreclosure' 'final' 'caught' 'single' 'paper',
+       description "FINAL NOTICE OF FORECLOSURE. VAUNT PAVILION, SUMMIT,
+           MINGUS RANGE. It is, among other things, an address.",
+       before [;
+         Take:
+           if (self in player) "You already have one. The wind will keep
+               bringing more.";
+       ];
 
 ! --- 4. The Upside-Down Ballroom -------------------------------------------
 
@@ -1012,10 +1084,11 @@ Object shrug_coin "$SHRUG coin" airdrop_tray
 
 ! --- 7. The Observatory -----------------------------------------------------
 
-! P2 lives here: TURN TELESCOPE flips telescope_down; LOOK THROUGH TELESCOPE
-! (the std grammar maps it to ##Search) scores only when the telescope
-! points down. The coat is not hard-gated on this: it is knowledge, plus
-! five points for looking down.
+! P2 lives here: TURN TELESCOPE flips telescope_down (so do SWING, PUSH and
+! MOVE, and POINT/AIM/TURN TELESCOPE DOWN only ever point it down); LOOK
+! THROUGH TELESCOPE (the std grammar maps it to ##Search) scores only when
+! the telescope points down. The coat is not hard-gated on this: it is
+! knowledge, plus five points for looking down.
 Room observatory "The Observatory"
   with description
            "A dome at the top of the Pavilion with twelve telescopes in a
@@ -1043,8 +1116,9 @@ Object -> telescopes "twelve telescopes"
            the same patch of grass. Their lens caps have never been taken
            off.",
        before [;
-         Search, Turn: "The twelve are welded in place, all looking across.
-             It is the empire's one unshakeable position.";
+         Search, Turn, Swing, Point, Push, Pull:
+           "The twelve are welded in place, all looking across. It is the
+           empire's one unshakeable position.";
          Take: "They are welded to the floor.";
        ],
   has  static scenery pluralname;
@@ -1079,7 +1153,16 @@ Object -> telescope "thirteenth telescope"
            empire ever dropped, alive with small mud-coloured figures. And
            there, by the upturned gondola car, lies a long coat. It casts a
            shadow. Nothing else down there does anything so honest.";
-         Turn, Push, Pull:
+         ! ##Point is the game's own action (section 9): POINT TELESCOPE
+         ! DOWN, AIM TELESCOPE DOWN, TURN TELESCOPE DOWN.
+         Point:
+           if (telescope_down) "It is already pointing straight down, at the
+               foot of the range.";
+           telescope_down = true;
+           "You loosen the clamp and swing the telescope away from the far
+           bank, straight down. It is the first time anything in this room
+           has looked down.";
+         Turn, Swing, Push, Pull:
            telescope_down = ~~telescope_down;
            if (telescope_down) "You loosen the clamp and swing the
                telescope away from the far bank, straight down. It is the
@@ -1147,8 +1230,9 @@ Feature -> service_lift "service lift"
          Enter: <<Go d_obj>>;
        ];
 
-! P4. The scanner is a container: PUT NOTICE IN SCANNER sends it a Receive
-! action first, which is where we check what is being scanned.
+! P4. The scanner is a container: PUT NOTICE IN SCANNER (and PUT NOTICE ON
+! SCANNER) sends it a Receive action first, which is where we check what is
+! being scanned.
 Object -> kyc_scanner "KYC scanner"
   with name 'kyc' 'scanner' 'screen' 'captcha' 'grid' 'squares' 'form',
        description [;
@@ -1171,10 +1255,10 @@ Object -> kyc_scanner "KYC scanner"
                spits it out. NOT AN ADDRESS.";
            if (kyc_address) "Your address is already on file. Forever.";
            kyc_address = true;
-           ! The notice is eaten -- and the wind sends another to the
-           ! doorbell, so this can never become a dead end.
-           move notice to terrace;
-           give notice ~moved;
+           ! The notice is eaten (`remove` takes it out of the world).
+           ! The doorbell always has another, so this can never become a
+           ! dead end.
+           remove notice;
            print "The scanner swallows the foreclosure notice, reads the
                address, and approves it with a little fanfare. PROOF OF
                ADDRESS: RECEIVED. (Far above, the wind delivers another
@@ -1234,15 +1318,15 @@ Room mempool "The Mempool"
            ATTESTATIONS REQUIRED. YOU HAVE ", n, ".";
        ];
 
-! P5, part one: SEARCH (or LOOK IN) the drift. card_found makes it a
-! one-time find.
+! P5, part one: SEARCH (or LOOK IN, or DIG IN) the drift. card_found makes it
+! a one-time find.
 Object -> transactions "pending transactions"
   with name 'pending' 'transactions' 'transaction' 'slips' 'slip' 'drifts'
-           'paper',
+           'drift' 'paper',
        description "Millions of unconfirmed transactions. Most of them are
            Vaunt paying himself.",
        before [;
-         Search:
+         Search, Dig:
            if (card_found) "More of the same: pending, pending, pending.";
            card_found = true;
            move punch_card to player;
@@ -1476,9 +1560,11 @@ Person -> steward "Steward Nubbin"
        ],
   has  male;
 
+! It is a card, but it does not answer to CARD: the punch card does, and
+! PUT CARD IN SLOT must never have to ask "which do you mean?".
 Object endorsement "union endorsement"
   with article "a",
-       name 'union' 'endorsement' 'card' 'stamp',
+       name 'union' 'endorsement' 'stamp',
        description "A card stamped with the seal of Murkling Miners' Local
            404: LOCAL 404 ENDORSES THE BEARER. It counts as an attestation.";
 
@@ -1799,19 +1885,33 @@ Object pike "pike" belted_verdling
            "You are holding it lowered, at your side.";
        ],
        ! The pike can never be lost for good: it can't be given away, put
-       ! anywhere or thrown; DROP leaves it where it falls.
+       ! anywhere or thrown; DROP leaves it where it falls. WAVE and POINT
+       ! get an in-character reply here; on the Runout they never reach this
+       ! far, because the Runout's own `before` turns them into FEND.
        before [;
          Give, PutOn, Insert, ThrowAt:
            "You keep hold of the pike. Down there, it is the only thing
            anyone respects.";
          Drop:
            pike_raised = false;
+         Wave, Point:
+           if (location == river_edge) "The pike sweeps over thousands of
+               bowed heads. Not one of them looks up.";
+           "You wave the pike about. Without verdlings to see it, it is just
+           a long stick.";
        ];
 
 ! P8, part two: OIL BUCKLE (OIL, GREASE, LUBRICATE; section 9) needs a full
 ! can and empties it, setting buckle_oiled. Other ways of fiddling with the
-! buckle are redirected to the pawl with <<Push belt_pawl>>, which runs a
-! Push action on the pawl and then returns true.
+! buckle are redirected to the pawl: <<Push belt_pawl>> runs a Push action on
+! the pawl and then returns true. Using a TOOL on the buckle (OPEN BUCKLE
+! WITH PIN, which the library calls ##Unlock, or PRESS BUCKLE WITH PIN) goes
+! to the pawl as ##PressWith, the action that can free it.
+!
+! PUT ... IN/ON the buckle (and the pawl, below) first sends it a ##Receive,
+! with `noun` = the thing being put: the oil can means "oil it", anything
+! else means "press the pawl with it". Things you may never part with (the
+! pike, the badge) refuse in their own `before`, which runs first.
 Feature -> buckle "click belt"
   with name 'click' 'belt' 'buckle' 'ratchet' 'metal',
        description [;
@@ -1834,14 +1934,21 @@ Feature -> buckle "click belt"
            "You work the spout of the oil can into the buckle and squeeze
            out every drop of the good stuff. The rust drinks it. Somewhere
            inside, the pawl gives a tiny, hopeful creak.";
-         Open, Unlock, Pull, Take, Turn, Push:
+         Receive:
+           if (noun == oil_can) <<Oil self>>;
+           <<PressWith belt_pawl noun>>;
+         Unlock, PressWith:
+           <<PressWith belt_pawl second>>;
+         Open, Pull, Take, Turn, Push:
            <<Push belt_pawl>>;
        ];
 
 ! P8, part three: PRESS PAWL WITH PIN (##PressWith, section 9). The checks,
 ! in order: is it already done? the pike (too big)? anything but the pin?
 ! oiled yet? Only the pin on an oiled pawl frees the belt -- and the pike
-! moves to you.
+! moves to you. Other phrasings end up here too: OPEN/UNLOCK PAWL WITH PIN
+! and PUT PIN IN PAWL by the redirects below, PUSH PIN INTO PAWL by a grammar
+! line in section 9.
 Feature -> belt_pawl "release pawl"
   with name 'release' 'pawl' 'catch',
        description [;
@@ -1852,6 +1959,10 @@ Feature -> belt_pawl "release pawl"
        ],
        before [;
          Oil: <<Oil buckle>>;
+         Receive:
+           if (noun == oil_can) <<Oil buckle>>;
+           <<PressWith self noun>>;
+         Unlock: <<PressWith self second>>;
          Push, Touch, Pull, Turn:
            if (belt_freed) "The pawl has done its job.";
            "You try with your fingers. The pawl is far too small for them.";
@@ -1888,10 +1999,13 @@ Feature -> belt_pawl "release pawl"
 !       costs nothing.
 !    2. At the end of every later turn spent there, the Runout's each_turn
 !       lands a poke -- unless the pike is raised. The third poke kills.
-!    3. FEND VERDLINGS WITH PIKE (or RAISE PIKE) raises it. It stays up
-!       through looking, examining, waiting, inventory, listening and
-!       walking; the Runout's `before` lowers it for anything else, so that
-!       turn's poke can land.
+!    3. FEND VERDLINGS WITH PIKE (or RAISE PIKE, WAVE PIKE, POINT PIKE AT
+!       VERDLINGS) raises it. It stays up through looking, examining,
+!       waiting, inventory, listening and walking; the Runout's `before`
+!       lowers it for anything else, so that turn's poke can land. Every
+!       one of those is a turn: LOOK, EXAMINE and INVENTORY cost a poke like
+!       anything else (only true meta commands -- SAVE, SCORE, UNDO -- are
+!       free, because the library never ends a turn for them).
 !    4. Taking treasure from the pile costs one extra poke on the spot.
 !    5. Leaving west resets everything.
 !    6. Walking east with the pike down gets you escorted back up to the
@@ -1975,10 +2089,18 @@ Room runout "The Runout"
        ],
        sounds "Small feet shifting on gold. Nobody says anything. That is
            worse.",
-       ! Rule 3 and rule 4 of the three-poke rule. This class-additive
-       ! `before` runs before the noun's own, so the pike is lowered before
-       ! anything else happens.
+       ! Rule 3 and rule 4 of the three-poke rule. The library runs the
+       ! ROOM's `before` (location.before) ahead of the noun's own `before`,
+       ! so whatever the command is, the pike is lowered before anything
+       ! else happens. (The Room class's `before` runs too, after this one:
+       ! `before` is an additive property.)
+       !
+       ! First, WAVE PIKE and POINT PIKE AT ... mean "raise it" down here:
+       ! <<Fend pike>> runs a whole Fend action instead (this `before` sees
+       ! it again, and Fend is on the list that keeps the pike up).
        before [;
+           if (action == ##Wave or ##Point && noun == pike && pike in player)
+               <<Fend pike>>;
            if (pike_raised && pike in player &&
                ~~(action == ##Look or ##Examine or ##Wait or ##Inv
                   or ##Listen or ##Fend or ##Go)) {
@@ -2049,8 +2171,9 @@ Room runout "The Runout"
            return river_edge;
        ];
 
-! P9, part one: DIG BY GONDOLA (the Extend 'dig' line in section 9) or
-! SEARCH the car moves the coat into the room. coat_found makes it once-only.
+! P9, part one: DIG BY GONDOLA (the Extend 'dig' line in section 9), SEARCH
+! the car or LOOK UNDER it (its description says something rolled under it)
+! moves the coat into the room. coat_found makes it once-only.
 Object -> gondola_car "upturned gondola car"
   with name 'upturned' 'gondola' 'car' 'rubble' 'pile',
        description [;
@@ -2061,7 +2184,7 @@ Object -> gondola_car "upturned gondola car"
            something long had rolled in under it.";
        ],
        before [;
-         Dig, Search:
+         Dig, Search, LookUnder:
            if (coat_found) "You've already dug there. The rest is rubble.";
            coat_found = true;
            move coat to runout;
@@ -2132,9 +2255,10 @@ Object coat "coat"
 
 ! --- 19. The River's Edge (the ending, over several turns) -------------------
 ! Arriving: the bowing. Each later turn: BOW, WAIT, LOOK, EXAMINE and
-! movement let the silence go on; anything else makes the crowd part at the
-! end of the turn, and so does the second turn here regardless. Then EAST,
-! DOWN, FOLLOW LANE, BOARD SHIP or CLIMB GANGPLANK walks the lane.
+! movement let the silence go on; anything else (INVENTORY included) makes
+! the crowd part at the end of the turn, and so does the second turn here
+! regardless. Then EAST, DOWN, FOLLOW LANE, BOARD SHIP or CLIMB GANGPLANK
+! walks the lane.
 
 Room river_edge "The River's Edge"
   with description [;
@@ -2175,6 +2299,10 @@ Room river_edge "The River's Edge"
            if (action == ##Wait) "You wait. The silence goes on.";
            if (lane_open == false && ~~(action == ##Bow or ##Look or ##Examine))
                part_now = true;
+           ! SWIM and JUMP are "anything else" -- they still part the crowd
+           ! -- but they get the river's own answer instead of the library's.
+           if (action == ##Swim or ##Jump or ##JumpIn)
+               "No one crosses the Verdance.";
        ],
        ! The same each_turn pattern as the Runout: edge_fresh (set by the
        ! Runout's e_to) makes the arrival turn free, and edge_turns counts
@@ -2324,6 +2452,22 @@ Verb 'type'
     * topic                             -> Type
     * topic 'on'/'into' noun            -> Type;
 
+! SAY NOBODY / ANSWER NOBODY at the kiosk or the keypad means TYPE NOBODY.
+! The std grammar's only SAY line is `* topic 'to' creature`, and with nobody
+! around the parser would quietly fill in "(to yourself)". AtKeyboard is a
+! GENERAL PARSING ROUTINE used as a grammar token: the parser calls it, and
+! it either matches without using up any words (GPR_PREPOSITION) or fails
+! (GPR_FAIL). So this line exists only at the two keyboards, and SAY ...
+! TO someone works as before everywhere else. 'first' puts it ahead of the
+! std line.
+[ AtKeyboard;
+    if (location == switchbacks or cold_cavern) return GPR_PREPOSITION;
+    return GPR_FAIL;
+];
+
+Extend 'answer' first
+    * AtKeyboard topic                  -> Type;
+
 ! SELECT NONE: the KYC CAPTCHA (P4). A bare particle is enough for the
 ! grammar: 'none' needs no object behind it.
 [ SelectNoneSub;
@@ -2356,6 +2500,20 @@ Verb 'sign' 'autograph'
     * noun                              -> Sign
     * noun 'with' noun                  -> Sign;
 
+! FILL CAN WITH OIL (the std grammar has FILL and FILL ... FROM already).
+Extend 'fill'
+    * noun 'with' noun                  -> Fill;
+
+! POUR OIL, POUR OIL ON BUCKLE, EMPTY CAN OVER BUCKLE: the std ##Empty and
+! ##EmptyT actions, which the oil can (section 5) turns into oiling.
+Verb 'pour'
+    * noun                              -> Empty
+    * noun 'out'                        -> Empty
+    * noun 'on'/'onto'/'into'/'in'/'over'/'to' noun -> EmptyT;
+
+Extend 'empty'
+    * noun 'in'/'over' noun             -> EmptyT;
+
 ! OIL: only the buckle wants it (P8). Everywhere else OIL is refused, so the
 ! good stuff can't be wasted.
 [ OilSub;
@@ -2370,13 +2528,16 @@ Verb 'oil' 'grease' 'lubricate'
 
 ! PRESS PAWL WITH PIN. `last` matters: placed first, this line would let the
 ! parser "helpfully" turn a plain PRESS FOYER TILE into PRESS ... WITH
-! whatever you are holding.
+! whatever you are holding. PUSH PIN INTO PAWL says the same thing the other
+! way round: `reverse` swaps the two objects, so PressWith still gets the
+! pawl as `noun` and the pin as `second`.
 [ PressWithSub;
     "Pressing ", (the) noun, " with ", (the) second, " achieves nothing.";
 ];
 
 Extend 'push' last
-    * noun 'with' held                  -> PressWith;
+    * noun 'with' held                  -> PressWith
+    * held 'into'/'in'/'against' noun   -> PressWith reverse;
 
 ! FEND VERDLINGS WITH PIKE / RAISE PIKE: the pike line (P10).
 [ FendSub;
@@ -2392,6 +2553,7 @@ Extend 'push' last
 ];
 
 Verb 'fend' 'ward'
+    * noun                              -> Fend
     * 'off' noun                        -> Fend
     * noun 'off'                        -> Fend
     * noun 'with' held                  -> Fend
@@ -2402,10 +2564,31 @@ Verb 'raise' 'brandish' 'level'
     * held                              -> Fend
     * held 'at'/'against' noun          -> Fend;
 
+! POINT/AIM: POINT TELESCOPE DOWN (P2) and, on the Runout, POINT PIKE AT
+! VERDLINGS (the Runout's `before` turns that into FEND). TURN TELESCOPE
+! DOWN and SWING TELESCOPE DOWN are the same action: the plain TURN line
+! would stop at the word 'down' and not understand it.
+[ PointSub;
+    "You point ", (the) noun, ". Nothing comes of it.";
+];
+
+Verb 'point' 'aim'
+    * noun                              -> Point
+    * noun 'down'                       -> Point
+    * noun 'at'/'toward'/'towards' noun -> Point;
+
+Extend 'turn'
+    * noun 'down'                       -> Point;
+
+Extend 'swing'
+    * noun 'down'                       -> Point;
+
 ! BOW: the ending's one ceremony.
 [ BowSub;
     if (location == river_edge) "A ripple goes through the crowd, something
         very like approval. That is worse.";
+    if (location == runout) "The verdlings watch you bow with total
+        contempt. It is not what they want from you. They want you gone.";
     "You bow to nobody in particular. The wind does not bow back.";
 ];
 
@@ -2420,10 +2603,13 @@ Verb 'bow' 'kneel' 'curtsey' 'curtsy'
 Verb 'ring' 'buzz'
     * noun                              -> Ring;
 
-! DIG BY GONDOLA (P9).
+! DIG BY GONDOLA (P9), and DIG INTO/THROUGH the mempool's drift (the std
+! grammar already has DIG IN). There is no line for a bare DIG: the std
+! `* noun` line makes the parser ask "What do you want to dig?", which costs
+! no turn -- that matters on the Runout, where every turn is counted.
 Extend 'dig'
-    *                                   -> Dig
-    * 'by'/'near'/'beside'/'around'/'under' noun -> Dig;
+    * 'by'/'near'/'beside'/'around'/'under' noun -> Dig
+    * 'into'/'through' noun             -> Dig;
 
 ! FOLLOW LANE, BOARD SHIP: both just walk the lane at the end.
 Verb 'follow' 'board' 'embark'

@@ -9,24 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
-### Added — 2026-11-05 Mingus I: Elevated Returns (Inform 6 sample)
-- **A second longer sample game, for Inform 6.** *Mingus I: Elevated
+### Added — 2026-11-05 Mingus I: Elevated Returns (Inform 6 and ZIL samples)
+- **A second longer sample game, in both languages.** *Mingus I: Elevated
   Returns* is a crypto satire in three acts: 20 rooms, 10 puzzles and 5 lore
-  points, 60 in all. It targets z5 and loads exactly as written. Where The
-  Architect's Legacy shows how a big game is organised, Mingus shows how to
-  make a timed, deadly rule fair: on the Runout, the third turn without your
-  pike raised kills you, and the counter is printed every turn. A shared
-  walkthrough and a golden test check that the game can be won and that the
-  rule behaves exactly as designed. The ZIL version follows.
-
-### Added — 2026-11-05 Mingus I: Elevated Returns (ZIL sample)
-- **The same game in ZIL.** *Mingus I: Elevated Returns* is now also a ZIL
-  sample (zillib, z5, one file): the same rooms, puzzles, score and
-  walkthrough as the Inform 6 version, written in ZIL's own idiom and
-  commented for someone new to the language. The Runout's three-poke rule is
-  a room's end-of-turn handler, and the win and the death end with different
-  words. A golden test compiles it with no errors or warnings, wins with the
-  shared walkthrough at 60 of 60, and checks every rule of the finale.
+  points, 60 in all. It ships as an Inform 6 sample and as a ZIL sample
+  (zillib, one file), both targeting z5 and loading exactly as written. The
+  two are the same game: the same rooms, puzzles and score, the same
+  outcome for the same command (only the two libraries' stock messages are
+  worded differently) and one shared walkthrough, each written in its own
+  language's idiom and commented for a newcomer. Where The Architect's Legacy shows how
+  a big game is organised, Mingus shows how to make a timed, deadly rule
+  fair: on the Runout, every turn without your pike raised costs a poke, the
+  third poke kills you (taking treasure costs one more on the spot), and the
+  counter is printed every turn. A golden test for each version compiles it
+  with no errors or warnings, wins with the shared walkthrough at 60 of 60,
+  and checks the finale's timing the same way in both: which turns cost a
+  poke, the escorts, the parting of the crowd and the final rank.
 
 ### Added — 2026-11-04 Multi-file ZIL projects
 - **A ZIL project can be several `.zil` files.** The main file pulls the

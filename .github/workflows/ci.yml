@@ -26,7 +26,7 @@ jobs:
           node-version: 22
           cache: yarn
       - run: yarn install --frozen-lockfile
-      # ZIL_SAMPLE_GOLDEN compiles all 7 shipped ZIL samples against the real
+      # ZIL_SAMPLE_GOLDEN compiles all 9 shipped ZIL samples against the real
       # .NET WASM toolchain (~40 s) — skipped locally for speed, enforced here.
       - run: yarn test
         env:

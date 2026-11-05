@@ -238,11 +238,13 @@ There is one ticket left in your queue." CR CR>
                <TELL "    *** You have died ***" CR CR>)>>>
 
 ;"The rank follows the score line, so the closing teaser lives here too: it
-  is the very last thing a winner reads. Mid-game SCORE shows the ladder."
+  is the very last thing a winner reads. A win is always Exit Liquidity,
+  whatever the score (you can win without the lore points); mid-game SCORE
+  and a death show the ladder."
 <REPLACE-DEFINITION PRINT-RANK
     <ROUTINE PRINT-RANK (DEAD?)
         <TELL "That earns you the rank of ">
-        <COND (<G=? ,SCORE 60> <TELL "Exit Liquidity.">)
+        <COND (<OR ,MINGUS-WON <G=? ,SCORE 60>> <TELL "Exit Liquidity.">)
               (<G=? ,SCORE 40> <TELL "Early Adopter.">)
               (<G=? ,SCORE 20> <TELL "Community Manager.">)
               (ELSE <TELL "Bagholder.">)>
@@ -346,15 +348,19 @@ all three." CR>)>>
 
 ;"PERSON-F: the in-character fallbacks for every character. Each person's
   own ACTION handles what it cares about and calls PERSON-F for everything
-  else. NO-ANSWER and NO-INTEREST are per-person properties; KEEP (below)
-  belongs to the two things you can never give away. ARG is M-WINNER when
-  the player gives an order (STEWARD, DANCE)."
+  else. SAY ... TO someone (section 8; the person is PRSI there) gets the
+  same reply as an unknown ASK topic. NO-ANSWER and NO-INTEREST are
+  per-person properties; KEEP (below) belongs to the two things you can
+  never give away. ARG is M-WINNER when the player gives an order (STEWARD,
+  DANCE)."
 <ROUTINE PERSON-F ("OPT" ARG)
     <COND (<==? .ARG ,M-WINNER>
            <TELL CT ,WINNER " looks at you the way everyone in the empire looks
 at an engineer with an idea." CR>)
           (<VERB? ASK-ABOUT TELL-ABOUT>
            <TELL <GETP ,PRSO ,P?NO-ANSWER> CR>)
+          (<VERB? SAY-TO>
+           <TELL <GETP ,PRSI ,P?NO-ANSWER> CR>)
           (<AND <VERB? SHOW GIVE> <GETP ,PRSO ,P?KEEP>>
            <TELL <GETP ,PRSO ,P?KEEP> CR>)
           (<AND <VERB? SHOW GIVE> <FSET? ,PRSI ,PERSONBIT>>
@@ -419,8 +425,7 @@ input." CR>)>>
            <RTRUE>)>
     <COND (<==? ,KIOSK-LINE 0> <SET OK <EQUAL? .W ,W?NOBODY ,W?ANARCHY ,W?NOONE>>)
           (<==? ,KIOSK-LINE 1>
-           <SET OK <OR <EQUAL? .W ,W?MONEY ,W?THEFT ,W?STEAL>
-                       <EQUAL? .W ,W?STEALING>>>)
+           <SET OK <EQUAL? .W ,W?MONEY ,W?THEFT ,W?STEAL ,W?STEALING>>)
           (ELSE <SET OK <EQUAL? .W ,W?MOUNTAIN ,W?HILL ,W?ROCK>>)>
     <COND (<NOT .OK>
            <TELL "You type it in. The kiosk thinks about it, and the lit line
@@ -678,15 +683,33 @@ to honor them. Minimum honor: one gas fee.\" Somebody always has a cousin who
 made it across. Nobody has ever had a name for the plaque." CR>)
           (ELSE <FEATURE-F>)>>
 
+;"The notices blowing past answer to NOTICES, and to NOTICE as well, since a
+  player is bound to try TAKE NOTICE here. If the real notice is in reach
+  too (held, or lying here), both match NOTICE; their shared GENERIC routine
+  (NOTICE-GENERIC-F, with the terrace's notices below) then picks the real
+  one, so the parser never asks 'which do you mean?'. Taking one is refused
+  with a pointer to the notice that does hold still."
 <OBJECT MESA-NOTICES
     (DESC "foreclosure notices")
-    (SYNONYM NOTICES PAPERS)
+    (SYNONYM NOTICES PAPERS NOTICE)
     (ADJECTIVE FORECLOSURE)
     (IN MESA)
     (FLAGS NDESCBIT PLURALBIT READBIT)
+    (GENERIC NOTICE-GENERIC-F)
     (TEXT "They are addressed to VAUNT PAVILION, SUMMIT, MINGUS RANGE, and they
 are all going the same way: down.")
-    (ACTION FEATURE-F)>
+    (ACTION MESA-NOTICES-F)>
+
+;"TAKE prefers things on the ground, so TAKE NOTICE reaches these notices
+  even while you hold the real one; answer for it then."
+<ROUTINE MESA-NOTICES-F ()
+    <COND (<AND <VERB? TAKE PULL> <IN? ,NOTICE ,WINNER>>
+           <TELL "You already have one. The wind will keep bringing more." CR>)
+          (<VERB? TAKE PULL>
+           <TELL "They blow past faster than you can grab one, all going the
+same way: down. Up at the Pavilion, one has caught on the doorbell; that one
+will hold still long enough to take." CR>)
+          (ELSE <FEATURE-F>)>>
 
 <OBJECT HALF-BRIDGES
     (DESC "half-bridges")
@@ -745,9 +768,13 @@ rocking there ever since, empty, with its doors open. The gondolas are not
 coming back.")
     (ACTION FEATURE-F)>
 
-;"P8, part one: the oil. FILL CAN works only here. CAN-FULL is the state:
-  OIL BUCKLE empties it, and you can always come back and refill, so the oil
-  can never become a dead end. FDESC is how the can is described until it is
+;"P8, part one: the oil. FILL CAN works only here (FILL CAN FROM PUMP and
+  FILL CAN WITH OIL too: section 8). CAN-FULL is the state: OIL BUCKLE
+  empties it, and you can always come back and refill, so the oil can never
+  become a dead end. Pouring the can out (EMPTY, or POUR from section 8) is
+  a way of oiling: onto the buckle, or anywhere on the ledge, it PERFORMs
+  OIL BUCKLE; anywhere else it is refused, so the good stuff is never
+  wasted. FDESC is how the can is described until it is
   first picked up (the library sets TOUCHBIT then); VOWELBIT makes the
   library say 'an oil can'."
 <OBJECT OIL-CAN
@@ -781,7 +808,15 @@ coin-operated, so you hold the can under the MAINNET pump's leak until it is
 full of thick, golden lubricant. The pump does not mind. It has been giving
 this away all night." CR>)>)
           (<AND <VERB? EMPTY> <PRSO? ,OIL-CAN>>
-           <TELL "You'd only have to fill it again." CR>)>>
+           <COND (<AND <==? ,HERE ,LEDGE> <NOT ,BELT-FREED>>
+                  <PERFORM ,V?OIL ,BUCKLE>)
+                 (ELSE <TELL "You'd only have to fill it again." CR>)>
+           <RTRUE>)
+          (<AND <VERB? EMPTY-ONTO> <PRSO? ,OIL-CAN>>
+           <COND (<PRSI? ,BUCKLE ,BELT-PAWL ,BELTED-VERDLING>
+                  <PERFORM ,V?OIL ,BUCKLE>)
+                 (ELSE <TELL "You'd only have to fill it again." CR>)>
+           <RTRUE>)>>
 
 ;"LORE L2. LISTEN TO BUSKER is the LISTEN-TO action with the busker as PRSO.
   The first song scores and carries both hints; later LISTENs cycle the
@@ -1018,19 +1053,61 @@ sunrise. Every single day. Who else can say that?\"|
 The recording ends. Nobody comes to the door." CR>)
           (ELSE <FEATURE-F>)>>
 
-;"Notices keep blowing: when the scanner eats this one (section 6), the very
-  same object is moved back here with its TOUCHBIT cleared, so its FDESC
-  appears again. One object plays every notice in the game."
-<OBJECT NOTICE
+;"Notices keep blowing: there is ALWAYS one caught on the doorbell. Two
+  objects make that work. DOORBELL-NOTICE has no TAKEBIT and never leaves;
+  TAKE on it hands you NOTICE, the one you carry, and the wind catches
+  another on the doorbell at once. Its LDESC is printed in the room
+  description every time (an FDESC would stop once it had been touched).
+  When the scanner eats the notice (section 6), the doorbell still has one.
+
+  Both answer to NOTICE. Whenever the real notice is in reach as well (held,
+  or lying here), the parser finds two matches and asks their GENERIC
+  routine to choose: NOTICE-GENERIC-F always picks the real one, so EXAMINE
+  NOTICE or TAKE NOTICE never asks 'which do you mean?'. The mesa's notices
+  use it too."
+<ROUTINE NOTICE-GENERIC-F (TBL)
+    ,NOTICE>
+
+<OBJECT DOORBELL-NOTICE
     (DESC "foreclosure notice")
-    (SYNONYM NOTICE)
+    (SYNONYM NOTICE PAPER)
     (ADJECTIVE FORECLOSURE FINAL CAUGHT SINGLE)
     (IN TERRACE)
-    (FDESC "One foreclosure notice has caught on the doorbell and flaps there,
+    (LDESC "One foreclosure notice has caught on the doorbell and flaps there,
 like it is ringing.")
-    (FLAGS TAKEBIT READBIT)
+    (FLAGS READBIT)
+    (GENERIC NOTICE-GENERIC-F)
     (TEXT "FINAL NOTICE OF FORECLOSURE. VAUNT PAVILION, SUMMIT, MINGUS RANGE. It
-is, among other things, an address.")>
+is, among other things, an address.")
+    (ACTION DOORBELL-NOTICE-F)>
+
+;"zillib's TAKE prefers things on the ground to things you hold, so TAKE
+  NOTICE comes here even while you carry the real one (no GENERIC choice is
+  needed); hence the first test."
+<ROUTINE DOORBELL-NOTICE-F ()
+    <COND (<AND <VERB? TAKE PULL> <IN? ,NOTICE ,WINNER>>
+           <TELL "You already have one. The wind will keep bringing more." CR>)
+          (<VERB? TAKE PULL>
+           <MOVE ,NOTICE ,WINNER>
+           <FSET ,NOTICE ,TOUCHBIT>
+           <TELL "You unhook the notice from the doorbell. Almost at once the
+wind catches another one there, flapping like it is ringing." CR>)>>
+
+;"The notice you carry. It starts off-stage (no IN, so it is in no room)
+  until the doorbell's notice hands it over."
+<OBJECT NOTICE
+    (DESC "foreclosure notice")
+    (SYNONYM NOTICE PAPER)
+    (ADJECTIVE FORECLOSURE FINAL CAUGHT SINGLE)
+    (FLAGS TAKEBIT READBIT)
+    (GENERIC NOTICE-GENERIC-F)
+    (TEXT "FINAL NOTICE OF FORECLOSURE. VAUNT PAVILION, SUMMIT, MINGUS RANGE. It
+is, among other things, an address.")
+    (ACTION NOTICE-F)>
+
+<ROUTINE NOTICE-F ()
+    <COND (<AND <VERB? TAKE> <IN? ,NOTICE ,WINNER>>
+           <TELL "You already have one. The wind will keep bringing more." CR>)>>
 
 ;"--- 4. The Upside-Down Ballroom ---------------------------------------------------
   P3 lives here. The five tiles send every press to PRESS-TILE (section 4),
@@ -1288,7 +1365,9 @@ ONE.")
 as you tilt it. On the back: WHATEVER. DYOR. It is, surprisingly, solvent.")>
 
 ;"--- 7. The Observatory ------------------------------------------------------------
-  P2 lives here: TURN TELESCOPE flips TELESCOPE-DOWN; LOOK THROUGH TELESCOPE
+  P2 lives here: TURN TELESCOPE flips TELESCOPE-DOWN (so do SWING, PUSH and
+  MOVE, and POINT/AIM/TURN TELESCOPE DOWN only ever point it down); LOOK
+  THROUGH TELESCOPE
   (a SYNTAX line of our own, section 8) scores only when it points down. The
   coat is not hard-gated on this: it is knowledge, plus five points for
   looking down."
@@ -1329,7 +1408,7 @@ of grass. Their lens caps have never been taken off.")
     (ACTION TELESCOPES-F)>
 
 <ROUTINE TELESCOPES-F ()
-    <COND (<VERB? LOOK-THROUGH SEARCH TURN PUSH PULL>
+    <COND (<VERB? LOOK-THROUGH SEARCH TURN PUSH PULL POINT>
            <TELL "The twelve are welded in place, all looking across. It is the
 empire's one unshakeable position." CR>)
           (<VERB? TAKE> <TELL "They are welded to the floor." CR>)>>
@@ -1362,6 +1441,17 @@ foot of the range swims into focus: the Runout, a fan of everything the empire
 ever dropped, alive with small mud-coloured figures. And there, by the upturned
 gondola car, lies a long coat. It casts a shadow. Nothing else down there does
 anything so honest." CR>)>)
+          ;"POINT is the game's own action (section 8): POINT TELESCOPE DOWN,
+            AIM TELESCOPE DOWN, TURN TELESCOPE DOWN."
+          (<VERB? POINT>
+           <COND (,TELESCOPE-DOWN
+                  <TELL "It is already pointing straight down, at the foot of
+the range." CR>)
+                 (ELSE
+                  <SETG TELESCOPE-DOWN T>
+                  <TELL "You loosen the clamp and swing the telescope away from
+the far bank, straight down. It is the first time anything in this room has
+looked down." CR>)>)
           (<VERB? TURN PUSH PULL>
            <SETG TELESCOPE-DOWN <NOT ,TELESCOPE-DOWN>>
            <COND (,TELESCOPE-DOWN
@@ -1445,9 +1535,11 @@ VERIFIED.")
     <COND (<VERB? ENTER> <DO-WALK ,P?DOWN>)
           (ELSE <FEATURE-F>)>>
 
-;"P4. The scanner is a container. In PUT NOTICE IN SCANNER the scanner is
-  PRSI, and zillib calls PRSI's ACTION before PRSO's, so the scanner decides
-  what it accepts before the library tries to put anything in it."
+;"P4. The scanner is a container. In PUT NOTICE IN SCANNER (or ON SCANNER)
+  the scanner is PRSI, and zillib calls PRSI's ACTION before PRSO's, so the
+  scanner decides what it accepts before the library tries to put anything
+  in it. Things you may never part with (the badge, the pike: anything with
+  a KEEP property) are left alone here, so their own refusal answers."
 <OBJECT KYC-SCANNER
     (DESC "KYC scanner")
     (SYNONYM SCANNER SCREEN CAPTCHA GRID SQUARES FORM)
@@ -1473,17 +1565,18 @@ things.|
 The CAPTCHA is a grid of nine photographs, all taken inside the mine shafts.
 Every one is pitch black. Any of them might contain murklings. You can SELECT
 whatever you like." CR>)>)
-          (<AND <VERB? PUT-IN> <PRSI? ,KYC-SCANNER>>
+          (<AND <VERB? PUT-IN PUT-ON> <PRSI? ,KYC-SCANNER>
+                <NOT <GETP ,PRSO ,P?KEEP>>>
            <COND (<NOT <PRSO? ,NOTICE>>
                   <TELL "The scanner reads it, beeps sadly, and spits it out. NOT
 AN ADDRESS." CR>)
                  (,KYC-ADDRESS <TELL "Your address is already on file. Forever." CR>)
                  (ELSE
                   <SETG KYC-ADDRESS T>
-                  ;"The notice is eaten -- and the wind sends another to the
-                    doorbell, so this can never become a dead end."
-                  <MOVE ,NOTICE ,TERRACE>
-                  <FCLEAR ,NOTICE ,TOUCHBIT>
+                  ;"The notice is eaten (REMOVE takes it out of the world).
+                    The doorbell always has another, so this can never
+                    become a dead end."
+                  <REMOVE ,NOTICE>
                   <TELL "The scanner swallows the foreclosure notice, reads the
 address, and approves it with a little fanfare. PROOF OF ADDRESS: RECEIVED.
 (Far above, the wind delivers another notice to the doorbell.)" CR>
@@ -1707,8 +1800,10 @@ for a patch." CR>)>)
     (TEXT "A slot the width of a punch card.")
     (ACTION CARD-SLOT-F)>
 
+;"As at the scanner, anything with a KEEP property is left to refuse for
+  itself."
 <ROUTINE CARD-SLOT-F ()
-    <COND (<AND <VERB? PUT-IN> <PRSI? ,CARD-SLOT>>
+    <COND (<AND <VERB? PUT-IN> <PRSI? ,CARD-SLOT> <NOT <GETP ,PRSO ,P?KEEP>>>
            <COND (<NOT <PRSO? ,PUNCH-CARD>>
                   <TELL "It is a punch-card slot. That is not a punch card." CR>)
                  (ELSE
@@ -2266,9 +2361,11 @@ nothing." CR>)
           (ELSE <PERSON-F>)>>
 
 ;"The pike can never be lost for good: it can't be given away, put anywhere or
-  thrown (KEEP-F); DROP leaves it where it falls, lowered. The pike's ACTION
-  also runs when it is PRSI (FEND VERDLINGS WITH PIKE), so every branch
-  checks that the pike is PRSO first."
+  thrown (KEEP-F); DROP leaves it where it falls, lowered. WAVE and POINT get
+  an in-character reply here; on the Runout they never reach this far,
+  because the Runout's M-BEG turns them into FEND. The pike's ACTION also
+  runs when it is PRSI (FEND VERDLINGS WITH PIKE), so every branch checks
+  that the pike is PRSO first."
 <OBJECT PIKE
     (DESC "pike")
     (SYNONYM PIKE STAFF SPEAR POLE)
@@ -2290,12 +2387,28 @@ bright. Every verdling recognises one. ">
           (<VERB? DROP>
            <SETG PIKE-RAISED <>>
            <RFALSE>)
+          (<VERB? WAVE POINT>
+           <COND (<==? ,HERE ,RIVER-EDGE>
+                  <TELL "The pike sweeps over thousands of bowed heads. Not one
+of them looks up." CR>)
+                 (ELSE
+                  <TELL "You wave the pike about. Without verdlings to see it,
+it is just a long stick." CR>)>)
           (ELSE <KEEP-F>)>>
 
 ;"P8, part two: OIL BUCKLE (OIL, GREASE, LUBRICATE; section 8) needs a full
   can and empties it, setting BUCKLE-OILED. Other ways of fiddling with the
   buckle are redirected to the pawl with PERFORM, which runs a whole new
-  action (here PUSH PAWL) as if the player had typed it."
+  action (here PUSH PAWL) as if the player had typed it. Using a TOOL on the
+  buckle (OPEN BUCKLE WITH PIN, which section 8 maps to zillib's UNLOCK, or
+  PRESS BUCKLE WITH PIN) goes to the pawl as PRESS-WITH, the action that can
+  free it.
+
+  In PUT ... IN/ON the buckle (and the pawl, below) the buckle is PRSI, so
+  its ACTION runs first: the oil can means 'oil it', anything else means
+  'press the pawl with it'. Things you may never part with (the pike, the
+  badge: they have a KEEP property) are left alone, so their own refusal
+  answers."
 <OBJECT BUCKLE
     (DESC "click belt")
     (SYNONYM BELT BUCKLE RATCHET)
@@ -2328,14 +2441,23 @@ says the verdling, \"at the gas station. The good stuff.\")" CR>)
                   <TELL "You work the spout of the oil can into the buckle and
 squeeze out every drop of the good stuff. The rust drinks it. Somewhere inside,
 the pawl gives a tiny, hopeful creak." CR>)>)
-          (<VERB? OPEN UNLOCK PULL TAKE TURN PUSH>
+          (<AND <VERB? PUT-IN PUT-ON> <PRSI? ,BUCKLE> <NOT <GETP ,PRSO ,P?KEEP>>>
+           <COND (<PRSO? ,OIL-CAN> <PERFORM ,V?OIL ,BUCKLE>)
+                 (ELSE <PERFORM ,V?PRESS-WITH ,BELT-PAWL ,PRSO>)>
+           <RTRUE>)
+          (<AND <VERB? UNLOCK PRESS-WITH> <PRSO? ,BUCKLE>>
+           <PERFORM ,V?PRESS-WITH ,BELT-PAWL ,PRSI>
+           <RTRUE>)
+          (<AND <VERB? OPEN PULL TAKE TURN PUSH> <PRSO? ,BUCKLE>>
            <PERFORM ,V?PUSH ,BELT-PAWL>
            <RTRUE>)>>
 
 ;"P8, part three: PRESS PAWL WITH PIN (the PRESS-WITH action, section 8). The
   checks, in order: is it already done? the pike (too big)? anything but the
   pin? oiled yet? Only the pin on an oiled pawl frees the belt -- and the
-  pike moves to you."
+  pike moves to you. Other phrasings end up here too: OPEN/UNLOCK PAWL WITH
+  PIN and PUT PIN IN PAWL by the redirects below, PUSH PIN INTO PAWL by a
+  SYNTAX line in section 8."
 <OBJECT BELT-PAWL
     (DESC "release pawl")
     (SYNONYM PAWL CATCH)
@@ -2351,6 +2473,13 @@ the pawl gives a tiny, hopeful creak." CR>)>)
 fingers. It needs something thin and stiff." CR>)
                  (ELSE <TELL "Rusted solid, and far too small for fingers." CR>)>)
           (<VERB? OIL> <PERFORM ,V?OIL ,BUCKLE> <RTRUE>)
+          (<AND <VERB? PUT-IN PUT-ON> <PRSI? ,BELT-PAWL> <NOT <GETP ,PRSO ,P?KEEP>>>
+           <COND (<PRSO? ,OIL-CAN> <PERFORM ,V?OIL ,BUCKLE>)
+                 (ELSE <PERFORM ,V?PRESS-WITH ,BELT-PAWL ,PRSO>)>
+           <RTRUE>)
+          (<AND <VERB? UNLOCK> <PRSO? ,BELT-PAWL>>
+           <PERFORM ,V?PRESS-WITH ,BELT-PAWL ,PRSI>
+           <RTRUE>)
           (<VERB? PUSH PULL TURN RUB>
            <COND (,BELT-FREED <TELL "The pawl has done its job." CR>)
                  (ELSE <TELL "You try with your fingers. The pawl is far too small
@@ -2390,10 +2519,12 @@ valley from you,\" he says quietly. \"They're guarding you from the river.\"" CR
        and sets RUNOUT-FRESH, so the arrival turn costs nothing.
     2. At the end of every later turn spent there, the Runout's M-END lands
        a poke -- unless the pike is raised. The third poke kills.
-    3. FEND VERDLINGS WITH PIKE (or RAISE PIKE) raises it. It stays up
-       through looking, examining, waiting, listening and walking; the
-       Runout's M-BEG lowers it for anything else, so that turn's poke can
-       land.
+    3. FEND VERDLINGS WITH PIKE (or RAISE PIKE, WAVE PIKE, POINT PIKE AT
+       VERDLINGS) raises it. It stays up through looking, examining,
+       waiting, inventory, listening and walking; the Runout's M-BEG lowers
+       it for anything else, so that turn's poke can land. Every one of
+       those is a turn: LOOK, EXAMINE and INVENTORY cost a poke like
+       anything else.
     4. Taking treasure from the pile costs one extra poke on the spot.
     5. Leaving west resets everything.
     6. Walking east with the pike down gets you escorted back to the station
@@ -2404,10 +2535,18 @@ valley from you,\" he says quietly. \"They're guarding you from the river.\"" CR
   Why M-END and not an interrupt (QUEUE)? zillib calls the current room's
   ACTION with M-END at the end of every turn that passes time -- so the
   handler switches itself on and off with your location, which is exactly
-  the rule's scope, and there is nothing to QUEUE or DEQUEUE. Commands that
-  pass no time (SCORE, SAVE, INVENTORY and the other 'game verbs') skip
-  M-END, so they never cost a poke. WAIT is a game verb too, but zillib's
-  V-WAIT runs M-END itself, so waiting does cost one.
+  the rule's scope, and there is nothing to QUEUE or DEQUEUE.
+
+  The catch is zillib's list of 'game verbs' (the GAME-VERB? macro): the
+  main loop skips M-END and the CLOCKER for them, so they pass no time. Most
+  are true meta commands (SCORE, SAVE, UNDO) and rightly cost nothing. Two
+  are not:
+    - WAIT is a game verb, but zillib's V-WAIT runs M-END and the CLOCKER
+      itself, so waiting does cost a poke.
+    - INVENTORY is a game verb too, but here it must be a turn, exactly as
+      in the Inform version (where only meta commands are free). So the
+      Runout's and the River's Edge's M-BEG print the inventory and then
+      run M-END and the CLOCKER themselves, the way V-WAIT does.
  ============================================================================"
 
 ;"--- 17. Bottom Gondola Station ------------------------------------------------------
@@ -2510,10 +2649,20 @@ the pile. The gondola station is back to the west.|
 total contempt. ">)>
            <POKE-LINE>
            <CRLF>)
-          ;"Rules 3 and 4, before every action. GAME-VERB? is true for the
-            commands that pass no time (WAIT among them); like LOOK, EXAMINE,
-            LISTEN, FEND and WALK they leave a raised pike up."
+          ;"Rules 3 and 4, before every action. Three steps, in order.
+            First, WAVE PIKE and POINT PIKE AT ... mean 'raise it' down here:
+            PERFORM runs a whole FEND action instead (this M-BEG sees it
+            again, and FEND keeps the pike up).
+            Second, lower a raised pike -- except for zillib's game verbs
+            (GAME-VERB?: WAIT, INVENTORY, SCORE, SAVE and the like) and
+            LOOK, EXAMINE, LISTEN, FEND and WALK. Note that leaving a pike up
+            is not the same as passing no time: WAIT and INVENTORY still cost
+            a turn (see the banner above).
+            Third, the treasure, invalid directions and INVENTORY."
           (<==? .RARG ,M-BEG>
+           <COND (<AND <VERB? WAVE POINT> <PRSO? ,PIKE> <IN? ,PIKE ,WINNER>>
+                  <PERFORM ,V?FEND ,PIKE>
+                  <RTRUE>)>
            <COND (<AND ,PIKE-RAISED
                        <IN? ,PIKE ,WINNER>
                        <NOT <GAME-VERB?>>
@@ -2528,7 +2677,15 @@ close. Treasure is noticed down here, and it stays where it is." CR>
                   <RTRUE>)
                  (<AND <VERB? WALK> ,PRSO-DIR <NOT <EQUAL? ,PRSO ,P?EAST ,P?WEST>>>
                   <TELL "The only way off the Runout is back west, to the
-gondola station -- or east, if they let you." CR>)>)
+gondola station -- or east, if they let you." CR>)
+                 ;"INVENTORY is a game verb, so the main loop would not end
+                   the turn: print it, then run M-END and the CLOCKER
+                   ourselves (rule 2 can land a poke), as V-WAIT does."
+                 (<VERB? INVENTORY>
+                  <V-INVENTORY>
+                  <RUNOUT-F ,M-END>
+                  <CLOCKER>
+                  <RTRUE>)>)
           ;"Rule 2: the poke at the end of each turn. Never on the arrival
             turn: RUNOUT-FRESH is cleared instead."
           (<==? .RARG ,M-END>
@@ -2577,8 +2734,9 @@ The verdlings give ground in front of you, step by step, never far, never
 kindly, all the way to the water." CR CR>
            ,RIVER-EDGE)>>
 
-;"P9, part one: DIG BY GONDOLA (a SYNTAX line in section 8) or SEARCH the
-  car moves the coat into the room. COAT-FOUND makes it once-only."
+;"P9, part one: DIG BY GONDOLA (a SYNTAX line in section 8), SEARCH the car
+  or LOOK UNDER it (its description says something rolled under it) moves
+  the coat into the room. COAT-FOUND makes it once-only."
 <OBJECT GONDOLA-CAR
     (DESC "upturned gondola car")
     (SYNONYM CAR GONDOLA RUBBLE PILE)
@@ -2596,7 +2754,7 @@ beside it is already filling with small stones." CR>)
                   <TELL "A summit gondola car, lying on its roof where it came to
 rest. The rubble piled against its side looks disturbed, as though something
 long had rolled in under it." CR>)>)
-          (<VERB? DIG SEARCH>
+          (<VERB? DIG SEARCH LOOK-UNDER>
            <COND (,COAT-FOUND
                   <TELL "You've already dug there. The rest is rubble." CR>)
                  (ELSE
@@ -2661,7 +2819,7 @@ counted.")
 <ROUTINE RUNOUT-VERDLINGS-F ("OPT" ARG)
     <COND (.ARG <TELL "They do not argue, negotiate or accept tokens. They
 poke." CR>)
-          (<VERB? EXAMINE FEND> <RFALSE>)
+          (<VERB? EXAMINE FEND BOW> <RFALSE>)
           (<VERB? ATTACK> <TELL "There are always more of them than you counted." CR>)
           (<AND <VERB? GIVE SHOW> <PRSI? ,RUNOUT-VERDLINGS>>
            <TELL "The nearest verdling pokes it, then looks at you." CR>)
@@ -2692,9 +2850,10 @@ with one word on it: DOWN.")
 
 ;"--- 19. The River's Edge (the ending, over several turns) ---------------------------
   Arriving: the bowing. Each later turn: BOW, WAIT, LOOK, EXAMINE and movement
-  let the silence go on; anything else makes the crowd part at the end of the
-  turn, and so does the second turn here regardless. Then EAST, DOWN, FOLLOW
-  LANE, BOARD SHIP or CLIMB GANGPLANK walks the lane."
+  let the silence go on; anything else (INVENTORY included) makes the crowd
+  part at the end of the turn, and so does the second turn here regardless.
+  Then EAST, DOWN, FOLLOW LANE, BOARD SHIP or CLIMB GANGPLANK walks the
+  lane."
 
 <ROOM RIVER-EDGE
     (DESC "The River's Edge")
@@ -2754,11 +2913,29 @@ again." CR>)>)
                   <RIVER-EDGE-F ,M-END>
                   <CLOCKER>
                   <RTRUE>)
+                 ;"INVENTORY is a game verb as well, and here it is 'anything
+                   else': record PART-NOW, print it, then end the turn
+                   ourselves, the same way."
+                 (<VERB? INVENTORY>
+                  <COND (<NOT ,LANE-OPEN> <SETG PART-NOW T>)>
+                  <V-INVENTORY>
+                  <RIVER-EDGE-F ,M-END>
+                  <CLOCKER>
+                  <RTRUE>)
                  (<AND <NOT ,LANE-OPEN>
                        <NOT <GAME-VERB?>>
                        <NOT <VERB? BOW LOOK EXAMINE>>>
                   <SETG PART-NOW T>
-                  <RFALSE>)>)
+                  ;"SWIM and JUMP are 'anything else' too -- they still part
+                    the crowd -- but they get the river's own answer.
+                    Returning true stops the action; the turn still ends
+                    normally."
+                  <COND (<VERB? SWIM JUMP JUMP-IN>
+                         <TELL "No one crosses the Verdance." CR>
+                         <RTRUE>)>
+                  <RFALSE>)
+                 (<VERB? SWIM JUMP JUMP-IN>
+                  <TELL "No one crosses the Verdance." CR>)>)
           ;"The parting comes at the end of turn 2, or sooner if M-BEG saw an
             action that is not part of the ceremony. The arrival turn is free;
             PART-NOW is cleared then too, so nothing recorded while you were
@@ -2783,8 +2960,10 @@ again." CR>)>)
 and all of them are waiting.")
     (ACTION EDGE-CROWD-F)>
 
+;"EXAMINE, FEND and BOW fall through to their usual handling; every other
+  action on the crowd gets the same answer."
 <ROUTINE EDGE-CROWD-F ("OPT" ARG)
-    <COND (<OR .ARG <NOT <VERB? EXAMINE FEND>>>
+    <COND (<OR .ARG <NOT <VERB? EXAMINE FEND BOW>>>
            <TELL "Thousands of small heads stay bowed." CR>)>>
 
 <OBJECT VERDANCE
@@ -2856,6 +3035,39 @@ the rail, one step from going aboard.")
 <SYNTAX TYPE TOPIC = V-TYPE>
 <SYNTAX TYPE UP OBJECT (FIND KLUDGEBIT) = V-TYPE>
 
+;"SAY NOBODY / ANSWER NOBODY at the kiosk or the keypad means TYPE NOBODY:
+  V-SAY hands it to V-TYPE, which reads the word after the verb whatever the
+  verb was. UP needs its own line again, for SAY UP.
+
+  Anywhere else, SAY MONEY TO BUSKER is the SAY-TO action, with the busker
+  as PRSI (the topic fills the first slot), and PERSON-F gives that person's
+  reply to an unknown topic. A bare SAY MONEY talks to the person here, the
+  way Inform's parser fills in '(to the busker)': V-SAY finds them and
+  PERFORMs SAY-TO itself, with no first object."
+<SYNTAX SAY TOPIC = V-SAY>
+<SYNTAX SAY UP OBJECT (FIND KLUDGEBIT) = V-SAY>
+<SYNTAX SAY TOPIC TO OBJECT (FIND PERSONBIT) = V-SAY-TO>
+<VERB-SYNONYM SAY ANSWER SHOUT SPEAK>
+
+<ROUTINE V-SAY ("AUX" P)
+    <COND (<EQUAL? ,HERE ,SWITCHBACKS ,COLD-CAVERN> <V-TYPE> <RTRUE>)>
+    ;"Who is listening? The first person here -- or, if there are several,
+      the one who is not part of the scenery (NDESCBIT): in the break room,
+      the steward rather than the murklings."
+    <MAP-CONTENTS (I ,HERE)
+        <COND (<AND <FSET? .I ,PERSONBIT> <N==? .I ,WINNER>
+                    <OR <NOT .P>
+                        <AND <FSET? .P ,NDESCBIT> <NOT <FSET? .I ,NDESCBIT>>>>>
+               <SET P .I>)>>
+    <COND (<NOT .P> <TELL "There is no reply." CR>)
+          (ELSE
+           <TELL "(to " T .P ")" CR>
+           <PERFORM ,V?SAY-TO <> .P>)>
+    <RTRUE>>
+
+<ROUTINE V-SAY-TO ()
+    <TELL "There is no reply." CR>>
+
 ;"SELECT NONE: the KYC CAPTCHA (P4). NONE and NOTHING become prepositions
   here, with the same KLUDGEBIT slot as TYPE UP."
 <SYNTAX SELECT NONE OBJECT (FIND KLUDGEBIT) = V-SELECT-NONE>
@@ -2898,17 +3110,62 @@ them might contain murklings -- or none of them." CR>)>>
           (ELSE <TELL "That doesn't need oiling, and the good stuff is too good
 to waste." CR>)>>
 
+;"FILL CAN FROM PUMP and FILL CAN WITH OIL (zillib has only FILL OBJECT).
+  The can's own ACTION handles FILL whatever the second object is."
+<SYNTAX FILL OBJECT FROM OBJECT = V-FILL>
+<SYNTAX FILL OBJECT WITH OBJECT = V-FILL>
+
+;"POUR OIL, POUR OIL ON BUCKLE, EMPTY CAN ONTO BUCKLE. zillib has only EMPTY
+  OBJECT; the two-object form is our own EMPTY-ONTO action, which the oil
+  can (section 5) turns into oiling. For anything else it falls back to a
+  plain EMPTY."
+<SYNTAX EMPTY OBJECT ON OBJECT = V-EMPTY-ONTO>
+<SYNTAX EMPTY OBJECT ONTO OBJECT = V-EMPTY-ONTO>
+<SYNTAX EMPTY OBJECT INTO OBJECT = V-EMPTY-ONTO>
+<SYNTAX EMPTY OBJECT IN OBJECT = V-EMPTY-ONTO>
+<SYNTAX EMPTY OBJECT OVER OBJECT = V-EMPTY-ONTO>
+<SYNTAX EMPTY OBJECT TO OBJECT = V-EMPTY-ONTO>
+<SYNTAX POUR OBJECT = V-EMPTY>
+<SYNTAX POUR OBJECT OUT OBJECT (FIND KLUDGEBIT) = V-EMPTY>
+<SYNTAX POUR OBJECT ON OBJECT = V-EMPTY-ONTO>
+<SYNTAX POUR OBJECT ONTO OBJECT = V-EMPTY-ONTO>
+<SYNTAX POUR OBJECT INTO OBJECT = V-EMPTY-ONTO>
+<SYNTAX POUR OBJECT IN OBJECT = V-EMPTY-ONTO>
+<SYNTAX POUR OBJECT OVER OBJECT = V-EMPTY-ONTO>
+<SYNTAX POUR OBJECT TO OBJECT = V-EMPTY-ONTO>
+
+<ROUTINE V-EMPTY-ONTO ()
+    <PERFORM ,V?EMPTY ,PRSO>
+    <RTRUE>>
+
+;"OPEN BUCKLE WITH PIN: zillib's OPEN takes one object, so this line sends
+  the two-object form to zillib's own UNLOCK action (as Inform's grammar
+  does). The buckle and the pawl handle UNLOCK themselves."
+<SYNTAX OPEN OBJECT WITH OBJECT = V-UNLOCK>
+
 ;"PRESS: a VERB-SYNONYM of zillib's PUSH, so PRESS FOYER TILE is the PUSH
   action. PRESS PAWL WITH PIN has two objects, so it matches only this
   two-object line and becomes PRESS-WITH. A one-object PRESS FOYER TILE
   matches zillib's own PUSH OBJECT line exactly; this line has no (FIND ...)
   for its second object, so the parser has nothing to guess with and never
   turns a plain press into PRESS ... WITH something you are holding."
-<VERB-SYNONYM PUSH PRESS>
+<VERB-SYNONYM PUSH PRESS MOVE>
 <SYNTAX PUSH OBJECT WITH OBJECT = V-PRESS-WITH>
 
 <ROUTINE V-PRESS-WITH ()
     <TELL "Pressing " T ,PRSO " with " T ,PRSI " achieves nothing." CR>>
+
+;"PUSH PIN INTO PAWL says PRESS PAWL WITH PIN the other way round. A SYNTAX
+  line cannot swap its objects, so PUSH-INTO is a tiny action of its own that
+  PERFORMs PRESS-WITH with them swapped. (MOVE is a PUSH synonym above, as it
+  is in Inform: MOVE TELESCOPE.)"
+<SYNTAX PUSH OBJECT INTO OBJECT = V-PUSH-INTO>
+<SYNTAX PUSH OBJECT IN OBJECT = V-PUSH-INTO>
+<SYNTAX PUSH OBJECT AGAINST OBJECT = V-PUSH-INTO>
+
+<ROUTINE V-PUSH-INTO ()
+    <PERFORM ,V?PRESS-WITH ,PRSI ,PRSO>
+    <RTRUE>>
 
 ;"FEND VERDLINGS WITH PIKE / RAISE PIKE: the pike line (P10)."
 <SYNTAX FEND OBJECT = V-FEND>
@@ -2942,6 +3199,9 @@ impress a verdling." CR>)
     <COND (<==? ,HERE ,RIVER-EDGE>
            <TELL "A ripple goes through the crowd, something very like approval.
 That is worse." CR>)
+          (<==? ,HERE ,RUNOUT>
+           <TELL "The verdlings watch you bow with total contempt. It is not what
+they want from you. They want you gone." CR>)
           (ELSE <TELL "You bow to nobody in particular. The wind does not bow
 back." CR>)>>
 
@@ -2952,8 +3212,11 @@ back." CR>)>>
 <ROUTINE V-RING ()
     <TELL "Nothing rings." CR>>
 
-;"DIG BY GONDOLA (P9). BY, NEAR, BESIDE and AROUND become prepositions."
-<SYNTAX DIG = V-DIG>
+;"DIG BY GONDOLA (P9). BY, NEAR, BESIDE and AROUND become prepositions; DIG
+  IN/INTO/THROUGH the mempool's drift works too. There is deliberately no
+  line for a bare DIG: with only object lines, the parser asks 'What do you
+  want to dig?', which costs no turn -- that matters on the Runout, where
+  every turn is counted."
 <SYNTAX DIG OBJECT = V-DIG>
 <SYNTAX DIG BY OBJECT = V-DIG>
 <SYNTAX DIG NEAR OBJECT = V-DIG>
@@ -2961,6 +3224,8 @@ back." CR>)>>
 <SYNTAX DIG AROUND OBJECT = V-DIG>
 <SYNTAX DIG UNDER OBJECT = V-DIG>
 <SYNTAX DIG IN OBJECT = V-DIG>
+<SYNTAX DIG INTO OBJECT = V-DIG>
+<SYNTAX DIG THROUGH OBJECT = V-DIG>
 
 <ROUTINE V-DIG ()
     <TELL "Digging would achieve nothing here." CR>>
@@ -2978,6 +3243,30 @@ back." CR>)>>
 
 <ROUTINE V-TURN ()
     <TELL "Nothing obvious happens." CR>>
+
+;"POINT/AIM: POINT TELESCOPE DOWN (P2) and, on the Runout, POINT PIKE AT
+  VERDLINGS (the Runout's M-BEG turns that into FEND). DOWN is already a
+  preposition (PUT DOWN), and a trailing preposition needs an object slot
+  after it, so these lines use the KLUDGEBIT trick from TYPE UP. TURN (and
+  SWING) TELESCOPE DOWN is the same action."
+<SYNTAX POINT OBJECT = V-POINT>
+<SYNTAX POINT OBJECT DOWN OBJECT (FIND KLUDGEBIT) = V-POINT>
+<SYNTAX POINT OBJECT AT OBJECT = V-POINT>
+<SYNTAX POINT OBJECT TOWARD OBJECT = V-POINT>
+<SYNTAX POINT OBJECT TOWARDS OBJECT = V-POINT>
+<VERB-SYNONYM POINT AIM>
+<SYNTAX TURN OBJECT DOWN OBJECT (FIND KLUDGEBIT) = V-POINT>
+
+<ROUTINE V-POINT ()
+    <TELL "You point " T ,PRSO ". Nothing comes of it." CR>>
+
+;"JUMP IN RIVER (zillib has only a bare JUMP). At the River's Edge it gets
+  the river's answer in RIVER-EDGE-F."
+<SYNTAX JUMP IN OBJECT = V-JUMP-IN>
+<SYNTAX JUMP INTO OBJECT = V-JUMP-IN>
+
+<ROUTINE V-JUMP-IN ()
+    <TELL "Jumping in " T ,PRSO " would achieve nothing here." CR>>
 
 ;"FOLLOW LANE: walks the lane at the end (LANE-F)."
 <SYNTAX FOLLOW OBJECT = V-FOLLOW>
