@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { quotedPath } from '~/project-package/errors'
+import { addZilUploads } from '~/composables/zil-uploads'
 
-const { files, activeId, openFile, togglePanel, hasZilFile, addZilFile, removeZilFile } = useProjectFiles()
+const { files, activeId, openFile, togglePanel, findZilFile, addZilFile, removeZilFile } = useProjectFiles()
 const { profile } = useLanguage()
 const isZil = computed(() => profile.value.id === 'zil')
 
@@ -35,37 +36,27 @@ function onConfirmClosed() {
   addArea.value?.querySelector<HTMLElement>('button')?.focus()
 }
 
-async function addZilUploads(list: File[]) {
+function askReplace(path: string, existing: string): Promise<boolean> {
+  return ask({
+    title: path,
+    heading: `Replace ${quotedPath(existing)}?`,
+    description: existing === path
+      ? 'The file in the project is replaced by the one you chose.'
+      : `The file in the project is replaced by the one you chose, named ${quotedPath(path)}.`,
+    confirmLabel: 'Replace',
+  })
+}
+
+async function addUploads(list: File[]) {
   note.value = ''
-  let added = 0
-  for (const file of list) {
-    const path = file.name
-    if (hasZilFile(path)) {
-      const ok = await ask({
-        title: path,
-        heading: `Replace ${quotedPath(path)}?`,
-        description: 'The file in the project is replaced by the one you chose.',
-        confirmLabel: 'Replace',
-      })
-      if (!ok) continue
-    }
-    const res = addZilFile(path, await file.text())
-    if (!res.ok) {
-      note.value = res.message
-      return
-    }
-    added++
-  }
-  if (added) {
-    note.value = `Added ${added} ZIL file${added === 1 ? '' : 's'}. Use <INSERT-FILE "name"> in the main file to compile ${added === 1 ? 'it' : 'them'}.`
-  }
+  note.value = await addZilUploads(list, { findZilFile, addZilFile, ask: askReplace })
 }
 
 async function onZilFileChange(event: Event) {
   const input = event.target as HTMLInputElement
   const list = Array.from(input.files ?? [])
   input.value = ''
-  await addZilUploads(list)
+  await addUploads(list)
 }
 
 async function askRemove(id: string) {

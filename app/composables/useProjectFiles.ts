@@ -15,6 +15,7 @@ import { notifyStorageFull } from '~/composables/useStorageNotice'
 import { registerSessionOnce } from '~/composables/session-once'
 import { displayPath, quotedPath } from '~/project-package/errors'
 import { useZilProjectFiles } from '~/composables/useZilProjectFiles'
+import { pathKey } from '~/project-package/paths'
 
 const ZIL_ID = 'zil:'
 
@@ -158,18 +159,40 @@ export function useProjectFiles() {
     else updateUploaded(file.id, text)
   }
 
-  /** Whether the ZIL project already has an extra file at exactly this path. */
-  function hasZilFile(path: string): boolean {
-    return zil.files.value.some(f => f.path === path)
+  /** The stored path of the extra file this name matches, ignoring case (by
+   *  pathKey, as planZilFiles compares them), or null. */
+  function findZilFile(path: string): string | null {
+    const key = pathKey(path)
+    return zil.files.value.find(f => pathKey(f.path) === key)?.path ?? null
   }
 
-  /** Add (or, for an existing path, replace) an extra ZIL file. Text with a NUL
-   *  in it isn't source; everything else is checked by `planZilFiles`. */
+  /** Whether the ZIL project already has an extra file with this name (ignoring case). */
+  function hasZilFile(path: string): boolean {
+    return findZilFile(path) !== null
+  }
+
+  /** Add (or, for an existing name in any case, replace) an extra ZIL file. A
+   *  replace takes the new spelling, and an open tab of the old one follows it.
+   *  Text with a NUL in it isn't source; everything else is checked by `planZilFiles`. */
   function addZilFile(path: string, text: string): { ok: true } | { ok: false; message: string } {
     if (text.includes('\u0000')) {
       return { ok: false, message: `${quotedPath(path)} isn’t a text file, so it can’t be added.` }
     }
-    return zil.add({ path, text })
+    const existing = findZilFile(path)
+    const res = zil.add({ path, text })
+    if (res.ok && existing !== null && existing !== path) {
+      const from = `${ZIL_ID}${existing}`
+      const to = `${ZIL_ID}${path}`
+      const t = tabs.value
+      if (t.openTabs.includes(from)) {
+        tabs.value = {
+          activeId: t.activeId === from ? to : t.activeId,
+          openTabs: t.openTabs.map(id => (id === from ? to : id)),
+        }
+        persist()
+      }
+    }
+    return res
   }
 
   /** Remove an extra ZIL file; its tab closes with it (the validIds watcher). */
@@ -236,6 +259,7 @@ export function useProjectFiles() {
     readFile,
     writeActive,
     restore,
+    findZilFile,
     hasZilFile,
     addZilFile,
     removeZilFile,

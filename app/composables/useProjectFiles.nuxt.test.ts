@@ -122,6 +122,30 @@ describe('useProjectFiles — a ZIL project\'s extra files', () => {
     expect(pf.openTabs.value.map(t => t.id)).toEqual(['source'])
   })
 
+  it('findZilFile matches a stored file ignoring case (by pathKey)', () => {
+    const pf = useProjectFiles()
+    pf.addZilFile('rooms.zil', 'R')
+    expect(pf.findZilFile('Rooms.zil')).toBe('rooms.zil')
+    expect(pf.findZilFile('ROOMS.ZIL')).toBe('rooms.zil')
+    expect(pf.findZilFile('other.zil')).toBeNull()
+    expect(pf.hasZilFile('Rooms.zil')).toBe(true)
+  })
+
+  it('a case variant replaces the stored file and takes the new spelling; its open tab and diagnostics follow', async () => {
+    const pf = useProjectFiles()
+    pf.addZilFile('rooms.zil', 'R')
+    pf.openFile('zil:rooms.zil')
+    await nextTick()
+    expect(pf.addZilFile('Rooms.zil', 'R2')).toEqual({ ok: true })
+    await nextTick()
+    expect(useZilProjectFiles().files.value).toEqual([{ path: 'Rooms.zil', text: 'R2' }])
+    expect(pf.activeId.value).toBe('zil:Rooms.zil')
+    expect(pf.openTabs.value.map(t => t.id)).toEqual(['source', 'zil:Rooms.zil'])
+    expect(pf.readFile('zil:Rooms.zil')).toBe('R2')
+    // A diagnostic from the last compile still names the old spelling.
+    expect(pf.diagnosticTarget('rooms.zil')).toBe('zil:Rooms.zil')
+  })
+
   it('diagnosticTarget maps a diagnostic file to a tab id', () => {
     useZilProjectFiles().replaceAll([{ path: 'rooms.zil', text: 'R' }], 'main.zil')
     const pf = useProjectFiles()

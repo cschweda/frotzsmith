@@ -2,6 +2,7 @@ import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 import { safeGetItem, safeRemoveItem, safeSetItem } from '~/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
 import { planZilFiles, ZIL_DEFAULT_MAIN_PATH, type ZilProjectFile } from '~/modules/zil/zil-project'
+import { pathKey } from '~/project-package/paths'
 
 type Plan = { ok: true } | { ok: false; message: string }
 
@@ -97,9 +98,11 @@ export function useZilProjectFiles() {
     return plan
   }
 
-  /** Add a file; a path that already exists (by exact path) replaces it. */
+  /** Add a file; one with the same name ignoring case (by pathKey) is
+   *  replaced, and the new spelling is kept. */
   function add(file: ZilProjectFile): Plan {
-    const next = [...files.value.filter(f => f.path !== file.path), { path: file.path, text: file.text }]
+    const key = pathKey(file.path)
+    const next = [...files.value.filter(f => pathKey(f.path) !== key), { path: file.path, text: file.text }]
     const plan = planZilFiles(next, mainPath.value)
     if (!plan.ok) return plan
     files.value = next
