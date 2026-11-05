@@ -101,7 +101,6 @@ describe('useSkein', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear() // setAutoRun persists 'off' — must not leak across tests
-    sessionStorage.clear() // the outside-source mark
     _outputs = {}
     _failNextReplay = null
     _replayCalls.length = 0

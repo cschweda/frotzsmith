@@ -142,7 +142,6 @@ function ideState() {
 beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
-  sessionStorage.clear()
   vi.stubGlobal('indexedDB', new IDBFactory())
   resetStorageNoticeForTests()
 })

@@ -391,6 +391,26 @@ describe('useIde — loadSample (async, lazy sample bodies)', () => {
     expect(ide.activeTab.value).toBe('results')
   })
 
+  it('a bundled sample or New clears the outside-source mark; editing and plain loadSource do not (F2)', async () => {
+    const ide = useIde()
+    useOutsideSource().markOutside()
+    ide.source.value += '\n! edited'
+    ide.loadSource('Constant Story "X";')
+    expect(useOutsideSource().untrusted.value).toBe(true)
+    await ide.loadSample('std-skeleton')
+    expect(useOutsideSource().untrusted.value).toBe(false)
+    useOutsideSource().markOutside()
+    ide.newProject('std')
+    expect(useOutsideSource().untrusted.value).toBe(false)
+  })
+
+  it('a sample that is unknown leaves the mark in place', async () => {
+    const ide = useIde()
+    useOutsideSource().markOutside()
+    await ide.loadSample('no-such-sample')
+    expect(useOutsideSource().untrusted.value).toBe(true)
+  })
+
   it('is a no-op for an unknown sample id', async () => {
     const ide = useIde()
     ide.source.value = 'KEEP ME'

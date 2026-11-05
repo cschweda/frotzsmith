@@ -283,6 +283,7 @@ export function useIde() {
       setTargetMode(s.target)
       resetForNewSource()
       releaseExtras()
+      useOutsideSource().trust() // the author's own choice of source (F2)
       return
     }
     // I6 path.
@@ -304,6 +305,7 @@ export function useIde() {
     setTargetMode(s.target ?? 'auto')
     resetForNewSource()
     releaseExtras()
+    useOutsideSource().trust() // the author's own choice of source (F2)
   }
 
   /** Load arbitrary source text (e.g. an opened .inf file) into the editor. */
@@ -325,6 +327,7 @@ export function useIde() {
     if (profile.value.id === 'i6') setProfileMode(library)
     resetForNewSource()
     releaseExtras()
+    useOutsideSource().trust() // a blank project of the author's own (F2)
   }
 
   /** Clear all Parchment autosave entries from localStorage so the next Play boots

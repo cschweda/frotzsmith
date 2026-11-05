@@ -35,7 +35,7 @@ describe('consumeShareFragment', () => {
     vi.clearAllMocks()
     _profile.value = { id: 'i6', route: '/', stateKey: 'i6' }
     setHash(null)
-    sessionStorage.clear()
+    localStorage.clear() // the outside-source mark
   })
 
   it('auto-loads over a pristine buffer (the language seed) and clears the hash', () => {
