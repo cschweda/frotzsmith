@@ -4,7 +4,10 @@
 # Requires: .NET 10 SDK at ~/.dotnet/dotnet (wasm-tools workload must be installed)
 # Usage: bash tools/zilf-wasm/build.sh  (from repo root, or cd tools/zilf-wasm && ./build.sh)
 #
-# Output: public/zilf/_framework/ (committed, shipped like inform6.wasm)
+# Output: public/zilf/<zilfBundle>/_framework/ (committed, shipped like inform6.wasm),
+#         where <zilfBundle> is versions.zilfBundle in frotzsmith.config.ts.
+#         Other public/zilf/* bundles are left alone (open tabs on an older
+#         build keep loading theirs).
 # ZILF source: tools/zilf-wasm/zilf/ (gitignored clone, pinned at rev 5262550)
 set -euo pipefail
 
@@ -13,10 +16,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 ZILF_DIR="${SCRIPT_DIR}/zilf"
 ZILF_REV="5262550"
-OUTPUT_DIR="${REPO_ROOT}/public/zilf"
+ZILF_BUNDLE="$(sed -n "s/^[[:space:]]*zilfBundle:[[:space:]]*'\([^']*\)'.*/\1/p" "${REPO_ROOT}/frotzsmith.config.ts")"
+if [[ ! "${ZILF_BUNDLE}" =~ ^r[A-Za-z0-9._-]+$ ]]; then
+  echo "ERROR: could not read versions.zilfBundle from frotzsmith.config.ts (got '${ZILF_BUNDLE}')"
+  exit 1
+fi
+OUTPUT_DIR="${REPO_ROOT}/public/zilf/${ZILF_BUNDLE}"
 
 echo "=== Frotzsmith ZILF→WASM build ==="
 echo "Repo root : ${REPO_ROOT}"
+echo "Bundle    : public/zilf/${ZILF_BUNDLE}"
 echo "Tools dir : ${SCRIPT_DIR}"
 echo ".NET SDK  : ${DOTNET}"
 
@@ -48,12 +57,15 @@ fi
 # --- 2. dotnet publish ---
 echo ""
 echo "Publishing ZilfWasm (Release, WasmFingerprintAssets=false)..."
+# Start from an empty publish dir: dotnet publish never deletes, so files left by
+# an earlier (e.g. untrimmed) build would otherwise be copied into the bundle.
+rm -rf "${SCRIPT_DIR}/publish"
 "${DOTNET}" publish "${SCRIPT_DIR}/ZilfWasm.csproj" \
   -c Release \
   -p:WasmFingerprintAssets=false \
   --output "${SCRIPT_DIR}/publish"
 
-# --- 3. Copy _framework bundle to public/zilf/ ---
+# --- 3. Copy _framework bundle to public/zilf/<zilfBundle>/ ---
 FRAMEWORK_SRC="${SCRIPT_DIR}/publish/wwwroot/_framework"
 if [[ ! -d "${FRAMEWORK_SRC}" ]]; then
   echo "ERROR: publish did not produce ${FRAMEWORK_SRC}"

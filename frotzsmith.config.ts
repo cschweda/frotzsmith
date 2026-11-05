@@ -27,6 +27,10 @@ export const frotzsmith = {
     punyinform: '6.7',
     /** ZILF (ZIL compiler) — source revision used to build the bundled WASM. */
     zilf: 'r5262550',
+    /** Directory of the shipped ZILF .NET bundle under public/zilf/: the ZILF
+     *  revision plus a wrapper build suffix. A rebuild of the export wrapper
+     *  (tools/zilf-wasm) bumps the suffix, so it lands under a new path. */
+    zilfBundle: 'r5262550-w2',
   },
 
   // ── Z-machine limits (bytes) — the real ceilings, for footer warnings ─────
@@ -78,12 +82,12 @@ export type FrotzsmithConfig = typeof frotzsmith
 
 /**
  * Where the versioned ZILF .NET bundle is served from. The path carries the
- * compiler revision so the whole directory can be cached immutable — a
+ * compiler revision and wrapper build (`versions.zilfBundle`) so the whole directory can be cached immutable — a
  * rebuild lands under a new path, which also kills the old cache-poisoning
  * edge (a stale dotnet.js requesting a removed file used to get the SPA
  * fallback's HTML cached under the wasm URL for a week).
  */
-export const ZILF_FRAMEWORK_BASE = `/zilf/${frotzsmith.versions.zilf}/_framework`
+export const ZILF_FRAMEWORK_BASE = `/zilf/${frotzsmith.versions.zilfBundle}/_framework`
 
 /**
  * Build a namespaced localStorage key for a given language state key.

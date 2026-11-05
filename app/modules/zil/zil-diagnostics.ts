@@ -5,9 +5,11 @@ import type { Diagnostic, Severity } from '~/modules/inform6/types'
  * shape (same type used by the Inform 6 path) so the editor's click-to-jump
  * and Results panel work identically for both languages.
  *
- * The real ZILF diagnostic format (observed from the committed bundle):
+ * The real ZILF diagnostic format (observed from the committed bundle; the
+ * wrapper strips its `/project/` prefix, so names are project-relative):
  *
- *   /game.zil:2: error ZIL0122: unrecognized routine or instruction: UNDEFINED-FUNCTION
+ *   game.zil:1: error ZIL0122: unrecognized routine or instruction: UNDEFINED-FUNCTION
+ *   rooms.zil:12: error MDL0214: ROOM: already defined: WEST-OF-HOUSE
  *
  * Pattern: <file>:<line>: <severity> <CODE>: <message text>
  *
