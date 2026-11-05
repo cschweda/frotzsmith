@@ -58,8 +58,10 @@ directory for one release, then delete it.
 
 Both compile exports return `{ success, storyBase64, diagnostics }`. How `CompileProject` works:
 
-- Each file is placed at `/project/<path>`; the include paths are `/project` then `/zillib`, so
-  a project's own `parser.zil` shadows the library's. The compile runs on `/project/<mainPath>`.
+- Each file is placed at `/project/<path>`; the include paths are the main file's own folder
+  (when `mainPath` is in a subfolder, e.g. `/project/src`), then `/project`, then `/zillib`, the
+  order ZILF's CLI uses on disk (`AddImplicitIncludePaths`). Every `INSERT-FILE`, even one inside a
+  file in another folder, searches that same list. A project's own `parser.zil` shadows the library's. The compile runs on `/project/<mainPath>`.
 - A key that is empty, absolute, has a drive letter, an empty / `.` / `..` segment, a backslash or a
   control character, isn't `.zil`, or differs from another key only by case is refused: one
   diagnostic naming it, no compile. So is a `mainPath` that isn't a key.
@@ -93,7 +95,8 @@ node tools/zilf-wasm/test-smoke.mjs
 Loads the bundle named by `versions.zilfBundle` (or `ZILF_BUNDLE=<dir>`). Compiles a one-room
 `.zil` to z5 and z3, asserts valid headers, confirms that a broken `.zil` surfaces diagnostics,
 then checks `CompileProject`: a multi-file game, `INSERT-FILE` name case, line numbers in extra and
-main files, path refusal, a circular `INSERT-FILE`, and one file inserted twice. Expected output:
+main files, path refusal, a circular `INSERT-FILE`, one file inserted twice, and a main file in a
+subfolder finding its siblings before root files. Expected output:
 - `z5 OK: <N> bytes, header[0]=5`
 - `z3 OK: <N> bytes, header[0]=3`
 - `Broken ZIL correctly failed, diagnostics: [...]`

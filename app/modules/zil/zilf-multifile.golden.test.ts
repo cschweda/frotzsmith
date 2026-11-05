@@ -123,6 +123,28 @@ describe('ZILF multi-file compile (node-env)', { timeout: 60_000 }, () => {
     expect(d, r.diagnostics.join('\n')).toMatchObject({ file: 'story.zil', line: 3 })
   })
 
+  it('a main file in a subfolder finds its siblings first, then root files (as ZILF on disk)', () => {
+    const main = 'src/game.zil'
+    const sibling = build(
+      { [main]: STORY, 'src/rooms.zil': ROOMS, 'rooms.zil': '<THIS IS NOT VALID', 'lib/items.zil': ITEMS },
+      main,
+    )
+    expect(sibling.success, sibling.diagnostics.join('\n')).toBe(true)
+    const root = build({ [main]: STORY, 'rooms.zil': ROOMS, 'lib/items.zil': ITEMS }, main)
+    expect(root.success, root.diagnostics.join('\n')).toBe(true)
+  })
+
+  it('an error in a subfolder sibling parses to its full path', () => {
+    const main = 'src/game.zil'
+    const r = build(
+      { [main]: STORY, 'src/rooms.zil': `; one\n<UNDEFINED-FUNCTION>\n${ROOMS}`, 'lib/items.zil': ITEMS },
+      main,
+    )
+    expect(r.success).toBe(false)
+    const d = parseZilDiagnostics(r.diagnostics).find((x) => x.file === 'src/rooms.zil')
+    expect(d, r.diagnostics.join('\n')).toMatchObject({ file: 'src/rooms.zil', line: 2 })
+  })
+
   it('a circular INSERT-FILE fails with a diagnostic (and the cause comes first once parsed)', () => {
     const r = build({
       'story.zil': `${HEAD}\n<INSERT-FILE "a">\n${GO}\n`,

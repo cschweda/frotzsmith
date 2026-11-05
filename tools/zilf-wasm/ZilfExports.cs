@@ -44,7 +44,7 @@ public partial class ZilfExports
     /// Compiles a set of files. <paramref name="filesJson"/> is a JSON object
     /// <c>{ "&lt;relative path&gt;": "&lt;text&gt;" }</c> that includes the main file.
     /// Each file is placed at <c>/project/&lt;path&gt;</c>; <c>INSERT-FILE</c> searches
-    /// <c>/project</c> before <c>/zillib</c>, ignoring case.
+    /// the main file's folder, then <c>/project</c>, then <c>/zillib</c>, ignoring case.
     /// </summary>
     [JSExport]
     internal static string CompileProject(string filesJson, string mainPath, int version)
@@ -114,6 +114,13 @@ public partial class ZilfExports
                 FileSystem = new CaseInsensitiveFileSystem(memory, StripProject),
                 Logger = logger
             };
+            // Search order as ZILF on disk (Cli/PathResolution.AddImplicitIncludePaths):
+            // the main file's own folder first, then the project root, then zillib.
+            // Every INSERT-FILE, even one inside a file in another folder, uses this
+            // same list; ZILF never resolves relative to the inserting file.
+            var mainDir = MainDirectory(mainPath);
+            if (mainDir != null)
+                frontEnd.IncludePaths.Add(ProjectPrefix + mainDir);
             frontEnd.IncludePaths.Add(ProjectDir);
             frontEnd.IncludePaths.Add(LibraryDir);
 
@@ -168,6 +175,13 @@ public partial class ZilfExports
         }
         if (!key.EndsWith(".zil", StringComparison.OrdinalIgnoreCase)) return "only .zil files can be compiled";
         return null;
+    }
+
+    /// <summary>The folder of <paramref name="mainPath"/> (<c>src/game.zil</c> → <c>src</c>), or null at the root.</summary>
+    static string? MainDirectory(string mainPath)
+    {
+        var slash = mainPath.LastIndexOf('/');
+        return slash > 0 ? mainPath[..slash] : null;
     }
 
     /// <summary>A path as the author knows it: <c>/project/rooms.zil</c> → <c>rooms.zil</c>.</summary>

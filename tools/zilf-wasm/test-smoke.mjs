@@ -250,5 +250,33 @@ console.log('\nTesting one file inserted twice...');
         !r.success && r.diagnostics.some(x => x.startsWith('rooms.zil:2: error MDL0214:')), r.diagnostics);
 }
 
+console.log('\nTesting a main file in a subfolder (search order: main folder, project root, zillib)...');
+{
+    const r = project({
+        'src/game.zil': `${STORY_HEAD}\n<INSERT-FILE "rooms">\n<INSERT-FILE "lib/items">\n${STORY_GO}\n`,
+        'src/rooms.zil': `${ROOMS}<INSERT-FILE "doors">\n`,
+        'src/doors.zil': '; "doors.zil, inserted from src/rooms.zil"\n',
+        'lib/items.zil': ITEMS,
+    }, 'src/game.zil');
+    check('src/game.zil finds its sibling src/rooms.zil (and a nested insert finds src/doors.zil)', r.success, r.diagnostics);
+    const rRoot = project({
+        'src/game.zil': `${STORY_HEAD}\n<INSERT-FILE "rooms">\n<INSERT-FILE "lib/items">\n${STORY_GO}\n`,
+        'rooms.zil': ROOMS,
+        'lib/items.zil': ITEMS,
+    }, 'src/game.zil');
+    check('src/game.zil still finds root files (rooms.zil, lib/items.zil)', rRoot.success, rRoot.diagnostics);
+    const r2 = project({
+        'src/game.zil': `${STORY_HEAD}\n<INSERT-FILE "rooms">\n${STORY_GO}\n`,
+        'src/rooms.zil': ROOMS,
+        'rooms.zil': '<THIS IS NOT VALID',
+    }, 'src/game.zil');
+    check('the main file\'s folder is searched before the project root', r2.success, r2.diagnostics);
+    const r3 = project({
+        'src/game.zil': `; line 1\n<UNDEFINED-FUNCTION>\n${STORY_HEAD}\n<INSERT-FILE "rooms">\n${STORY_GO}\n`,
+        'src/rooms.zil': ROOMS,
+    }, 'src/game.zil');
+    check('an error on line 2 of src/game.zil reports src/game.zil:2:', !r3.success && r3.diagnostics.some(x => x.startsWith('src/game.zil:2: error')), r3.diagnostics);
+}
+
 console.log('\n' + (allPassed ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED'));
 process.exit(allPassed ? 0 : 1);
