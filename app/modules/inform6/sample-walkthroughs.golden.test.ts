@@ -89,6 +89,53 @@ const FINALE: Record<string, { text: string | RegExp; ended?: boolean }> = {
   'puny-haunted-house': { text: 'A raging fire blocks the door to the south' },
 }
 
+/** Compile a sample exactly as the editor shows it; returns the story bytes. */
+async function compileSample(id: string): Promise<Uint8Array> {
+  const s = SAMPLES.find(x => x.id === id)!
+  const raw = (await loadSampleSource(id))!
+  const source = s.format === false ? raw : formatI6(raw)
+  const result = await runI6Compile(source, { profileId: s.group, ext: s.target ?? PROFILES[s.group].defaultExt })
+  expect(result.ok, `${id} compile`).toBe(true)
+  return result.storyFile!
+}
+
+describe('Haunted House: the knife is only deadly while it floats (both libraries)', () => {
+  for (const id of ['std-haunted-house', 'puny-haunted-house']) {
+    it(`${id}: examining the floating knife kills; examining the held knife does not`, async () => {
+      const story = await compileSample(id)
+      const floating = await runReplay(story.slice(), 'zmachine', ['plugh', 'east', 'examine knife'])
+      expect(floating.turns.at(-1)!.output).toContain('slits your throat')
+
+      const held = ['plugh', 'east', 'take scroll', 'take knife', 'examine knife', 'push knife', 'take knife', 'west', 'examine knife']
+      const { turns } = await runReplay(story.slice(), 'zmachine', held)
+      expect(turns).toHaveLength(held.length + 1)
+      for (const t of turns) expect(t.output, `"${t.command}"`).not.toContain('slits your throat')
+      // TAKE on the knife you hold is the library's "already have it", not "out of reach".
+      expect(turns[7]!.output).not.toContain('just out of your reach')
+    }, 60_000)
+
+    it(`${id}: XYZZY works only in the first room, and plain and SAY forms agree`, async () => {
+      const story = await compileSample(id)
+      for (const word of ['xyzzy', 'say xyzzy']) {
+        const first = await runReplay(story.slice(), 'zmachine', [word])
+        expect(first.turns.at(-1)!.output, `${word} outside`).toContain('The Foyer')
+        expect(first.turns.at(-1)!.output, `${word} outside`).toContain('score has')
+        // Elsewhere (in by PLUGH, then the Living Room): nothing happens.
+        const later = await runReplay(story.slice(), 'zmachine', ['plugh', 'east', word])
+        expect(later.turns.at(-1)!.output.trim(), `${word} inside`).toBe('Nice try.')
+      }
+    }, 60_000)
+
+    it(`${id}: the cheat commands GO <unvisited room> and ZAP <room> jump straight there`, async () => {
+      const story = await compileSample(id)
+      const { turns } = await runReplay(story.slice(), 'zmachine', ['plugh', 'go kitchen', 'zap foyer', 'zap master'])
+      expect(turns[2]!.output).toContain('The Kitchen')
+      expect(turns[3]!.output).toContain('The Foyer')
+      expect(turns[4]!.output).toContain('Master Bedroom')
+    }, 60_000)
+  }
+})
+
 describe('every bundled Inform 6 sample compiles cleanly and plays its walkthrough', () => {
   it('every sample has a walkthrough and a finale check', () => {
     for (const s of SAMPLES) {

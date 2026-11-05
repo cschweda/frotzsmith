@@ -3,7 +3,8 @@
  * is made from (Solutions: compile the sample, replay these). Keyed by sample
  * id; a sample written in both languages shares one walkthrough file.
  *
- * Every bundled sample has one, named after the sample's file stem. A
+ * Every bundled sample has one, named after the sample's file stem (the ZIL
+ * concept samples with a zil- prefix, so they never collide with an I6 stem). A
  * walkthrough is the shortest command list that shows the sample off,
  * winning where the sample can be won. The golden tests
  * (inform6/sample-walkthroughs.golden.test.ts, zil/sample-walkthroughs.golden.test.ts)
@@ -36,13 +37,13 @@ import punySwitchableLamp from './puny-switchable-lamp.walkthrough.txt?raw'
 import punyMagic8Ball from './puny-magic-8-ball.walkthrough.txt?raw'
 import punyHauntedHouse from './puny-haunted-house.walkthrough.txt?raw'
 // ZIL.
-import zilSkeleton from './skeleton.walkthrough.txt?raw'
-import zilCloak from './cloak.walkthrough.txt?raw'
-import zilTwoRooms from './two-rooms.walkthrough.txt?raw'
-import zilNpc from './npc.walkthrough.txt?raw'
-import zilPuzzle from './puzzle.walkthrough.txt?raw'
-import zilLight from './light.walkthrough.txt?raw'
-import zilDaemon from './daemon.walkthrough.txt?raw'
+import zilSkeleton from './zil-skeleton.walkthrough.txt?raw'
+import zilCloak from './zil-cloak.walkthrough.txt?raw'
+import zilTwoRooms from './zil-two-rooms.walkthrough.txt?raw'
+import zilNpc from './zil-npc.walkthrough.txt?raw'
+import zilPuzzle from './zil-puzzle.walkthrough.txt?raw'
+import zilLight from './zil-light.walkthrough.txt?raw'
+import zilDaemon from './zil-daemon.walkthrough.txt?raw'
 
 /** Null-prototype, so an id like "constructor" is never found by accident. */
 const WALKTHROUGHS: Record<string, string> = Object.assign(Object.create(null) as Record<string, string>, {

@@ -135,6 +135,21 @@ describe("The Architect's Legacy (I6 sample) — shared walkthrough", () => {
     expect(last.output).toMatch(/scored 40 out of a possible 50/)
   }, 60_000)
 
+  it('EMPTY WASTEBASKET finds the right half, like SEARCH (both versions)', async () => {
+    const at = walkthrough.indexOf('search wastebasket')
+    const commands = [...walkthrough.slice(0, at), 'empty wastebasket', 'take half']
+    const { turns } = await runReplay(fresh(), 'zmachine', commands)
+    expectNoParserFailures(turns)
+    expect(turns.at(-2)!.output).toContain('half of a torn blueprint')
+  }, 60_000)
+
+  it('CLIMB PANEL goes down the opened floor panel, like ENTER (both versions)', async () => {
+    const commands = ['north', 'east', 'ring bell', 'strike chime', 'blow horn', 'climb panel']
+    const { turns } = await runReplay(fresh(), 'zmachine', commands)
+    expectNoParserFailures(turns)
+    expect(turns.at(-1)!.output).toContain('Cellar Stairs')
+  }, 60_000)
+
   it('a wrong brass order does not open the way to the Cellar Stairs', async () => {
     const commands = ['north', 'east', 'blow horn', 'ring bell', 'strike chime', 'down']
     const { turns } = await runReplay(fresh(), 'zmachine', commands)

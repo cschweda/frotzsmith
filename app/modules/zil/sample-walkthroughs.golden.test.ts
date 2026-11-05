@@ -117,7 +117,10 @@ describe.skipIf(!process.env['ZIL_SAMPLE_GOLDEN'])(
         const last = turns.at(-1)!.output
         const finale = FINALE[s.id]!
         expect(last, `${s.id} last turn`).toContain(finale.text)
-        if (!finale.ended) expect(last, `${s.id} is not ended`).not.toMatch(/You have died|\*\*\*\*/)
+        // The game-over banner: zillib's default '*** ... ***', or Cloak's '****  ...  ****'.
+        const banner = /\*{3,4}\s+.+?\s+\*{3,4}/
+        if (finale.ended) expect(last, `${s.id} reaches its end`).toMatch(banner)
+        else expect(last, `${s.id} is not ended`).not.toMatch(/You have died|\*\*\*/)
       })
     }
   },

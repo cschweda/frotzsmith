@@ -28,8 +28,8 @@
 !    2. PLUGH teleports you into the Foyer (1 point). SAY PLUGH works too.
 !    3. The Living Room (east) has a knife floating out of reach and a
 !       scroll on the floor. TAKE SCROLL first: the knife comes within reach,
-!       and TAKE KNIFE (1 point). Anything else done to the floating knife
-!       kills you.
+!       and TAKE KNIFE (1 point). Anything else done to the knife while it
+!       floats kills you; once you hold it, it is an ordinary knife.
 !    4. In the Kitchen (Foyer, south, east) a suit of armour blocks the way
 !       south until you carry the knife; then it flees.
 !    5. Through the Breakfast Room, east, then north: the second Servant's
@@ -41,11 +41,11 @@
 !    ESCAPE the scroll promises, is not written yet; 2 of the 4 points can
 !    be earned so far.
 !
-!  TWO SHORTCUT VERBS
-!    GO <room> takes you straight to a room you have not visited yet, and
-!    ZAP <room> to any room at all (see "Teleport" at the end of the file).
-!    They are shortcuts for exploring the map while you build it; a
-!    finished game would remove them, or keep them only in a debug build.
+!  TWO CHEAT COMMANDS, ON PURPOSE
+!    This sample doubles as a demo of putting cheat / debug commands straight
+!    into a game. GO <room> jumps to any room you have not visited yet, and
+!    ZAP <room> to any room at all. See "CHEAT COMMANDS" at the end of the
+!    file for exactly how they work and why an author adds them.
 !
 !  A NOTE ON STYLE
 !    The name properties here use double quotes ("name" "tag"), an older
@@ -244,8 +244,10 @@ e_to dining_room;
 !   Take    -- only once the scroll is held and the knife is still floating
 !              here. Then it is yours, and worth a point.
 !   Drop    -- dropping it here sets it floating again, and the point goes.
-!   default -- ANY other action aimed at it (examine, push...) is fatal:
-!              deadflag = 1 is the library's "you have died".
+!   default -- while it FLOATS (its parent is the Living Room), any other
+!              action aimed at it (examine, push...) is fatal: deadflag = 1
+!              is the library's "you have died". Once you hold it, those
+!              actions are harmless and get the library's normal replies.
 ! `describe` replaces the library's "You can see a knife here" line in the
 ! room description: floating while it is in the room, plain otherwise.
 Object knife "knife" living_room
@@ -253,6 +255,7 @@ with description "A knife.",
 before [; 
 
     Take:
+        if (self in player) rfalse;   ! already held: the library says so
         if (parent(scroll)==player && parent(knife)==living_room) {
             move self to player;
              score = score + 1;
@@ -270,6 +273,9 @@ before [;
         }
 
     default:
+        ! Only the FLOATING knife is deadly. Once you hold it (or it lies
+        ! anywhere but here), other actions get the library's usual replies.
+        if (parent(knife) ~= living_room) rfalse;
         deadflag = 1;
         "^Suddenly the knife swoops down and slits your throat.";
     
@@ -685,12 +691,24 @@ Extend 'exit' first
 ! ------------------------------------------------------------------------------
 
 
-! Magic words. PLUGH is the real one: outside the house it scores a point
-! and teleports you to the Foyer (<<Teleport foyer>> runs the Teleport
-! action and returns). Anywhere else it has been used up. XYZZY and the rest
-! are famous magic words from other games; they get "Nice try."
-! (SAY XYZZY works like PLUGH, as the Extend 'say' lines show.)
+! Magic words. PLUGH outside the house scores a point and teleports you to
+! the Foyer (<<Teleport foyer>> runs the Teleport action and returns);
+! anywhere else it says "Sorry, only one PLUGH per customer."
+!
+! XYZZY is an homage to the classic magic word of Colossal Cave, and it is
+! deliberately limited to the game's first room: outside the house, XYZZY
+! (or SAY XYZZY) does exactly what PLUGH does; in every other room it is
+! just "Nice try.", like the other famous words. XyzzySub makes that choice,
+! so the plain and SAY forms always agree.
+!   PLUGH, SAY PLUGH                        -> Plugh
+!   XYZZY, SAY XYZZY                        -> Xyzzy (Plugh in the first room)
+!   SESAME, SHAZAM, FROTZ... (and SAY them) -> OldMagic: "Nice try."
+! (Extend 'say' first puts these SAY lines ahead of the library's own.)
 [ OldMagicSub; "Nice try."; ];
+[ XyzzySub;
+    if (player in outside_house) <<Plugh>>;   ! the first room only
+    "Nice try.";
+];
 [ PlughSub; 
     if (player in outside_house) {
          ClearScreen(WIN_MAIN);
@@ -705,24 +723,42 @@ Extend 'exit' first
 
 
 Verb 'xyzzy'
-    *                       -> OldMagic;
+    *                       -> Xyzzy;
 Verb 'plugh'
     *                       -> Plugh;
 Verb 'sesame' 'shazam' 'hocus' 'abracadabra' 'foobar' 'open-sesame' 'frotz'
     *                       -> OldMagic;
 
 Extend 'say' first
-    * 'xyzzy'               -> Plugh
+    * 'xyzzy'               -> Xyzzy
     * 'plugh'               -> Plugh
     * 'sesame'/'shazam'/'hocus'/'abracadabra'/'foobar'/'open-sesame'/'frotz'
                             -> OldMagic;
 
 
-! ------------------------------------------------------------------------------
-!   Teleport
+! ==============================================================================
+!   CHEAT COMMANDS  --  deliberate debug shortcuts (start)
+! ==============================================================================
+!   GO <room>   (also GO TO <room>) jumps straight to any room you have NOT
+!               visited yet, by its name word: GO KITCHEN, GO SERV2.
+!   ZAP <room>  jumps to ANY room, visited or not: ZAP MASTER.
+!   Neither checks exits, doors, darkness or puzzles: the armour, the
+!   locked hall door and the fire are all skipped. (PLUGH uses the same
+!   Teleport action, but only for its one fixed jump.)
+!
+!   Why an author adds commands like these: a long game takes a long time
+!   to replay. A jump straight to the room you are working on lets you test
+!   it now, instead of solving every puzzle before it again after each
+!   change. It is also a small, complete example of adding your own verb
+!   with a scope routine.
+!
+!   Before release you would normally remove them, or hide them from
+!   players -- for example inside #Ifdef DEBUG; ... #Endif; so they exist
+!   only in debug builds (the commented-out #Ifndef lines around ZAP below
+!   are a leftover sketch of that). This sample keeps them on purpose.
 ! ------------------------------------------------------------------------------
 
-! Teleport: the GO <room> and ZAP <room> shortcuts (see the header).
+! Teleport: the GO <room> and ZAP <room> cheat commands.
 ! A scope routine decides which objects the parser may match for a token.
 ! The library calls it in stages: at stage 2 it puts every Room the
 ! shortcut may reach into scope with PlaceInScope (unvisited rooms for GO,
@@ -767,6 +803,10 @@ Extend 'go'
 Verb 'zap'
     * scope=ZapScope       -> Teleport;
 ! #Endif;
+
+! ==============================================================================
+!   CHEAT COMMANDS  (end)
+! ==============================================================================
 
 
 ! ============================================================================ 

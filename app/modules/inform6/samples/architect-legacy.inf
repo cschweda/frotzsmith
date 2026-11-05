@@ -615,7 +615,7 @@ Feature -> floor_panel "floor panel"
            gap you could slide a card into.";
        ],
        before [;
-         Enter: <<Go d_obj>>;
+         Enter, Climb: <<Go d_obj>>;
        ];
 
 ! --- 5. Study ----------------------------------------------------------------
@@ -716,7 +716,7 @@ Object -> wastebasket "wastebasket"
            elevations, sections, a staircase that seems to go down in both
            directions.",
        before [;
-         Search:
+         Search, Empty:
            if (right_half has general)
                "Nothing else, unless you count beautifully drawn mistakes.";
            give right_half general;     ! `general`: a free-use attribute
