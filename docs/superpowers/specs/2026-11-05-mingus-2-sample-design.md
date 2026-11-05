@@ -366,9 +366,9 @@ Then:
 
 > You have reached the end of MINGUS II: EVERYTHING ROLLS DOWNHILL. Five names are in the chest; one of them used to sing on Thursdays. Somewhere downstream, a man in sandwich boards is telling nobody that he got there first.
 >
-> Coming next: **MINGUS III**. Nobody has ever come back. Somebody has to be first.
+> Coming next: **MINGUS III: THE OLD SIDE**. Nobody has ever come back. Somebody has to be first.
 
-*(The lore says Mingus III's title is TBD, so the teaser names no subtitle. When the author picks one, it is a one-line change in both versions and in the tests. It never mentions a house or its colour.)*
+*(Author decision, 2026-11-05: Mingus III is titled "MINGUS III: THE OLD SIDE". The teaser never mentions the house.)*
 
 **Rank ladder** (mid-game SCORE, and deaths):
 
@@ -519,7 +519,7 @@ Both read the shared walkthrough. They use Mingus I's helpers (`until`, `play`, 
    - `You have gone further down the Verdance than anyone`
    - `*** You have gone further than anyone ***`
    - `Furthest Downstream`
-   - `MINGUS III`
+   - `MINGUS III: THE OLD SIDE`
    - `Nobody has ever come back`
    - the score matches I6 `/scored 100 out of a possible 100/` or ZIL `/scored 100 points out of a possible 100/`.
 4. **Pivotal lines on their turns:**
