@@ -161,4 +161,63 @@ describe('useSolutionTab', () => {
     const t = useSolutionTab()
     expect(t.downloadName.value).toBe('test-game-solution.txt')
   })
+
+  describe('what the tab presents (mode)', () => {
+    it('sample + no own solution: the sample is the game’s solution; Copy and Download use its text', async () => {
+      const writeText = vi.fn(async () => {})
+      vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
+      ide.loadedSampleId.value = 'std-architect-legacy'
+      const t = useSolutionTab()
+      expect(t.mode.value).toBe('sample')
+      await t.showSolution()
+      expect(t.mode.value).toBe('sample')
+      expect(t.sampleText.value).not.toBeNull()
+      expect((await t.copy()).ok).toBe(true)
+      expect(writeText).toHaveBeenCalledWith(t.sampleText.value)
+      expect(useSolutions().has.value).toBe(false) // nothing was adopted
+    })
+
+    it('sample + own solution: the own solution wins', async () => {
+      ide.loadedSampleId.value = 'std-architect-legacy'
+      useSolutions().set(own())
+      const t = useSolutionTab()
+      await t.showSolution()
+      expect(t.mode.value).toBe('own')
+      expect(t.ownText.value).toBe(own())
+    })
+
+    it('non-sample + none: nothing to show', async () => {
+      const t = useSolutionTab()
+      await t.showSolution()
+      expect(t.mode.value).toBe('none')
+      expect((await t.copy()).ok).toBe(false)
+    })
+
+    it('Make it my solution turns the mode to own', async () => {
+      ide.loadedSampleId.value = 'std-architect-legacy'
+      const t = useSolutionTab()
+      await t.showSolution()
+      expect(t.adoptSample().ok).toBe(true)
+      expect(t.mode.value).toBe('own')
+    })
+
+    it('a sample with an unknown walkthrough falls back to none', () => {
+      ide.loadedSampleId.value = 'no-such-sample'
+      expect(useSolutionTab().mode.value).toBe('none')
+    })
+
+    it('every sample in both languages is the sample mode and makes a non-empty solution', async () => {
+      const { SAMPLES } = await import('~/modules/inform6/samples')
+      const { ZIL_SAMPLES } = await import('~/modules/languages/zil/samples')
+      for (const s of [...SAMPLES, ...ZIL_SAMPLES]) {
+        localStorage.clear()
+        ide = makeIde()
+        ide.loadedSampleId.value = s.id
+        const t = useSolutionTab()
+        expect(t.mode.value, s.id).toBe('sample')
+        await t.showSolution()
+        expect(t.sampleText.value, s.id).toBeTruthy()
+      }
+    })
+  })
 })

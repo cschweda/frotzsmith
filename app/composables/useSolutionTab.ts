@@ -46,6 +46,17 @@ export function useSolutionTab() {
       ? s
       : null
   })
+  /**
+   * What the tab presents as the game's solution:
+   * - `sample`: a bundled sample is loaded and the game has no solution of its
+   *   own — the sample's is THE solution (until Make it my solution);
+   * - `own`: the game's own solution (saved, or being recorded) — it wins;
+   * - `none`: neither (not a sample, nothing recorded yet).
+   */
+  const mode = computed<'sample' | 'own' | 'none'>(() => {
+    if (solutions.has.value || recorder.state.value !== 'stopped') return 'own'
+    return hasSampleWalkthrough.value ? 'sample' : 'none'
+  })
   const sampleText = computed(() => currentSample.value?.text ?? null)
   const sampleNote = computed(() => currentSample.value?.note ?? null)
 
@@ -134,8 +145,13 @@ export function useSolutionTab() {
     return { ok: true }
   }
 
+  /** The text Copy and Download act on: the sample's while it is the solution. */
+  function shownText(): string | null {
+    return mode.value === 'sample' ? sampleText.value : solutions.view.value
+  }
+
   async function copy(): Promise<TabResult> {
-    const text = solutions.view.value
+    const text = shownText()
     if (text === null) return { ok: false, message: 'This game has no solution to copy.' }
     try {
       await navigator.clipboard.writeText(text)
@@ -146,7 +162,7 @@ export function useSolutionTab() {
   }
 
   function download(): void {
-    const text = solutions.view.value
+    const text = shownText()
     if (text === null) return
     const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
     const a = document.createElement('a')
@@ -196,6 +212,7 @@ export function useSolutionTab() {
     reveal,
     showSolution,
     hasSampleWalkthrough,
+    mode,
     sampleText,
     sampleNote,
     sampleMessage,
