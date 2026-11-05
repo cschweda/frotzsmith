@@ -8,10 +8,33 @@
 !    One room, the Fortune Booth, with a Magic 8-Ball. SHAKE BALL (or ROLL
 !    BALL) as often as you like: each shake shows one of six answers, picked at
 !    random. SHAKE anything else and nothing happens. No ending.
+!
+!  KEY CONCEPTS IN THIS FILE
+!    • Verb 'word' * noun -> Action;  — teach the parser a brand-new verb
+!    • [ ActionSub; ]                — the routine that carries out an action
+!    • before [ Action: ... ]        — one object answers the action itself
+!    • random(n)                     — a random whole number from 1 to n
+!    • switch (value) { 1: ... }     — pick one branch by number
+!    • '8//'                         — a one-character dictionary word
+!
+!  WHAT HAPPENS WHEN THE PLAYER TYPES  SHAKE BALL
+!    1. The parser finds 'shake' in the grammar table (our Verb line below),
+!       matches "ball" to the eightball object, and starts the action Shake
+!       with noun = eightball.
+!    2. Before doing the action, the library runs the eightball's `before`
+!       rule. It has a Shake: block, which prints a random answer and
+!       returns true: "handled, stop here".
+!    3. Because `before` returned true, ShakeSub (the generic routine) never
+!       runs for the ball. SHAKE ME has no such rule, so ShakeSub answers.
+!    (SHAKE on its own also works: the parser fills in the only object
+!    there is and says "(the Magic 8-Ball)".)
 ! ============================================================================
 
 ! ---------------------------------------------------------------------------
 ! STORY METADATA
+! `Constant` gives a name to a fixed value. The Standard Library prints Story
+! (the title) and Headline (the subtitle) in the opening banner; `^` is a
+! newline inside a string.
 ! ---------------------------------------------------------------------------
 Constant Story "MAGIC 8-BALL";
 Constant Headline "^Random responses with the random() function.^";
@@ -20,14 +43,20 @@ Constant Headline "^Random responses with the random() function.^";
 ! STANDARD LIBRARY INCLUDES (order is mandatory)
 !   Parser   — tokenises input, selects action and noun(s)
 !   VerbLib  — supplies default action routines (Take, Examine, Drop, …)
-! Include "Grammar" goes LAST so the grammar table sees all Verb declarations
-! including the custom `shake` verb defined below.
+! Include "Grammar" goes LAST among the library files; it must follow
+! VerbLib (the library checks). Our own `shake` verb is a new word the
+! library doesn't define, so its Verb line could go before or after Grammar;
+! this file puts it just before.
 ! ---------------------------------------------------------------------------
 Include "Parser";
 Include "VerbLib";
 
 ! ---------------------------------------------------------------------------
 ! INITIALISE — place the player in the Fortune Booth
+! The library calls this routine once at startup. `location = Booth;` sets
+! the starting room (required in the Standard Library). The bare string
+! prints the opening line, adds a newline and returns true; the banner and
+! first room description follow.
 ! ---------------------------------------------------------------------------
 [ Initialise;
     location = Booth;
@@ -36,6 +65,8 @@ Include "VerbLib";
 
 ! ---------------------------------------------------------------------------
 ! THE ROOM — permanently lit via the `light` attribute
+! The "small table" exists only in this text; it is not an object, so
+! SHAKE TABLE or EXAMINE TABLE get "You can't see any such thing."
 ! ---------------------------------------------------------------------------
 Object Booth "Fortune Booth"
   with description "A velvet-draped booth. A Magic 8-Ball sits on a small table.",
@@ -45,9 +76,12 @@ Object Booth "Fortune Booth"
 ! THE MAGIC 8-BALL OBJECT
 !
 ! Placed in Booth via `->` (direct child of the preceding top-level object).
+! The identifier `eightball` can't be `8ball`: identifiers must not start
+! with a digit.
 !
 ! `name` PROPERTY — multiple dictionary synonyms let the parser accept many
 ! natural phrasings: SHAKE BALL, SHAKE 8-BALL, SHAKE EIGHTBALL, ROLL BALL…
+! It has no `has` line: a plain object can be taken, dropped and examined.
 ! ---------------------------------------------------------------------------
 Object -> eightball "Magic 8-Ball"
   ! '8//' is the dictionary word 8. A single character in single quotes,
@@ -79,7 +113,8 @@ Object -> eightball "Magic 8-Ball"
                ! ---------------------------------------------------------------
                ! random(N) — returns a uniformly distributed integer in [1..N].
                ! random(6) gives one of six outcomes each time it is called.
-               ! Each call is independent, so repeated shakes feel random.
+               ! Each call is independent, so repeated shakes feel random
+               ! (the same answer can come up twice in a row).
                !
                ! switch (expr) { N: body; … }
                !   Evaluates expr once, then executes the body of the matching
@@ -88,6 +123,8 @@ Object -> eightball "Magic 8-Ball"
                !   A bare string literal as a case body acts as `print_ret`:
                !   it prints the string and returns true, ending the before
                !   handler (and thus ending the turn).
+               !   Every number random(6) can produce has a label, so one of
+               !   the six always runs and the handler always returns true.
                !
                ! TILDE (~) IN STRINGS
                !   Inside an Inform 6 string literal, the tilde character (~)
@@ -95,6 +132,9 @@ Object -> eightball "Magic 8-Ball"
                !   in the output.  You cannot use \" in I6 strings.
                !   So "~It is certain.~" prints as:  "It is certain."
                !   (with the quotation marks visible to the player).
+               !   The apostrophe in "Don't" needs no escape: the special
+               !   characters inside double-quoted strings are `~` (a quote
+               !   mark), `^` (newline), `@` (accents and codes) and `\`.
                ! ---------------------------------------------------------------
                switch (random(6)) {
                    1: "~It is certain.~";
@@ -105,6 +145,8 @@ Object -> eightball "Magic 8-Ball"
                    6: "~Outlook good.~";
                }
        ];
+       ! The `];` above both closes the before routine and ends the object:
+       ! `before` was its last property and there is no `has` line.
 
 ! ---------------------------------------------------------------------------
 ! ShakeSub — THE REQUIRED DEFAULT ROUTINE FOR A CUSTOM ACTION
@@ -114,13 +156,16 @@ Object -> eightball "Magic 8-Ball"
 ! calls <Action>Sub when no object's `before` handler intercepts the action.
 !
 ! Why is it needed if the 8-Ball's `before` always fires for that object?
-!   Because the player can try to shake OTHER objects — chairs, books, walls —
-!   that do NOT have a Shake handler.  Without ShakeSub the compiler raises
-!   an "unknown action" error because the grammar table references Shake but
-!   no ShakeSub routine exists to service it.
+!   First, the compiler insists: a grammar line `-> Shake` with no ShakeSub
+!   anywhere is a compile error ("No ...Sub action routine found for
+!   action: "Shake""). Second, the player can try to shake OTHER objects —
+!   SHAKE ME, for instance — that do NOT have a Shake handler, and
+!   something has to answer them.
 !
 ! In short: the 8-Ball's `before` handles the interesting case, and ShakeSub
 ! is the fallback for shaking anything else.
+! The whole routine fits on one line: `[ ShakeSub;` header, one bare-string
+! statement (print, newline, return true), and `];`.
 ! ---------------------------------------------------------------------------
 [ ShakeSub; "You give it a shake, but nothing happens."; ];
 
@@ -130,6 +175,10 @@ Object -> eightball "Magic 8-Ball"
 ! Verb 'shake' 'roll'
 !   Registers two command words as synonyms triggering the same action.
 !   Players can type either SHAKE or ROLL and get identical results.
+!   `Verb` is for words the library does not already define as verbs
+!   (neither 'shake' nor 'roll' is a Standard Library verb). To add a
+!   pattern to an existing verb you'd write `Extend` instead, after
+!   Include "Grammar".
 !
 ! * noun                  -> Shake
 !   Grammar token: `*` means "start of the object phrase", `noun` means
@@ -141,14 +190,16 @@ Object -> eightball "Magic 8-Ball"
 !     *                   -> Shake;   (allow SHAKE with no object)
 ! just add another `* … -> …` line before the semicolon.
 !
-! Verb declarations must appear BEFORE Include "Grammar" so they are
-! incorporated into the verb/grammar table when it is built.
+! This Verb sits just before Include "Grammar". For a brand-new word like
+! 'shake' the position doesn't matter (before or after Grammar both work).
 ! ---------------------------------------------------------------------------
 Verb 'shake' 'roll'
     * noun                  -> Shake;
 
 ! ---------------------------------------------------------------------------
-! GRAMMAR — must be included last, after all Verb declarations
+! GRAMMAR — the last library include
+! "Exits" is a small Frotzsmith helper that prints "Obvious exits:" after a
+! room description (the Booth has none).
 ! ---------------------------------------------------------------------------
 Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

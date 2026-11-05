@@ -9,13 +9,38 @@
 !    You start in the lit Workshop with a lantern that is off. TAKE LANTERN,
 !    SWITCH ON LANTERN, go DOWN: the Cellar is lit by the lantern. SWITCH OFF
 !    LANTERN down there and it goes dark. No ending.
+!
+!  MAP
+!    Workshop  (lit; brass lantern, off)   <- start
+!       | down / up
+!    Cellar    (dark)
+!
+!  KEY CONCEPTS IN THIS FILE
+!    • switchable           — attribute: the object is a device with on/off
+!    • description [ ... ]  — a property whose value is a ROUTINE, so the text
+!                             can change with the object's state
+!    • before [ ... ]       — a rule that runs before the library's own action
+!    • give obj attr / ~attr — set or clear an attribute while the game runs
+!    • has / hasnt          — test whether an attribute is set
+!    • self                 — "the object this code belongs to"
+!
+!  THE IDEA IN ONE PARAGRAPH
+!    The library decides whether a room is lit by looking for the `light`
+!    attribute. So "switching the lantern on" just means giving it `light`,
+!    and "off" means taking `light` away. The `before` rule below does exactly
+!    that when the player types SWITCH ON / SWITCH OFF (or TURN ON / TURN
+!    LANTERN OFF, which the library's grammar maps to the same two actions).
+!    The lantern does not have to be held to be switched: SWITCH ON LANTERN
+!    works while it lies on the bench, but it only lights the Cellar if it
+!    goes down there with you.
 ! ============================================================================
 
 ! ---------------------------------------------------------------------------
 ! STORY METADATA
-! `Constant Story` sets the game title shown in the Z-machine status bar and
-! opening banner.  `Constant Headline` appears directly below it.
-! Both must be declared before any Include directives.
+! `Constant Story` sets the game title printed (in bold) in the opening
+! banner. `Constant Headline` appears directly below it. (The status bar
+! shows the room name and score/moves, not the title.)
+! By convention both come first, before the Includes.
 ! ---------------------------------------------------------------------------
 Constant Story "SWITCHABLE LAMP";
 Constant Headline "^A device you can switch on and off.^";
@@ -24,8 +49,10 @@ Constant Headline "^A device you can switch on and off.^";
 ! STANDARD LIBRARY INCLUDES (order is mandatory)
 !   Parser   — tokenises player input and selects an action + noun(s)
 !   VerbLib  — supplies default action routines (Take, Go, SwitchOn, …)
-! Include "Grammar" goes LAST (below all objects and custom Verb declarations)
-! because it builds the final verb/grammar table that references them.
+! Include "Grammar" goes LAST: it builds the table that maps verb words to
+! the actions VerbLib defines, and the library checks it comes after
+! VerbLib. (A brand-new Verb of your own may go before or after it; an
+! `Extend` of a library verb must come after it.)
 ! ---------------------------------------------------------------------------
 Include "Parser";
 Include "VerbLib";
@@ -36,7 +63,8 @@ Include "VerbLib";
 ! Setting the global variable `location` places the player in that room.
 ! A bare string literal at the end of a routine acts as `print_ret`:
 ! it prints the text with a trailing newline and returns true — perfect for
-! showing an opening message before the first room description appears.
+! showing an opening message. It appears before the banner and the first
+! room description, which the library prints after Initialise returns.
 ! ---------------------------------------------------------------------------
 [ Initialise;
     location = Workshop;
@@ -49,6 +77,8 @@ Include "VerbLib";
 ! light source is ever needed here.  The Cellar below lacks `light`, so it
 ! is dark: the library will refuse to describe it unless the player carries
 ! an object that itself has the `light` attribute.
+! `d_to Cellar` — DOWN leads to the Cellar (declared further below; naming
+! an object before its declaration is allowed).
 ! ---------------------------------------------------------------------------
 Object Workshop "Workshop"
   with description "A tidy workshop. A ladder leads down into darkness.",
@@ -63,12 +93,19 @@ Object Workshop "Workshop"
 ! not in the player's inventory — the player must TAKE it first.
 !
 ! `switchable` ATTRIBUTE
-!   The only thing required to make "SWITCH ON <obj>" and "SWITCH OFF <obj>"
-!   grammatically valid for this object.  Without it the parser rejects
-!   those commands with a stock refusal message.
+!   Marks the object as a device. The library's own SwitchOn action
+!   (SwitchOnSub) refuses anything without it: SWITCH ON ME answers
+!   "You're not something you can switch."
 !   IMPORTANT: `switchable` does NOT automatically toggle the `light`
-!   attribute.  The library accepts the command but takes no further action.
-!   You must update `light` yourself inside a `before` handler (see below).
+!   attribute.  Left to itself, SwitchOnSub only sets the library's `on`
+!   attribute and prints "You switch the brass lantern on." — the lantern
+!   would still give no light. That is why the `before` handler below
+!   manages `light` itself.
+!   Because that handler answers both SWITCH ON and SWITCH OFF before the
+!   library's own routine gets a turn, SwitchOnSub never actually runs for
+!   the lantern (so its `on` attribute is never set, and this game never
+!   looks at it). `switchable` still states what the object is, and keeps
+!   SWITCH ON sensible if you ever remove the before rule.
 !
 ! `name` PROPERTY
 !   Single-quoted dictionary words the parser matches against the noun phrase.
@@ -82,6 +119,9 @@ Object -> lantern "brass lantern"
        ! A property can hold either a static string or an anonymous routine.
        ! When it is a routine, the library calls it each time EXAMINE is used.
        ! This lets us vary the description based on runtime state.
+       ! The routine is written inline: `[;` opens it (the `;` means "no
+       ! local variables"), `],` closes it and separates it from the next
+       ! property.
        !
        ! `self` — inside a property routine, `self` always refers to the
        ! object that owns the property (the lantern here).  Using `self`
@@ -96,6 +136,8 @@ Object -> lantern "brass lantern"
        ! and returns true, ending the routine.  Because the first `if` branch
        ! returns on success, the second bare string only runs when the lamp
        ! is dark.
+       ! (EXAMINE needs light like any looking: in the dark Cellar with the
+       ! lantern off, EXAMINE LAMP gets the library's darkness reply instead.)
        ! -----------------------------------------------------------------------
        description [;
            if (self has light) "A brass lantern, glowing warmly.";
@@ -106,19 +148,24 @@ Object -> lantern "brass lantern"
        ! BEFORE HANDLER — intercepting SwitchOn and SwitchOff
        !
        ! `before` is checked by the library BEFORE it runs the default action
-       ! for any command targeting this object.  If the before handler prints
-       ! something (implicitly returning true), the default action is skipped.
+       ! for any command whose first object (the `noun`) is this lantern.  If
+       ! the before handler returns true (a bare string does that), the
+       ! default action is skipped. If it returns false, the library carries
+       ! on as normal.
        !
        ! Each label inside `before` (SwitchOn:, SwitchOff:) is an action
        ! name — it matches the action the parser selected.  Only the matching
        ! label's body runs; all others are skipped.  Any unlisted action falls
-       ! through to the library's default handling automatically.
+       ! through to the library's default handling automatically (TAKE,
+       ! DROP and EXAMINE are untouched by this rule).
        !
        ! Why intercept SwitchOn/SwitchOff instead of trusting the library?
        ! The Standard Library's built-in SwitchOnSub only toggles the `on`
        ! attribute (cosmetic).  It does NOT touch `light`, so dark rooms would
        ! stay dark even after the player switches the lantern on.  We must
        ! manage the `light` attribute ourselves to actually illuminate rooms.
+       ! (Another common pattern: let the library run, and add `light` in an
+       ! `after` rule. Using `before` keeps the messages under our control.)
        ! -----------------------------------------------------------------------
        before [;
            SwitchOn:
@@ -140,7 +187,8 @@ Object -> lantern "brass lantern"
 
                ! `give <object> ~<attribute>` — the tilde (~) CLEARS the named
                ! attribute.  After this the lantern stops being a light source;
-               ! dark rooms become dark again immediately.
+               ! dark rooms become dark again: at the end of the turn the
+               ! library notices and adds "It is now pitch dark in here."
                give self ~light;      ! clear `light` attribute → lantern is OFF
                "You switch off the lantern.";
        ],
@@ -153,6 +201,9 @@ Object -> lantern "brass lantern"
 ! "It is pitch dark" message and blocks most actions.  Carrying the lit
 ! lantern reveals the room normally.  This is the canonical Inform 6 pattern
 ! for a dark area: simply omit `light` from the room's has-list.
+! In the dark the player can still use what they are holding: SWITCH ON
+! LAMP works there, because your own inventory is always within reach.
+! With no `has` line, the object ends with the `;` after `u_to Workshop`.
 ! ---------------------------------------------------------------------------
 Object Cellar "Cellar"
   with description "A cramped cellar. Without a light it would be pitch black.",
@@ -160,8 +211,10 @@ Object Cellar "Cellar"
 
 ! ---------------------------------------------------------------------------
 ! GRAMMAR — must be included last
-! Builds the full verb/grammar table.  Must follow all Object definitions and
-! any custom Verb declarations so the table can reference them.
+! Builds the full verb/grammar table: 'switch', 'turn' and friends, all
+! mapped to the SwitchOn/SwitchOff actions handled above. It must follow
+! VerbLib. "Exits" is a small Frotzsmith helper that prints the room's
+! "Obvious exits:" line (nothing in the dark).
 ! ---------------------------------------------------------------------------
 Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

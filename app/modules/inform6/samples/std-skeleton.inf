@@ -3,6 +3,13 @@
 ! ----------------------------------------------------------------------------
 !  A bare, compilable starting point. Replace the title and author, then build
 !  your world by adding rooms and objects between VerbLib and Grammar.
+!
+!  Everything that starts with `!` (like this line) is a COMMENT: the compiler
+!  skips from the `!` to the end of the line, so comments cost nothing in the
+!  finished game. (A `!` inside a "quoted string" is just a character.) This
+!  file is written to be read top to bottom: every line of real code below has
+!  a comment above it saying what it is, why it is there, and what would
+!  happen without it.
 ! ----------------------------------------------------------------------------
 !  KEY CONCEPTS IN THIS FILE
 !  ─────────────────────────
@@ -12,12 +19,25 @@
 !  • Object            — the fundamental Inform 6 building block (rooms & things)
 !  • has light         — the attribute that lets the player see inside a room
 !
+!  THE SHAPE OF EVERY INFORM 6 GAME
+!  ────────────────────────────────
+!  An Inform 6 source file is a list of DIRECTIVES — top-level statements that
+!  each end with a semicolon `;`. The ones used here are:
+!    Constant  NAME value;           a named value fixed when you compile
+!    Include   "file";               read another source file at this point
+!    [ Name ... ];                   a ROUTINE (a function) called Name
+!    Object    id "name" with ...;   an object: a room, a thing, a person
+!  The compiler reads the file once, from top to bottom, and turns it into a
+!  story file (.z5 here) that a Z-machine interpreter plays.
+!
 !  STANDARD LIBRARY vs PUNYINFORM
 !  ────────────────────────────────
 !  The Standard Library (this file) is included via three explicit Includes:
 !    Include "Parser";    ← parses typed commands into actions
 !    Include "VerbLib";   ← defines the built-in verbs (take, drop, examine…)
-!    Include "Grammar";   ← must come LAST; wires verbs to grammar patterns
+!    Include "Grammar";   ← comes LAST; wires verb words to the actions
+!  The library enforces that order itself: each file checks which ones came
+!  before it and prints an error message if they are out of order.
 !  PunyInform replaces all three with two files (globals.h / puny.h) and uses
 !  the constant INITIAL_LOCATION_VALUE instead of setting `location` by hand
 !  inside Initialise. See puny-skeleton.inf for the PunyInform equivalent.
@@ -26,20 +46,39 @@
 !    One room, the Starting Room, and nothing in it yet. LOOK shows it again;
 !    everything else gets the library's stock replies. Copy this file to begin
 !    a game of your own.
+!
+!  WHAT THE PLAYER SEES AT START, IN ORDER
+!    1. "Your story begins here..."   (printed by Initialise, below)
+!    2. The banner: Story, Headline, release/serial/library line
+!    3. The first room description (the library does an automatic LOOK)
+!    4. "Obvious exits: ..."          (added by Frotzsmith's Exits.h; this
+!                                       room has no exits, so it prints nothing)
 ! ============================================================================
 
 ! --- Game identity constants -------------------------------------------------
 !  `Constant` declares a compile-time name/value pair. These two are special:
-!  the Standard Library reads `Story` for the game's title (shown on the status
-!  bar) and `Headline` for the subtitle (shown in the opening banner). The `^`
-!  character inside strings is a newline.
+!  the Standard Library's Banner routine prints `Story` (the title, in bold)
+!  and then `Headline` (the subtitle) when the game starts; `Story` also
+!  appears in messages such as "MY GAME is now in its verbose mode". The `^`
+!  character inside strings is a newline. (The status bar at the top shows
+!  the current room's name and the score/moves, not the title.)
+!
+!  By convention they come first. If either is still undefined when Grammar
+!  is included, the library gives it the value 0 and the banner simply
+!  leaves that line blank.
+!  A constant can hold a number (`Constant MAX_SCORE 10;`) or, like these,
+!  a string. Constants never change while the game runs; for values that do
+!  change, Inform uses `Global` variables (see the Haunted House sample).
 
 Constant Story "MY GAME";
 Constant Headline "^An interactive fiction by Anonymous.^";
 
 ! --- Standard Library includes ----------------------------------------------
 !  Include "Parser" must come before VerbLib. It pulls in the parser engine
-!  that turns raw input ("take lamp") into an action (Take, noun=lamp).
+!  that turns raw input ("take lamp") into an action (Take, noun=lamp). It
+!  also defines the attributes (`light`, `static`, ...) and properties
+!  (`description`, `n_to`, ...) that the objects below use, which is why the
+!  objects have to come after it.
 
 Include "Parser";
 
@@ -50,13 +89,24 @@ Include "Parser";
 Include "VerbLib";
 
 ! --- Initialise routine -----------------------------------------------------
+!  A ROUTINE is written `[ Name local1 local2; statement; statement; ];`.
+!  The square brackets enclose it, the first `;` ends the header (the name
+!  plus any local variables), and each statement ends with its own `;`.
+!
 !  The library calls [ Initialise; ] exactly once, just before the first prompt.
+!  It is an ENTRY POINT: a routine with a fixed name that the library looks
+!  for and calls at a fixed moment. You never call it yourself.
 !  In the Standard Library you MUST set the global `location` here to tell the
-!  parser which room the player starts in.
+!  parser which room the player starts in. (A global is a variable visible
+!  everywhere; `location` is one the library declares and keeps up to date.)
+!  Leave it unset and the library has nowhere to put the player.
 !
 !  A string literal used as a statement (the line starting with `"^Your..."`)
 !  acts as a `print` + newline + `rtrue` in Inform 6 shorthand — it prints the
 !  welcome message and returns true, ending the routine.
+!  The return value matters here: if Initialise returns 2 the library skips
+!  the banner; any other value (true = 1 here) lets the banner print after
+!  your message.
 
 [ Initialise;
     location = StartRoom;
@@ -64,8 +114,23 @@ Include "VerbLib";
 ];
 
 ! --- Rooms and objects -------------------------------------------------------
-!  Every room is an Object. The first string after the class name is the
-!  short name (shown in the status bar and on >LOOK).
+!  Every room is an Object. The syntax is:
+!    Object  identifier  "short name"
+!      with  property value,          ! WITH: the object's PROPERTIES
+!            property value,          !   (separated by commas)
+!      has   attribute attribute;     ! HAS: the object's ATTRIBUTES
+!  and the whole declaration ends at its semicolon.
+!
+!  The IDENTIFIER (StartRoom) is the name your code uses for the object, as
+!  in `location = StartRoom;` above. The first string after it is the SHORT
+!  NAME (shown in the status bar and as the heading on >LOOK).
+!
+!  PROPERTIES vs ATTRIBUTES — the two kinds of data an object carries:
+!    property  — a named slot holding a VALUE: a number, a string, another
+!                object, or a routine. `description "..."` is a property.
+!    attribute — a yes/no FLAG that is either set or not. `light` is one.
+!                Code tests it with `if (obj has light)` and changes it
+!                while the game runs with `give obj light;`/`give obj ~light;`.
 !
 !  `with description "…"` supplies the long description printed by >LOOK or
 !  when the player enters for the first time.
@@ -73,7 +138,8 @@ Include "VerbLib";
 !  `has light` is an *attribute*. Without it the room is dark and the player
 !  cannot see anything inside it. Most outdoor locations and lit indoor rooms
 !  need `has light`. Give a carried light source (lamp) the `light` attribute
-!  instead to make the light portable.
+!  instead to make the light portable. (Try deleting `has light` below: the
+!  game opens on "Darkness / It is pitch dark".)
 
 Object StartRoom "Starting Room"
   with description "An empty room, waiting for your imagination.",
@@ -88,6 +154,8 @@ Object StartRoom "Starting Room"
 !    s_to YetAnother,    ← SOUTH goes to YetAnother
 !  Available directions: n_to s_to e_to w_to ne_to nw_to se_to sw_to
 !                        u_to (UP) d_to (DOWN) in_to out_to
+!  A connection is one-way: give the other room the matching property (e.g.
+!  s_to back to this room) if the player should be able to return.
 !
 !  CHILD OBJECTS (things inside rooms)
 !  Use `Object -> ` (arrow notation) to place an object inside the preceding
@@ -95,11 +163,14 @@ Object StartRoom "Starting Room"
 !    Object -> pebble "small pebble"
 !      with name 'small' 'pebble',
 !           description "Just a grey pebble.";
+!  `name` lists the words (in 'single quotes') the player can type to refer
+!  to the object; without it the parser cannot recognise the object at all.
 !
 !  ATTRIBUTES QUICK REFERENCE
 !  has light      — room/object is lit (player can see)
 !  has static     — object can't be taken (prints "That's fixed in place.")
-!  has scenery    — static + suppressed from room description listing
+!  has scenery    — can't be taken AND is left out of the room's object list
+!                   (mention it in the room description instead)
 !  has container  — object can hold other objects; add `open` to start open
 !  has supporter  — object things can be placed ON (table, shelf)
 !  has openable   — player can OPEN/CLOSE it (use with container or door)
@@ -108,10 +179,19 @@ Object StartRoom "Starting Room"
 ! ---------------------------------------------------------------------------
 
 ! --- Grammar (must be last) -------------------------------------------------
-!  Include "Grammar" MUST be the final include. It defines the grammar tables
-!  that map verb words to actions. Any Extend/Verb directives for custom verbs
-!  must appear BEFORE this include. Including Grammar after your objects
-!  ensures all object names are known when the grammar tables are compiled.
+!  Include "Grammar" is the final library include. It defines the grammar
+!  tables that map verb words ('take', 'get', 'look' ...) to actions (Take,
+!  Look ...). It must come after VerbLib (the library checks this).
+!
+!  Your own grammar: a brand-new verb (`Verb 'xyzzy' ...`) may go before or
+!  after this include, but `Extend` (adding a pattern to a verb the library
+!  already has, such as 'push') must go AFTER it, because the verb it extends
+!  does not exist until Grammar has defined it. See the Custom Grammar sample.
+!
+!  Include "Exits" is Frotzsmith's own small helper (not part of the official
+!  library). It defines the LookRoutine entry point, which the library calls
+!  after every room description, and prints "Obvious exits: north, south."
+!  Remove the line and the game still works; rooms just stop listing exits.
 
 Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

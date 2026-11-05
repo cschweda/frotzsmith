@@ -8,23 +8,44 @@
 !    • The three Standard Library includes (Parser / VerbLib / Grammar)
 !  Try: look, take lamp, examine lamp, north, south, inventory
 !
+!  Lines starting with `!` are comments; the compiler ignores everything from
+!  `!` to the end of the line. Read the file top to bottom: each piece of code
+!  is explained just above it.
+!
 !  HOW THE GAME FLOWS
 !    You start in the Cottage, where a brass lamp lies. TAKE LAMP (and EXAMINE
 !    it), go NORTH to the Meadow and SOUTH back; INVENTORY shows the lamp.
 !    No puzzle and no ending: a map with one thing in it.
+!
+!  MAP
+!        Meadow
+!          |  (north from the Cottage / south from the Meadow)
+!        Cottage   <- start; the brass lamp is here
+!
+!  WHAT THE LIBRARY DOES FOR YOU (no code for any of it below)
+!    TAKE / DROP / INVENTORY / EXAMINE / LOOK / NORTH / SOUTH all work with no
+!    code of your own: the Standard Library supplies the verbs, the replies
+!    ("Taken.", "You already have the brass lamp.", "You can't go that way.")
+!    and the bookkeeping (where each object is). Your job is to describe the
+!    world; the library makes it playable.
 ! ============================================================================
 
 ! --- Game identity constants -------------------------------------------------
-!  `Constant Story` sets the game title displayed in the status bar.
-!  `Constant Headline` sets the subtitle printed in the opening banner.
+!  `Constant` gives a name to a value fixed at compile time (it can never
+!  change while the game runs).
+!  `Constant Story` sets the game title, printed in bold in the opening banner.
+!  `Constant Headline` sets the subtitle printed under it in the banner.
 !  `^` inside a string literal is a newline character.
 
 Constant Story "FROTZSMITH DEMO";
 Constant Headline "^A tiny demo world for testing the Frotzsmith IDE.^";
 
 ! --- Standard Library includes (Parser must come first) ---------------------
+!  `Include "file";` reads another source file at this exact point, as if its
+!  text were pasted here. The library is three such files.
 !  Include "Parser" pulls in the parsing engine. It reads the player's input
-!  line, tokenises it, and turns it into an action + noun(s).
+!  line, tokenises it, and turns it into an action + noun(s). It also defines
+!  the property and attribute names (description, n_to, light ...) used below.
 
 Include "Parser";
 
@@ -35,14 +56,21 @@ Include "Parser";
 Include "VerbLib";
 
 ! --- Initialise routine -----------------------------------------------------
-!  The library calls [ Initialise; ] once before the first prompt.
+!  A routine is code between square brackets: `[ Name; statements ];`.
+!  The library calls [ Initialise; ] once before the first prompt (it is an
+!  "entry point": the library looks for a routine with exactly this name).
 !  `location = Cottage` sets the player's starting room. In the Standard
-!  Library this global variable MUST be assigned here (or via a property);
+!  Library this global variable MUST be assigned here;
 !  PunyInform uses INITIAL_LOCATION_VALUE instead.
 !
 !  `print "…^^"` prints the string; `^` is a newline so `^^` gives a blank
 !  line. Two separate print statements are used here so each message can be
 !  edited independently.
+!
+!  The routine ends at `];` without a return statement, so it returns false
+!  (0). That is fine: only a return value of 2 would change anything (it
+!  tells the library to skip the banner). The welcome text therefore appears
+!  first, then the banner, then the first LOOK of the Cottage.
 
 [ Initialise;
     location = Cottage;
@@ -55,12 +83,30 @@ Include "VerbLib";
 !  is used in code (e.g., `location = Cottage`; `n_to Cottage`). The quoted
 !  string "Cottage" is the short name shown to the player.
 !
-!  `with description "…"` — the long description printed on >LOOK or first
-!  entry. Any `^` characters inside produce newlines.
+!  Inform has no separate "room" keyword: a room is simply an object that
+!  nothing else contains, which the player can be inside.
+!
+!  After the header come two lists:
+!    with ... — PROPERTIES: named values, separated by commas.
+!    has  ... — ATTRIBUTES: on/off flags, separated by spaces.
+!  The final `;` ends the whole object.
+!
+!  `with description "…"` — the long description printed on >LOOK and each
+!  time the player walks in (the 6.12 library starts in VERBOSE mode, so the
+!  description is repeated on every visit; BRIEF changes that). Any `^`
+!  characters inside produce newlines.
 !
 !  `n_to Meadow` — the n_to property tells the parser that going NORTH from
 !  this room moves the player to the Meadow object. Other direction properties:
 !  s_to, e_to, w_to, ne_to, nw_to, se_to, sw_to, u_to, d_to, in_to, out_to.
+!  A direction the room has no property for gets "You can't go that way."
+!  Note that `Meadow` is used here before it is declared further down: the
+!  compiler allows an object to be named before its own declaration.
+!
+!  The "sturdy door" in the text is only words. It is not an object, so
+!  EXAMINE DOOR answers "You can't see any such thing." Anything the player
+!  is invited to look at should be given an object (see the `scenery`
+!  attribute in later samples).
 !
 !  `has light` — marks the room as lit. Without this attribute the room is
 !  completely dark and the player cannot interact with anything inside it.
@@ -74,12 +120,17 @@ Object Cottage "Cottage"
 ! --- Object: lamp (inside Cottage) ------------------------------------------
 !  `Object ->` (arrow notation) places this object inside the most recently
 !  defined room or container at compile time. One arrow = one level deep.
-!  So the lamp starts the game on the floor of the Cottage.
+!  So the lamp starts the game on the floor of the Cottage. (Without the
+!  arrow the lamp would be "nowhere": it would exist, but no room would
+!  contain it, so the player could never find it.)
 !
 !  `with name 'brass' 'lamp'` — the `name` property lists the dictionary words
 !  the parser accepts when the player refers to this object. Words are in
 !  single quotes. The parser matches noun phrases against these words, so
 !  "take brass lamp", "get lamp", "take brass" all work.
+!  Single quotes = dictionary words (what the player may TYPE); double
+!  quotes = text the game PRINTS. The short name "brass lamp" is printed,
+!  but the parser never reads it: only `name` words are understood.
 !
 !  `description "…"` — the text printed in response to >EXAMINE LAMP.
 !  Objects without a description property get a default "You see nothing
@@ -88,7 +139,10 @@ Object Cottage "Cottage"
 !  Note: no `has` line is needed for a basic portable object. The library
 !  allows taking any object that doesn't have the `static` or `scenery`
 !  attribute. Adding `has light` to the lamp would make it a working light
-!  source that illuminates dark rooms when carried.
+!  source that illuminates dark rooms when carried (see The Dark Cellar).
+!
+!  The room listing "You can see a brass lamp here." is written by the
+!  library from the short name; the article "a" is added automatically.
 
 Object -> lamp "brass lamp"
   with name 'brass' 'lamp',
@@ -96,9 +150,14 @@ Object -> lamp "brass lamp"
 
 ! --- Room: Meadow -----------------------------------------------------------
 !  A second room connected to the Cottage via s_to (going SOUTH returns the
-!  player to the Cottage). Note that Meadow also has `has light`; every room
-!  the player can reach should have a light source (the `light` attribute on
-!  the room itself, or a carried lamp) or it will be dark.
+!  player to the Cottage). Exits are one-way in Inform: the Cottage's n_to
+!  does not create this s_to; each room lists its own ways out. Note that
+!  Meadow also has `has light`; every room the player can reach should have
+!  a light source (the `light` attribute on the room itself, or a carried
+!  lamp) or it will be dark.
+!
+!  Meadow is declared without an arrow, so it is a top-level object (a room),
+!  not something inside the lamp.
 
 Object Meadow "Meadow"
   with description
@@ -107,11 +166,15 @@ Object Meadow "Meadow"
   has  light;
 
 ! --- Grammar (must be the final include) ------------------------------------
-!  Include "Grammar" MUST come last. It builds the grammar tables that map
-!  verb words to actions using all the object names already defined. Placing
-!  it last ensures the compiler has seen every object's `name` property.
-!  Any custom Verb or Extend directives for new commands must appear BEFORE
-!  this include.
+!  Include "Grammar" comes last. It builds the grammar tables that map verb
+!  words ('take', 'get', 'north', 'i' ...) to the actions VerbLib defines,
+!  and the library refuses to compile it before VerbLib. New verbs of your
+!  own (`Verb`) can be declared before or after it; `Extend`, which adds to
+!  one of the library's verbs, has to come after it (see Custom Grammar).
+!
+!  Include "Exits" is a small Frotzsmith helper (not the official library):
+!  after every room description it prints "Obvious exits: north." by
+!  checking which direction properties the room has.
 
 Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";
