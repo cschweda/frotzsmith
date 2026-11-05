@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   walkthrough and a golden test check that the game can be won and that the
   rule behaves exactly as designed. The ZIL version follows.
 
+### Added — 2026-11-05 Mingus I: Elevated Returns (ZIL sample)
+- **The same game in ZIL.** *Mingus I: Elevated Returns* is now also a ZIL
+  sample (zillib, z5, one file): the same rooms, puzzles, score and
+  walkthrough as the Inform 6 version, written in ZIL's own idiom and
+  commented for someone new to the language. The Runout's three-poke rule is
+  a room's end-of-turn handler, and the win and the death end with different
+  words. A golden test compiles it with no errors or warnings, wins with the
+  shared walkthrough at 60 of 60, and checks every rule of the finale.
+
 ### Added — 2026-11-04 Multi-file ZIL projects
 - **A ZIL project can be several `.zil` files.** The main file pulls the
   others in with `<INSERT-FILE "rooms">`, and the browser compiles them

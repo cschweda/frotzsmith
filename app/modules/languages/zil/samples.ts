@@ -11,7 +11,8 @@
  *   Files: sample/cloak/cloak.zil (Cloak of Darkness, converted by
  *   Tara McGrew, Jayson Smith, and Josh Lawrence), sample/empty/empty.zil
  *   (skeleton basis), zillib/tests/test-light.zil (light demo basis).
- *   Hand-written samples: two-rooms, npc, puzzle, daemon, architect-legacy.
+ *   Hand-written samples: two-rooms, npc, puzzle, daemon, architect-legacy,
+ *   mingus-1.
  */
 
 import type { StoryExt } from '~/modules/languages/types'
@@ -24,6 +25,7 @@ import puzzleSrc from './samples/puzzle.zil?raw'
 import lightSrc from './samples/light.zil?raw'
 import daemonSrc from './samples/daemon.zil?raw'
 import architectLegacySrc from './samples/architect-legacy.zil?raw'
+import mingus1Src from './samples/mingus-1.zil?raw'
 
 /** A single ZIL sample in the Frotzsmith sample library. */
 export interface ZilSample {
@@ -36,7 +38,7 @@ export interface ZilSample {
   /**
    * Preferred Z-machine version to compile to when this sample is loaded.
    * The concept demos target z3 (VERSION ZIP) — the compact Zork format;
-   * the longer Architect's Legacy targets z5.
+   * the longer games (The Architect's Legacy, Mingus I) target z5.
    */
   target: StoryExt
   /** Raw ZIL source text (imported with ?raw). */
@@ -47,8 +49,9 @@ export interface ZilSample {
  * The full ZIL sample set: one sample per concept, all compiling cleanly
  * against the committed ZILF bundle (public/zilf/<rev>/_framework).
  * The concept demos target z3 (<VERSION ZIP>) — the standard for small
- * single-file zillib games. The longer sample (The Architect's Legacy, the
- * same game as the Inform 6 sample of that name) targets z5.
+ * single-file zillib games. The longer games target z5: The Architect's
+ * Legacy and Mingus I: Elevated Returns, each the same game as the Inform 6
+ * sample of that name.
  */
 export const ZIL_SAMPLES: ZilSample[] = [
   {
@@ -106,6 +109,13 @@ export const ZIL_SAMPLES: ZilSample[] = [
     description: 'A three-chapter game: 18 rooms, 8 puzzles, NPCs — what a bigger project looks like',
     target: 'z5',
     source: architectLegacySrc,
+  },
+  {
+    id: 'zil-mingus-1',
+    name: 'Mingus I: Elevated Returns · longer game',
+    description: 'A crypto satire in three acts: 20 rooms, 10 puzzles, a three-poke finale',
+    target: 'z5',
+    source: mingus1Src,
   },
 ]
 

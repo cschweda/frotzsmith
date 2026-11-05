@@ -36,8 +36,8 @@ describe('sampleById', () => {
 // ---------------------------------------------------------------------------
 
 describe('ZIL_SAMPLES registry', () => {
-  it('has exactly 8 samples', () => {
-    expect(ZIL_SAMPLES).toHaveLength(8)
+  it('has exactly 9 samples', () => {
+    expect(ZIL_SAMPLES).toHaveLength(9)
   })
 
   it('all IDs are unique', () => {
@@ -64,9 +64,10 @@ describe('ZIL_SAMPLES registry', () => {
     }
   })
 
-  it('every concept sample has target z3; the longer game targets z5', () => {
+  it('every concept sample has target z3; the two longer games target z5', () => {
+    const LONGER_GAMES = ['zil-architect-legacy', 'zil-mingus-1']
     for (const s of ZIL_SAMPLES) {
-      expect(s.target).toBe(s.id === 'zil-architect-legacy' ? 'z5' : 'z3')
+      expect(s.target).toBe(LONGER_GAMES.includes(s.id) ? 'z5' : 'z3')
     }
   })
 
@@ -153,5 +154,17 @@ describe('ZIL_SAMPLES concept checks', () => {
     expect(s.source).toContain('<QUEUE ,I-SHIFTING-ROOM -1>')
     expect(s.source).toContain('SCORING-ACHIEVEMENTS')
     expect(s.source).toContain('PERSONBIT')
+  })
+
+  it('zil-mingus-1 is the second longer game: acts, the timed Runout, both endings', () => {
+    const s = sampleById('zil-mingus-1')!
+    expect(s.name).toBe('Mingus I: Elevated Returns · longer game')
+    expect(s.description).toBe('A crypto satire in three acts: 20 rooms, 10 puzzles, a three-poke finale')
+    expect(s.source).toContain('FINALE: THE RUNOUT')
+    expect(s.source).toContain('SCORING-ACHIEVEMENTS')
+    expect(s.source).toContain('<REPLACE-DEFINITION PRINT-GAME-OVER')
+    expect(s.source).toContain(',MINGUS-WON')
+    expect(s.source).toContain('M-END')
+    expect(s.source).toContain('<SYNTAX TYPE TOPIC = V-TYPE>')
   })
 })
