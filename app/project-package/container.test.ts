@@ -529,6 +529,25 @@ describe('readContainer — entry types', () => {
     expectRefused(buildZip([mimetypeEntry(), e]), 'encrypted')
   })
 
+  // Audit F17: general-purpose flag bit 6 (strong encryption) and bit 13
+  // (masked local headers, central directory encryption) are refused too.
+  test.each([
+    ['bit 6 (strong encryption)', 0x0840],
+    ['bit 13 (masked headers)', 0x2800],
+  ])('an entry flagged %s', (_l, flags) => {
+    const e = stored('story.inf', 'x', { flags })
+    expectRefused(buildZip([mimetypeEntry(), e]), 'encrypted')
+  })
+
+  test.each([
+    ['bit 0', 0x0801],
+    ['bit 6', 0x0840],
+    ['bit 13', 0x2800],
+  ])('a local header alone flagged with encryption %s', (_l, flags) => {
+    const e = { ...stored('story.inf', 'x'), local: { flags } }
+    expectRefused(buildZip([mimetypeEntry(), e]), flags === 0x0801 ? 'header-mismatch' : 'encrypted')
+  })
+
   test('a stored entry whose compressed and uncompressed sizes differ', () => {
     const e = stored('story.inf', 'abcdef', { usize: 3 })
     expectRefused(buildZip([mimetypeEntry(), e]), 'damaged')

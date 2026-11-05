@@ -392,6 +392,10 @@ export function readContainer(bytes: Uint8Array): Map<string, Uint8Array> {
     if ((lflags & FLAGS_MUST_AGREE) !== (e.flags & FLAGS_MUST_AGREE) || lmethod !== e.method) {
       throw fail.headerMismatch(e.name)
     }
+    // A local header can't claim encryption the central directory doesn't
+    // (bits 6/13 aren't in FLAGS_MUST_AGREE): a local-header extractor would
+    // see a different archive from ours (audit F17).
+    if (lflags & (FLAG_STRONG_ENCRYPTION | FLAG_MASKED_HEADERS)) throw fail.encrypted()
     const usesDescriptor = (e.flags & FLAG_DESCRIPTOR) !== 0
     const agrees = (local: number, central: number) => local === central || (usesDescriptor && local === 0)
     if (!agrees(lcrc, e.crc) || !agrees(lcsize, e.csize) || !agrees(lusize, e.usize)) {

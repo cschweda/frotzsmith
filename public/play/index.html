@@ -12,11 +12,20 @@
   var __params = new URLSearchParams(location.search);
   // Match the IDE's light/dark theme (passed in via ?theme=).
   if (__params.get('theme') === 'dark') document.documentElement.classList.add('frotz-dark');
-  // Security (audit 2026-06-30): only accept a same-origin blob: story URL — the
-  // IDE's own compiled output. Reject data:/http(s)/external URLs so a crafted link
-  // can't deliver an attacker-controlled Z-machine binary into the player/JIT.
-  var __story = __params.get('story');
-  if (!__story || __story.slice(0, 5) !== 'blob:') __story = '/play/demo.z5';
+  // Security (audits 2026-06-30, 2026-11-04): only accept a blob: URL minted by
+  // THIS origin (`blob:<our origin>/…`) — the IDE's own compiled output. Reject
+  // data:/http(s)/other-origin URLs so a crafted link can't deliver an
+  // attacker-controlled Z-machine binary into the player/JIT. (A story the
+  // author compiles themselves still reaches the player — see
+  // docs/06-security.md §6.1 and the ZVM patch in web/zvm.js.)
+  // tools/play-page.test.ts runs this function.
+  /* frotz-story-gate:start */
+  function __frotzStoryUrl(story, origin) {
+    var prefix = 'blob:' + origin + '/';
+    return typeof story === 'string' && story.slice(0, prefix.length) === prefix ? story : '/play/demo.z5';
+  }
+  /* frotz-story-gate:end */
+  var __story = __frotzStoryUrl(__params.get('story'), location.origin);
   parchment_options = { default_story: [__story], lib_path: 'web/' };
 </script>
 <script src="web/main.js" type="module"></script>
