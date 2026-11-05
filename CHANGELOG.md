@@ -12,14 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added — 2026-11-04 Multi-file ZIL projects
 - **A ZIL project can be several `.zil` files.** The main file pulls the
   others in with `<INSERT-FILE "rooms">`, and the browser compiles them
-  together exactly as ZILF would on disk (names match ignoring case; line
-  numbers in the main file are exact). Extra files show in the file
+  together exactly as ZILF would on disk (names match ignoring case and are
+  looked up in the main file's folder, then the project's top folder, then
+  the ZIL library; line numbers in the main file are exact). Extra files show in the file
   explorer, open in their own tabs, and an error in one opens that file.
 - **`.frotzsmith` projects carry all of a ZIL project's `.zil` files**, at
   their own paths, and opening one brings them back (the open names them;
-  nothing compiles until you do). Projects saved before this keep working:
-  their extra `.zil` files now open as source files. A project with more than
-  100 extra files, one over 1 MB, or 4 MB in all is refused whole.
+  nothing compiles until you do). In older ZIL projects, the extra `.zil`
+  files now open as source files. An older project whose extra `.zil` isn't
+  valid text, or that breaks the limits below, is now refused. A project with
+  more than 100 extra files, one over 1 MB, or 4 MB in all is refused whole.
 - **Share links say what they leave out.** A link carries only the main
   file; when a ZIL project has other files, the "Share link copied" message
   says so and points to Download project.
