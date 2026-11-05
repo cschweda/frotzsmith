@@ -114,6 +114,20 @@ describe('Haunted House: the knife is only deadly while it floats (both librarie
       expect(turns[7]!.output).not.toContain('just out of your reach')
     }, 60_000)
 
+    it(`${id}: a knife dropped outside the Living Room can be taken again, and still gets past the armour`, async () => {
+      const story = await compileSample(id)
+      const cmds = ['plugh', 'east', 'take scroll', 'take knife', 'west', 'drop knife', 'take knife', 'south', 'east', 'south']
+      const { turns } = await runReplay(story.slice(), 'zmachine', cmds)
+      expect(turns).toHaveLength(cmds.length + 1)
+      for (const t of turns) expect(t.output, `"${t.command}"`).not.toContain('slits your throat')
+      // turns[0] is the opening; turns[i] answers cmds[i - 1].
+      expect(turns[6]!.output, 'drop knife in the Foyer').not.toContain('levitates')
+      expect(turns[7]!.output, 'take knife again').not.toContain('just out of your reach')
+      expect(turns[7]!.output, 'take knife again').toMatch(/Taken/i)
+      expect(turns[10]!.output, 'south past the armour').toContain('flees')
+      expect(turns[10]!.output, 'south past the armour').toContain('Breakfast')
+    }, 60_000)
+
     it(`${id}: XYZZY works only in the first room, and plain and SAY forms agree`, async () => {
       const story = await compileSample(id)
       for (const word of ['xyzzy', 'say xyzzy']) {

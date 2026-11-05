@@ -218,7 +218,9 @@ e_to dining_room;
 
 ! The levitating knife. Its before routine is the whole puzzle:
 !   Take    -- only once the scroll is held and the knife is still floating
-!              here. Then it is yours, and worth a point.
+!              here. Then it is yours, and worth a point. A knife dropped
+!              in any other room lies on the floor, and the library takes
+!              it as it would any object.
 !   Drop    -- dropping it here sets it floating again, and the point goes.
 !   default -- while it FLOATS (its parent is the Living Room), any other
 !              action aimed at it (examine, push...) is fatal: deadflag = 1
@@ -232,6 +234,7 @@ before [;
 
     Take:
         if (self in player) rfalse;   ! already held: the library says so
+        if (parent(self) ~= living_room) rfalse;   ! dropped elsewhere: an ordinary knife
         if (parent(scroll)==player && parent(knife)==living_room) {
             move self to player;
              score = score + 1;
