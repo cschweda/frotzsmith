@@ -13,6 +13,7 @@ import { bracketMatching, indentOnInput } from '@codemirror/language'
 import { i6Theme } from '~/modules/inform6/editor/i6-theme'
 import { i6Lint } from '~/modules/inform6/editor/i6-lint'
 import { applyingUpdate } from '~/update/state'
+import { SOLUTION_ID } from '~/composables/project-files'
 
 const { activeId, activeFile, readFile, writeActive, openFile, files } = useProjectFiles()
 const { jumpSignal, runCompile } = useIde()
@@ -88,20 +89,31 @@ function showFile(id: string) {
   })
 }
 
+/** The solution tab is its own pane (SolutionFilePane), not a CodeMirror state. */
+const isSolution = (id: string) => id === SOLUTION_ID
+/** The file the code editor holds (the source while the solution tab is shown). */
+const editorId = ref(isSolution(activeId.value) ? 'source' : activeId.value)
+
 onMounted(() => {
   if (!host.value) return
-  view = new EditorView({ parent: host.value, state: makeState(activeId.value) })
+  view = new EditorView({ parent: host.value, state: makeState(editorId.value) })
   // Make the scroll region keyboard-focusable (WCAG 2.1.1 / axe
   // scrollable-region-focusable). CodeMirror's contenteditable content does not
   // satisfy the rule, so the scroller (view.scrollDOM === .cm-scroller) must be
   // in the tab order itself. It persists across setState, so set it once here.
   view.scrollDOM.setAttribute('tabindex', '0')
-  states.set(activeId.value, view.state)
+  states.set(editorId.value, view.state)
 })
 
 // Switch files: save the outgoing state (keeps undo/cursor), show the incoming.
-watch(activeId, (id, prevId) => {
-  if (view && prevId) states.set(prevId, view.state)
+// The solution tab leaves the code editor holding its last file, untouched.
+watch(activeId, id => {
+  if (isSolution(id)) {
+    if (view) states.set(editorId.value, view.state)
+    return
+  }
+  if (view && editorId.value !== id) states.set(editorId.value, view.state)
+  editorId.value = id
   showFile(id)
 })
 
@@ -111,8 +123,9 @@ watch(activeId, (id, prevId) => {
 // making the readFile watcher a no-op on switch. If the order were reversed the
 // readFile watcher would fire first on switch and corrupt the incoming state.
 watch(
-  () => readFile(activeId.value),
+  () => (isSolution(activeId.value) ? null : readFile(activeId.value)),
   content => {
+    if (content === null) return
     if (view && view.state.doc.toString() !== content) {
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: content } })
       states.set(activeId.value, view.state)
@@ -127,7 +140,7 @@ watch(
 )
 
 // An update the author chose starts (or stops) applying: lock (or unlock) the editor at once.
-watch(applyingUpdate, () => view?.dispatch({ effects: lockComp.reconfigure(lock(activeId.value)) }), {
+watch(applyingUpdate, () => view?.dispatch({ effects: lockComp.reconfigure(lock(editorId.value)) }), {
   flush: 'sync',
 })
 
@@ -155,10 +168,12 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    ref="host"
     id="editor-tabpanel"
     role="tabpanel"
     :aria-labelledby="`tab-${activeFile.id}`"
     class="h-full w-full overflow-hidden"
-  />
+  >
+    <div v-show="!isSolution(activeId)" ref="host" class="h-full w-full overflow-hidden" />
+    <SolutionFilePane v-if="isSolution(activeId)" />
+  </div>
 </template>

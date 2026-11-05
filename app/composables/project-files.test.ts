@@ -22,6 +22,14 @@ describe('canonicalLibraryFiles', () => {
 })
 
 describe('buildProjectFileList', () => {
+  it('lists solution.txt last among the project files when asked, with its own editability', () => {
+    const base = { sourceName: 'story.inf', enabledExtensions: [{ id: 'uploaded:mine', name: 'mine', origin: 'uploaded' as const }], libraryNames: ['Parser.h'] }
+    expect(buildProjectFileList(base).some(f => f.id === 'solution')).toBe(false)
+    const list = buildProjectFileList({ ...base, solution: { editable: false } })
+    expect(list.map(f => f.id)).toEqual(['source', 'uploaded:mine', 'solution', 'lib:Parser.h'])
+    expect(list[2]).toEqual({ id: 'solution', name: 'solution.txt', group: 'project', editable: false })
+  })
+
   it('lists source first, then enabled extensions, then library files', () => {
     const list = buildProjectFileList({
       sourceName: 'story.inf',

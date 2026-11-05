@@ -144,4 +144,58 @@ describe('useSolutions', () => {
     expect(JSON.parse(localStorage.getItem(KEY)!).buckets).toEqual({ game1: { text: 'i6 text' } })
     setLang('i6')
   })
+  // Task 5: the left-pane solution.txt honours the spoiler guard.
+  describe('visible (spoiler guard for the left pane) and edits in a from-scratch session', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const st = <T,>(k: string, i: () => T) => ((globalThis as any).useState as (k: string, i: () => T) => { value: T })(k, i)
+    const recState = () => st<'recording' | 'paused' | 'stopped'>('frotz:solution-rec-state', () => 'stopped')
+    const scratch = () => st<boolean>('frotz:solution-rec-scratch', () => false)
+    const revealedKey = () => st<string | null>('frotz:solution-revealed', () => null)
+    beforeEach(() => {
+      recState().value = 'stopped'
+      scratch().value = false
+      revealedKey().value = null
+    })
+
+    it('hidden until revealed for this game; a from-scratch session shows its live text only', () => {
+      const s = useSolutions()
+      s.set('> secret\n')
+      expect(s.visible.value).toBe(false)
+      revealedKey().value = 'game1'
+      expect(s.visible.value).toBe(true)
+      storyKey().value = 'game2'
+      expect(s.visible.value).toBe(false)
+      storyKey().value = 'game1'
+      revealedKey().value = null
+      recState().value = 'recording'
+      scratch().value = true
+      expect(s.visible.value).toBe(true)
+      expect(s.view.value).toBe('')
+      s.setLive('> new\n')
+      expect(s.view.value).toBe('> new\n')
+    })
+
+    it('a rejected edit in a paused from-scratch session keeps the session from scratch (residual leak a)', () => {
+      const s = useSolutions()
+      s.set('> secret\n')
+      recState().value = 'paused'
+      scratch().value = true
+      expect(s.edit('x'.repeat(1024 * 1024 + 1)).ok).toBe(false)
+      expect(scratch().value).toBe(true)
+      expect(s.view.value).toBe('') // still not the hidden solution
+      expect(s.text.value).toBe('> secret\n')
+    })
+
+    it('an accepted edit there becomes the solution, the author’s own, so it is shown', () => {
+      const s = useSolutions()
+      s.set('> secret\n')
+      recState().value = 'paused'
+      scratch().value = true
+      expect(s.edit('> mine\n').ok).toBe(true)
+      expect(scratch().value).toBe(false)
+      expect(s.text.value).toBe('> mine\n')
+      expect(s.visible.value).toBe(true)
+      expect(s.view.value).toBe('> mine\n')
+    })
+  })
 })

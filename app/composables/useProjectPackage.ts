@@ -11,6 +11,7 @@ import { includeNameOf, includePathOf, libraryFileFor, planUploaded } from '~/co
 import { BUNDLED_EXTENSIONS } from '~/modules/inform6/extensions'
 import { SEED_SCRIPT } from '~/composables/useTestScripts'
 import { useZilProjectFiles } from '~/composables/useZilProjectFiles'
+import { useSolutions } from '~/composables/useSolutions'
 import { planZilFiles, ZIL_DEFAULT_MAIN_PATH, type ZilProjectFile } from '~/modules/zil/zil-project'
 import { safeGetItem, safeSetItem } from '~/utils/safe-storage'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
@@ -38,6 +39,8 @@ export interface PendingOpen {
   /** ZIL: the extra `.zil` files the open adds to the project (its includes).
    *  They belong to this project only, never to every ZIL game. */
   sourceFiles: string[]
+  /** The package carries a solution (it replaces the game's; text only). */
+  solution: boolean
 }
 
 const strictUtf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
@@ -101,6 +104,7 @@ export function useProjectPackage() {
   const extensions = useExtensions()
   const testScripts = useTestScripts()
   const zilFiles = useZilProjectFiles()
+  const solutions = useSolutions()
   const skein = useSkein()
   const sourceDoc = useSourceDocument()
   /** Bumped by useIde on every source load (shared state). */
@@ -122,6 +126,12 @@ export function useProjectPackage() {
           ? 'This is a ZIL project — open it from the ZIL editor.'
           : 'This is an Inform 6 project — open it from the Inform 6 editor.',
       )
+    }
+    // The solution must fit this browser's store beside the other games'
+    // (the reader already held it to 1 MiB), or nothing opens.
+    if (project.solution !== undefined) {
+      const fits = solutions.planFor(storyKeyOf(project.language, project.main.text), project.solution)
+      if (!fits.ok) throw new PackageError('solution-store', fits.message)
     }
     if (here === 'zil') {
       // The extra .zil files must be a set the editor can keep, or none open.
@@ -152,6 +162,7 @@ export function useProjectPackage() {
       hiddenNames: read.project.opaque.map(f => f.path).filter(path => path !== read.skeinNotOpened),
       extensions,
       sourceFiles: read.project.language === 'zil' ? read.project.includes.map(f => f.path) : [],
+      solution: read.project.solution !== undefined,
     }
   }
 
@@ -177,6 +188,15 @@ export function useProjectPackage() {
     const unknown = plan ? extensions.replaceUploaded(project.includes, project.extensions) : project.extensions
     testScripts.replaceAll(project.tests.map(t => ({ name: t.name, text: t.text })))
     skein.replaceTree(project.skein ?? createTree())
+    // The package's solution replaces the game's (none clears it), as its
+    // scripts and Skein do. check() planned it, so set() can't refuse. It
+    // stays behind the spoiler guard: opening never reveals it.
+    if (project.solution !== undefined) {
+      // A different text (perhaps someone else's) goes back behind the guard,
+      // even when the author had revealed this game's own.
+      if (solutions.text.value !== project.solution) solutions.conceal()
+      solutions.set(project.solution)
+    } else solutions.clear()
 
     const extras: ProjectExtras = {
       entries: project.opaque,
@@ -342,6 +362,9 @@ export function useProjectPackage() {
       manifestExtra: extras?.manifestExtra ?? {},
     }
     if (title !== undefined) snapshot.title = title
+    // The game's saved solution (a recording's unsaved live text isn't one).
+    const solution = solutions.text.value
+    if (solution !== null) snapshot.solution = solution
     if (extras?.created !== undefined) snapshot.created = extras.created
     if (skeinPath !== undefined) snapshot.skeinPath = skeinPath
 
@@ -361,8 +384,9 @@ export function useProjectPackage() {
    *  - uploaded extensions the open would replace with different ones
    *    (extensions are per language, not per game);
    *  - in the bucket of the game the package opens UNDER (its story key):
-   *    test scripts other than the starter one, or a Skein with commands,
-   *    that differ from the package's — the open replaces both wholesale.
+   *    test scripts other than the starter one, a Skein with commands, or a
+   *    solution, that differ from the package's — the open replaces all
+   *    three wholesale.
    */
   async function whatOpenReplaces(p?: PendingOpen): Promise<string[]> {
     const out: string[] = []
@@ -401,6 +425,10 @@ export function useProjectPackage() {
     }
     if (tree && countNodes(tree) > 0 && (!p.project.skein || skeinSignature(tree) !== skeinSignature(p.project.skein)))
       out.push(`the Skein saved for “${title}”`)
+
+    // The solution saved for that game, when the package's differs (none counts).
+    const storedSolution = solutions.textFor(key)
+    if (storedSolution !== null && storedSolution !== p.project.solution) out.push(`the solution saved for “${title}”`)
     return out
   }
 

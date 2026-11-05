@@ -64,6 +64,15 @@ export function useSolutions() {
     if (readOnly.value && ownLive !== null) return ownLive
     return text.value
   })
+  /** The story key whose solution the author chose to see (the spoiler guard,
+   *  owned by useSolutionTab / useSolutionRecorder). */
+  const revealedKey = useState<string | null>('frotz:solution-revealed', () => null)
+  /** Whether the solution's text may be shown at all: once revealed for this
+   *  game, or — during a from-scratch session — its own live text only (which
+   *  `view` then gives). Everything else shows the "hidden" placeholder. */
+  const visible = computed(
+    () => revealedKey.value === activeStoryKey.value || (recScratch.value && recState.value !== 'stopped'),
+  )
   /** Show `next` as the live text of the active game (null drops it). */
   function setLive(next: string | null) {
     live.value = next === null ? null : { key: activeStoryKey.value, text: next }
@@ -163,14 +172,19 @@ export function useSolutions() {
   /** An edit typed in the solution's tab: memory now, written after ~1 s idle. */
   function edit(next: string): Plan {
     if (readOnly.value) return READ_ONLY
-    // An edit while a from-scratch session is paused becomes the solution
-    // that Resume carries on from.
-    recScratch.value = false
     syncLanguage()
     const key = activeStoryKey.value
     const plan = planSolution(next, otherTotal(key))
+    // Refused: nothing changes — a from-scratch session stays one (so the
+    // hidden solution is still not shown).
     if (!plan.ok) return plan
     buckets.value = withText(key, next)
+    if (recScratch.value) {
+      // An edit while a from-scratch session is paused becomes the solution
+      // that Resume carries on from. The author wrote it: nothing to guard.
+      recScratch.value = false
+      revealedKey.value = key
+    }
     const target = storageKey()
     const snapshot = buckets.value
     if (saveTimer) clearTimeout(saveTimer)
@@ -190,5 +204,22 @@ export function useSolutions() {
     persist()
   }
 
-  return { text, has, view, readOnly, setLive, set, edit, clear, restore, flushPendingSave }
+  /** The solution saved for `storyKey` (any game of the active language), or null. */
+  function textFor(storyKey: string): string | null {
+    syncLanguage()
+    return ownText(buckets.value, storyKey)
+  }
+
+  /** Whether `next` would fit as `storyKey`'s solution (both caps). */
+  function planFor(storyKey: string, next: string): Plan {
+    syncLanguage()
+    return planSolution(next, otherTotal(storyKey))
+  }
+
+  /** Put the active game's solution back behind the spoiler guard. */
+  function conceal() {
+    if (revealedKey.value === activeStoryKey.value) revealedKey.value = null
+  }
+
+  return { conceal, text, has, view, visible, readOnly, setLive, set, edit, clear, restore, flushPendingSave, textFor, planFor }
 }

@@ -24,7 +24,7 @@ const LIBRARIES: readonly string[] = ['auto', 'std', 'puny']
 /** Manifest fields this implementation understands; everything else is kept as-is. */
 const KNOWN = new Set([
   'format', 'version', 'generator', 'created', 'modified', 'title', 'language', 'main',
-  'target', 'library', 'extensions', 'tests', 'skein', 'files',
+  'target', 'library', 'extensions', 'tests', 'skein', 'solution', 'files',
 ])
 
 export interface ParsedManifest {
@@ -37,6 +37,8 @@ export interface ParsedManifest {
   extensions: string[]
   tests: { name: string; path: string; extra?: Record<string, unknown> }[]
   skein?: string
+  /** The game's solution file (text only; never run). */
+  solution?: string
   files?: Record<string, string>
   /** Unknown fields (and `library` for ZIL), verbatim. */
   extra: Record<string, unknown>
@@ -137,6 +139,7 @@ export function parseManifest(bytes: Uint8Array): ParsedManifest {
     }
   }
   if (doc.skein !== undefined) out.skein = checkPath('skein path', doc.skein)
+  if (doc.solution !== undefined) out.solution = checkPath('solution path', doc.solution)
   if (doc.files !== undefined) {
     if (!isPlainObject(doc.files)) throw bad("This project's manifest has a files list that isn't a map of paths to hashes.")
     const files: Record<string, string> = {}

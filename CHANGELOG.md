@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Added — 2026-11-05 Solutions
+- **Every game can have a solution:** the game told as it plays — the
+  opening, then each `> command` and the game's full reply — made by
+  replaying the commands headlessly. The new **Solution** tab keeps it hidden
+  until you press **Show solution** (it's a complete spoiler), and offers
+  Regenerate, Copy, Download, Load file and Clear; bundled samples come with
+  theirs.
+- **Record a solution by playing.** Record restarts the game and captures
+  what you type; Pause saves so far and lets you edit, Resume and Continue
+  recording carry on from where the solution ends, Stop saves. While you
+  play on the right, **`solution.txt` opens in the left pane** — live and
+  read-only while recording, editable when paused or stopped.
+- **`.frotzsmith` projects carry the solution** as `solution.txt` (text
+  only; it never runs). Opening a project with one says so, replaces the
+  game's solution, and asks first when that game already has a different one.
+
 ### Added — 2026-11-04 Multi-file ZIL projects
 - **A ZIL project can be several `.zil` files.** The main file pulls the
   others in with `<INSERT-FILE "rooms">`, and the browser compiles them

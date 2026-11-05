@@ -74,6 +74,8 @@ write I6  ──▶  compile (inform6.wasm, client-side)  ──▶  play inline
 
 **New:** **the Skein** *(v1)* — a branching command tree with **blessed-output regression diffing**: live play and imported test scripts grow the tree; bless a thread, and every compile re-runs blessed threads headlessly, flagging changes red with a blessed-vs-current diff (per-game IndexedDB persistence, `.skein` export).
 
+**New:** **Solutions** — each game's walkthrough as text (every `> command` and the game's reply), hidden until you ask, recorded by playing (Record / Pause / Resume / Stop, live in the left pane as `solution.txt`), and carried in `.frotzsmith` projects.
+
 **Planned:** an online extensions registry, Glulx, and multi-file projects.
 
 See [ROADMAP.md](./ROADMAP.md) for detail, [CHANGELOG.md](./CHANGELOG.md) for what's shipped, and [`docs/13-v2-roadmap.md`](./docs/13-v2-roadmap.md) for v2 feasibility notes.

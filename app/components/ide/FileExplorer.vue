@@ -109,7 +109,7 @@ async function askRemove(id: string) {
             @click="openFile(file.id)"
           >
             <UIcon
-              :name="file.editable ? 'i-lucide-file-code-2' : 'i-lucide-file-lock-2'"
+              :name="file.id === 'solution' ? 'i-lucide-book-open-check' : file.editable ? 'i-lucide-file-code-2' : 'i-lucide-file-lock-2'"
               class="size-4 shrink-0 opacity-70"
             />
             <span class="truncate">{{ file.name }}</span>

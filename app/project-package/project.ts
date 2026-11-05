@@ -13,6 +13,7 @@ import {
 } from './manifest'
 import { pathKey, pathProblem, safeStem } from './paths'
 import { planZilFiles } from '../modules/zil/zil-project'
+import { SOLUTION_MAX } from '../composables/solution-text'
 
 export interface ProjectSnapshot {
   language: Language
@@ -25,6 +26,8 @@ export interface ProjectSnapshot {
   skeinPath?: string
   settings: { target: Target; library?: Library }
   title?: string
+  /** The game's solution text (`solution.txt`): text only, never run. */
+  solution?: string
   opaque: { path: string; bytes: Uint8Array }[]
   manifestExtra: Record<string, unknown>
   created?: string
@@ -37,6 +40,10 @@ export const TEST_LIMITS = Object.freeze({ scripts: 200, totalBytes: 1024 * 1024
 /** Compiled stories: never written, ignored on read (spec §3). */
 export const COMPILED = /\.(z3|z4|z5|z8|ulx|blb|zblorb)$/i
 const MiB = 1024 * 1024
+/** The solution file's preferred name (spec: at the package root). */
+const SOLUTION_NAME = 'solution.txt'
+const solutionTooBig = () =>
+  new PackageError('solution-too-large', 'This project’s solution is over 1 MiB, which is more than Frotzsmith keeps for one game.')
 const encoder = new TextEncoder()
 const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
 
@@ -152,6 +159,23 @@ export async function writeProjectPackage(
     add(skeinPath, encoder.encode(JSON.stringify({ v: 1, lang: p.language, storyKey, tree: p.skein })))
   }
 
+  // The solution: `solution.txt` when free, else a name that steps around the
+  // files and folders already there. Never one the reader would refuse.
+  let solutionPath: string | undefined
+  if (p.solution !== undefined) {
+    if (p.solution.length > SOLUTION_MAX) throw solutionTooBig()
+    const folders = new Set<string>()
+    for (const e of entries) {
+      const seg = e.path.split('/')
+      for (let i = 1; i < seg.length; i++) folders.add(pathKey(seg.slice(0, i).join('/')))
+    }
+    const free = (path: string) => !used.has(pathKey(path)) && !folders.has(pathKey(path))
+    solutionPath = SOLUTION_NAME
+    for (let n = 2; !free(solutionPath); n++) solutionPath = `solution-${n}.txt`
+    checkText(solutionPath, p.solution)
+    add(solutionPath, encoder.encode(p.solution))
+  }
+
   // Never write more scripts than the reader opens (TEST_LIMITS).
   if (p.tests.length > TEST_LIMITS.scripts) {
     throw new PackageError('too-many-tests', `Frotzsmith can’t save more than ${TEST_LIMITS.scripts} test scripts in one project.`)
@@ -193,6 +217,7 @@ export async function writeProjectPackage(
     extensions: p.extensions,
     tests,
     skein: skeinPath,
+    solution: solutionPath,
     files,
   }, p.manifestExtra)
 
@@ -296,6 +321,16 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
     }
   }
 
+  // The solution: only the file the manifest names, UTF-8 text of at most
+  // 1 MiB (UTF-16 length, the store's unit); anything else refuses the open.
+  let solution: string | undefined
+  if (m.solution !== undefined) {
+    const data = claim(m.solution, 'solution')
+    if (data.length > SOLUTION_MAX * 3) throw solutionTooBig() // can't be ≤ 1 Mi UTF-16 units
+    solution = text(m.solution, data)
+    if (solution.length > SOLUTION_MAX) throw solutionTooBig()
+  }
+
   const includes: { path: string; text: string }[] = []
   const opaque: { path: string; bytes: Uint8Array }[] = []
   for (const [path, data] of container) {
@@ -343,6 +378,7 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
   }
   if (skeinPathOut !== undefined) project.skeinPath = skeinPathOut
   if (m.title !== undefined) project.title = m.title
+  if (solution !== undefined) project.solution = solution
   if (m.created !== undefined) project.created = m.created
   return { project, ignored, hashMismatches, skeinNotOpened }
 }

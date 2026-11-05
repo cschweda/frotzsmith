@@ -20,6 +20,7 @@ const _toastAdd = vi.fn()
 vi.stubGlobal('useToast', () => ({ add: _toastAdd }))
 
 const { useProjectFiles } = await import('./useProjectFiles')
+const { useSolutions } = await import('./useSolutions')
 const KEY = 'frotzsmith:zil:project-files'
 
 describe('useProjectFiles — a ZIL project\'s extra files', () => {
@@ -153,5 +154,88 @@ describe('useProjectFiles — a ZIL project\'s extra files', () => {
     expect(pf.diagnosticTarget(undefined)).toBe('source')
     expect(pf.diagnosticTarget('rooms.zil')).toBe('zil:rooms.zil')
     expect(pf.diagnosticTarget('/zillib/parser.zil')).toBeNull()
+  })
+})
+
+// Solutions Task 5: the game's solution in the left pane, both languages.
+describe('useProjectFiles — solution.txt', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const st = <T,>(k: string, i: () => T) => ((globalThis as any).useState as (k: string, i: () => T) => { value: T })(k, i)
+  const recState = () => st<'recording' | 'paused' | 'stopped'>('frotz:solution-rec-state', () => 'stopped')
+  const revealedKey = () => st<string | null>('frotz:solution-revealed', () => null)
+  const storyKey = () => st<string>('frotz:story-key', () => 'untitled')
+  const SKEY = (lang: string) => `frotzsmith:${lang}:solutions`
+
+  beforeEach(() => {
+    localStorage.clear()
+    resetStorageNoticeForTests()
+    recState().value = 'stopped'
+    revealedKey().value = null
+    storyKey().value = 'game1'
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it.each(['i6', 'zil'] as const)('%s: listed only when the game has a solution; opens and closes with it', async lang => {
+    useLanguage().setLanguage(lang)
+    useSolutions().restore()
+    const pf = useProjectFiles()
+    expect(pf.files.value.some(f => f.id === 'solution')).toBe(false)
+    pf.openFile('solution')
+    expect(pf.activeId.value).toBe('source') // not a file yet
+    useSolutions().set('> north\n')
+    const meta = pf.files.value.find(f => f.id === 'solution')!
+    expect(meta).toMatchObject({ name: 'solution.txt', group: 'project', editable: true })
+    pf.openFile('solution')
+    expect(pf.activeId.value).toBe('solution')
+    useSolutions().clear()
+    await nextTick()
+    expect(pf.activeId.value).toBe('source')
+    expect(pf.openTabs.value.some(f => f.id === 'solution')).toBe(false)
+  })
+
+  it('also listed (read-only) while a recording runs, before anything is saved', () => {
+    useLanguage().setLanguage('i6')
+    const pf = useProjectFiles()
+    recState().value = 'recording'
+    pf.openFile('solution')
+    expect(pf.activeId.value).toBe('solution')
+    expect(pf.activeFile.value).toMatchObject({ id: 'solution', editable: false })
+  })
+
+  it('reads nothing while the solution is hidden; the text once revealed', () => {
+    useLanguage().setLanguage('i6')
+    useSolutions().set('> secret\n')
+    const pf = useProjectFiles()
+    expect(pf.readFile('solution')).toBe('')
+    revealedKey().value = 'game1'
+    expect(pf.readFile('solution')).toBe('> secret\n')
+  })
+
+  it('an edit reaches the store at once while storage waits for the debounce', () => {
+    vi.useFakeTimers()
+    useLanguage().setLanguage('i6')
+    const s = useSolutions()
+    s.set('> north\n')
+    revealedKey().value = 'game1'
+    const pf = useProjectFiles()
+    pf.openFile('solution')
+    pf.writeActive('> north\n> south\n')
+    expect(s.text.value).toBe('> north\n> south\n')
+    expect(JSON.parse(localStorage.getItem(SKEY('i6'))!).buckets.game1.text).toBe('> north\n')
+    vi.advanceTimersByTime(1000)
+    expect(JSON.parse(localStorage.getItem(SKEY('i6'))!).buckets.game1.text).toBe('> north\n> south\n')
+  })
+
+  it('a write while recording changes nothing (read-only)', () => {
+    useLanguage().setLanguage('i6')
+    const s = useSolutions()
+    s.set('> north\n')
+    const pf = useProjectFiles()
+    pf.openFile('solution')
+    recState().value = 'recording'
+    pf.writeActive('typed')
+    expect(s.text.value).toBe('> north\n')
   })
 })

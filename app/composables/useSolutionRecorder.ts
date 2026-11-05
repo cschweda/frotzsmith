@@ -226,7 +226,9 @@ export function useSolutionRecorder() {
     if (!solutions.has.value && !unsaved.value) return { ok: false, message: 'This game has no solution to continue yet.' }
     // Continuing plays the solution in front of the author: lift the guard first.
     if (!revealed.value && !unsaved.value) return { ok: false, message: 'Press Show solution first, since continuing plays the solution through.' }
-    return startFrom(resumeCommands())
+    // Hidden, with commands a failed from-scratch save kept: carry on as that
+    // session did, so only its own live text is shown — never the hidden solution.
+    return startFrom(resumeCommands(), !revealed.value)
   }
 
   /** "Save": save the solution and end the session. */

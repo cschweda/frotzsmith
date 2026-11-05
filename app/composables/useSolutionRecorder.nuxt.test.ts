@@ -327,6 +327,37 @@ describe('useSolutionRecorder', () => {
     expect(after.noticeAfterReload()).toBe(false)
   })
 
+  // Task 5 (residual leak b): a failed from-scratch save leaves unsaved
+  // commands while the old solution is still hidden; Continue from there must
+  // show only the new session's live text, never the hidden solution.
+  it('Continue with unsaved commands while hidden never shows the hidden solution', async () => {
+    const old = formatSolution('Test Game', 'Opening.', [{ command: 'secret', output: 'Spoiler.' }])
+    const s = useSolutions()
+    s.set(old)
+    const r = useSolutionRecorder()
+    await r.record({ confirmed: true })
+    bootThenType('north')
+    _generate.mockResolvedValueOnce({ ok: false, message: 'Boom.' } as never)
+    expect((await r.stop()).ok).toBe(false)
+    expect(r.hasUnsaved.value).toBe(true)
+    expect(r.revealed.value).toBe(false)
+    expect(s.visible.value).toBe(false)
+    _generate.mockClear()
+    expect((await r.continueRecording()).ok).toBe(true)
+    expect(ide.sendToPlay).toHaveBeenLastCalledWith(['north'])
+    // Before the first live result: nothing — not the hidden text.
+    expect(s.view.value).toBe('')
+    expect(s.visible.value).toBe(true)
+    await new Promise(res => setTimeout(res, 350))
+    await flush()
+    expect(s.view.value).not.toContain('secret')
+    expect(solutionCommands(s.view.value!)).toEqual(['north'])
+    bootThenType('east')
+    await r.stop()
+    expect(solutionCommands(s.text.value!)).toEqual(['north', 'east'])
+    expect(r.revealed.value).toBe(true)
+  })
+
   it('refuses to start when the game does not compile', async () => {
     ide.ensureBuild.mockResolvedValueOnce(false)
     const r = useSolutionRecorder()

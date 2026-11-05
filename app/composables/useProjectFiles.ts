@@ -4,6 +4,7 @@ import {
   closeTabState,
   diagnosticFileId,
   reconcileOpen,
+  SOLUTION_ID,
   type ProjectFileMeta,
   type TabState,
 } from '~/composables/project-files'
@@ -16,6 +17,7 @@ import { registerSessionOnce } from '~/composables/session-once'
 import { displayPath, quotedPath } from '~/project-package/errors'
 import { useZilProjectFiles } from '~/composables/useZilProjectFiles'
 import { pathKey } from '~/project-package/paths'
+import { useSolutions } from '~/composables/useSolutions'
 
 const ZIL_ID = 'zil:'
 
@@ -29,6 +31,9 @@ export function useProjectFiles() {
   const { all, isEnabled, updateUploaded } = useExtensions()
   const { profile } = useLanguage()
   const zil = useZilProjectFiles()
+  const solutions = useSolutions()
+  /** A recording session is open (read here so this needs no recorder import). */
+  const recState = useState<'recording' | 'paused' | 'stopped'>('frotz:solution-rec-state', () => 'stopped')
   const isZil = computed(() => profile.value.id === 'zil')
   const sourceName = computed(() =>
     isZil.value ? displayPath(zil.mainPath.value) : `story.${profile.value.fileExt}`,
@@ -87,6 +92,10 @@ export function useProjectFiles() {
       projectFiles: isZil.value
         ? zil.files.value.map(f => ({ id: `${ZIL_ID}${f.path}`, name: displayPath(f.path) }))
         : [],
+      // The game's solution, both languages: when it has one, and while a
+      // recording session is open (a from-scratch one has nothing saved yet).
+      solution:
+        solutions.has.value || recState.value !== 'stopped' ? { editable: !solutions.readOnly.value } : undefined,
     }),
   )
   const validIds = computed(() => new Set(files.value.map(f => f.id)))
@@ -135,6 +144,8 @@ export function useProjectFiles() {
 
   function readFile(id: string): string {
     if (id === 'source') return source.value
+    // Behind the spoiler guard until revealed (SourcePane shows a placeholder).
+    if (id === SOLUTION_ID) return solutions.visible.value ? (solutions.view.value ?? '') : ''
     if (id.startsWith(ZIL_ID)) {
       const path = id.slice(ZIL_ID.length)
       return zil.files.value.find(f => f.path === path)?.text ?? ''
@@ -154,6 +165,8 @@ export function useProjectFiles() {
     const file = activeFile.value
     if (!file.editable) return
     if (file.id === 'source') source.value = text
+    // In memory at once, stored after ~1 s idle; refused while recording.
+    else if (file.id === SOLUTION_ID) solutions.edit(text)
     // In memory at once (the next compile sees it); stored after a pause in typing.
     else if (file.id.startsWith(ZIL_ID)) zil.edit(file.id.slice(ZIL_ID.length), text)
     else updateUploaded(file.id, text)

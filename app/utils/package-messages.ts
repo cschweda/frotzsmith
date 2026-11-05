@@ -28,8 +28,11 @@ export function openDialogNotes(p: {
   hiddenNames: readonly string[]
   /** ZIL: the extra `.zil` files the project brings (this project only). */
   sourceFiles?: readonly string[]
+  /** The package carries a solution (it replaces this game's). */
+  solution?: boolean
 }): string[] {
   const notes: string[] = []
+  if (p.solution) notes.push('It includes a solution.')
   const e = p.extensions.length
   if (e > 0) {
     notes.push(`It adds ${e === 1 ? 'an extension' : `${e} extensions`} used by every Inform 6 game in this browser: ${names(p.extensions)}.`)
