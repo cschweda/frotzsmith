@@ -392,6 +392,9 @@ gurgle. The flooded passage is flooded no longer." CR>>
 <ROUTINE ARCH-DIRECTION ()
     <GET ,COMPASS-NAMES <MOD <+ ,SHIFT-STEP 2> 4>>>
 
+;"PRINT-COUNTER: the Shifting Room's counter so far, as a comma list: the
+  Fibonacci numbers from step 0 up to SHIFT-STEP (1, 1, 2, ...). Used by the
+  brass counter and the room description, so both always agree."
 <ROUTINE PRINT-COUNTER ()
     <DO (I 0 ,SHIFT-STEP)
         <COND (<G? .I 0> <TELL ", ">)>
@@ -478,6 +481,8 @@ which is the most suspicious thing about it. Nothing about it is out of true.
 You have surveyed churches that were less sure of themselves.")
     (ACTION HOUSE-EXTERIOR-F)>
 
+;"ENTER HOUSE walks you in (north, the front door); anything else gets the
+  shared scenery reply from FEATURE-F."
 <ROUTINE HOUSE-EXTERIOR-F ()
     <COND (<VERB? ENTER> <DO-WALK ,P?NORTH>)
           (ELSE <FEATURE-F>)>>
@@ -601,6 +606,7 @@ Quill's own green leather.")
 last than the one below it.")
     (ACTION LADDER-F)>
 
+;"CLIMB LADDER is a small reward for curiosity; nothing up there matters."
 <ROUTINE LADDER-F ()
     <COND (<VERB? CLIMB>
            <TELL "You climb the ladder and inspect the top shelf: dust, an atlas
@@ -638,6 +644,9 @@ the next.\"" CR>
                   <RELEASE-HALF>)>
            <RTRUE>)>>
 
+;"RELEASE-HALF: drop the left half of the blueprint into the room, once.
+  TREATISE-F calls it from READ, EXAMINE and TAKE; HALF-FALLEN makes sure
+  only the first of those does anything."
 <ROUTINE RELEASE-HALF ()
     <COND (,HALF-FALLEN <RFALSE>)>
     <SETG HALF-FALLEN T>
@@ -752,6 +761,8 @@ chime.")
     (FLAGS NDESCBIT)
     (ACTION FLOOR-PANEL-F)>
 
+;"The floor panel is P3's reward: closed until the three brass notes are
+  played (PANEL-OPEN), then a staircase. ENTER or CLIMB it to go down."
 <ROUTINE FLOOR-PANEL-F ()
     <COND (<VERB? EXAMINE>
            <COND (,PANEL-OPEN
@@ -818,6 +829,9 @@ something with real architectural ambition.")
     (FLAGS NDESCBIT CONTBIT OPENABLEBIT LOCKEDBIT)
     (ACTION DESK-DRAWER-F)>
 
+;"P1: the drawer is locked by its dial, not a key. OPEN and UNLOCK say so
+  and point at the dial (DRAWER-DIAL-F does the unlocking). Once it is open,
+  EXAMINE lists what is inside."
 <ROUTINE DESK-DRAWER-F ()
     <COND (<VERB? EXAMINE>
            <TELL "A shallow drawer with a brass dial lock. ">
@@ -908,6 +922,9 @@ The last entry says only: \"Spring. Begin the city.\"")>
 sections, a staircase that seems to go down in both directions.")
     (ACTION WASTEBASKET-F)>
 
+;"P2's other half. The right half of the blueprint is not in the basket at
+  the start: SEARCH (or EMPTY) puts it there the first time, so it is found
+  rather than seen. BASKET-SEARCHED remembers that."
 <ROUTINE WASTEBASKET-F ()
     <COND (<VERB? SEARCH EMPTY>
            <COND (,BASKET-SEARCHED
@@ -1023,6 +1040,9 @@ long iron lever. The stairs lead back up">
            <COND (,LIFT-READY <TELL "; the lift is ready to go down." CR>)
                  (ELSE <TELL "." CR>)>)>>
 
+;"P4: the Lift Landing's DOWN exit. A PER routine returns the room to go
+  to, or false to stay: only with LIFT-READY does the lift carry you to the
+  Survey Chamber; a locked or dead cage says why not."
 <ROUTINE LIFT-DOWN-F ()
     <COND (,LIFT-READY
            <TELL "You step into the cage and draw the gate shut. With a shriek
@@ -1047,6 +1067,8 @@ light. You step out again, feeling foolish." CR>
     (FLAGS NDESCBIT OPENABLEBIT LOCKEDBIT)
     (ACTION LIFT-CAGE-F)>
 
+;"P4, step one: the cage gate takes the brass key (the spiral key). UNLOCK
+  with anything else is refused; EXAMINE reports the gate and the crystals."
 <ROUTINE LIFT-CAGE-F ()
     <COND (<VERB? EXAMINE>
            <TELL "A brass cage the size of a garden shed. Its gate ">
@@ -1113,6 +1135,9 @@ circle, square, triangle, wave, star and spiral." CR>)>)
 <OBJECT SPIRAL-SYMBOL (DESC "spiral") (SYNONYM SPIRAL) (IN LIFT-LANDING)
     (FLAGS NDESCBIT SYMBOLBIT) (ACTION SYMBOL-F)>
 
+;"The six symbols are objects of their own so SET DIAL TO SPIRAL can name
+  one. SYMBOL-F answers EXAMINE (and says which one the dial points at) and
+  steers TAKE and friends back to the dial."
 <ROUTINE SYMBOL-F ()
     <COND (<VERB? EXAMINE>
            <TELL "One of the six symbols engraved on the lift's dial: the "
@@ -1132,6 +1157,8 @@ circle, square, triangle, wave, star and spiral." CR>)>)
 plate beneath it reads, in Quill's lettering: MIND THE SYMBOL.")
     (ACTION LIFT-LEVER-F)>
 
+;"P4, last step: the lever only starts the lift with the cage unlocked and
+  the dial on the spiral. Wrong symbol: it springs back, a hint, no harm."
 <ROUTINE LIFT-LEVER-F ()
     <COND (<VERB? PULL PUSH TURN>
            <COND (,LIFT-READY
@@ -1170,6 +1197,8 @@ the south, running water.")
     (SOUTH TO SPRING-GALLERY)
     (FLAGS LIGHTBIT)>
 
+;"UP from the Survey Chamber: the lift takes you back to the landing. A PER
+  routine can print a line and then return the room to move to."
 <ROUTINE SURVEY-UP-F ()
     <TELL "The lift carries you back up the shaft, wheezing companionably." CR CR>
     ,LIFT-LANDING>
@@ -1182,6 +1211,8 @@ the south, running water.")
     (FLAGS NDESCBIT PLURALBIT READBIT)
     (ACTION SURVEY-MARKS-F)>
 
+;"Lore (2 points): reading the marks decodes the lift symbols. AWARD-POINTS
+  with an achievement only ever counts once, however often you read."
 <ROUTINE SURVEY-MARKS-F ()
     <COND (<VERB? EXAMINE READ>
            <AWARD-POINTS 2 ,ACH?LORE-MARKS>
@@ -1397,6 +1428,9 @@ looking up.")
     (NO-INTEREST "\"I'll need that in triplicate,\" says the Inspector.")
     (ACTION INSPECTOR-F)>
 
+;"The Inspector. Anything but ASK ABOUT goes to the shared PERSON-F (which
+  uses her NO-ANSWER and NO-INTEREST lines). ABOUT? checks the topic words:
+  asking about irregular building practices is a lore point."
 <ROUTINE INSPECTOR-F ("OPT" ARG)
     <COND (<OR .ARG <NOT <VERB? ASK-ABOUT>>> <PERSON-F .ARG>)
           (<ABOUT? ,W?IRREGULAR ,W?BUILDING ,W?PRACTICES ,W?PRACTICE>
@@ -1454,6 +1488,8 @@ gallery runs east into the flooded passage." CR>)>>
     (FLAGS NDESCBIT)
     (ACTION BRONZE-WHEEL-F)>
 
+;"P6, the ancient half: TURN the wheel to open the old sluice (WHEEL-TURNED).
+  CHECK-SPRINGS drains the passage once the pump is running too."
 <ROUTINE BRONZE-WHEEL-F ()
     <COND (<VERB? EXAMINE>
            <TELL "A spoked bronze wheel, taller than you, worked into the mouth
@@ -1550,6 +1586,8 @@ west." CR>)>)
     (FLAGS NDESCBIT NARTICLEBIT)
     (ACTION FLOOD-WATER-F)>
 
+;"The flood water: its description follows PASSAGE-DRAINED, and ENTER it
+  means walking east (which the exit refuses until it is drained)."
 <ROUTINE FLOOD-WATER-F ()
     <COND (<VERB? EXAMINE>
            <COND (,PASSAGE-DRAINED <TELL "Only puddles, and they are leaving." CR>)
@@ -1599,6 +1637,9 @@ mirror">)>
     (FLAGS NDESCBIT)
     (ACTION GREAT-MIRROR-F)>
 
+;"P7: each TURN swings the mirror a quarter turn (MIRROR-FACING 0-3, north,
+  east, south, west; MOD wraps it round). Facing east, onto the crystal
+  socket, grows the crystal; the other facings say where the beam lands."
 <ROUTINE GREAT-MIRROR-F ()
     <COND (<VERB? EXAMINE>
            <TELL "A disc of silvered glass as tall as a door, in a bronze frame
@@ -1723,6 +1764,7 @@ north, and a low alcove east.")
     (FLAGS NDESCBIT READBIT)
     (ACTION FORMULA-WALL-F)>
 
+;"Lore (2 points): checking the formula wall."
 <ROUTINE FORMULA-WALL-F ()
     <COND (<VERB? EXAMINE READ>
            <AWARD-POINTS 2 ,ACH?LORE-WALL>
@@ -1786,6 +1828,8 @@ Messenger.")
     (FLAGS TAKEBIT READBIT TRYTAKEBIT)
     (ACTION CODED-NOTE-F)>
 
+;"Lore (2 points): the Messenger's note, a Caesar cipher (shift 3) with the
+  answer already pencilled in."
 <ROUTINE CODED-NOTE-F ()
     <COND (<VERB? EXAMINE READ>
            <AWARD-POINTS 2 ,ACH?LORE-NOTE>
@@ -1894,6 +1938,9 @@ the counter, it seems, is not yet satisfied." CR>)
           (ELSE <TELL "." CR>)>
     <RTRUE>>
 
+;"P8, part one: the Shifting Room's north exit opens only at step 6, when
+  the counter shows 13 and the arch stands north. Passing sets SHIFT-STILLED
+  so the room stops shifting behind you."
 <ROUTINE SHIFT-NORTH-F ()
     <COND (<==? ,SHIFT-STEP 6>
            <SETG SHIFT-STILLED T>
@@ -1912,6 +1959,8 @@ the counter, it seems, is not yet satisfied." CR>)
     (FLAGS NDESCBIT READBIT)
     (ACTION BRASS-COUNTER-F)>
 
+;"The counter shows the sequence so far (PRINT-COUNTER): the clue to wait
+  for 13."
 <ROUTINE BRASS-COUNTER-F ()
     <COND (<VERB? EXAMINE READ>
            <TELL "A brass counter in a glass case, showing a column of numbers: ">
@@ -1927,6 +1976,7 @@ the counter, it seems, is not yet satisfied." CR>)
     (FLAGS NDESCBIT VOWELBIT)
     (ACTION MOVING-ARCH-F)>
 
+;"The arch: EXAMINE says where it stands now; ENTER means going north."
 <ROUTINE MOVING-ARCH-F ()
     <COND (<VERB? EXAMINE>
            <TELL "The arch stands to the " <ARCH-DIRECTION> ". ">
@@ -1988,6 +2038,8 @@ groove cut round it like a tuning mark.")
 of a fist.")
     (ACTION PEDESTAL-F)>
 
+;"P8, part two: the crystal goes on the pedestal (PUT CRYSTAL ON or IN
+  PEDESTAL). Striking the tuning fork then sings the stones awake."
 <ROUTINE PEDESTAL-F ()
     <COND (<AND <VERB? PUT-ON PUT-IN> <PRSI? ,PEDESTAL> <PRSO? ,CRYSTAL>>
            <MOVE ,CRYSTAL ,PEDESTAL>
@@ -2090,6 +2142,8 @@ where it lies." CR>)>>
 <SYNTAX RING OBJECT WITH OBJECT = V-SOUND>
 <VERB-SYNONYM RING STRIKE SOUND TOLL PLAY TAP BANG BLOW>
 
+;"The V- routines below are the default replies: each runs only when no
+  object's ACTION has already answered the command."
 <ROUTINE V-SOUND ()
     <COND (<FSET? ,PRSO ,PERSONBIT> <TELL "They would not thank you for it." CR>)
           (ELSE <TELL "You produce a dull, unmusical noise." CR>)>>
@@ -2136,6 +2190,8 @@ where it lies." CR>)>>
            <TELL CT ,PRSI " glances at " T ,PRSO " without interest." CR>)
           (ELSE <TELL "That's not something you can show things to." CR>)>>
 
+;"SHOW FOREMAN JOURNAL names the person first: swap the two objects and
+  PERFORM the ordinary SHOW, so objects only need to handle one form."
 <ROUTINE V-SSHOW ()
     <PERFORM ,V?SHOW ,PRSI ,PRSO>
     <RTRUE>>
@@ -2158,6 +2214,9 @@ where it lies." CR>)>>
 <SYNTAX LISTEN TO OBJECT = V-LISTEN-TO>
 <VERB-SYNONYM LISTEN HEAR>
 
+;"V-LISTEN prints the room's SOUNDS property (GETP reads a property; a
+  room without one gives 0). V-LISTEN-TO a person gets a polite silence;
+  listening to a thing is the same as listening to the room."
 <ROUTINE V-LISTEN ("AUX" S)
     <COND (<SET S <GETP ,HERE ,P?SOUNDS>> <TELL .S CR>)
           (ELSE <TELL "You hear nothing unexpected." CR>)>>
@@ -2177,5 +2236,7 @@ where it lies." CR>)>>
 <SYNTAX JOIN PIECES OBJECT (FIND KLUDGEBIT) = V-JOIN>
 <VERB-SYNONYM JOIN COMBINE ASSEMBLE MEND REASSEMBLE REPAIR>
 
+;"Every form of JOIN goes to JOIN-HALVES (section 4), the same routine PUT
+  LEFT HALF ON RIGHT HALF uses, so both phrasings behave the same."
 <ROUTINE V-JOIN ()
     <JOIN-HALVES>>

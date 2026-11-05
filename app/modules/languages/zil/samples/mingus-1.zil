@@ -84,7 +84,7 @@
       arrival turn never counts.
     - A held item with a state other actions change: the pike is raised or
       lowered, and the Runout's M-BEG lowers it for anything but looking,
-      waiting and walking.
+      waiting, walking, examining, listening, fending and inventory.
     - Exit routines (PER) that move you somewhere ELSE: walking east without
       the pike up gets you escorted back to the gondola station.
     - One custom verb (TYPE) shared by two puzzles: V-TYPE reads the typed
@@ -753,6 +753,8 @@ have. MAINNET leaks the good stuff -- a thick, golden lubricant -- in a slow,
 steady drip, and someone has carved a word under its handle: BETTER.")
     (ACTION PUMPS-F)>
 
+;"The pumps are scenery; DRINK gets its own joke. FILL CAN FROM PUMP is
+  handled by the oil can, not here."
 <ROUTINE PUMPS-F ()
     <COND (<VERB? DRINK> <TELL "It is the good stuff, but not for drinking." CR>)
           (ELSE <FEATURE-F>)>>
@@ -918,6 +920,9 @@ rolled aside; the way up is open.">)>
            <TELL " A smaller bonus kiosk flickers on the landing below. The mesa
 is back to the west." CR>)>>
 
+;"P1: the Switchbacks' UP exit. The kiosk blocks the stair until all three
+  whitepaper phrases are translated (KIOSK-LINE reaches 3); a PER routine
+  returns the room to go to, or false (after saying why) to stay."
 <ROUTINE SWITCHBACKS-UP-F ()
     <COND (<G=? ,KIOSK-LINE 3> ,TERRACE)
           (ELSE
@@ -941,6 +946,8 @@ pulses patiently: TRANSLATE TO PLAIN ENGLISH. ONE WORD WILL DO." CR>
     (GENERIC KIOSK-GENERIC-F)
     (ACTION SWITCH-KIOSK-F)>
 
+;"P1: READ KIOSK shows the whitepaper sentence with the phrase you are on
+  lit (KIOSK-LINE picks it). TYPE <word> answers it (V-TYPE, section 4)."
 <ROUTINE SWITCH-KIOSK-F ()
     <COND (<VERB? EXAMINE READ>
            <COND (<G=? ,KIOSK-LINE 3>
@@ -971,6 +978,7 @@ plain English." CR>)
     (GENERIC KIOSK-GENERIC-F)
     (ACTION BONUS-KIOSK-F)>
 
+;"The bonus kiosk: pure foreshadowing, read once (BONUS-READ), then dark."
 <ROUTINE BONUS-KIOSK-F ()
     <COND (<VERB? EXAMINE READ>
            <COND (,BONUS-READ
@@ -1147,6 +1155,8 @@ hairline crack, and the far bank is labelled simply DAMP.">
 A poached spiral staircase climbs to the observatory, and the terrace is back
 to the west." CR>)>>
 
+;"UP from the ballroom: a joke, then the Observatory. A PER routine can talk
+  and then return the room to move to."
 <ROUTINE BALLROOM-UP-F ()
     <TELL "You climb the spiral staircase. It still goes down; it is now bolted
 to a cliff and goes up." CR CR>
@@ -1407,6 +1417,8 @@ rail, its clamp loose. The spiral staircase goes back down.")
 of grass. Their lens caps have never been taken off.")
     (ACTION TELESCOPES-F)>
 
+;"The twelve welded telescopes: a red herring next to the thirteenth. Every
+  way of using them is refused, so the loose one stands out."
 <ROUTINE TELESCOPES-F ()
     <COND (<VERB? LOOK-THROUGH SEARCH TURN PUSH PULL POINT>
            <TELL "The twelve are welded in place, all looking across. It is the
@@ -1422,6 +1434,10 @@ empire's one unshakeable position." CR>)
     (GENERIC TELESCOPE-GENERIC-F)
     (ACTION TELESCOPE-F)>
 
+;"P2: the thirteenth telescope. Pointed across the river (the start) it shows
+  the far bank; once TURN TELESCOPE (or POINT IT DOWN) sets TELESCOPE-DOWN,
+  LOOK THROUGH it shows the gondola car at the foot of the range: the clue
+  for digging on the Runout."
 <ROUTINE TELESCOPE-F ()
     <COND (<VERB? EXAMINE>
            <TELL "An older, smaller telescope on a swivel mount, its clamp loose.
@@ -1501,6 +1517,9 @@ to the ballroom">
            <COND (<IN? ,WALLET-BADGE ,WINNER> <TELL ". The lift's gate stands open." CR>)
                  (ELSE <TELL "." CR>)>)>>
 
+;"P4: the Root Cellar's DOWN exit, the service lift. It only runs once you
+  hold the wallet badge (the KYC scanner's reward); then it carries you down
+  to the Mempool."
 <ROUTINE CELLAR-DOWN-F ()
     <COND (<NOT <IN? ,WALLET-BADGE ,WINNER>>
            <TELL "The service lift's gate stays shut. The scanner's screen reads:
@@ -1625,10 +1644,15 @@ south, and the lift goes back up.")
     (NORTH PER CONSENSUS-F)
     (FLAGS LIGHTBIT)>
 
+;"UP from the Mempool: the lift back to the cellar."
 <ROUTINE MEMPOOL-UP-F ()
     <TELL "The lift hauls you back up into the cellar's onion-scented quiet." CR CR>
     ,ROOT-CELLAR>
 
+;"P5: the Mempool's NORTH exit is the consensus door. The AUX local N is
+  set as the routine starts, from ATTESTATIONS (what you carry that counts).
+  Two or more and the door opens onto the Archive; fewer and it says how
+  many you have."
 <ROUTINE CONSENSUS-F ("AUX" (N <ATTESTATIONS>))
     <COND (<G=? .N 2>
            <TELL "The door reads what you carry -- the debugged contract, the
@@ -1675,6 +1699,8 @@ blockchain." CR>)>>
     (FLAGS NDESCBIT)
     (ACTION CONSENSUS-DOOR-F)>
 
+;"The door as an object: EXAMINE shows the live count, and OPEN or ENTER
+  means walking north (CONSENSUS-F decides)."
 <ROUTINE CONSENSUS-DOOR-F ()
     <COND (<VERB? EXAMINE>
            <TELL "A heavy door of riveted steel with three slots, marked CONTRACT,
@@ -1771,6 +1797,8 @@ SO NICE.\"")
     (FLAGS NDESCBIT READBIT)
     (ACTION CONTRACT-ENGINE-F)>
 
+;"P5: reading the contract engine shows the infinite loop the debugged
+  contract will fix."
 <ROUTINE CONTRACT-ENGINE-F ()
     <COND (<VERB? EXAMINE READ>
            <TELL "The screen shows a smart contract, frozen mid-run:|
@@ -1865,6 +1893,9 @@ is ironic, given the darkness. They were born in these shafts and have spent
 their whole lives missing a dark they never had.")
     (ACTION MURKLINGS-F)>
 
+;"The murklings send all talk to the steward. ARG is set when zillib calls
+  a person's ACTION because they are being given an order (MURKLINGS, JUMP),
+  so an order gets the same answer as ASK and TELL."
 <ROUTINE MURKLINGS-F ("OPT" ARG)
     <COND (<OR .ARG <VERB? ASK-ABOUT TELL-ABOUT>>
            <TELL "\"Talk to the steward,\" they say, all at once." CR>)
@@ -1881,6 +1912,7 @@ their whole lives missing a dark they never had.")
 will let you use it. Solidarity.")
     (ACTION INK-PAD-F)>
 
+;"P6: the ink pad stays put; you sign the charter with it where it is."
 <ROUTINE INK-PAD-F ()
     <COND (<VERB? TAKE> <TELL "\"That stays here,\" says the steward. \"You sign
 here.\"" CR>)
@@ -1998,6 +2030,7 @@ purple, then green, then purple. Her side is lit by the lamp, and stays the same
 colour.")
     (ACTION GRATE-F)>
 
+;"The grate between the shafts never opens: the far side is Mrs. Thrumble's."
 <ROUTINE GRATE-F ()
     <COND (<VERB? ENTER CLIMB OPEN>
            <TELL "The grate does not open from this side. It is not that kind of
@@ -2014,6 +2047,7 @@ grate." CR>)
 grate. It has been there a very long time.")
     (ACTION SHAFT-LAMP-F)>
 
+;"The lamp beyond the grate is out of reach, so TAKE gets a reason."
 <ROUTINE SHAFT-LAMP-F ()
     <COND (<VERB? TAKE>
            <TELL "It's on the far side of the grate, and anyway, it's on its
@@ -2117,6 +2151,8 @@ dump. The truth is here, if you can read COBOL.")
     (FLAGS NDESCBIT READBIT)
     (ACTION GENESIS-BLOCK-F)>
 
+;"Lore (2 points): the Genesis Block, the range's real charter: the Trust
+  whose name is on the keypad in the Cold Wallet Cavern."
 <ROUTINE GENESIS-BLOCK-F ()
     <COND (<VERB? EXAMINE READ>
            <AWARD-POINTS 2 ,ACH?LORE-GENESIS>
@@ -2191,6 +2227,8 @@ along the crescent:|
     (FLAGS NDESCBIT)
     (ACTION TRUST-BLOCK-F)>
 
+;"P7: the Trust's frozen block. Its description follows WALLET-OPEN, which
+  KEYPAD-TYPED sets when the mnemonic is accepted."
 <ROUTINE TRUST-BLOCK-F ()
     <COND (<VERB? EXAMINE>
            <COND (,WALLET-OPEN
@@ -2209,6 +2247,8 @@ pedestal's keypad is labelled MINGUS CHARTER TRUST -- PLAIN WORDS ONLY." CR>)>)
     (FLAGS NDESCBIT READBIT)
     (ACTION KEYPAD-F)>
 
+;"P7: READ KEYPAD shows how far the mnemonic has got (MNEMONIC-WORDS of 4).
+  The typing itself is KEYPAD-TYPED, reached through TYPE."
 <ROUTINE KEYPAD-F ()
     <COND (<VERB? EXAMINE READ>
            <TELL "MINGUS CHARTER TRUST -- PLAIN WORDS ONLY. You can TYPE a word on
@@ -2274,6 +2314,8 @@ The cable car goes down.")
     (DOWN PER LEDGE-DOWN-F)
     (FLAGS LIGHTBIT)>
 
+;"DOWN from the Windward Ledge: the emergency cable car to the Bottom
+  Gondola Station, and the start of the finale (act 3)."
 <ROUTINE LEDGE-DOWN-F ()
     <TELL "You climb into the emergency cable car and release its one working
 brake. The car drops off the ledge and down the face, and the empire comes apart
@@ -2293,6 +2335,7 @@ Then the slope flattens, the wind drops, and the car bumps to a stop." CR CR>
 number.")
     (ACTION CABLE-CAR-F)>
 
+;"ENTER CAR is the same as going down."
 <ROUTINE CABLE-CAR-F ()
     <COND (<VERB? ENTER> <DO-WALK ,P?DOWN>)
           (ELSE <FEATURE-F>)>>
@@ -2573,6 +2616,7 @@ tapping sticks.")
 <ROUTINE BOTTOM-STATION-F (RARG)
     <COND (<==? .RARG ,M-ENTER> <BEGIN-ACT 3>)>>
 
+;"UP from the Bottom Gondola Station: the cable car back to the ledge."
 <ROUTINE STATION-UP-F ()
     <TELL "The cable car hauls you back up the face, its one brake complaining
 the whole way." CR CR>
@@ -2816,6 +2860,9 @@ mountain, where Mingus people belong. There are always more of them than you
 counted.")
     (ACTION RUNOUT-VERDLINGS-F)>
 
+;"The Runout's verdlings: orders (ARG set) and most actions get the same
+  answer. EXAMINE, FEND and BOW are left to their own routines (RFALSE).
+  ATTACK gets the warning that there are always more of them."
 <ROUTINE RUNOUT-VERDLINGS-F ("OPT" ARG)
     <COND (.ARG <TELL "They do not argue, negotiate or accept tokens. They
 poke." CR>)
@@ -2975,6 +3022,8 @@ and all of them are waiting.")
 green skin it runs like a great continental river, broad and fast.")
     (ACTION VERDANCE-F)>
 
+;"The river: entering, drinking or swimming in it is always refused. The
+  way across is the ship, once the crowd parts."
 <ROUTINE VERDANCE-F ()
     <COND (<VERB? ENTER DRINK SWIM> <TELL "No one crosses the Verdance." CR>)
           (ELSE <FEATURE-F>)>>
