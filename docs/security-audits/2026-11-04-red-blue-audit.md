@@ -54,7 +54,7 @@ Cyclic Skeins and duplicate-child Skeins are kept but not opened. A test and the
 
 **Verification:**
 
-- 1,300 tests pass (up from 897), and typecheck is clean.
+- 1,304 tests pass (up from 897), and typecheck is clean.
 - `nuxt generate` passes, with the replay smoke test and the F2 injection story inert in the built worker.
 - Each fix round was independently reviewed.
 - Browser check of the production build: a package that adds an extension asks first and names it; a library-named package is refused with a one-sentence reason.
