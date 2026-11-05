@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 type Config = {
   experimental?: { checkOutdatedBuildInterval?: number | false; emitRouteChunkError?: string }
   pwa?: { registerType?: string; selfDestroying?: boolean; workbox?: { skipWaiting?: boolean } }
+  app?: { head?: { script?: Array<{ src?: string }> } }
 }
 
 async function load(env: Record<string, string | undefined> = {}): Promise<Config> {
@@ -46,5 +47,10 @@ describe('nuxt.config', () => {
   it('ships the normal worker unless FROTZSMITH_SW_KILL=1', async () => {
     expect((await load({ FROTZSMITH_SW_KILL: '' })).pwa?.selfDestroying).toBe(false)
     expect((await load({ FROTZSMITH_SW_KILL: '1' })).pwa?.selfDestroying).toBe(true)
+  })
+
+  it('the website loads first-party analytics; the desktop build loads none', async () => {
+    expect((await load({ FROTZSMITH_DESKTOP: '' })).app?.head?.script?.map(s => s.src)).toEqual(['/pa/init.js'])
+    expect((await load({ FROTZSMITH_DESKTOP: '1' })).app?.head?.script ?? []).toEqual([])
   })
 })

@@ -265,11 +265,15 @@ export default defineNuxtConfig({
         // declare every route a duplicate of the homepage.
       ],
       // Privacy-friendly analytics by Plausible (no cookies, no personal
-      // data), served FIRST-PARTY via the netlify.toml /pa/* proxy — closes
-      // the audit's SRI item (no third-party script execution) and lets CSP
-      // drop plausible.io. The bootstrap is a real file (public/pa/init.js),
-      // not an inline script.
-      script: [
+      // data), first-party: the tracker is a VENDORED, reviewed copy
+      // (public/pa/script.js, sha256 in tools/vendored-files.json), and only
+      // the event beacon /pa/event is proxied to plausible.io by
+      // public/_redirects (not netlify.toml — Nitro's catch-all shadows toml
+      // redirects). That closes the 2026-06-30 SRI item / 2026-11-04 F5 and
+      // lets CSP drop plausible.io. The bootstrap is a real file
+      // (public/pa/init.js), not an inline script. The desktop build ships
+      // no analytics at all.
+      script: DESKTOP ? [] : [
         // One entry only: init.js runs the queue shim + init() and then
         // injects the async library itself. Two head entries raced — unhead's
         // capo sorting hoists async scripts above blocking ones, so the
