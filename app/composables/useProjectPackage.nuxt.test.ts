@@ -779,3 +779,54 @@ describe('useProjectPackage — every download reopens', () => {
     await expect(useProjectPackage().inspect(new File([bytes as Uint8Array<ArrayBuffer>], 'p.frotzsmith'))).resolves.toBeTruthy()
   })
 })
+
+// Re-review N-1/N-2/N-3: legacy stored data in colliding combinations.
+describe('useProjectPackage — every download reopens, whatever the browser holds', () => {
+  const KEY = 'frotzsmith:i6:extensions'
+  const up = (name: string, title: string) => ({ id: `uploaded:${name}`, name, title, content: `! ${name}\n` })
+
+  it('device names, library names, duplicate paths and include-name twins', async () => {
+    await boot()
+    const pkg = useProjectPackage()
+    await pkg.apply(await pkg.inspect(await fileOf(richSnapshot())))
+    await settle()
+    const { getExtrasStore } = await import('./project-extras-store')
+    const rec = (await getExtrasStore().load('i6:haunted-house'))!
+    const b = (s: string) => new TextEncoder().encode(s)
+    rec.entries = [
+      ...rec.entries,
+      { path: 'CON.txt', bytes: b('device') },
+      { path: 'Notes/Ideas.MD', bytes: b('twin of notes/ideas.md') },
+      { path: 'haunted.inf/x', bytes: b('file as folder') },
+      { path: 'tests', bytes: b('file where tests/ goes') },
+    ]
+    expect(await getExtrasStore().save('i6:haunted-house', rec)).toBe(true)
+    localStorage.setItem(KEY, JSON.stringify({
+      uploaded: [
+        up('aux', 'aux.h'), // written aux_.h (renamed)
+        up('aux_', 'sub/aux_.h'), // Include name aux_ again → left out (N-1)
+        up('con', 'con.h'), // written con_.h (renamed)
+        up('con_', 'con_.h'), // same path → left out
+        up('VerbLib', 'VerbLib.h'), // library name → left out
+        up('Lamp', 'Lamp.h'),
+        up('lamp', 'lamp.h'), // same path ignoring case → left out
+      ],
+      // Only left-out twins enabled (and Lamp): the kept files must not come back enabled (N-3).
+      enabled: ['uploaded:aux_', 'uploaded:con_', 'uploaded:Lamp'],
+    }))
+    await boot()
+
+    const { bytes, leftOut, renamed } = await useProjectPackage().buildPackage()
+    expect(leftOut).toEqual(['VerbLib.h', 'sub/aux_.h', 'con_.h', 'lamp.h', 'CON.txt', 'Notes/Ideas.MD', 'haunted.inf/x', 'tests'])
+    expect(renamed).toEqual([{ from: 'aux.h', to: 'aux_.h' }, { from: 'con.h', to: 'con_.h' }])
+    const back = await readProjectPackage(bytes)
+    expect(back.project.includes.map(i => i.path)).toEqual(['aux_.h', 'con_.h', 'Lamp.h'])
+    expect(back.project.includes.find(i => i.path === 'con_.h')!.text).toBe('! con\n')
+    expect(back.project.extensions).toContain('Lamp.h')
+    expect(back.project.extensions).not.toContain('aux_.h')
+    expect(back.project.extensions).not.toContain('con_.h')
+    await boot()
+    await expect(useProjectPackage().inspect(new File([bytes as Uint8Array<ArrayBuffer>], 'h.frotzsmith'))).resolves.toBeTruthy()
+    expect(localStorage.getItem(KEY)).toContain('sub/aux_.h') // nothing deleted
+  })
+})

@@ -186,7 +186,9 @@ export function useExtensions() {
         duration: 0,
       })
     } catch {
+      // Not shown: don't mark it told, so the next load tries again.
       console.warn(`[frotzsmith] ${note}`)
+      return
     }
     const ids = new Set(fresh.map(u => u.id))
     uploaded.value = uploaded.value.map(u => (ids.has(u.id) ? { ...u, libraryNoticed: true as const } : u))

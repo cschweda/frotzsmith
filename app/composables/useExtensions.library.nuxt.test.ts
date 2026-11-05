@@ -128,6 +128,19 @@ describe('restore — library-named uploads stored before the fix', () => {
     expect(_toastAdd).toHaveBeenCalledTimes(1)
   })
 
+  // Re-review N-5: only a notice actually raised counts as shown.
+  it('a toast that fails to show is tried again on the next load', () => {
+    _toastAdd.mockImplementationOnce(() => { throw new Error('no app context') })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const ext = useExtensions()
+    ext.restore()
+    expect(localStorage.getItem(KEY)).not.toContain('libraryNoticed')
+    ext.restore()
+    expect(_toastAdd).toHaveBeenCalledTimes(2)
+    expect(localStorage.getItem(KEY)).toContain('libraryNoticed')
+    warn.mockRestore()
+  })
+
   it('an explicit override is not affected', () => {
     localStorage.setItem(KEY, JSON.stringify({
       uploaded: [{ id: 'uploaded:VerbLib', name: 'VerbLib', title: 'VerbLib.h', content: '! mine', overridesLibrary: true }],

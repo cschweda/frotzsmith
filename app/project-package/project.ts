@@ -64,14 +64,18 @@ function checkText(path: string, text: string): void {
  * unsafe (`pathProblem`), when it collides ignoring case with one already
  * taken or kept, or when it is a file where another path needs a folder (or
  * the reverse). `taken` are paths already in the package; `folders` are folders
- * it will have (e.g. `tests`). Order wins: earlier items are kept first.
+ * it will have (e.g. `tests`). `sameAs`, when given, is a further key two
+ * kept items must not share (e.g. the Include name a reader mounts a `.h`
+ * under; null = no key). Order wins: earlier items are kept first.
  * Callers keep what is left out where it was (browser storage) and say so.
  */
 export function splitPackable<T extends { path: string }>(
   items: readonly T[],
   taken: readonly string[] = [],
   folders: readonly string[] = [],
+  sameAs?: (item: T) => string | null,
 ): { kept: T[]; leftOut: T[] } {
+  const extraKeys = new Set<string>()
   const fileKeys = new Set([pathKey(MANIFEST_NAME), pathKey('mimetype')])
   const folderKeys = new Set(folders.map(pathKey))
   const prefixKeys = (path: string) => {
@@ -92,7 +96,9 @@ export function splitPackable<T extends { path: string }>(
       !fileKeys.has(key) &&
       !folderKeys.has(key) &&
       !prefixKeys(item.path).some(k => fileKeys.has(k))
-    if (fits) {
+    const extra = fits && sameAs ? sameAs(item) : null
+    if (fits && (extra === null || !extraKeys.has(extra))) {
+      if (extra !== null) extraKeys.add(extra)
       take(item.path)
       kept.push(item)
     } else {

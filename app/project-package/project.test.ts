@@ -444,6 +444,15 @@ describe('splitPackable', () => {
     expect(r.kept.map(i => i.path)).toEqual(['Notes.md'])
     expect(r.leftOut.map(i => i.path)).toEqual(['notes.MD', 'G.INF', 'Frotzsmith.json'])
   })
+  it('leaves out a later item sharing a further key (sameAs), and skips items without one', () => {
+    const key = (i: { path: string }) => (i.path.endsWith('.h') ? i.path.slice(i.path.lastIndexOf('/') + 1, -2) : null)
+    const r = splitPackable(items('aux_.h', 'sub/aux_.h', 'a.md', 'b/a.md', 'x.h'), [], [], key)
+    expect(r.kept.map(i => i.path)).toEqual(['aux_.h', 'a.md', 'b/a.md', 'x.h'])
+    expect(r.leftOut.map(i => i.path)).toEqual(['sub/aux_.h'])
+    // A first item refused by path doesn't claim its key.
+    expect(splitPackable(items('CON/x.h', 'ok/x.h'), [], [], key).kept.map(i => i.path)).toEqual(['ok/x.h'])
+  })
+
   it('leaves out a file where a folder is needed, and the reverse', () => {
     const r = splitPackable(items('art', 'art/x.png', 'tests', 'g.inf/z'), ['g.inf'], ['tests'])
     expect(r.kept.map(i => i.path)).toEqual(['art'])

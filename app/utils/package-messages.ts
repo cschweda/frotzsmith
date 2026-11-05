@@ -49,6 +49,20 @@ export function downloadedNote(hidden: readonly string[], leftOut: readonly stri
   return notes.length ? notes.join(' ') : null
 }
 
+/** The download toast's note for uploads saved under a new name (a Windows
+ *  device name gets `_`): their Include line needs updating after reopening. */
+export function renamedNote(renamed: readonly { from: string; to: string }[]): string | null {
+  const n = renamed.length
+  if (n === 0) return null
+  const q = (s: string) => `“${displayPath(s)}”`
+  if (n === 1) {
+    return `${q(renamed[0]!.from)} is saved as ${q(renamed[0]!.to)} — Windows can’t hold that name; update its Include line after reopening.`
+  }
+  const shown = renamed.slice(0, 5).map(r => `${q(r.from)} as ${q(r.to)}`).join(', ')
+  const more = n > 5 ? ` and ${n - 5} more` : ''
+  return `${n} extensions are saved under names Windows can hold (${shown}${more}); update their Include lines after reopening.`
+}
+
 /** The one-time note for uploads stored before audit F1 that are named like
  *  a library file: the library now wins, so they aren't used. Null when none. */
 export function libraryNamedNote(files: readonly string[]): string | null {

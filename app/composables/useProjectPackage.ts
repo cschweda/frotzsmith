@@ -162,12 +162,13 @@ export function useProjectPackage() {
 
   /** The manifest `extensions` list: the opened order kept, unknown names kept
    *  in place, names disabled since dropped, newly enabled ones appended.
-   *  `written` are the include paths actually in the package. */
-  function extensionNames(extras: ProjectExtras | null, written: ReadonlySet<string>): string[] {
+   *  `writtenIds` are the uploads actually written — by identity, not path,
+   *  so a left-out twin's enabled state never passes to the file kept. */
+  function extensionNames(extras: ProjectExtras | null, writtenIds: ReadonlySet<string>): string[] {
     const enabled =
       profile.value.id === 'i6'
         ? extensions.all.value
-            .filter(e => extensions.isEnabled(e.id) && (e.origin === 'bundled' || written.has(includePathOf(e))))
+            .filter(e => extensions.isEnabled(e.id) && (e.origin === 'bundled' || writtenIds.has(e.id)))
             .map(e => (e.origin === 'bundled' ? e.name : includePathOf(e)))
         : []
     const keep = new Set([...enabled, ...(extras?.extensions?.unknown ?? [])])
@@ -182,8 +183,16 @@ export function useProjectPackage() {
    * hidden files whose names an older Frotzsmith accepted (review I-2/m-6).
    * They are never deleted; the download just goes without them, so it
    * always reopens.
+   * `renamed`: uploads written under another name than their own (a Windows
+   * device name gets `_`), so their Include name changes on reopening.
    */
-  async function buildPackage(): Promise<{ bytes: Uint8Array; filename: string; hidden: string[]; leftOut: string[] }> {
+  async function buildPackage(): Promise<{
+    bytes: Uint8Array
+    filename: string
+    hidden: string[]
+    leftOut: string[]
+    renamed: { from: string; to: string }[]
+  }> {
     const lang = profile.value.id
     const key = extrasKey()
     const filename = `${ide.storyBase.value}.frotzsmith`
@@ -191,7 +200,10 @@ export function useProjectPackage() {
     const text = ide.source.value
     const target = TARGETS.includes(ide.targetMode.value) ? (ide.targetMode.value as Target) : 'auto'
     const library = ide.profileMode.value
-    const uploads = lang === 'i6' ? extensions.uploaded.value.map(u => ({ path: includePathOf(u), text: u.content })) : []
+    const uploads =
+      lang === 'i6'
+        ? extensions.uploaded.value.map(u => ({ path: includePathOf(u), text: u.content, id: u.id, name: u.name, title: u.title }))
+        : []
     const scripts = testScripts.scripts.value.map(s => ({ name: s.name, text: s.text }))
     const tree = skein.tree.value
 
@@ -206,14 +218,19 @@ export function useProjectPackage() {
 
     // Leave out what the reader would refuse (it stays where it is): an
     // upload named like a library file, then any include or hidden file
-    // whose name is unsafe or collides with one already in the package.
+    // whose name is unsafe or collides with one already in the package —
+    // by path, or (includes) by the Include name a reader mounts it under.
     const libraryNamed = uploads.filter(u => libraryFileFor(u.path) !== null)
-    const fit = splitPackable(
+    type Upload = (typeof uploads)[number]
+    const fit = splitPackable<Upload | { path: string; bytes: Uint8Array }>(
       [...uploads.filter(u => libraryFileFor(u.path) === null), ...(extras?.entries ?? [])],
       [main],
       scripts.length > 0 ? ['tests'] : [],
+      f => ('text' in f ? includeNameOf(f.path) : null),
     )
-    const includes = fit.kept.filter((f): f is { path: string; text: string } => 'text' in f)
+    const kept = fit.kept.filter((f): f is Upload => 'text' in f)
+    const includes = kept.map(u => ({ path: u.path, text: u.text }))
+    const renamed = kept.filter(u => includeNameOf(u.path) !== u.name).map(u => ({ from: u.title, to: u.path }))
     const opaque = fit.kept.filter((f): f is { path: string; bytes: Uint8Array } => 'bytes' in f)
     const leftOut = [...libraryNamed, ...fit.leftOut].map(f => f.path)
     const skeinPath =
@@ -240,7 +257,7 @@ export function useProjectPackage() {
       language: lang,
       main: { name: main, text },
       includes,
-      extensions: extensionNames(extras, new Set(includes.map(i => i.path))),
+      extensions: extensionNames(extras, new Set(kept.map(u => u.id))),
       tests,
       // A root-only tree is "no Skein yet".
       skein: countNodes(tree) > 0 ? tree : null,
@@ -258,7 +275,7 @@ export function useProjectPackage() {
     })
     // The writer drops compiled stories; everything else opaque goes back in.
     const hidden = snapshot.opaque.map(f => f.path).filter(path => !COMPILED.test(path))
-    return { bytes, filename, hidden, leftOut }
+    return { bytes, filename, hidden, leftOut, renamed }
   }
 
   /**

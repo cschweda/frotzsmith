@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PackageError } from '~/project-package/errors'
 import { ZipLimitError } from '~/utils/zip-limits'
-import { DOWNLOAD_FAILED, OPEN_FAILED, downloadedNote, joinPhrases, libraryNamedNote, openDialogNotes, openedNotes, refusalSentence } from './package-messages'
+import { DOWNLOAD_FAILED, OPEN_FAILED, downloadedNote, renamedNote, joinPhrases, libraryNamedNote, openDialogNotes, openedNotes, refusalSentence } from './package-messages'
 
 describe('refusalSentence', () => {
   it('shows a PackageError sentence as is (download)', () => {
@@ -126,5 +126,21 @@ describe('libraryNamedNote', () => {
     expect(libraryNamedNote(['VerbLib.h', 'Parser.h'])).toBe(
       '“VerbLib.h”, “Parser.h” have the same names as library files, so they no longer replace the standard library and aren’t used when you compile. They stay in this browser but are left out of project downloads; to use them, upload them again under other names.',
     )
+  })
+})
+
+// Re-review N-2: a device-named upload saved under another name is said so.
+describe('renamedNote', () => {
+  it('names each rename in one plain sentence, capped', () => {
+    expect(renamedNote([])).toBeNull()
+    expect(renamedNote([{ from: 'aux.h', to: 'aux_.h' }])).toBe(
+      '“aux.h” is saved as “aux_.h” — Windows can’t hold that name; update its Include line after reopening.',
+    )
+    expect(renamedNote([{ from: 'aux.h', to: 'aux_.h' }, { from: 'nul', to: 'nul_.h' }])).toBe(
+      '2 extensions are saved under names Windows can hold (“aux.h” as “aux_.h”, “nul” as “nul_.h”); update their Include lines after reopening.',
+    )
+    const many = Array.from({ length: 7 }, (_, i) => ({ from: `com${i}.h`, to: `com${i}_.h` }))
+    expect(renamedNote(many)).toMatch(/“com4\.h” as “com4_\.h” and 2 more\);/)
+    expect(renamedNote([{ from: 'a\u202eb.h', to: 'x_.h' }])).toContain('“a\ufffdb.h”')
   })
 })

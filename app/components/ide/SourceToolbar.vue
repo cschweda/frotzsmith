@@ -2,7 +2,7 @@
 import type { ProfileId } from '~/modules/inform6/profiles'
 import type { PendingOpen } from '~/composables/useProjectPackage'
 import { formatNameList, mismatchNames } from '~/utils/mismatch-list'
-import { DOWNLOAD_FAILED, OPEN_FAILED, downloadedNote, openDialogNotes, openedNotes, refusalSentence } from '~/utils/package-messages'
+import { DOWNLOAD_FAILED, OPEN_FAILED, downloadedNote, openDialogNotes, openedNotes, refusalSentence, renamedNote } from '~/utils/package-messages'
 import { isPristine } from '~/utils/pristine'
 
 const { source, storyBase, loadOpenedFile, newProject } = useIde()
@@ -162,7 +162,7 @@ function onCancelOpen() {
 
 async function downloadProject() {
   try {
-    const { bytes, filename, hidden, leftOut } = await pkg.buildPackage()
+    const { bytes, filename, hidden, leftOut, renamed } = await pkg.buildPackage()
     const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/vnd.frotzsmith.package+zip' }))
     const a = document.createElement('a')
     a.href = url
@@ -171,12 +171,13 @@ async function downloadProject() {
     setTimeout(() => URL.revokeObjectURL(url), 30_000)
     // Files the IDE doesn't show still ride along: say which (F15). Files
     // the package can't hold stay in the browser: say which (review I-2).
-    const note = downloadedNote(hidden, leftOut)
+    // Renamed uploads need their Include line updated (re-review N-2).
+    const note = [downloadedNote(hidden, leftOut), renamedNote(renamed)].filter(Boolean).join(' ')
     if (note) {
       toast.add({
         title: 'Project downloaded',
         description: note,
-        color: leftOut.length > 0 ? 'warning' : 'neutral',
+        color: leftOut.length > 0 || renamed.length > 0 ? 'warning' : 'neutral',
         icon: 'i-lucide-package',
       })
     }
