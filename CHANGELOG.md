@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Changed — 2026-11-05 Mingus I
+- **Mingus I's empire now has a name:** the Mingan Ascendancy, in both the Inform 6 and ZIL samples and in the lore.
+
 ### Added — 2026-11-05 Solutions
 - **Every game can have a solution:** the game told as it plays — the
   opening, then each `> command` and the game's full reply — made by
