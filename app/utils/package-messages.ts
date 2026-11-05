@@ -116,3 +116,9 @@ export function joinPhrases(items: readonly string[]): string {
   if (items.length <= 1) return items.join('')
   return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
 }
+
+/** What a plain open or a share link would take from a ZIL project with extra
+ *  files: “the project’s other .zil file” / “the project’s 3 other .zil files”. */
+export function otherZilFilesPhrase(count: number): string {
+  return count === 1 ? 'the project’s other .zil file' : `the project’s ${count} other .zil files`
+}

@@ -3,9 +3,8 @@ import type { ProfileId } from '~/modules/inform6/profiles'
 import type { PendingOpen } from '~/composables/useProjectPackage'
 import { formatNameList, mismatchNames } from '~/utils/mismatch-list'
 import { DOWNLOAD_FAILED, OPEN_FAILED, downloadedNote, openDialogNotes, openedNotes, refusalSentence, renamedNote } from '~/utils/package-messages'
-import { isPristine } from '~/utils/pristine'
 
-const { source, storyBase, loadOpenedFile, newProject } = useIde()
+const { source, storyBase, newProject } = useIde()
 const { togglePanel, panelOpen } = useProjectFiles()
 const { profile } = useLanguage()
 const { copyShareLink } = useShareLink()
@@ -50,29 +49,19 @@ function onFileChange(event: Event) {
   input.value = '' // allow re-opening the same file later
 }
 
-// A plain source file replaces the editor's text: ask first unless the
-// editor holds nothing the author wrote (or the same text).
-const pendingPlain = shallowRef<{ name: string; text: string } | null>(null)
-const confirmPlain = ref(false)
+// A plain source file replaces the editor's text (and a ZIL project's other
+// .zil files): ask first unless none of that is the author's work.
+const plain = usePlainOpen()
+const { pending: pendingPlain, confirm: confirmPlain } = plain
 function openPlain(name: string, text: string) {
-  if (isPristine(source.value) || text === source.value) {
-    loadOpenedFile(text) // outside source: no Skein auto-run until Play/Run
-    void focusOpen()
-    return
-  }
-  pendingPlain.value = { name, text }
-  confirmPlain.value = true
+  if (plain.request(name, text) === 'opened') void focusOpen()
 }
 function onReplacePlain() {
-  const p = pendingPlain.value
-  confirmPlain.value = false
-  pendingPlain.value = null
-  if (p) loadOpenedFile(p.text)
+  plain.replace()
   void focusOpen()
 }
 function onCancelPlain() {
-  confirmPlain.value = false
-  pendingPlain.value = null
+  plain.cancel()
   void focusOpen()
 }
 
@@ -292,8 +281,8 @@ async function saveAs() {
       v-model:open="confirmPlain"
       :title="pendingPlain?.name ?? ''"
       :replaces="['the source in the editor']"
-      heading="Replace the source in the editor?"
-      description="Opening this file replaces the source in the editor."
+      :heading="plain.heading.value"
+      :description="plain.description.value"
       confirm-label="Replace"
       @replace="onReplacePlain"
       @cancel="onCancelPlain"

@@ -131,14 +131,45 @@ describe('copyShareLink', () => {
 })
 
 describe('consumeShareFragment — extra ZIL files', () => {
-  it('a share-link load clears the open project\'s extra files', () => {
+  type Toast = { description: string; actions?: Array<{ onClick: () => void }> }
+  beforeEach(() => {
+    vi.clearAllMocks()
     localStorage.clear()
     _profile.value = { id: 'zil', route: '/zil', stateKey: 'zil' }
     _source.value = ''
-    useZilProjectFiles().replaceAll([{ path: 'rooms.zil', text: 'R' }], 'story.zil')
+    useZilProjectFiles().replaceAll([{ path: 'rooms.zil', text: 'R' }, { path: 'items.zil', text: 'I' }], 'story.zil')
     setHash(encodeShareFragment('<ROUTINE GO () <CRLF>>', 'zil')!)
+  })
+
+  it('over a pristine main with extra files: asks first, and says the other .zil files go', () => {
     expect(useShareLink().consumeShareFragment()).toBe(true)
+    expect(_loadSource).not.toHaveBeenCalled()
+    expect(useZilProjectFiles().files.value).toHaveLength(2)
+    const t = _toastAdd.mock.calls[0]![0] as Toast
+    expect(t.description).toBe('Loading it replaces the source in the editor and removes the project’s 2 other .zil files, so nothing was replaced yet.')
+    expect(t.actions?.length).toBe(1)
+  })
+
+  it('dismissing the offer keeps the extra files', () => {
+    useShareLink().consumeShareFragment()
+    // no click on the action
+    expect(useZilProjectFiles().files.value).toHaveLength(2)
+    expect(_loadSource).not.toHaveBeenCalled()
+  })
+
+  it('Replace editor contents loads the source and clears the extra files', () => {
+    useShareLink().consumeShareFragment()
+    const t = _toastAdd.mock.calls[0]![0] as Toast
+    t.actions![0]!.onClick()
+    expect(_loadSource).toHaveBeenCalledWith('<ROUTINE GO () <CRLF>>')
     expect(useZilProjectFiles().files.value).toEqual([])
+  })
+
+  it('over real work with extra files, the offer names them too', () => {
+    _source.value = '<ROUTINE GO () <TELL "mine">>'
+    useShareLink().consumeShareFragment()
+    const t = _toastAdd.mock.calls[0]![0] as Toast
+    expect(t.description).toContain('removes the project’s 2 other .zil files')
   })
 })
 
