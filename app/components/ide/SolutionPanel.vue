@@ -120,21 +120,14 @@ async function onFile(e: Event) {
                 Download
               </UButton>
               <UButton size="xs" color="neutral" variant="subtle" icon="i-lucide-file-up" @click="fileInput?.click()">Load file…</UButton>
-              <UButton
-                v-if="tab.sampleText.value === null && !tab.sampleBusy.value"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-refresh-cw"
-                @click="onShow"
-              >
-                Make it
+              <UButton v-if="tab.sampleMessage.value" size="xs" color="neutral" variant="ghost" icon="i-lucide-refresh-cw" @click="onShow">
+                Try again
               </UButton>
             </div>
           </div>
           <p class="text-muted text-xs">Make it my solution to edit it; or press Record to play the game through yourself.</p>
           <p v-if="tab.sampleEdited.value" class="text-muted text-xs">You’ve edited this sample, so its solution shows your edited game.</p>
-          <p v-if="tab.sampleBusy.value" class="text-muted text-xs" role="status">Making the sample’s solution…</p>
+          <p v-if="tab.sampleBusy.value" class="text-muted text-xs" role="status">{{ tab.sampleBusyText.value }}</p>
           <p v-if="tab.sampleMessage.value" class="text-error text-xs" role="status">{{ tab.sampleMessage.value }}</p>
           <p v-if="tab.sampleNote.value" class="text-muted text-xs">{{ tab.sampleNote.value }}</p>
           <SolutionTextBlock v-if="tab.sampleText.value !== null" :text="tab.sampleText.value" label="This game’s solution, from the sample" />
@@ -175,8 +168,11 @@ async function onFile(e: Event) {
             </UButton>
             <template v-if="showOriginal">
               <p v-if="tab.sampleEdited.value" class="text-muted text-xs">You’ve edited this sample, so its solution shows your edited game.</p>
-              <p v-if="tab.sampleBusy.value" class="text-muted text-xs" role="status">Making the sample’s solution…</p>
-              <p v-if="tab.sampleMessage.value" class="text-error text-xs" role="status">{{ tab.sampleMessage.value }}</p>
+              <p v-if="tab.sampleBusy.value" class="text-muted text-xs" role="status">{{ tab.sampleBusyText.value }}</p>
+              <p v-if="tab.sampleMessage.value" class="text-error text-xs" role="status">
+                {{ tab.sampleMessage.value }}
+                <UButton size="xs" color="neutral" variant="link" @click="onShow">Try again</UButton>
+              </p>
               <SolutionTextBlock v-if="tab.sampleText.value !== null" :text="tab.sampleText.value" label="The sample’s original solution" />
             </template>
           </div>

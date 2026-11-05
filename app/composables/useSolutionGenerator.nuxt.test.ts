@@ -161,6 +161,7 @@ describe('useSolutionGenerator — generate', () => {
     const second = gen.generate(['north', 'south'])
     const [a, b] = await Promise.all([first, second])
     expect(a).toMatchObject({ ok: false, superseded: true })
+    expect(a).not.toHaveProperty('moved') // replaced by a newer call, not by a different source
     expect(_cancels.at(-2)).toHaveBeenCalled() // the first replay's worker was stopped
     expect(b.ok).toBe(true)
     if (b.ok) expect(solutionCommands(b.text)).toEqual(['north', 'south'])
@@ -186,7 +187,7 @@ describe('useSolutionGenerator — generate', () => {
     useIde().loadSource('Constant Story "Other";\n')
     _cancels.at(-1)!() // a new source stops nothing by itself; settle the hung replay
     const r = await pending
-    expect(r).toMatchObject({ ok: false, superseded: true })
+    expect(r).toMatchObject({ ok: false, superseded: true, moved: true })
   })
 
   it('a source from outside (package, link, opened file) is not replayed until the author plays it (F2)', async () => {
