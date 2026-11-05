@@ -6,8 +6,10 @@
 
 /** One solution may be at most 1 MiB (UTF-16 length). */
 export const SOLUTION_MAX = 1024 * 1024
-/** All solutions together may be at most 4 MiB (UTF-16 length). */
-export const SOLUTION_STORE_MAX = 4 * 1024 * 1024
+/** All solutions together may be at most 2 MiB (UTF-16 length). The store
+ *  shares the origin's ~5 MiB localStorage with source autosave, test
+ *  scripts and the rest, so it keeps well under half of it. */
+export const SOLUTION_STORE_MAX = 2 * 1024 * 1024
 
 /** The solution text: header, the opening, then each command and its reply. */
 export function formatSolution(
@@ -46,7 +48,7 @@ export function planSolution(text: string, otherTotal: number): { ok: true } | {
     return { ok: false, message: 'That solution is over 1 MiB, which is more than Frotzsmith keeps for one game.' }
   }
   if (text.length + otherTotal > SOLUTION_STORE_MAX) {
-    return { ok: false, message: 'Frotzsmith already holds 4 MiB of solutions in this browser, so clear another game’s solution first.' }
+    return { ok: false, message: 'Frotzsmith already holds 2 MiB of solutions in this browser, so clear another game’s solution first.' }
   }
   return { ok: true }
 }

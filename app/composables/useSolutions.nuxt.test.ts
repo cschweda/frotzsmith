@@ -88,10 +88,11 @@ describe('useSolutions', () => {
     const r = s.set('x'.repeat(1024 * 1024 + 1))
     expect(r.ok).toBe(false)
     expect(s.text.value).toBe('small')
-    // total cap: fill other games to ~4 MiB
-    for (const k of ['a', 'b', 'c']) { storyKey().value = k; expect(s.set('y'.repeat(1024 * 1024)).ok).toBe(true) }
-    storyKey().value = 'd'
-    expect(s.set('y'.repeat(1024 * 1024)).ok).toBe(false) // 3 MiB elsewhere plus 1 MiB is over 4 MiB with game1
+    // total cap: fill other games to ~2 MiB
+    storyKey().value = 'a'
+    expect(s.set('y'.repeat(1024 * 1024)).ok).toBe(true)
+    storyKey().value = 'b'
+    expect(s.set('y'.repeat(1024 * 1024)).ok).toBe(false) // 1 MiB elsewhere plus 1 MiB is over 2 MiB with game1
   })
 
   it('edit changes memory at once and persists after a pause', () => {

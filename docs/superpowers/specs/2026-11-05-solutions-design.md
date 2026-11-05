@@ -79,7 +79,7 @@ The author's later message: "add a **pause** button — pause pauses the recordi
 ## The solution file
 
 - **One per game,** keyed like test scripts and the Skein (language + story key), in localStorage `frotzsmith:<lang>:solutions` → `{ v: 1, buckets: { [storyKey]: { text } } }`. It uses a null-prototype object (see the 2026-11-04 audit, F7) and writes through `safeSetItem` + `notifyStorageFull`.
-- **Caps (builder's call):** 1 MiB per solution and 4 MiB for the whole store (UTF-16 length). Recording or Regenerate that would exceed a cap is refused with one plain sentence.
+- **Caps (builder's call):** 1 MiB per solution and 2 MiB for the whole store (UTF-16 length; 2 MiB because the store shares the origin's ~5 MiB localStorage with source autosave). Recording or Regenerate that would exceed a cap is refused with one plain sentence.
 - **Left pane:** when the game has a solution, the explorer lists **`solution.txt`** under the project files (both languages), with tab id `solution`. It is editable. Edits save through the same debounced autosave pattern ZIL extra files use, so memory updates at once and persistence is debounced.
 - **Lifecycle:** follows the game. A new or loaded game uses its own bucket, so nothing is cleared across games. Clear asks first.
 

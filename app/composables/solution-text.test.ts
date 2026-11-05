@@ -32,7 +32,10 @@ describe('planSolution', () => {
     const r = planSolution('x'.repeat(SOLUTION_MAX + 1), 0)
     expect(r.ok).toBe(false)
   })
-  it('refuses a total over 4 MiB', () => {
+  it('refuses a total over 2 MiB', () => {
+    // 2 MiB, not more: the store shares the ~5 MiB origin quota with source autosave.
+    expect(SOLUTION_MAX).toBe(1024 * 1024)
+    expect(SOLUTION_STORE_MAX).toBe(2 * 1024 * 1024)
     expect(planSolution('xx', SOLUTION_STORE_MAX - 2)).toEqual({ ok: true })
     const r = planSolution('xxx', SOLUTION_STORE_MAX - 2)
     expect(r.ok).toBe(false)

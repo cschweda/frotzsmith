@@ -28,7 +28,7 @@
   - The store lives in localStorage at `frotzsmith:<lang>:solutions` → `{ v: 1, buckets: { [storyKey]: { text: string } } }`.
   - The buckets are null-prototype and read with `Object.hasOwn`.
   - Writes go through `safeSetItem` + `notifyStorageFull` and never throw.
-- **Caps:** 1 MiB per solution and 4 MiB for the store, by UTF-16 length. A refusal is one plain sentence.
+- **Caps:** 1 MiB per solution and 2 MiB for the store, by UTF-16 length (the store shares the origin's ~5 MiB localStorage with source autosave). A refusal is one plain sentence.
 - **Spoiler guard:** the solution text is never shown until the author presses **Show solution**.
 - **No silent replacement:** nothing replaces an existing solution without asking. That covers Record over an existing solution, Make it my solution, and opening a package that carries one.
 - **Recording restarts Play from the beginning.**
@@ -69,7 +69,7 @@
 - [ ] **Step 1: Write the tests first (they fail).**
   - The `formatSolution` output matches the exact header and format.
   - `solutionCommands` round-trips `formatSolution`, ignores `>` mid-line, and handles CRLF.
-  - Cap refusals: 1 MiB + 1, and a total over 4 MiB.
+  - Cap refusals: 1 MiB + 1, and a total over 2 MiB.
   - The store keeps one solution per story key, survives a reload, and is prototype-free (a game titled "constructor" works).
   - When storage is full the text stays in memory and the cue fires once.
 - [ ] **Step 2: Implement.** **Step 3: Run the gates.** **Step 4: Commit** `feat(solutions): solution text format and per-game store`.

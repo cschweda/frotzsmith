@@ -1136,8 +1136,8 @@ describe('useProjectPackage — the solution travels with the project', () => {
 
   it('a solution the store cannot hold refuses the open whole, and nothing changes', async () => {
     const ide = await boot()
-    // Fill the 4 MiB store with other games' solutions.
-    for (const t of ['A', 'B', 'C', 'D']) {
+    // Fill the 2 MiB store with other games' solutions.
+    for (const t of ['A', 'B']) {
       ide.loadSource(`Constant Story "${t}";\n`)
       expect(useSolutions().set('x'.repeat(1024 * 1024)).ok).toBe(true)
     }
@@ -1146,7 +1146,7 @@ describe('useProjectPackage — the solution travels with the project', () => {
     const before = ideState()
     const pkg = useProjectPackage()
     const file = await fileOf({ ...richSnapshot(), includes: [], extensions: [], solution: SOL })
-    await expect(pkg.inspect(file)).rejects.toThrow(/4 MiB of solutions/)
+    await expect(pkg.inspect(file)).rejects.toThrow(/2 MiB of solutions/)
     const read = await readProjectPackage(new Uint8Array(await file.arrayBuffer()))
     const forged = { ...read, hiddenCount: 0, hiddenNames: [], extensions: [], sourceFiles: [], solution: true }
     await expect(pkg.apply(forged)).rejects.toThrow(PackageError)
