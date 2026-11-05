@@ -37,6 +37,13 @@ function onCancel() {
   confirm.value = null
 }
 
+/** "The sample's original solution", collapsed while the game has its own. */
+const showOriginal = ref(false)
+async function onToggleOriginal() {
+  showOriginal.value = !showOriginal.value
+  if (showOriginal.value && tab.sampleText.value === null && !tab.sampleBusy.value) await tab.showSolution()
+}
+
 async function onShow() {
   message.value = null
   await tab.showSolution()
@@ -100,40 +107,44 @@ async function onFile(e: Event) {
       </div>
 
       <template v-else>
-        <!-- The bundled sample's solution -->
-        <section v-if="loadedSampleId && tab.hasSampleWalkthrough.value" aria-labelledby="solution-sample-h" class="space-y-2">
+        <!-- A sample with no solution of its own: the sample's solution IS the game's -->
+        <section v-if="tab.mode.value === 'sample'" aria-labelledby="solution-own-h" class="space-y-2">
           <div class="flex flex-wrap items-center gap-2">
-            <h2 id="solution-sample-h" class="text-sm font-semibold">The sample’s solution</h2>
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="subtle"
-              icon="i-lucide-copy-plus"
-              :disabled="tab.sampleText.value === null || recording"
-              @click="onAdopt"
-            >
-              Make it my solution
-            </UButton>
-            <UButton
-              v-if="tab.sampleText.value === null && !tab.sampleBusy.value"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-refresh-cw"
-              @click="onShow"
-            >
-              Make it
-            </UButton>
+            <h2 id="solution-own-h" class="text-sm font-semibold">This game’s solution <span class="text-muted font-normal">(from the sample)</span></h2>
+            <div class="flex flex-wrap items-center gap-1">
+              <UButton size="xs" color="neutral" variant="subtle" icon="i-lucide-copy-plus" :disabled="tab.sampleText.value === null" @click="onAdopt">
+                Make it my solution
+              </UButton>
+              <UButton size="xs" color="neutral" variant="subtle" icon="i-lucide-clipboard-copy" :disabled="tab.sampleText.value === null" @click="onCopy">Copy</UButton>
+              <UButton size="xs" color="neutral" variant="subtle" icon="i-lucide-download" :disabled="tab.sampleText.value === null" :title="`Download ${tab.downloadName.value}`" @click="tab.download()">
+                Download
+              </UButton>
+              <UButton size="xs" color="neutral" variant="subtle" icon="i-lucide-file-up" @click="fileInput?.click()">Load file…</UButton>
+              <UButton
+                v-if="tab.sampleText.value === null && !tab.sampleBusy.value"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-refresh-cw"
+                @click="onShow"
+              >
+                Make it
+              </UButton>
+            </div>
           </div>
+          <p class="text-muted text-xs">Make it my solution to edit it; or press Record to play the game through yourself.</p>
           <p v-if="tab.sampleEdited.value" class="text-muted text-xs">You’ve edited this sample, so its solution shows your edited game.</p>
           <p v-if="tab.sampleBusy.value" class="text-muted text-xs" role="status">Making the sample’s solution…</p>
           <p v-if="tab.sampleMessage.value" class="text-error text-xs" role="status">{{ tab.sampleMessage.value }}</p>
           <p v-if="tab.sampleNote.value" class="text-muted text-xs">{{ tab.sampleNote.value }}</p>
-          <SolutionTextBlock v-if="tab.sampleText.value !== null" :text="tab.sampleText.value" label="The sample’s solution" />
+          <SolutionTextBlock v-if="tab.sampleText.value !== null" :text="tab.sampleText.value" label="This game’s solution, from the sample" />
+          <p class="text-muted text-xs">
+            The text comes from replaying the commands from the start, so where the game uses randomness it may differ from what you saw in Play.
+          </p>
         </section>
 
         <!-- This game's own solution -->
-        <section aria-labelledby="solution-own-h" class="space-y-2">
+        <section v-else aria-labelledby="solution-own-h" class="space-y-2">
           <div class="flex flex-wrap items-center gap-2">
             <h2 id="solution-own-h" class="text-sm font-semibold">This game’s solution</h2>
             <div class="flex flex-wrap items-center gap-1">
@@ -147,7 +158,6 @@ async function onFile(e: Event) {
               </UButton>
               <UButton size="xs" color="neutral" variant="subtle" icon="i-lucide-file-up" :disabled="recording" @click="fileInput?.click()">Load file…</UButton>
               <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-trash-2" :disabled="!has || recording" @click="onClear">Clear</UButton>
-              <input ref="fileInput" type="file" accept=".txt,text/plain" class="hidden" aria-hidden="true" tabindex="-1" @change="onFile" />
             </div>
           </div>
           <SolutionTextBlock v-if="tab.ownText.value !== null" :text="tab.ownText.value" :label="`Solution for ${title}`" />
@@ -157,7 +167,21 @@ async function onFile(e: Event) {
           <p class="text-muted text-xs">
             The text comes from replaying the commands from the start, so where the game uses randomness it may differ from what you saw in Play.
           </p>
+
+          <!-- A sample with its own solution: the original stays one click away -->
+          <div v-if="loadedSampleId && tab.hasSampleWalkthrough.value" class="space-y-2 border-t border-default pt-2">
+            <UButton size="xs" color="neutral" variant="link" :icon="showOriginal ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" :aria-expanded="showOriginal" @click="onToggleOriginal">
+              {{ showOriginal ? 'Hide' : 'Show' }} the sample’s original solution
+            </UButton>
+            <template v-if="showOriginal">
+              <p v-if="tab.sampleEdited.value" class="text-muted text-xs">You’ve edited this sample, so its solution shows your edited game.</p>
+              <p v-if="tab.sampleBusy.value" class="text-muted text-xs" role="status">Making the sample’s solution…</p>
+              <p v-if="tab.sampleMessage.value" class="text-error text-xs" role="status">{{ tab.sampleMessage.value }}</p>
+              <SolutionTextBlock v-if="tab.sampleText.value !== null" :text="tab.sampleText.value" label="The sample’s original solution" />
+            </template>
+          </div>
         </section>
+        <input ref="fileInput" type="file" accept=".txt,text/plain" class="hidden" aria-hidden="true" tabindex="-1" @change="onFile" />
       </template>
 
       <p v-if="message" class="text-muted text-xs" role="status" aria-live="polite">{{ message }}</p>
