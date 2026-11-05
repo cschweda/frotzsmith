@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Added — 2026-11-05 Mingus I: Elevated Returns (Inform 6 sample)
+- **A second longer sample game, for Inform 6.** *Mingus I: Elevated
+  Returns* is a crypto satire in three acts: 20 rooms, 10 puzzles and 5 lore
+  points, 60 in all. It targets z5 and loads exactly as written. Where The
+  Architect's Legacy shows how a big game is organised, Mingus shows how to
+  make a timed, deadly rule fair: on the Runout, the third turn without your
+  pike raised kills you, and the counter is printed every turn. A shared
+  walkthrough and a golden test check that the game can be won and that the
+  rule behaves exactly as designed. The ZIL version follows.
+
 ### Added — 2026-11-04 Multi-file ZIL projects
 - **A ZIL project can be several `.zil` files.** The main file pulls the
   others in with `<INSERT-FILE "rooms">`, and the browser compiles them

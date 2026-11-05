@@ -37,12 +37,12 @@ describe('sampleById', () => {
 // ---------------------------------------------------------------------------
 
 describe('SAMPLES registry', () => {
-  it('has exactly 22 samples (12 std + 10 puny)', () => {
-    expect(SAMPLES).toHaveLength(22)
+  it('has exactly 23 samples (13 std + 10 puny)', () => {
+    expect(SAMPLES).toHaveLength(23)
   })
 
-  it('has 12 std samples', () => {
-    expect(SAMPLES.filter(s => s.group === 'std')).toHaveLength(12)
+  it('has 13 std samples', () => {
+    expect(SAMPLES.filter(s => s.group === 'std')).toHaveLength(13)
   })
 
   it('has 10 puny samples', () => {
@@ -77,8 +77,8 @@ describe('SAMPLES registry', () => {
     expect(SAMPLES[0]!.id).toBe('std-skeleton')
   })
 
-  it('puny-skeleton is the 13th sample (first puny entry)', () => {
-    expect(SAMPLES[12]!.id).toBe('puny-skeleton')
+  it('puny-skeleton is the 14th sample (first puny entry)', () => {
+    expect(SAMPLES[13]!.id).toBe('puny-skeleton')
   })
 })
 
@@ -94,24 +94,27 @@ describe('SAMPLES – special cases', () => {
     expect(s!.target).toBe('z3')
   })
 
-  it('std-architect-legacy carries an explicit z5 target', () => {
-    expect(sampleById('std-architect-legacy')!.target).toBe('z5')
+  // The two longer games: Std-only, z5, and loaded byte-for-byte.
+  const LONGER_GAMES = ['std-architect-legacy', 'std-mingus-1']
+
+  it('the longer games carry an explicit z5 target', () => {
+    for (const id of LONGER_GAMES) expect(sampleById(id)!.target, id).toBe('z5')
   })
 
-  it('only std-architect-legacy opts out of load-time formatting', () => {
+  it('only the longer games opt out of load-time formatting', () => {
     const unformatted = SAMPLES.filter(s => s.format === false).map(s => s.id)
-    expect(unformatted).toEqual(['std-architect-legacy'])
+    expect(unformatted).toEqual(LONGER_GAMES)
   })
 
-  it('only puny-haunted-house and std-architect-legacy have an explicit target', () => {
+  it('only puny-haunted-house and the longer games have an explicit target', () => {
     const withTarget = SAMPLES.filter(s => s.target !== undefined).map(s => s.id)
-    expect(withTarget.sort()).toEqual(['puny-haunted-house', 'std-architect-legacy'])
+    expect(withTarget.sort()).toEqual(['puny-haunted-house', ...LONGER_GAMES].sort())
   })
 
-  it('each std sample has a matching puny counterpart (except std-list-exits, std-architect-legacy)', () => {
+  it('each std sample has a matching puny counterpart (except std-list-exits and the longer games)', () => {
     const stdIds = SAMPLES.filter(s => s.group === 'std').map(s => s.id)
     for (const id of stdIds) {
-      if (id === 'std-list-exits' || id === 'std-architect-legacy') continue
+      if (id === 'std-list-exits' || LONGER_GAMES.includes(id)) continue
       const punyId = id.replace(/^std-/, 'puny-')
       expect(sampleById(punyId)).toBeDefined()
     }
