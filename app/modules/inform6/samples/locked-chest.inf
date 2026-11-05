@@ -127,7 +127,7 @@ Object -> chest "wooden chest"
 ! ---------------------------------------------------------------------------
 Object -> -> coin "gold coin"
   with name 'gold' 'coin',
-       description "A gleaming gold coin — treasure at last!";
+       description "A gleaming gold coin -- treasure at last!";
 
 ! ---------------------------------------------------------------------------
 !  GRAMMAR — must be the LAST include in every Standard Library game

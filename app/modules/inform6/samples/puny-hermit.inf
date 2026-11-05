@@ -127,6 +127,7 @@ Object Hut "Hermit's Hut"
 ! ---------------------------------------------------------------------------
 Object -> hermit "old hermit"
   with name 'old' 'hermit' 'man',
+       article "an",      ! "an old hermit", not the library's default "a"
        description "Weathered and serene, the hermit watches you calmly.",
        life [;
            Ask, Tell, Answer:     ! ASK/TELL/ANSWER targeting the hermit

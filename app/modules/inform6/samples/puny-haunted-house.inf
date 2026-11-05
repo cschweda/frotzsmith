@@ -453,7 +453,6 @@ name "fire" "raging"
     ^^As you walk towards the entrance of the house, the wind grows distant and weak. 
     ^^Suddenly, the calm and silence is broken by sounds from within the house!"; ];
 
-[ DeathMessage; print "You have died."; ];
 
 
 

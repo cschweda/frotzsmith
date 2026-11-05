@@ -4,7 +4,7 @@
 !  How to add your own verbs. For each new verb you write an action routine
 !  named <Action>Sub, then a `Verb` directive mapping words + a syntax line to
 !  that action. `*` begins the syntax; `noun` matches an object.
-!  Try:  xyzzy,  rub lamp,  polish lamp
+!  Try:  xyzzy,  incant lamp,  invoke lamp
 ! ----------------------------------------------------------------------------
 !  KEY CONCEPTS IN THIS FILE
 !  --------------------------

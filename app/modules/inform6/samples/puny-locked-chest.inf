@@ -119,7 +119,7 @@ Object -> chest "wooden chest"
 ! ---------------------------------------------------------------------------
 Object -> -> coin "gold coin"
   with name 'gold' 'coin',
-       description "A gleaming gold coin — treasure at last!";
+       description "A gleaming gold coin -- treasure at last!";
 
 ! ---------------------------------------------------------------------------
 !  INITIALISE ROUTINE

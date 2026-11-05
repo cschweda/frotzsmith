@@ -45,7 +45,7 @@ Object Booth "Fortune Booth"
 ! natural phrasings: SHAKE BALL, SHAKE 8-BALL, SHAKE EIGHTBALL, ROLL BALL…
 ! ---------------------------------------------------------------------------
 Object -> eightball "Magic 8-Ball"
-  with name 'magic' '8-ball' 'eight' 'ball' '8' 'eightball',
+  with name 'magic' '8-ball' 'eight' 'ball' '8//' 'eightball',
        description "A glossy black sphere with a little window in the bottom.",
 
        ! -----------------------------------------------------------------------
