@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { runReplay } from './replayCore'
+import { ReplayRunError, runReplay } from './replayCore'
 import type { EngineTarget } from './StoryEngine'
 
 interface ReplayRequest {
@@ -16,6 +16,12 @@ self.onmessage = async (e: MessageEvent<ReplayRequest>) => {
     )
     self.postMessage({ type: 'result', turns: result.turns, ms: result.ms })
   } catch (err) {
-    self.postMessage({ type: 'error', message: err instanceof Error ? err.message : String(err) })
+    // The turns played before an engine error ride along, so a solution can
+    // keep the text so far.
+    self.postMessage({
+      type: 'error',
+      message: err instanceof Error ? err.message : String(err),
+      turns: err instanceof ReplayRunError ? err.turns : [],
+    })
   }
 }

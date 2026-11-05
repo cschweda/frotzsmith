@@ -305,6 +305,18 @@ describe('useProjectPackage — hidden files belong to the opened game only', ()
   })
 })
 
+describe('useProjectPackage — a package replaces a loaded sample (Solutions)', () => {
+  it('opening a package over a loaded sample clears loadedSampleId', async () => {
+    const ide = await boot()
+    await ide.loadSample('std-architect-legacy')
+    expect(ide.loadedSampleId.value).toBe('std-architect-legacy')
+    const pkg = useProjectPackage()
+    await pkg.apply(await pkg.inspect(await fileOf(richSnapshot())))
+    expect(useIde().loadedSampleId.value).toBeNull()
+    expect(useIde().sampleEdited.value).toBe(false)
+  })
+})
+
 describe('useProjectPackage — a package with no test scripts', () => {
   it("downloads with none, though the IDE shows its starter script", async () => {
     await boot()

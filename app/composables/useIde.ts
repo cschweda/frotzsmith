@@ -104,6 +104,29 @@ export function useIde() {
   // Send-to-Play: a parsed script queued to feed into the live Parchment game.
   const pendingScript = useState<string[] | null>('frotz:pending-script', () => null)
 
+  /** The bundled sample the editor holds, as `loadSample` put it in; null once
+   *  New, Open, a package, a share link or a language switch replaces it. */
+  const loadedSampleId = useState<string | null>('frotz:loaded-sample-id', () => null)
+  const loadedSampleSource = useState<string | null>('frotz:loaded-sample-source', () => null)
+  /** The loaded sample has been edited since it was loaded. */
+  const sampleEdited = computed(() => loadedSampleId.value !== null && source.value !== loadedSampleSource.value)
+
+  /** Everything a compile reads, as one string: equal keys mean equal builds. */
+  function buildInputKey(): string {
+    return JSON.stringify([
+      profile.value.id,
+      effectiveProfile.value,
+      effectiveExt.value,
+      source.value,
+      enabledFiles.value,
+      profile.value.id === 'zil' ? [zilFiles.files.value, zilFiles.mainPath.value] : null,
+    ])
+  }
+  /** The input key of the build in `result`, when that build succeeded. */
+  const builtInputKey = useState<string | null>('frotz:built-input-key', () => null)
+  /** The compiled story is a clean build of exactly what the editor holds now. */
+  const buildIsCurrent = computed(() => canPlay.value && builtInputKey.value === buildInputKey())
+
   /** Restore the persisted profile mode, then the source recovery snapshot. */
   function restore() {
     if (import.meta.client) {
@@ -164,6 +187,9 @@ export function useIde() {
     sourceGen.value += 1
     resetEphemeral()
     result.value = null
+    builtInputKey.value = null
+    loadedSampleId.value = null
+    loadedSampleSource.value = null
     status.value = 'idle'
     activeTab.value = 'results'
   }
@@ -191,12 +217,45 @@ export function useIde() {
   async function runCompile() {
     if (status.value === 'compiling') return
     if (import.meta.client && lastCompileEnd.value > 0 && performance.now() - lastCompileEnd.value < 500) return
+    await compileBuild()
+  }
+
+  /** Resolves once no compile is running. */
+  function whenNotCompiling(): Promise<void> {
+    if (status.value !== 'compiling') return Promise.resolve()
+    return new Promise(resolve => {
+      const stop = watch(status, s => {
+        if (s === 'compiling') return
+        stop()
+        resolve()
+      })
+    })
+  }
+
+  /** Make sure the compiled story matches the editor, compiling only when it
+   *  is stale (waiting for a compile already running first). Called from code,
+   *  not a click, so the queued-click debounce doesn't apply. A successful
+   *  compile keeps the right-pane tab; a failed one leaves Results showing
+   *  its errors. True when a current, playable build is in place. */
+  async function ensureBuild(): Promise<boolean> {
+    await whenNotCompiling()
+    if (buildIsCurrent.value) return true
+    const tab = activeTab.value
+    await compileBuild()
+    if (!buildIsCurrent.value) return false
+    activeTab.value = tab
+    return true
+  }
+
+  async function compileBuild() {
+    if (status.value === 'compiling') return
     status.value = 'compiling'
     // Fresh build → blank the prior game's artifacts (first room on next Play).
     resetEphemeral()
     activeTab.value = 'results'
     const pid = effectiveProfile.value
     const gen = sourceGen.value
+    const inputKey = buildInputKey()
     await nextPaint()
     const started = performance.now()
     // The source moved on while this compile ran: its result belongs to a
@@ -216,6 +275,7 @@ export function useIde() {
       })
       if (superseded()) return
       result.value = r
+      builtInputKey.value = r.ok ? inputKey : null
       usedProfile.value = pid
       status.value = r.ok ? 'success' : 'error'
     } catch (err: unknown) {
@@ -233,6 +293,7 @@ export function useIde() {
         ms: Math.round(performance.now() - started),
         byteLength: 0,
       }
+      builtInputKey.value = null
       usedProfile.value = pid
       status.value = 'error'
     } finally {
@@ -307,6 +368,7 @@ export function useIde() {
       releaseExtras()
       releaseZilFiles()
       useOutsideSource().trust() // the author's own choice of source (F2)
+      markLoadedSample(id)
       return
     }
     // I6 path.
@@ -330,6 +392,14 @@ export function useIde() {
     releaseExtras()
     releaseZilFiles()
     useOutsideSource().trust() // the author's own choice of source (F2)
+    markLoadedSample(id)
+  }
+
+  /** Remember which sample is in the editor and exactly what it loaded as.
+   *  Runs after resetForNewSource, which clears it for every other load. */
+  function markLoadedSample(id: string) {
+    loadedSampleId.value = id
+    loadedSampleSource.value = source.value
   }
 
   /** Load arbitrary source text (e.g. an opened .inf file) into the editor. */
@@ -413,7 +483,12 @@ export function useIde() {
     canPlay,
     playNonce,
     pendingScript,
+    sourceGen,
+    loadedSampleId,
+    sampleEdited,
+    buildIsCurrent,
     runCompile,
+    ensureBuild,
     jumpTo,
     format,
     setProfileMode,

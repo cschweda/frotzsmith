@@ -632,3 +632,124 @@ describe('useIde — the open ZIL project\'s extra files', () => {
     expect(ide.jumpSignal.value).toBe(before)
   })
 })
+
+describe('useIde — the loaded sample (Solutions)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    useLanguage().setLanguage('i6')
+  })
+
+  it('loadSample sets loadedSampleId; edits flip sampleEdited, undoing them flips it back', async () => {
+    const ide = useIde()
+    ide.newProject('std')
+    expect(ide.loadedSampleId.value).toBeNull()
+    expect(ide.sampleEdited.value).toBe(false)
+    await ide.loadSample('std-architect-legacy')
+    expect(ide.loadedSampleId.value).toBe('std-architect-legacy')
+    expect(ide.sampleEdited.value).toBe(false)
+    const loaded = ide.source.value
+    ide.source.value += '\n! a note'
+    expect(ide.sampleEdited.value).toBe(true)
+    ide.source.value = loaded
+    expect(ide.sampleEdited.value).toBe(false)
+  })
+
+  it('an unknown sample leaves the loaded sample as it was', async () => {
+    const ide = useIde()
+    await ide.loadSample('std-architect-legacy')
+    await ide.loadSample('no-such-sample')
+    expect(ide.loadedSampleId.value).toBe('std-architect-legacy')
+  })
+
+  it('New, Open and loadSource (share link, package) clear it', async () => {
+    const ide = useIde()
+    await ide.loadSample('std-architect-legacy')
+    ide.newProject('std')
+    expect(ide.loadedSampleId.value).toBeNull()
+    expect(ide.sampleEdited.value).toBe(false)
+
+    await ide.loadSample('std-architect-legacy')
+    ide.loadOpenedFile('Constant Story "From Disk";\n')
+    expect(ide.loadedSampleId.value).toBeNull()
+
+    await ide.loadSample('std-architect-legacy')
+    ide.loadSource('Constant Story "Shared";\n') // share link and package apply both load through this
+    expect(ide.loadedSampleId.value).toBeNull()
+  })
+
+  it('a ZIL sample sets it too, and a language switch clears it', async () => {
+    const ide = useIde()
+    ide.restore()
+    useLanguage().setLanguage('zil')
+    ide.restore()
+    await ide.loadSample('zil-architect-legacy')
+    expect(ide.loadedSampleId.value).toBe('zil-architect-legacy')
+    expect(ide.sampleEdited.value).toBe(false)
+    useLanguage().setLanguage('i6')
+    ide.restore()
+    expect(ide.loadedSampleId.value).toBeNull()
+  })
+})
+
+describe('useIde — buildIsCurrent / ensureBuild (compile only when stale)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    useLanguage().setLanguage('i6')
+    _compileMock.mockResolvedValue({
+      ok: true, storyFile: new Uint8Array([1, 2, 3]), storyExt: 'z5' as const,
+      diagnostics: [], rawStderr: '', ms: 1, byteLength: 3, stats: null,
+    })
+  })
+
+  it('is current after a compile, stale after an edit, and ensureBuild compiles only then', async () => {
+    const ide = useIde()
+    ide.loadSource('Constant Story "Fresh";\n')
+    expect(ide.buildIsCurrent.value).toBe(false)
+    expect(await ide.ensureBuild()).toBe(true)
+    expect(_compileMock).toHaveBeenCalledTimes(1)
+    expect(ide.buildIsCurrent.value).toBe(true)
+
+    expect(await ide.ensureBuild()).toBe(true)
+    expect(_compileMock).toHaveBeenCalledTimes(1) // already current: no compile
+
+    ide.source.value += '\n! edit'
+    expect(ide.buildIsCurrent.value).toBe(false)
+    // straight after a compile: the click debounce must not block this one
+    expect(await ide.ensureBuild()).toBe(true)
+    expect(_compileMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the right-pane tab when it compiles, and reports a failed build', async () => {
+    const ide = useIde()
+    ide.loadSource('Constant Story "Tabbed";\n')
+    ide.activeTab.value = 'map'
+    expect(await ide.ensureBuild()).toBe(true)
+    expect(ide.activeTab.value).toBe('map')
+
+    _compileMock.mockResolvedValue({
+      ok: false, storyExt: 'z5' as const, diagnostics: [{ severity: 'error', message: 'x' }],
+      rawStderr: '', ms: 1, byteLength: 0,
+    })
+    ide.source.value += '\n! broken'
+    expect(await ide.ensureBuild()).toBe(false)
+    expect(ide.buildIsCurrent.value).toBe(false)
+    expect(ide.activeTab.value).toBe('results') // the errors are shown
+  })
+
+  it('waits for a compile already running instead of starting another', async () => {
+    const ide = useIde()
+    ide.loadSource('Constant Story "Busy";\n')
+    let finish!: (v: unknown) => void
+    _compileMock.mockImplementationOnce(() => new Promise(r => { finish = r }))
+    const first = ide.runCompile()
+    await new Promise(r => setTimeout(r, 120)) // past nextPaint
+    expect(ide.status.value).toBe('compiling')
+    const ensured = ide.ensureBuild()
+    finish({ ok: true, storyFile: new Uint8Array([9]), storyExt: 'z5', diagnostics: [], rawStderr: '', ms: 1, byteLength: 1 })
+    await first
+    expect(await ensured).toBe(true)
+    expect(_compileMock).toHaveBeenCalledTimes(1)
+  })
+})
