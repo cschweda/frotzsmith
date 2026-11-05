@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { ZVM_F2_EDITS, unpatchVendoredZvm } from './vendored-zvm-patch.mjs'
 
 const root = resolve(__dirname, '..')
 const manifest = JSON.parse(readFileSync(resolve(__dirname, 'vendored-files.json'), 'utf8')) as {
@@ -36,14 +37,8 @@ describe('vendored files', () => {
   it('zvm.js minus the F2 patch is the original Parchment bytes', () => {
     let s = read('public/play/web/zvm.js').toString('utf8')
     s = s.slice(s.indexOf('*/\n') + 3) // the header comment
-    const undo: [string, string][] = [
-      ['e[155+r]=String.fromCharCode(57344===i[r]||i[r]<32&&13!==i[r]?65533:i[r])', 'e[155+r]=String.fromCharCode(i[r])'],
-      ['.replace(/\\n/g,"\\\\n").replace(/\\u2028/g,"\\\\u2028").replace(/\\u2029/g,"\\\\u2029")', ''],
-    ]
-    for (const [patched, orig] of undo) {
-      expect(s.split(patched)).toHaveLength(2)
-      s = s.replace(patched, orig)
-    }
+    for (const [patched] of ZVM_F2_EDITS) expect(s.split(patched)).toHaveLength(2)
+    s = unpatchVendoredZvm(s)
     expect(sha256(s)).toBe(entry('public/play/web/zvm.js').upstreamSha256)
   })
 

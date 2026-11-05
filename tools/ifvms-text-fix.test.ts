@@ -39,3 +39,42 @@ describe('ifvmsTextFix (F2: abbreviation-JIT injection)', () => {
     expect(TEXT_RE.test('/n/ifvms/src/zvm/text.js?commonjs-module')).toBe(true)
   })
 })
+
+// Review (fix B) minor 7: a bundle that has ifvms but never saw text.js fails.
+describe('ifvmsTextFix — the build fails if text.js was never patched', () => {
+  type Hooks = {
+    buildStart(): void
+    transform(c: string, i: string): unknown
+    generateBundle(o: unknown, b: Record<string, unknown>): void
+  }
+  const plugin = () => ifvmsTextFix() as unknown as Hooks
+  const chunk = (...moduleIds: string[]) => ({ type: 'chunk', moduleIds })
+
+  it('throws when ifvms Z-machine modules are bundled but text.js was not seen', () => {
+    const p = plugin()
+    p.buildStart()
+    expect(() => p.generateBundle({}, { 'replay.js': chunk('/n/ifvms/src/zvm/io.js', '/app/x.ts') })).toThrow(/never passed through the F2 fix/)
+    // Rollup's older `modules` map is read too.
+    expect(() => p.generateBundle({}, { 'r.js': { type: 'chunk', modules: { 'C:\\n\\ifvms\\src\\zvm\\vm.js': {} } } })).toThrow(/F2/)
+  })
+
+  it('passes when text.js was patched, or the bundle has no ifvms (another worker)', () => {
+    const src = readFileSync(require.resolve('ifvms/src/zvm/text.js'), 'utf8')
+    const p = plugin()
+    p.buildStart()
+    p.transform(src, '/n/ifvms/src/zvm/text.js')
+    expect(() => p.generateBundle({}, { 'replay.js': chunk('/n/ifvms/src/zvm/io.js', '/n/ifvms/src/zvm/text.js') })).not.toThrow()
+    const other = plugin()
+    other.buildStart()
+    expect(() => other.generateBundle({}, { 'inform6.js': chunk('/app/inform6.worker.ts'), 'a.css': { type: 'asset' } })).not.toThrow()
+  })
+
+  it('forgets what it saw at the start of the next build', () => {
+    const src = readFileSync(require.resolve('ifvms/src/zvm/text.js'), 'utf8')
+    const p = plugin()
+    p.buildStart()
+    p.transform(src, '/n/ifvms/src/zvm/text.js')
+    p.buildStart()
+    expect(() => p.generateBundle({}, { 'r.js': chunk('/n/ifvms/src/zvm/io.js') })).toThrow(/F2/)
+  })
+})

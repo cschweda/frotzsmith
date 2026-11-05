@@ -17,7 +17,10 @@
  * fixes the bug upstream, that case fails and the patch can be retired).
  */
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { createRequire, Module } from 'node:module'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -25,6 +28,7 @@ import { createGlk } from './glk'
 import { HeadlessGlkOte } from './headless-glkote'
 import { HeadlessDialog } from './headless-dialog'
 import { patchIfvmsText, TEXT_RE } from '../../../../tools/ifvms-text-fix.mjs'
+import { unpatchVendoredZvm } from '../../../../tools/vendored-zvm-patch.mjs'
 
 const require = createRequire(import.meta.url)
 const WASM_PATH = fileURLToPath(new URL('../wasm/inform6.wasm', import.meta.url))
@@ -114,6 +118,18 @@ async function vendoredZvm(): Promise<new () => unknown> {
   return (await import(/* @vite-ignore */ VENDORED_ZVM)).ZVM
 }
 
+/** The vendored zvm.js with its two F2 edits undone, loaded from a temp copy. */
+async function unpatchedVendoredZvm(): Promise<new () => unknown> {
+  const dir = mkdtempSync(join(tmpdir(), 'frotz-zvm-'))
+  try {
+    const file = join(dir, 'zvm-unpatched.mjs')
+    writeFileSync(file, unpatchVendoredZvm(readFileSync(VENDORED_ZVM, 'utf8')))
+    return (await import(/* @vite-ignore */ pathToFileURL(file).href)).ZVM
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 describe('ZVM abbreviation JIT — custom Unicode table injection (F2)', () => {
   it('PoC is live: unpatched ifvms runs the story\'s JavaScript', async () => {
     const story = await compile(INJECT)
@@ -129,6 +145,16 @@ describe('ZVM abbreviation JIT — custom Unicode table injection (F2)', () => {
     const out = await run(patchedIfvms(), story)
     expect(g.__frotzPwned).toBeUndefined()
     expect(out).toContain('Into the X�+(globalThis.__frotzPwned=1)+�Y')
+  })
+
+  // Review (fix B) minor 3: without this control the "vendored is inert" case
+  // below could pass vacuously (e.g. if the bundle stopped using the JIT).
+  it('PoC is live: the vendored zvm.js with its F2 edits undone runs the story\'s JavaScript', async () => {
+    const story = await compile(INJECT)
+    delete g.__frotzPwned
+    await run(await unpatchedVendoredZvm(), story).catch(() => '')
+    expect(g.__frotzPwned).toBe(1)
+    delete g.__frotzPwned
   })
 
   it('vendored Play zvm.js does not run it, and still prints the text', async () => {

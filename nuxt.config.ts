@@ -125,6 +125,12 @@ export default defineNuxtConfig({
   // ifvmsTextFix: a story's Unicode table could inject JavaScript through
   // ifvms's abbreviation JIT (audit 2026-11-04, F2). Same build-fails-if-the-
   // line-moves style (see tools/ifvms-text-fix.mjs).
+  //
+  // optimizeDeps: in `nuxt dev`, Vite pre-bundles the CommonJS ifvms with
+  // Rolldown and the `plugins` transforms above never see it — so the dev
+  // replay worker would run UNPATCHED ifvms. The same two plugins go into the
+  // pre-bundle itself (review of fix B, minor 6; pinned by
+  // tools/nuxt-config.test.ts).
   vite: {
     define: {
       __FROTZSMITH_VERSION__: JSON.stringify(VERSION),
@@ -133,6 +139,11 @@ export default defineNuxtConfig({
       __FROTZSMITH_DESKTOP__: JSON.stringify(DESKTOP),
     },
     plugins: [ifvmsThisFix(), ifvmsTextFix()],
+    optimizeDeps: {
+      rolldownOptions: {
+        plugins: [ifvmsThisFix(), ifvmsTextFix()],
+      },
+    },
     worker: {
       format: 'es',
       plugins: () => [ifvmsThisFix(), ifvmsTextFix()],

@@ -18,7 +18,8 @@
 //   2. The Function source also escapes \n, U+2028 and U+2029.
 //
 // The same fix is applied by hand to the vendored Play interpreter
-// (public/play/web/zvm.js; see public/play/VENDORED.md). If an ifvms upgrade
+// (public/play/web/zvm.js; see public/play/web/README.md and
+// tools/vendored-zvm-patch.mjs). If an ifvms upgrade
 // changes either line, the build FAILS rather than silently shipping the hole.
 
 export const TEXT_RE = /ifvms[\\/]src[\\/]zvm[\\/]text\.js(\?|$)/
@@ -51,15 +52,43 @@ export function patchIfvmsText(code) {
   return code.replace(TABLE_NEEDLE, TABLE_FIX).replace(JIT_NEEDLE, JIT_FIX)
 }
 
-/** @returns {import('vite').Plugin} */
+/** Any ifvms Z-machine module: when one is bundled, text.js must have been patched. */
+export const ZVM_MODULE_RE = /ifvms[\\/]src[\\/]zvm[\\/]/
+
+/**
+ * Also fails a bundle that holds ifvms's Z-machine modules but never passed
+ * text.js through this plugin (e.g. an upgrade moved or renamed it, or a
+ * pre-bundler skipped the transform) — not only one whose lines changed.
+ * The check runs per bundle (each worker is its own), and a bundle without
+ * ifvms is fine. Works as a Vite/Rollup plugin and as a Rolldown plugin
+ * (`optimizeDeps.rolldownOptions.plugins`, the `nuxt dev` pre-bundle).
+ * @returns {import('vite').Plugin}
+ */
 export function ifvmsTextFix() {
+  let seen = false
   return {
     name: 'frotzsmith:ifvms-text-fix',
     enforce: 'pre',
+    buildStart() {
+      seen = false
+    },
     /** @param {string} code @param {string} id */
     transform(code, id) {
       if (!TEXT_RE.test(id)) return null
+      seen = true
       return { code: patchIfvmsText(code), map: null }
+    },
+    /** @param {unknown} _options @param {Record<string, { type: string; moduleIds?: string[]; modules?: Record<string, unknown> }>} bundle */
+    generateBundle(_options, bundle) {
+      if (seen) return
+      const ids = Object.values(bundle).flatMap(c =>
+        c.type === 'chunk' ? (c.moduleIds ?? Object.keys(c.modules ?? {})) : [])
+      if (ids.some(id => ZVM_MODULE_RE.test(id))) {
+        throw new Error(
+          '[ifvms-text-fix] this bundle contains ifvms but its src/zvm/text.js never passed through the F2 fix — '
+          + 're-check tools/ifvms-text-fix.mjs (did an ifvms upgrade move text.js?).',
+        )
+      }
     },
   }
 }

@@ -29,4 +29,10 @@ describe('supply-chain pins', () => {
     const toml = readFileSync(resolve(root, 'netlify.toml'), 'utf8')
     expect(toml).toMatch(/^\s*command = "yarn install --frozen-lockfile && yarn generate"$/m)
   })
+
+  it("Netlify's own pre-build install is frozen too (YARN_FLAGS in [build.environment])", () => {
+    const toml = readFileSync(resolve(root, 'netlify.toml'), 'utf8')
+    const env = toml.split(/^\[build\.environment\]\s*$/m)[1]?.split(/^\[/m)[0] ?? ''
+    expect(env).toMatch(/^\s*YARN_FLAGS = "--frozen-lockfile"$/m)
+  })
 })
