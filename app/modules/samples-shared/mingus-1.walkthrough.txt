@@ -1,0 +1,70 @@
+read ticket
+read plaque
+north
+listen to busker
+take can
+fill can
+south
+east
+read kiosk
+type nobody
+type money
+type mountain
+up
+take notice
+south
+examine coats
+read terminal
+take coin
+north
+north
+read survey
+south
+east
+up
+turn telescope
+look through telescope
+down
+press foyer tile
+press shaft tile
+press station tile
+press observatory tile
+press shop tile
+down
+put notice in scanner
+select none
+down
+search transactions
+take charter
+east
+put card in slot
+west
+south
+take hard hat
+sign charter
+give charter to steward
+down
+give hard hat to thrumble
+up
+north
+north
+read genesis block
+north
+examine blocks
+type they
+type never
+type look
+type up
+take pin
+east
+oil buckle
+press pawl with pin
+down
+east
+dig by gondola
+take coat
+fend verdlings with pike
+east
+bow
+wait
+east

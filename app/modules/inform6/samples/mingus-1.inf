@@ -1,0 +1,2616 @@
+! ============================================================================
+!  MINGUS I: ELEVATED RETURNS  --  Frotzsmith sample (Inform 6 Standard Library)
+! ----------------------------------------------------------------------------
+!  The second longer sample. The Architect's Legacy showed how a big game is
+!  ORGANISED; this one keeps the same layout and adds a second lesson: how to
+!  make a timed, lethal mechanic FAIR. The finale is a three-turn budget that
+!  kills you if you overspend it -- and every rule of it is written down in
+!  one place (section 7), printed on screen as it happens, and impossible to
+!  trip over by accident.
+!
+!  THE STORY
+!    The Mingus Empire, a crypto-gilded palace built on top of a mountain,
+!    crashed last night. Everyone has gone. You are the actual dev -- the one
+!    competent engineer Lady Esme Vaunt hired, for $SHRUG -- and your only
+!    ticket asks you to fetch her coat from the bottom of the mountain. The
+!    gondolas are stalled. The only way out is down.
+!
+!  HOW THIS FILE IS ORGANISED  (search for the banner text to jump)
+!    1. SETUP ............ story constants, the score table, ALL game state
+!    2. LIBRARY .......... Parser + VerbLib includes
+!    3. CLASSES .......... Room, Feature, Person, FloorTile
+!    4. HELPERS .......... act banners, conversation, the shared TYPE verb,
+!                          the poke counter, the ending
+!    5. ACT ONE .......... The Abandoned Pavilion   (the summit, rooms 1-8)
+!    6. ACT TWO .......... The Blockchain Catacombs (inside the mountain, 9-16)
+!    7. FINALE ........... The Runout               (the valley floor, 17-20)
+!    8. ENTRY POINTS ..... Initialise, DeathMessage, PrintRank, PrintTaskName
+!    9. GRAMMAR .......... Grammar include + the game's own verbs
+!
+!  THE MAP  (20 rooms; [*] = optional, lore only)
+!
+!    ACT ONE                                       The Observatory
+!                                                        | up/down
+!                     Vaunt's Study                      |
+!                          | n/s                         |
+!     Gas Station     Pavilion Terrace ---- e/w ---- Upside-Down Ballroom
+!         | n/s         | u/d       | s/n                | down (after P3)
+!     Wind-Scoured --e/w-- Whitepaper  Lady Vaunt's    Root Cellar ....... ACT TWO
+!     Mesa (start)         Switchbacks Wing                | down (after P4)
+!                                   Archive --- s/n --- The Mempool --e/w-- Validator Pit
+!                                      | n/s               | s/n
+!                              Cold Wallet Cavern      Break Room
+!                                      | e/w               | down
+!                               Windward Ledge        [*]Shared Shaft
+!                                      | down (cable car)
+!    FINALE  Bottom Gondola Station --e/w-- The Runout --e--> The River's Edge
+!                                                        --e--> Foot of the Gangplank
+!
+!  THE PUZZLES  (10 puzzles x 5 points + 5 lore x 2 points = 60)
+!    P1  Whitepaper kiosk   translate three buzzwords   -> TYPE NOBODY, TYPE
+!                                                          MONEY, TYPE MOUNTAIN
+!    P2  The telescope      look down, not across       -> TURN TELESCOPE, LOOK
+!                                                          THROUGH TELESCOPE
+!    P3  Ballroom floor     the Survey's true order     -> PRESS FOYER / SHAFT /
+!                                                          STATION / OBSERVATORY /
+!                                                          SHOP TILE
+!    P4  KYC                address + CAPTCHA           -> PUT NOTICE IN SCANNER,
+!                                                          SELECT NONE
+!    P5  The contract       a punch card fixes the loop -> SEARCH TRANSACTIONS,
+!                                                          PUT CARD IN SLOT
+!    P6  The union          signed charter + collateral -> SIGN CHARTER, GIVE
+!                                                          CHARTER TO STEWARD
+!        (the consensus door wants P5's contract AND P6's endorsement)
+!    P7  The cold wallet    the Trust's plain words     -> TYPE THEY, NEVER,
+!                                                          LOOK, UP
+!    P8  The belted verdling oil, then a very small pin -> OIL BUCKLE, PRESS PAWL
+!                                                          WITH PIN  (the pike)
+!    P9  The coat           where the telescope showed  -> DIG BY GONDOLA, TAKE
+!                                                          COAT
+!    P10 The pike line      raise it, then walk         -> FEND VERDLINGS WITH
+!                                                          PIKE, EAST
+!    Lore: the Lost Expedition plaque, the busker, the Spite Terminal, Mrs.
+!    Thrumble, the Genesis Block.  Win: reach the Foot of the Gangplank.
+!
+!  TECHNIQUES WORTH STEALING
+!    - A per-room turn counter that kills deterministically: the Runout's
+!      `each_turn` (the library's "daemon that only runs while you are here")
+!      plus a `runout_fresh` flag so the arrival turn never counts.
+!    - A held item with a state other actions change: the pike is raised or
+!      lowered, and the Runout's `before` lowers it for anything but looking,
+!      waiting and walking.
+!    - Exit routines that move you somewhere ELSE: walking east without the
+!      pike up gets you escorted back to the gondola station.
+!    - One custom verb (TYPE) shared by two puzzles: TypeSub reads the typed
+!      word straight from the parser's buffer and hands it to whichever
+!      machine is in the room.
+!    - Singular/plural names: notice/notices just works, but telescope/
+!      telescopes does not -- z5 dictionary words keep only 9 letters -- so
+!      those two use a parse_name that checks the word's real length.
+!    - An ending that plays out over several turns (bow, wait, part, walk), and
+!      a win and a death that end with different words (deadflag 3 vs 1).
+!    - A custom rank (PrintRank), which also carries the closing teaser.
+!
+!  Compiles cleanly with the bundled Standard Library 6.12; targets z5.
+! ============================================================================
+
+
+! ============================================================================
+!  1. SETUP  --  story constants, the score table, and all game state
+! ============================================================================
+
+Constant Story      "Mingus I: Elevated Returns";
+Constant Headline   "^A Frotzsmith sample: a crypto satire in three acts.^";
+
+! --- Scoring ----------------------------------------------------------------
+! The library's task system: task_scores holds what each task is worth, and
+! Achieved(task) awards it exactly once. FULL SCORE names completed tasks via
+! PrintTaskName (section 8). `Constant TASKS_PROVIDED;` switches it on.
+
+Constant TASKS_PROVIDED;
+Constant NUMBER_TASKS  15;
+Constant MAX_SCORE     60;
+
+Constant TASK_KIOSK        0;   ! P1  the whitepaper kiosk, in plain English
+Constant TASK_TELESCOPE    1;   ! P2  looking down instead of across
+Constant TASK_FLOOR        2;   ! P3  the ballroom floor, in the true order
+Constant TASK_KYC          3;   ! P4  the Verified Wallet Badge
+Constant TASK_CONTRACT     4;   ! P5  debugging the rug pull
+Constant TASK_UNION        5;   ! P6  Local 404's endorsement
+Constant TASK_WALLET       6;   ! P7  the Trust's cold wallet
+Constant TASK_BELT         7;   ! P8  freeing the belted verdling
+Constant TASK_COAT         8;   ! P9  the coat, dug out of the Runout
+Constant TASK_PIKELINE     9;   ! P10 walking the pike line to the river
+Constant TASK_LORE_PLAQUE 10;   ! lore: the Lost Expedition plaque
+Constant TASK_LORE_BUSKER 11;   ! lore: the busker's song
+Constant TASK_LORE_SPITE  12;   ! lore: the Spite Terminal
+Constant TASK_LORE_CLERK  13;   ! lore: Mrs. Thrumble's claim ticket
+Constant TASK_LORE_GENESIS 14;  ! lore: the Genesis Block
+
+!                   P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 | plaque busker spite clerk genesis
+Array task_scores -> 5  5  5  5  5  5  5  5  5  5     2      2      2     2     2;
+
+! --- Game state -------------------------------------------------------------
+! Everything the game remembers about your progress lives here, named for
+! the puzzle it belongs to. Ask "what has the player done?" and the answer is
+! on this screen.
+
+Global act             = 0;      ! which act banner has been shown
+Global kiosk_line      = 0;      ! P1: buzzwords translated so far (0-3)
+Global telescope_down  = false;  ! P2: the thirteenth telescope points down
+Global tile_progress   = 0;      ! P3: tiles pressed in the right order (0-5)
+Global floor_open      = false;  ! P3: the ballroom floor has gone down
+Global kyc_address     = false;  ! P4: proof of address scanned
+Global kyc_captcha     = false;  ! P4: CAPTCHA passed
+Global card_found      = false;  ! P5: the punch card is out of the mempool
+Global charter_signed  = false;  ! P6: the union charter carries your name
+Global mnemonic_words  = 0;      ! P7: Trust words typed in order (0-4)
+Global wallet_open     = false;  ! P7: the Trust's block has split
+Global can_full        = false;  ! P8: the oil can holds the good stuff
+Global buckle_oiled    = false;  ! P8: the pawl is no longer rusted solid
+Global belt_freed      = false;  ! P8: the verdling has his breath back
+Global coat_found      = false;  ! P9: dug out from by the gondola car
+Global busker_songs    = 0;      ! lore: how many songs you have heard
+
+! The finale (section 7 explains every rule these drive).
+Global pokes           = 0;      ! pokes taken on this trip to the Runout (0-3)
+Global pike_raised     = false;  ! is the pike up?
+Global runout_fresh    = false;  ! true only during the turn you arrive
+Global edge_fresh      = false;  ! the same, for the River's Edge
+Global edge_turns      = 0;      ! turns spent at the River's Edge
+Global part_now        = false;  ! an action that makes the crowd part
+Global lane_open       = false;  ! the verdlings have parted
+
+
+! ============================================================================
+!  2. LIBRARY
+! ============================================================================
+
+Include "Parser";
+Include "VerbLib";
+
+
+! ============================================================================
+!  3. CLASSES  --  write shared behaviour once
+! ============================================================================
+
+! Room: every location. All are lit (the summit by a merciless sun, the mine
+! by flickering fluorescents), so darkness never gets in the way. `sounds` is
+! what LISTEN hears here. `before` is an ADDITIVE property, so a room can have
+! its own `before` too (the Runout does) and this one still runs after it.
+Class Room
+  with sounds 0,
+       before [;
+         Listen:
+           if (noun == 0 && self.sounds ~= 0) {
+               PrintOrRun(self, sounds);
+               rtrue;
+           }
+       ],
+  has  light;
+
+! Feature: things a description mentions that you can examine but that the
+! library should neither list nor let you carry off.
+Class Feature
+  with before [;
+         Take, Pull, Push, Turn:
+           print_ret (The) self, " ", (IsOrAre) self, " gilded, bolted down or
+               simply too much trouble, and probably all three.";
+       ],
+  has  scenery;
+
+! Person: the characters. `life` is ADDITIVE as well: each character's own
+! life routine handles what it cares about and returns false for anything
+! else, which falls through to these shared fallbacks.
+Class Person
+  with no_answer "There is no answer.",   ! reply to an unknown ASK/TELL topic
+       no_interest "~No, thank you.~",    ! reply to SHOW/GIVE of a dull thing
+       life [;
+         Ask, Tell, Answer:
+           PrintOrRun(self, no_answer);
+           rtrue;
+         Show, Give:
+           PrintOrRun(self, no_interest);
+           rtrue;
+         Kiss:
+           "Nobody on this mountain has been kissed since the crash.";
+         Attack:
+           "You are a developer, not a validator.";
+       ],
+       orders [;
+           print_ret (The) self, " looks at you the way everyone in the
+               empire looks at an engineer with an idea.";
+       ],
+  has  animate;
+
+! FloorTile: the five tiles of the ballroom floor (P3). They differ only in
+! `order` (their place in the TRUE order, from the Survey) and `label`;
+! pressing any of them goes to one routine, PressTile (section 4).
+Class FloorTile
+  with order 0,
+       label "TILE",
+       description [;
+           print "A gold-inlaid tile the size of a doormat, marked ",
+               (string) self.label, ". ";
+           if (floor_open) "It has gone down with the rest of the floor.";
+           "It gives very slightly underfoot, like a button that wants to
+           be pressed.";
+       ],
+       before [;
+         Push, Touch, Attack:
+           PressTile(self);
+           rtrue;
+         Take, Pull, Turn:
+           "The tiles are inlaid in the floor, which is the one part of the
+           ballroom that is the right way up.";
+       ],
+  has  static scenery;
+
+
+! ============================================================================
+!  4. HELPERS  --  routines shared across acts
+! ============================================================================
+
+! BeginAct(n): print an act banner the first time you cross into act n.
+! Called from each act's first room: a room's `initial` routine runs as you
+! arrive, just before the room is described.
+[ BeginAct n;
+    if (n <= act) return;
+    act = n;
+    new_line;
+    style bold;
+    switch (n) {
+      1: print "       Act One: The Abandoned Pavilion";
+      2: print "       Act Two: The Blockchain Catacombs";
+      3: print "       Finale: The Runout";
+    }
+    style roman;
+    print "^^";
+];
+
+! AskedAbout(w1 ... w6): true if any of the given words appears anywhere in
+! the topic of the current ASK/TELL ("ask thrumble about the mountain").
+[ AskedAbout w1 w2 w3 w4 w5 w6  i w;
+    wn = consult_from;
+    for (i = 0 : i < consult_words : i++) {
+        w = NextWord();
+        if (w ~= 0 && (w == w1 or w2 or w3 or w4 or w5 or w6)) rtrue;
+    }
+    rfalse;
+];
+
+! --- TYPE: one verb, two machines ---------------------------------------------
+! The grammar line is `* topic -> Type` (section 9). A topic token accepts any
+! words at all -- even 'up' and 'look', which are a direction and a verb
+! elsewhere -- and leaves their position in consult_from. TypeSub reads the
+! first one and hands it to whichever keyboard is in the room.
+
+[ TypeSub w;
+    wn = consult_from;
+    w = NextWord();
+    if (location == switchbacks) return KioskTyped(w);
+    if (location == cold_cavern) return KeypadTyped(w);
+    "There is nothing here to type on. For once, nobody wants your input.";
+];
+
+! P1: the kiosk wants each buzzword in one plain word, in order.
+[ KioskTyped w  ok;
+    if (kiosk_line >= 3) "The kiosk has nothing left to translate. It seems
+        relieved.";
+    switch (kiosk_line) {
+      0: if (w == 'nobody' or 'anarchy' or 'noone') ok = true;
+      1: if (w == 'money' or 'theft' or 'steal' or 'stealing') ok = true;
+      2: if (w == 'mountain' or 'hill' or 'rock') ok = true;
+    }
+    if (~~ok) {
+        print "You type it in. The kiosk thinks about it, and the lit line
+            stays lit: ~";
+        KioskLine();
+        "~^^    NOT CLEAR ENOUGH.";
+    }
+    kiosk_line++;
+    if (kiosk_line < 3) {
+        print "The kiosk chimes. The line goes dark, translated, and the next
+            one lights up: ~";
+        KioskLine();
+        "~";
+    }
+    switch_kiosk.done();
+    Achieved(TASK_KIOSK);
+    "The last line goes dark. The screen clears and prints, in letters a
+    foot high:^^    NOBODY'S IN CHARGE, WE TAKE YOUR MONEY, ON A MOUNTAIN.^^The
+    kiosk beeps approvingly. It has never heard its own whitepaper stated so
+    clearly. Somewhere, a VC weeps. The tears freeze.^^With a clank, the
+    kiosk rolls aside. The way up to the Pavilion is open.";
+];
+
+! The buzzword the kiosk currently has lit (kiosk_line 0, 1 or 2).
+[ KioskLine;
+    switch (kiosk_line) {
+      0: print "decentralized synergy";
+      1: print "trustless value-capture";
+      2: print "elevation-agnostic vertical";
+    }
+];
+
+! P7: the Trust's keypad wants THEY NEVER LOOK UP, one word at a time.
+! Any other word -- Vaunt's gold, Lady Vaunt's colours -- starts it over.
+Array trust_words --> 'they' 'never' 'look' 'up';
+
+[ KeypadTyped w;
+    if (wallet_open) "The keypad is dark. The block has already given up
+        its secret.";
+    if (w ~= trust_words-->mnemonic_words) {
+        mnemonic_words = 0;
+        "The keypad buzzes. Frost creeps across its little screen:^^
+        INVALID MNEMONIC. 0 OF 4.";
+    }
+    mnemonic_words++;
+    if (mnemonic_words < 4)
+        "The keypad clicks. Its screen reads: WORD ACCEPTED. ",
+            mnemonic_words, " OF 4.";
+    wallet_open = true;
+    give hardware_box open;
+    Achieved(TASK_WALLET);
+    "The keypad clicks a fourth time and its screen glows a plain, steady
+    white:^^    MNEMONIC ACCEPTED^^With a sound like a frozen lake changing
+    its mind, the Trust's block splits down the middle. The halves fall
+    apart, and the box inside thaws open on its own: inside are a hardware
+    wallet and, in a tiny plastic cradle, a SIM-eject pin.";
+];
+
+! --- P4's proof of address: the notices ----------------------------------------
+! NoticeNotHere: true when the one notice you can carry is neither in your
+! hands nor lying in this room. Two parse_name routines (the mesa's notices
+! and the doorbell's notice) answer to the word 'notice' only then, so
+! whenever the real notice is within reach, NOTICE means that one.
+[ NoticeNotHere;
+    return (notice notin player && notice notin location);
+];
+
+! --- P3: the ballroom floor -------------------------------------------------
+! The true order, from the Survey: 1 FOYER, 2 SHAFT, 3 STATION,
+! 4 OBSERVATORY, 5 SHOP. A wrong tile undoes the whole sequence.
+[ PressTile t;
+    if (floor_open) "The floor has already gone down. It is not coming
+        back up.";
+    if (t.order == tile_progress + 1) {
+        tile_progress++;
+        if (tile_progress < 5) {
+            print "The ", (string) t.label, " tile sinks with a heavy click
+                and stays down.^";
+            rtrue;
+        }
+        floor_open = true;
+        Achieved(TASK_FLOOR);
+        print "The SHOP tile sinks, and the whole floor answers. With a long
+            grinding rumble, the gilded map tilts and a section of it --
+            the part Vaunt labelled DAMP -- descends into the dark below,
+            folding itself into a flight of stone steps. Under where the
+            centre tile was, someone has etched a single word: HIGHER.^^The
+            ballroom fulfills its only remaining purpose: to be left behind.
+            The way down is open. Everyone in this empire eventually wants
+            to go down.^";
+        rtrue;
+    }
+    tile_progress = 0;
+    print "The ", (string) t.label, " tile sinks, then rises with a
+        disappointed click. Every tile you had pressed rises with it.^";
+    rtrue;
+];
+
+! --- P4: the KYC scanner ------------------------------------------------------
+! Proof of address and the CAPTCHA, in either order. Called after each.
+[ KycCheck;
+    if (kyc_address == false || kyc_captcha == false) rfalse;
+    move wallet_badge to player;
+    Achieved(TASK_KYC);
+    print "^The scanner prints something warm and hands it to you: a
+        Verified Wallet Badge, soulbound and non-transferable, revocable at
+        any time for any reason. ~Verification complete.~ A second line
+        scrolls past: the form was adapted from a much shorter one used on
+        the old side, and improved by adding pages and altitude.^^Behind you,
+        the service lift's gate rattles open.^";
+    rtrue;
+];
+
+! The consensus door counts what you carry.
+[ Attestations n;
+    if (debugged_contract in player) n++;
+    if (endorsement in player) n++;
+    return n;
+];
+
+! --- The finale: the poke counter --------------------------------------------
+! PokeLine prints the counter in plain ASCII; Poke adds one and says so. The
+! third poke ends the game: deadflag 1 makes the library print
+! "*** You have died ***".
+[ PokeLine;
+    print "[POKES: ";
+    switch (pokes) {
+      0: print "---";
+      1: print "*--";
+      2: print "**-";
+      default: print "***";
+    }
+    print "]";
+];
+
+[ Poke;
+    pokes++;
+    switch (pokes) {
+      1: print "^A verdling the height of your knee pokes you smartly in the
+             shin with its pike. ~Up,~ it says, pointing at the Mingus. ~Up up
+             up.~ ";
+         PokeLine(); new_line;
+      2: print "^Several verdlings, several jabs, harder. ~UP.~ ";
+         PokeLine(); new_line;
+      default:
+         print "^The verdlings stop poking. That is the last thing you notice:
+             how quiet it gets when they stop. Verdlings, it turns out, do
+             not only poke.^^Your remains will be poked back up the mountain
+             in the morning, as a courtesy.^";
+         deadflag = 1;
+    }
+];
+
+! --- The finale: the ending --------------------------------------------------
+! Parting: the bowed crowd makes way, and the ship appears.
+[ Parting;
+    lane_open = true;
+    move lane to river_edge;
+    move funeral_ship to river_edge;
+    print "^Slowly -- not scattering, making way -- the verdlings part. A
+        lane opens through the bowed crowd, a shoulder's width, running
+        straight down to the water. At the end of it, moored at the mouth of
+        the Sluice, is a ship like the funeral ships: the same high prow, the
+        same hard wallets strung along it like lanterns that are not lit.
+        Nobody is laid out on it. The gangplank is down.^";
+];
+
+! WalkLane: EAST, DOWN, FOLLOW LANE, BOARD SHIP and the rest all end here.
+! PlayerTo moves you and describes the room; deadflag 3 then ends the game
+! with our own words (DeathMessage, section 8).
+[ WalkLane;
+    PlayerTo(gangplank_foot);
+    deadflag = 3;
+    rtrue;
+];
+
+
+! ============================================================================
+!  5. ACT ONE: THE ABANDONED PAVILION  --  the summit
+! ----------------------------------------------------------------------------
+!  Rooms: Wind-Scoured Mesa, Gas Station, Whitepaper Switchbacks, Pavilion
+!  Terrace, Upside-Down Ballroom, Vaunt's Private Study, Lady Vaunt's Wing,
+!  The Observatory. Puzzles P1 (kiosk), P2 (telescope), P3 (floor), and the
+!  oil you will need in Act Two. Lore: the plaque, the busker, the terminal.
+! ============================================================================
+
+! --- The player's own belongings --------------------------------------------
+
+! TICKET #1 is the game's goal, stated in the first thing you carry. READ is
+! the same action as EXAMINE in the Standard Library, so a plain
+! `description` string is all a readable object needs.
+Object ticket_one "TICKET #1"
+  with name 'ticket' 'one' 'number' 'priority',
+       description "TICKET #1. PRIORITY: WHATEVER.^^~My coat. The real one.
+           It rolled off my balcony during the divorce and it is at the
+           bottom of the mountain now. Get it. There is something of mine in
+           the pocket. Don't read it. -- E.V.^^P.S. Nobody is going to pay
+           you. Nobody is going to pay anybody.~",
+  has  proper;
+
+! --- 1. Wind-Scoured Mesa ----------------------------------------------------
+
+! A Room's `initial` runs as you arrive, before the description: the act
+! banner lives there. `cant_go` replaces the library's "You can't go that
+! way" for every direction this room has no exit for.
+Room mesa "Wind-Scoured Mesa"
+  with initial [; BeginAct(1); ],
+       description
+           "You are standing on a wind-scoured mesa west of a pavilion that
+           has seen better days. Better days, tremendous days, the best days
+           -- all behind it now. Far below to the east, past the Verdance,
+           the far bank is green and quiet. It is not your concern. The wind
+           would like to discuss your hat.^^Foreclosure notices blow past in
+           ones and twos, heading downhill like everything else here. Along
+           the river the half-bridges march out over the water and stop, one
+           after another, in the middle. A bronze plaque stands at the edge
+           of the overlook. A gas station sits on the gondola terrace to the
+           north, and the switchback stair to the Pavilion starts east.",
+       sounds "Wind. Under it, very far down, the river.",
+       n_to gas_station,
+       e_to switchbacks,
+       cant_go "The mesa ends in air on that side. The empire is built to be
+           looked down from, not walked off.";
+
+! LORE L1. Reading (= examining) the plaque awards the lore task. Achieved()
+! only counts a task once, so it is safe to call every time the plaque is
+! read -- no flag of our own is needed.
+Object -> expedition_plaque "Lost Expedition plaque"
+  with name 'bronze' 'lost' 'expedition' 'plaque' 'code' 'donate' 'overlook',
+       description [;
+           Achieved(TASK_LORE_PLAQUE);
+           "A handsome bronze plaque on a gilded post, leaning slightly
+           downhill:^^    THE LOST EXPEDITION^    No one crosses the
+           Verdance. Many have tried.^    Their sacrifice is commemorated
+           here.^^Where the names should be there is a DONATE code, and
+           under it, smaller: ~Scan to honor them. Minimum honor: one gas
+           fee.~ Somebody always has a cousin who made it across. Nobody
+           has ever had a name for the plaque.";
+       ],
+  has  static scenery;
+
+! The notices blowing past answer to NOTICES, and to NOTICE as well, since a
+! player is bound to try TAKE NOTICE here. The parse_name routine stands down
+! for 'notice' while the real notice is in reach (held, or lying here), so
+! then NOTICE means that one and the parser never has to ask "which do you
+! mean?". (The test,
+! NoticeNotHere, is in section 4: the doorbell's notice uses it too.)
+! Taking one is refused with a pointer to the notice that does hold still.
+Feature -> mesa_notices "foreclosure notices"
+  with parse_name [ n w;
+           for (::) {
+               w = NextWord();
+               if (w == 'foreclosure' or 'notices' or 'papers') { n++; continue; }
+               if (w == 'notice' && NoticeNotHere()) { n++; continue; }
+               return n;
+           }
+       ],
+       description "They are addressed to VAUNT PAVILION, SUMMIT, MINGUS
+           RANGE, and they are all going the same way: down.",
+       before [;
+         Take, Pull, Remove:
+           "They blow past faster than you can grab one, all going the same
+           way: down. Up at the Pavilion, one has caught on the doorbell;
+           that one will hold still long enough to take.";
+       ],
+  has  pluralname;
+
+Feature -> half_bridges "half-bridges"
+  with name 'half-bridges' 'half' 'bridges' 'bridge' 'river' 'verdance'
+           'far' 'bank' 'green' 'valley',
+       description "Stone arches, steel trusses, a gilded suspension span
+           with Vaunt's name on both towers: each marches confidently out
+           over the Verdance and then simply stops, its last girder hanging
+           over the current like a sentence nobody could finish. Beyond them
+           the far bank is real grass and real cottonwoods. Every roadmap
+           ended at ~Phase 2: Far Bank.~",
+  has  pluralname;
+
+! --- 8. Gas Station ---------------------------------------------------------
+
+! The Gas Station holds the oil for P8 (the belted verdling, Act Two) and
+! the busker (lore L2), whose first song hints at both the pike and the
+! telescope.
+Room gas_station "Gas Station"
+  with description
+           "A literal gas station on the gondola terrace, under a canopy that
+           has lost most of its gold leaf to the wind. Four pumps stand in a
+           row, marked PREMIUM, REGULAR, MAINNET and, at this altitude,
+           OXYGEN. The MAINNET pump leaks steadily into a puddle. Beyond the
+           pumps a summit gondola hangs stalled on its cable, going nowhere.
+           An oil can hangs on a hook by the pumps. The mesa is back to the
+           south.",
+       sounds "The MAINNET pump, dripping. And, from the gondola platform,
+           a busker tuning up.",
+       s_to mesa;
+
+Feature -> pumps "pumps"
+  with name 'pump' 'pumps' 'premium' 'regular' 'mainnet' 'oxygen' 'handle'
+           'puddle' 'leak',
+       description "PREMIUM and REGULAR are bone dry. OXYGEN wants a coin
+           you don't have. MAINNET leaks the good stuff -- a thick, golden
+           lubricant -- in a slow, steady drip, and someone has carved a
+           word under its handle: BETTER.",
+       before [;
+         Drink: "It is the good stuff, but not for drinking.";
+       ],
+  has  pluralname;
+
+Feature -> summit_gondola "stalled gondola"
+  with name 'stalled' 'summit' 'gondola' 'cable' 'canopy',
+       description "It stopped halfway out of the station last night and
+           has been rocking there ever since, empty, with its doors open.
+           The gondolas are not coming back.";
+
+! P8, part one: the oil. FILL CAN works only here (the std grammar already
+! has FILL and FILL CAN FROM PUMP; section 9 adds FILL CAN WITH OIL; we
+! intercept ##Fill in the can's own `before`). can_full is the state: OIL
+! BUCKLE empties it, and you can always come back and refill, so the oil can
+! never become a dead end. Pouring the can out (EMPTY, or POUR from section
+! 9) is a way of oiling: onto the buckle, or anywhere on the ledge, it runs
+! the Oil action on the buckle; anywhere else it is refused, so the good
+! stuff is never wasted. `initial` shows only until the can is first picked
+! up (the library sets `moved` then).
+Object -> oil_can "oil can"
+  with name 'oil' 'can' 'oilcan' 'empty' 'full',
+       initial "An empty oil can hangs on a hook by the pumps.",
+       description [;
+           if (can_full) "A small tin oil can with a long spout, full of the
+               MAINNET pump's good stuff.";
+           "A small tin oil can with a long spout. It is empty.";
+       ],
+       before [;
+         Fill:
+           if (location ~= gas_station) "There is nothing here to fill it
+               with.";
+           if (can_full) "It is already full of the good stuff.";
+           can_full = true;
+           if (self notin player) { move self to player; print "(first
+               taking the oil can)^"; }
+           "PREMIUM and REGULAR are dry, and OXYGEN is coin-operated, so you
+           hold the can under the MAINNET pump's leak until it is full of
+           thick, golden lubricant. The pump does not mind. It has been
+           giving this away all night.";
+         Empty:
+           if (location == ledge && ~~belt_freed) <<Oil buckle>>;
+           "You'd only have to fill it again.";
+         EmptyT:
+           if (second == buckle or belt_pawl or belted_verdling)
+               <<Oil buckle>>;
+           "You'd only have to fill it again.";
+       ];
+
+! LORE L2. LISTEN TO BUSKER is ##Listen with the busker as noun; we catch it
+! in the busker's `before` (life only handles talking/giving). The first
+! song scores and carries both hints; later LISTENs cycle the three river
+! poets' verses from the lore doc, using busker_songs % 3.
+Person -> busker "busker"
+  with name 'busker' 'singer' 'river' 'poet' 'guitar' 'case',
+       description "A river poet in three scarves and fingerless gloves, the
+           busker of Gondola Platform 4, playing to nobody with tremendous
+           commitment. The guitar case open at their feet holds two
+           pebbles and a foreclosure notice.",
+       describe [;
+           "^A busker sits on an upturned crate by the stalled gondola,
+           playing to nobody.";
+       ],
+       no_answer "~I only know songs,~ says the busker. ~Ask me for one.
+           Better yet, just listen.~",
+       no_interest "~Keep it,~ says the busker. ~Nobody's paying anybody.~",
+       before [;
+         Listen:
+           busker_songs++;
+           if (busker_songs == 1) {
+               Achieved(TASK_LORE_BUSKER);
+               "The busker nods, as if you had paid, and sings:^
+               ^    ~The notices roll and the gilding comes down,
+               ^    and the Runout keeps all that we lose;
+               ^    and only a pike turns a pike aside,
+               ^    and a verdling will not take your news.
+               ^    There's a coat in the rubble that casts a true shade,
+               ^    and a word in its pocket, they tell --
+               ^    but the one who will find it's the one who looked down,
+               ^    the one who looked down and saw where it fell.~
+               ^^The last chord blows away downhill.";
+           }
+           switch (busker_songs % 3) {
+             2: "~One of mine,~ says the busker, and sings:^
+                ^    ~Where the green bank goes down to the water,
+                ^    there's a door that was never a door --
+                ^    and the ones who went over the Verdance
+                ^    sing it better than we did before.~";
+             0: "~The Thursday tenor's,~ says the busker, and sings:^
+                ^    ~Don't look for their lights from the ridgeline,
+                ^    they don't burn them to show you the way;
+                ^    they keep all their stars underneath them,
+                ^    and they've never once wished it was day.~";
+             1: "~The girl with the dulcimer's. That's the whole song,~ says
+                the busker, and sings it twice:^
+                ^    ~I floated a letter to the old side.
+                ^    It is floating there still, I suppose.~";
+           }
+       ],
+       life [;
+         Ask:
+           if (AskedAbout('song', 'songs', 'pike', 'coat', 'verdlings',
+               'verdling')) "~It's all in the song,~ says the busker. ~Songs
+               are the only honest thing that comes off this mountain.
+               Listen.~";
+           if (AskedAbout('old', 'side', 'far', 'bank', 'across'))
+               "~Never been. None of us has. That's why the songs are so
+               good.~";
+           if (AskedAbout('vaunt', 'maximus')) "~Tried to buy the catalogue.
+               Nobody would sell.~";
+       ];
+
+! --- 2. Whitepaper Switchbacks ----------------------------------------------
+
+! P1 lives here. The up exit is a ROUTINE: it returns the Terrace once the
+! kiosk is solved (kiosk_line == 3), and otherwise prints why not. Printing
+! a string from an exit routine and returning true means "you stay put".
+Room switchbacks "Whitepaper Switchbacks"
+  with description [;
+           print "A zigzag stair cut into the cliff, climbing toward the
+               Pavilion in switchbacks so tight you meet yourself coming the
+               other way. Every landing has a kiosk, and every kiosk displays
+               a page of the $ALT whitepaper";
+           if (kiosk_line < 3) print ". The one on the top landing stands
+               square across the stair, blocking the way up. Its screen asks
+               you to TRANSLATE TO PLAIN ENGLISH. ONE WORD WILL DO.";
+           else print ". The kiosk that blocked the top landing has rolled
+               aside; the way up is open.";
+           " A smaller bonus kiosk flickers on the landing below. The mesa
+           is back to the west.";
+       ],
+       sounds "The kiosks hum. One of them is playing hold music to itself.",
+       w_to mesa,
+       u_to [;
+           if (kiosk_line >= 3) return terrace;
+           "The kiosk on the top landing blocks the stair. Its screen pulses
+           patiently: TRANSLATE TO PLAIN ENGLISH. ONE WORD WILL DO.";
+       ];
+
+! The main kiosk. `done` is a little property routine KioskTyped calls on
+! success -- it keeps the kiosk's own bookkeeping with the kiosk.
+Object -> switch_kiosk "whitepaper kiosk"
+  with name 'whitepaper' 'kiosk' 'screen' 'top' 'landing' 'buzzwords',
+       done [; give self general; ],
+       description [;
+           if (self has general) "The kiosk has rolled aside and now shows
+               only a slowly rotating $ALT logo: Vaunt's face, gilded, with
+               laser eyes, rising over a peak.";
+           print "The screen shows one sentence of the whitepaper:^^
+               ~$ALT leverages decentralized synergy to create trustless
+               value-capture mechanisms across the elevation-agnostic
+               vertical.~^^One phrase at a time is lit. Right now it is ~";
+           KioskLine();
+           "~. Underneath: TRANSLATE TO PLAIN ENGLISH. ONE WORD WILL DO. A
+           keyboard waits for you to TYPE something.";
+       ],
+       before [;
+         Push, Pull, Take: if (self hasnt general) "The kiosk is bolted to
+             the landing. It will move when it hears plain English.";
+       ],
+  has  static scenery;
+
+! The bonus kiosk shares the word 'kiosk', so READ KIOSK would ask "which do
+! you mean?". This parse_name only answers to the bonus kiosk when one of its
+! own words ('bonus', 'small', 'other', ...) is typed, leaving plain 'kiosk'
+! to the one that matters.
+Object -> bonus_kiosk "bonus kiosk"
+  with parse_name [ n w own;
+           for (::) {
+               w = NextWord();
+               if (w == 'bonus' or 'small' or 'smaller' or 'other' or 'second'
+                   or 'lower') { own = true; n++; continue; }
+               if (w == 'kiosk') { n++; continue; }
+               break;
+           }
+           if (own) return n;
+           return 0;
+       ],
+       description [;
+           if (self has general) "The bonus kiosk is switched off. It seems
+               determined to stay that way.";
+           give self general;
+           "~Unlike legacy subterranean competitors,~ it reads, ~$ALT is
+           built for the future.~ The screen starts to translate this into
+           plain English -- THERE IS A PLACE UNDER THE FAR BANK AND IT IS --
+           and then the kiosk shuts itself off rather than finish.";
+       ],
+  has  static scenery;
+
+! --- 3. Pavilion Terrace ----------------------------------------------------
+
+! The hub of Act One: four exits and the foreclosure notice that P4 (the
+! KYC scanner, Act Two) will accept as proof of address.
+Room terrace "Pavilion Terrace"
+  with description
+           "The front terrace of Vaunt Pavilion: doorframes twelve feet tall
+           for no reason, gilding peeling in the wind, and a main gate that
+           someone has boarded shut with planks and a note saying WHATEVER.
+           Foreclosure notices flap on every door. A marble doorbell is set
+           into the gatepost. The ballroom is east, Vaunt's study north, and
+           a cantilevered walkway runs south to Lady Vaunt's wing. The
+           switchbacks go back down.",
+       sounds "Paper flapping. The wind, finding every gap in the gilding.",
+       d_to switchbacks,
+       e_to ballroom,
+       n_to study,
+       s_to wing;
+
+Feature -> terrace_frames "doorframes"
+  with name 'doorframe' 'doorframes' 'frames' 'door' 'doors' 'gilding'
+           'gate' 'main' 'planks' 'boards',
+       description "The doorframes would admit a giraffe in a top hat. The
+           main gate is boarded shut; the note on the planks says WHATEVER
+           in a confident hand.",
+  has  pluralname;
+
+! The singular/plural trick, part one. The scenery notices answer to
+! 'notices' only, and the one you can take answers to 'notice' only, so
+! TAKE NOTICE and EXAMINE NOTICES never ask "which do you mean?".
+Feature -> terrace_notices "flapping notices"
+  with name 'notices' 'flapping' 'foreclosure',
+       description "FORECLOSURE, FORECLOSURE, FINAL NOTICE, FORECLOSURE.
+           Every one that blows off rolls downhill, along with every other
+           liability the estate ever had. More keep coming.",
+  has  pluralname;
+
+! RING is a verb the game adds (section 9); the doorbell answers both RING
+! and PUSH/PRESS in its own `before`. Pure flavour: Vaunt's one recorded
+! line, from the lore doc.
+Object -> doorbell "marble doorbell"
+  with name 'marble' 'doorbell' 'bell' 'button' 'gatepost',
+       description "A doorbell carved from a single block of marble, which
+           is the wrong material for a doorbell in every way.",
+       before [;
+         Ring, Push:
+           "Somewhere inside, a chime the size of a church bell goes off,
+           and a recording of Lord Vaunt begins:^^~People say to me,
+           Maximus, is it true the old side is better? And I say: which old
+           side? I've never heard of them. I hear they're closing. I hear it
+           was never very good on the old side. Tremendous moisture
+           problems. Up here we have sunrise. Every single day. Who else can
+           say that?~^^The recording ends. Nobody comes to the door.";
+       ],
+  has  static scenery;
+
+! Notices keep blowing: there is ALWAYS one caught on the doorbell. Two
+! objects make that work. doorbell_notice is fixed in place (`static`) and
+! never leaves; TAKE on it hands you `notice`, the one you carry, and the wind
+! catches another on the doorbell at once. `describe` prints its line in the
+! room description every time (an `initial` would stop once it had been
+! touched). Its parse_name stands down while the real notice is in reach
+! (NoticeNotHere, section 4), so TAKE NOTICE never asks "which do you mean?".
+! When the scanner eats the notice (section 6), the doorbell still has one.
+Object -> doorbell_notice "foreclosure notice"
+  with parse_name [ n w;
+           if (~~NoticeNotHere()) return 0;
+           for (::) {
+               w = NextWord();
+               if (w == 'notice' or 'foreclosure' or 'final' or 'caught'
+                   or 'single' or 'paper') { n++; continue; }
+               return n;
+           }
+       ],
+       describe [;
+           "^One foreclosure notice has caught on the doorbell and flaps
+           there, like it is ringing.";
+       ],
+       description "FINAL NOTICE OF FORECLOSURE. VAUNT PAVILION, SUMMIT,
+           MINGUS RANGE. It is, among other things, an address.",
+       before [;
+         Take, Pull, Remove:
+           move notice to player;
+           "You unhook the notice from the doorbell. Almost at once the wind
+           catches another one there, flapping like it is ringing.";
+       ],
+  has  static;
+
+! The notice you carry. It starts off-stage (no `->`, so it is in no room)
+! until the doorbell's notice hands it over.
+Object notice "foreclosure notice"
+  with name 'notice' 'foreclosure' 'final' 'caught' 'single' 'paper',
+       description "FINAL NOTICE OF FORECLOSURE. VAUNT PAVILION, SUMMIT,
+           MINGUS RANGE. It is, among other things, an address.",
+       before [;
+         Take:
+           if (self in player) "You already have one. The wind will keep
+               bringing more.";
+       ];
+
+! --- 4. The Upside-Down Ballroom -------------------------------------------
+
+! P3 lives here. The five FloorTile objects (below) send every press to
+! PressTile() in section 4, which tracks tile_progress. The down exit opens
+! once floor_open is set. The up exit prints the staircase joke and then
+! returns the Observatory: an exit routine can talk AND move you.
+Room ballroom "The Upside-Down Ballroom"
+  with description [;
+           print "A ballroom the size of a cathedral, if cathedrals were
+               designed by someone who'd only heard of them secondhand. It
+               is a replica of a great hall in the old side, built upside
+               down. Gilded stalagmites hang from the ceiling. Gilded
+               stalactites stand on the floor and trip you. The ~cave mouth~
+               is a skylight, and the sky is leaking. A brass plaque is
+               fixed to a column, and the chandeliers -- acquired,
+               provenance unclear, designed to hang in a cellar -- sway in a
+               gale that very much should exist, because you are on a
+               mountain.^^The dance floor is a map of the empire inlaid in
+               gold, rearranged so that it spells VAUNT when seen from the
+               mezzanine. Five of its tiles are marked: FOYER, SHAFT,
+               STATION, OBSERVATORY and SHOP. The Verdance along its eastern
+               edge is a hairline crack, and the far bank is labelled simply
+               DAMP.";
+           if (floor_open) print " Where DAMP was, stone steps lead down.";
+           "^^A poached spiral staircase climbs to the observatory, and the
+           terrace is back to the west.";
+       ],
+       sounds "The chandeliers, chiming against one another like someone
+           else's cutlery.",
+       w_to terrace,
+       u_to [;
+           print "You climb the spiral staircase. It still goes down; it is
+               now bolted to a cliff and goes up.^";
+           return observatory;
+       ],
+       d_to [;
+           if (floor_open) return root_cellar;
+           "The floor is solid gold leaf over solid concrete. It is waiting
+           for something.";
+       ];
+
+Feature -> ballroom_plaque "brass plaque"
+  with name 'brass' 'plaque' 'column' 'columns',
+       description "THIS BALLROOM IS BIGGER, it insists, by ~about a foot,
+           if you measure diagonally.~";
+
+Feature -> ballroom_floor "inlaid map"
+  with name 'floor' 'dance' 'map' 'inlay' 'inlaid' 'tiles' 'vaunt' 'damp'
+           'crack' 'gold',
+       description "From down here you can't read VAUNT, only the places:
+           FOYER, SHAFT, STATION, OBSERVATORY and SHOP, each on a tile that
+           gives very slightly underfoot. The geography is wrong -- the
+           Observatory appears to sit in the middle of the Verdance -- but
+           the tiles look as though they would press in any order you like.
+           The real order would be on a real map.",
+  has  pluralname;
+
+Feature -> ballroom_decor "chandeliers"
+  with name 'chandelier' 'chandeliers' 'stalagmites' 'stalactites'
+           'skylight' 'mezzanine' 'sky',
+       description "Gold on everything, and everything in the wrong place.
+           The chandeliers were made to hang in a cellar. They do not care
+           for the wind.",
+  has  pluralname;
+
+FloorTile -> tile_foyer "FOYER tile"
+  with name 'foyer' 'tile', order 1, label "FOYER";
+FloorTile -> tile_shaft "SHAFT tile"
+  with name 'shaft' 'tile', order 2, label "SHAFT";
+FloorTile -> tile_station "STATION tile"
+  with name 'station' 'tile', order 3, label "STATION";
+FloorTile -> tile_observatory "OBSERVATORY tile"
+  with name 'observatory' 'tile', order 4, label "OBSERVATORY";
+FloorTile -> tile_shop "SHOP tile"
+  with name 'shop' 'tile', order 5, label "SHOP";
+
+! --- 5. Vaunt's Private Study ------------------------------------------------
+
+Room study "Vaunt's Private Study"
+  with description
+           "A glass-walled room at the lip of the mesa, full of plans.
+           Blueprints of the empire cover every surface, overlaid with
+           Vaunt's ~improvements~: a gondola across the Verdance (HOSTILE
+           ACQUISITION -- PHASE 2), a tunnel under it (IN CASE PHASE 2 IS
+           RUDE), a space elevator (MOON SOON). A vision board holds blurry
+           long-lens photographs of the far bank. On the desk lies a thick
+           folded map. The terrace is south.",
+       sounds "The glass ticking as the sun heats it.",
+       s_to terrace;
+
+Feature -> study_plans "blueprints"
+  with name 'blueprints' 'blueprint' 'plans' 'oldest' 'sketches' 'desk',
+       description "The oldest blueprint, curling at the corners, has one
+           word circled on it in gold marker: THERE. The arrow beside it
+           points across the river.",
+  has  pluralname;
+
+Feature -> vision_board "vision board"
+  with name 'vision' 'board' 'photos' 'photographs' 'pictures',
+       description "The photographs show grass. Vaunt's face has been
+           pasted over the grass and retouched to look more gilded.";
+
+! The Survey is the KEY to P3: it lists the five landmarks in the true
+! order. Nothing in the code checks that you read it -- the knowledge is the
+! gate, not a flag. `article "the"` keeps the library from printing
+! "a Mingus Survey".
+Object -> survey "Mingus Survey, Annotated"
+  with article "the",
+       name 'mingus' 'survey' 'annotated' 'map' 'true' 'folded',
+       description "THE MINGUS SURVEY. The true map of the range, in a
+           surveyor's plain hand, with five landmarks numbered in order down
+           the mountain:^^    1. The Foyer of Unprecedented Arrival (the
+           summit gondola station; formerly a loading dock)^    2. The
+           Shared Shaft (the deepest shaft in the mountain)^    3. Pumping
+           Station No. 2 (there is no No. 1)^    4. The Observatory^    5. The
+           Gift Shop (largest room in the empire by floor area)^^The margins
+           are Vaunt's. THEY WERE HERE FIRST. SO WHAT. -- WHY IS IT WARM
+           THERE. -- ONE DAY THEY WILL LOOK UP. Every eastern measurement has
+           been rounded up, and every altitude has been rounded up twice.
+           The Verdance is drawn to its true width, and the far bank is left
+           blank.",
+       before [;
+         Consult: <<Examine self>>;
+       ];
+
+! --- 6. Lady Vaunt's Wing ---------------------------------------------------
+
+! Lady Vaunt's Wing: the $SHRUG coin (needed for P6's collateral), the
+! Spite Terminal (lore L3) and the shadowless NFT coats (a hint: the real
+! coat casts a shadow).
+Room wing "Lady Vaunt's Wing"
+  with description
+           "A wing bolted onto the sheer cliff face, reached by a
+           cantilevered walkway that sways a little. The token gate is set
+           to ~Whatever~, so it is open. Inside is a coat closet where
+           dozens of coats are projected onto mannequins in various poses; a
+           laptop sits open on a stand, still logged in, a sticker on its
+           lid reading SPITE TERMINAL; and an airdrop tray stands by the
+           door. The walkway leads north, back to the terrace.",
+       sounds "The walkway creaking. The projectors, humming.",
+       n_to terrace;
+
+Feature -> token_gate "token gate"
+  with name 'token' 'gate' 'walkway' 'cantilevered',
+       description "A gate with a coin slot and a dial. The dial is set to
+           WHATEVER.";
+
+! Singular/plural again: 'coats' is the projections; the one real coat is
+! somewhere else entirely, and has its own name.
+Feature -> nft_coats "projected coats"
+  with name 'coats' 'nft' 'nfts' 'mannequins' 'mannequin' 'projections'
+           'closet' 'poses',
+       description "Dozens of the same coat, projected onto mannequins in
+           various poses: the coat ascending, the coat at dusk, the coat
+           with laser eyes. You look closely, the way you would at a
+           suspicious commit. None of them casts a shadow. The real one,
+           whatever it is, is not here.",
+  has  pluralname;
+
+! LORE L3: reading the terminal awards the task from inside its
+! description, the same way as the plaque.
+Object -> spite_terminal "Spite Terminal"
+  with name 'spite' 'terminal' 'laptop' 'screen' 'chat' 'sticker',
+       description [;
+           Achieved(TASK_LORE_SPITE);
+           "Lady Vaunt's laptop, still logged in to the $SHRUG dev chat. The
+           pinned message is from Esme herself:^^    stop comparing us to
+           the old-siders. nobody on the old side is thinking about you,
+           max.^^Further down, from the night of the crash:^^    re: the
+           coat. it's at the bottom somewhere. I'm not going down there.
+           verdlings.^^The last message is a ticket assigned to you.";
+       ],
+       before [;
+         Take: "It is chained to its stand. Even Lady Vaunt has some
+             standards.";
+       ],
+  has  static scenery;
+
+Object -> airdrop_tray "airdrop tray"
+  with name 'airdrop' 'tray',
+       description "A gilt tray labelled AIRDROP. TAKE ONE.",
+  has  static scenery supporter;
+
+Object shrug_coin "$SHRUG coin" airdrop_tray
+  with name 'shrug' 'coin' 'token' 'coat-logo',
+       description "A coin stamped with a coat silhouette that cycles through
+           colourways as you tilt it. On the back: WHATEVER. DYOR. It is,
+           surprisingly, solvent.";
+
+! --- 7. The Observatory -----------------------------------------------------
+
+! P2 lives here: TURN TELESCOPE flips telescope_down (so do SWING, PUSH and
+! MOVE, and POINT/AIM/TURN TELESCOPE DOWN only ever point it down); LOOK
+! THROUGH TELESCOPE (the std grammar maps it to ##Search) scores only when
+! the telescope points down. The coat is not hard-gated on this: it is
+! knowledge, plus five points for looking down.
+Room observatory "The Observatory"
+  with description
+           "A dome at the top of the Pavilion with twelve telescopes in a
+           ring, every one aimed across the Verdance at the far bank. None
+           of them has ever seen anything. A thirteenth telescope, older and
+           smaller, stands by itself at the rail, its clamp loose. The
+           spiral staircase goes back down.",
+       sounds "The dome's motor, trying to turn and thinking better of it.",
+       d_to ballroom;
+
+! The singular/plural trick, part two. In a z5 story the dictionary keeps
+! only the first nine letters of a word, so 'telescope' and 'telescopes' are
+! the SAME dictionary word and plain `name` can't tell them apart. These
+! parse_name routines look at the typed word's real length instead.
+Object -> telescopes "twelve telescopes"
+  with parse_name [ n w;
+           for (::) {
+               w = NextWord();
+               if (w == 'twelve' or 'ring' or 'other') { n++; continue; }
+               if (w == 'telescope' && WordLength(wn - 1) > 9) { n++; continue; }
+               return n;
+           }
+       ],
+       description "Twelve brass telescopes, all aimed across the river at
+           the same patch of grass. Their lens caps have never been taken
+           off.",
+       before [;
+         Search, Turn, Swing, Point, Push, Pull:
+           "The twelve are welded in place, all looking across. It is the
+           empire's one unshakeable position.";
+         Take: "They are welded to the floor.";
+       ],
+  has  static scenery pluralname;
+
+Object -> telescope "thirteenth telescope"
+  with parse_name [ n w;
+           for (::) {
+               w = NextWord();
+               if (w == 'thirteenth' or 'old' or 'older' or 'small'
+                   or 'smaller' or 'clamp' or 'loose') { n++; continue; }
+               if (w == 'telescope' && WordLength(wn - 1) == 9) { n++; continue; }
+               return n;
+           }
+       ],
+       description [;
+           print "An older, smaller telescope on a swivel mount, its clamp
+               loose. It is pointing ";
+           if (telescope_down) "straight down, at the foot of the range.";
+           "across the river, like the others.";
+       ],
+       before [;
+         Search:
+           if (telescope_down == false)
+               "You put your eye to the thirteenth telescope. The far bank
+               swims into focus: grass, real grass, and cottonwoods, and a
+               few low chimney vents in the green giving off a steady, warm,
+               unremarkable glow. It never flickers. You watch it for a
+               while and it goes on not flickering.";
+           Achieved(TASK_TELESCOPE);
+           "You put your eye to the telescope. Straight down, the foot of
+           the range swims into focus: the Runout, a fan of everything the
+           empire ever dropped, alive with small mud-coloured figures. And
+           there, by the upturned gondola car, lies a long coat. It casts a
+           shadow. Nothing else down there does anything so honest.";
+         ! ##Point is the game's own action (section 9): POINT TELESCOPE
+         ! DOWN, AIM TELESCOPE DOWN, TURN TELESCOPE DOWN.
+         Point:
+           if (telescope_down) "It is already pointing straight down, at the
+               foot of the range.";
+           telescope_down = true;
+           "You loosen the clamp and swing the telescope away from the far
+           bank, straight down. It is the first time anything in this room
+           has looked down.";
+         Turn, Swing, Push, Pull:
+           telescope_down = ~~telescope_down;
+           if (telescope_down) "You loosen the clamp and swing the
+               telescope away from the far bank, straight down. It is the
+               first time anything in this room has looked down.";
+           "You swing the telescope back across the river, like the
+           others.";
+         Take: "It is bolted to its mount by the one bolt in the room that
+             isn't loose.";
+       ],
+  has  static scenery;
+
+
+! ============================================================================
+!  6. ACT TWO: THE BLOCKCHAIN CATACOMBS  --  inside the mountain
+! ----------------------------------------------------------------------------
+!  Rooms: Root Cellar, The Mempool, Validator Pit, Break Room, the Shared
+!  Shaft (optional), The Archive, Cold Wallet Cavern, Windward Ledge.
+!  Puzzles P4 (KYC), P5 (contract), P6 (union), P7 (cold wallet), P8 (the
+!  belted verdling). Lore: Mrs. Thrumble, the Genesis Block. The act banner
+!  is printed by the Root Cellar's `initial` routine.
+! ============================================================================
+
+! --- 9. Root Cellar ---------------------------------------------------------
+
+! P4 lives here. Two flags, kyc_address and kyc_captcha, can be set in either
+! order; KycCheck() (section 4) runs after each and hands over the badge
+! once both are true. The down exit (the service lift) checks for the
+! badge, so "has the player passed KYC?" is just "is the badge carried?".
+Room root_cellar "Root Cellar"
+  with initial [; BeginAct(2); ],
+       description [;
+           print "A low stone cellar under the ballroom, cool and quiet,
+               with shelves of onions and a single bare bulb. It is the only
+               part of the estate Vaunt never shows guests, and the only part
+               he secretly likes. A service lift waits in the far wall, its
+               gate guarded by a KYC scanner. The steps lead back up to the
+               ballroom";
+           if (wallet_badge in player) ". The lift's gate stands open.";
+           ".";
+       ],
+       sounds "Nothing at all, which on this mountain is a luxury.",
+       u_to ballroom,
+       d_to [;
+           if (wallet_badge notin player) "The service lift's gate stays
+               shut. The scanner's screen reads: VERIFIED WALLET BADGE
+               REQUIRED. FORM 77-Omega/b (SCHEDULE: WHATEVER).";
+           print "The service lift scans your badge, sighs, and drops into
+               the rock. The bulb above the cellar shrinks to a star and goes
+               out. The mine is dark. The mine is cold. The mine is
+               ~decentralized~, which means nobody fixes the lights.^";
+           return mempool;
+       ];
+
+Feature -> cellar_shelves "shelves of onions"
+  with name 'shelves' 'shelf' 'onions' 'onion' 'bulb',
+       description "Onions, in rows. It is the most honest room in the
+           Pavilion.",
+  has  pluralname;
+
+Feature -> service_lift "service lift"
+  with name 'service' 'lift' 'gate' 'elevator',
+       description "A steel lift with a gate. A sticker reads: ALL RIDERS
+           MUST BE VERIFIED.",
+       before [;
+         Enter: <<Go d_obj>>;
+       ];
+
+! P4. The scanner is a container: PUT NOTICE IN SCANNER (and PUT NOTICE ON
+! SCANNER) sends it a Receive action first, which is where we check what is
+! being scanned.
+Object -> kyc_scanner "KYC scanner"
+  with name 'kyc' 'scanner' 'screen' 'captcha' 'grid' 'squares' 'form',
+       description [;
+           print "FORM 77-Omega/b (SCHEDULE: WHATEVER). The scanner wants two
+               things.^^    PROOF OF ADDRESS: ";
+           if (kyc_address) print "RECEIVED"; else print "INSERT DOCUMENT";
+           print "^    CAPTCHA: ";
+           if (kyc_captcha) print "PASSED";
+           else print "Select all squares containing murklings.";
+           if (~~kyc_captcha) print "^^The CAPTCHA is a grid of nine photographs,
+               all taken inside the mine shafts. Every one is pitch black.
+               Any of them might contain murklings. You can SELECT whatever
+               you like.";
+           new_line;
+           rtrue;
+       ],
+       before [;
+         Receive:
+           if (noun ~= notice) "The scanner reads it, beeps sadly, and
+               spits it out. NOT AN ADDRESS.";
+           if (kyc_address) "Your address is already on file. Forever.";
+           kyc_address = true;
+           ! The notice is eaten (`remove` takes it out of the world).
+           ! The doorbell always has another, so this can never become a
+           ! dead end.
+           remove notice;
+           print "The scanner swallows the foreclosure notice, reads the
+               address, and approves it with a little fanfare. PROOF OF
+               ADDRESS: RECEIVED. (Far above, the wind delivers another
+               notice to the doorbell.)^";
+           KycCheck();
+           rtrue;
+       ],
+  has  static scenery container open;
+
+! The badge is the lift's key, so it must never be lost: every action that
+! could separate you from it is refused in its `before`.
+Object wallet_badge "Verified Wallet Badge"
+  with name 'verified' 'wallet' 'badge' 'soulbound' 'kyc',
+       description "A Verified Wallet Badge: soulbound, non-transferable,
+           revocable at any time for any reason. It has your face on it. You
+           don't remember it taking a picture.",
+       before [;
+         Drop, Give, PutOn, Insert, ThrowAt, Show:
+           "It's soulbound. It will not leave you. It has said so in
+           writing.";
+       ];
+
+! --- 10. The Mempool --------------------------------------------------------
+
+! The Act Two hub. SEARCH TRANSACTIONS gives the punch card (P5), the
+! PENDING tray holds the charter (P6), and the north exit is the consensus
+! door: a routine that counts attestations with Attestations() and opens
+! at two.
+Room mempool "The Mempool"
+  with description
+           "A cavern drifted knee-deep with pending transactions: paper slips,
+           millions of them, each waiting to be confirmed by somebody who
+           has gone home. Fluorescent lights flicker in patterns that might
+           be Morse code but are just electrical failure. A wire tray marked
+           PENDING stands by the lift. To the north is a heavy door with
+           three slots, marked CONTRACT, UNION and VALIDATOR KEY. The
+           Validator Pit is east, a break room south, and the lift goes back
+           up.",
+       sounds "Paper settling. Somewhere, a transaction gives up.",
+       u_to [;
+           print "The lift hauls you back up into the cellar's onion-scented
+               quiet.^";
+           return root_cellar;
+       ],
+       e_to validator_pit,
+       s_to break_room,
+       n_to [ n;
+           n = Attestations();
+           if (n >= 2) {
+               print "The door reads what you carry -- the debugged contract,
+                   the union's endorsement -- and its slots light up one
+                   after another. TWO ATTESTATIONS. CONSENSUS REACHED. It
+                   swings open, and you climb through.^";
+               return archive;
+           }
+           "The door's slots stay dark. A panel above them reads: TWO
+           ATTESTATIONS REQUIRED. YOU HAVE ", n, ".";
+       ];
+
+! P5, part one: SEARCH (or LOOK IN, or DIG IN) the drift. card_found makes it
+! a one-time find.
+Object -> transactions "pending transactions"
+  with name 'pending' 'transactions' 'transaction' 'slips' 'slip' 'drifts'
+           'drift' 'paper',
+       description "Millions of unconfirmed transactions. Most of them are
+           Vaunt paying himself.",
+       before [;
+         Search, Dig:
+           if (card_found) "More of the same: pending, pending, pending.";
+           card_found = true;
+           move punch_card to player;
+           "You dig through the drift. Pending, pending, pending -- and
+           then something stiffer: a punch card, the old-fashioned kind,
+           punched in neat rows. Somebody's patch, never submitted. You
+           pocket it.";
+         Take: "You'd need a much bigger pocket, and a much smaller
+             blockchain.";
+       ],
+  has  static scenery pluralname;
+
+Feature -> consensus_door "consensus door"
+  with name 'consensus' 'door' 'slots' 'heavy' 'contract' 'union'
+           'validator' 'key',
+       description [;
+           "A heavy door of riveted steel with three slots, marked CONTRACT,
+           UNION and VALIDATOR KEY. The last slot is dusty: whoever held
+           that key is long gone. A panel reads TWO ATTESTATIONS REQUIRED.
+           YOU HAVE ", Attestations(), ".";
+       ],
+       before [;
+         Open, Enter: <<Go n_obj>>;
+       ];
+
+Object -> pending_tray "PENDING tray"
+  with name 'pending' 'wire' 'tray',
+       description "A wire tray marked PENDING. It has been pending for a
+           while.",
+  has  static scenery supporter;
+
+! P6. The charter's `short_name` is a routine, so its printed name changes
+! from "blank" to "signed" with charter_signed. SIGN CHARTER is caught in its
+! own `before` and only works where the ink pad is (the Break Room).
+Object union_charter "blank union charter" pending_tray
+  with name 'blank' 'signed' 'union' 'charter',
+       short_name [;
+           if (charter_signed) print "signed union charter";
+           else print "blank union charter";
+           rtrue;
+       ],
+       description [;
+           print "MURKLING MINERS' LOCAL 404. A CHARTER OF ENDORSEMENT. The
+               demands are listed in fine print: darkness preservation,
+               dental, hazard pay for rockfalls, and parity with ~certain
+               other workforces in the area, who work in the dark at a
+               constant fifty-five degrees.~";
+           if (charter_signed) " It bears your name, in murkling ink.";
+           " The line for a signature is blank.";
+       ],
+       before [;
+         Sign:
+           if (charter_signed) "You've already signed it.";
+           if (ink_pad notin location) "You have nothing to sign it with.
+               The murklings sign everything in their own ink.";
+           charter_signed = true;
+           "You press your thumb to the murkling ink pad and sign the
+           charter. The nearest murklings bang their hard hats together in
+           approval. ~Solidarity,~ one of them says.";
+       ];
+
+Object punch_card "punch card"
+  with name 'punch' 'card' 'patch' 'punched',
+       description "A punch card, punched in neat rows. Holding it up to the
+           light, you can read the patch:^^    require(balance > 0,
+           ~ALREADY RUGGED~);";
+
+! --- 11. Validator Pit ------------------------------------------------------
+
+! P5, part two. PUT CARD IN SLOT is ##Insert; the library first sends the
+! slot a ##Receive (with `noun` = the card), and the slot's `before` does
+! the swap: the card is removed and the debugged contract appears.
+Room validator_pit "Validator Pit"
+  with description
+           "A pit of humming servers around a great brass contract engine, its
+           screen frozen on an error. A punch-card slot gapes in its side. A
+           motivational banner across the pit reads: DARKNESS IS A LEGACY
+           TECHNOLOGY. A murkling has added, in chalk underneath: ~THEN WHY
+           IS IT SO NICE.~ The mempool is back to the west.",
+       sounds "Fans. Thousands of them, all running, none of them helping.",
+       w_to mempool;
+
+Feature -> pit_banner "banner"
+  with name 'banner' 'motivational' 'chalk' 'servers' 'fans',
+       description "DARKNESS IS A LEGACY TECHNOLOGY. Underneath, in chalk:
+           ~THEN WHY IS IT SO NICE.~";
+
+Object -> contract_engine "contract engine"
+  with name 'brass' 'contract' 'engine' 'error' 'screen' 'code',
+       description [;
+           print "The screen shows a smart contract, frozen mid-run:^^";
+           print "    function rugPull() public {^";
+           print "        require(msg.sender == vaunt, ~UNAUTHORIZED~);^";
+           print "        for (uint i = 0; i < holders.length; i++) {^";
+           print "            // TODO: add exit condition^";
+           print "            drain(holders[i]);^";
+           print "        }^";
+           print "    }^";
+           print "    // ERROR: INFINITE LOOP DETECTED. ALL HOLDERS DRAINED FOREVER.^";
+           if (debugged_contract has general) "^It has since been fixed.";
+           "^A punch-card slot in the engine's side is waiting for a patch.";
+       ],
+  has  static scenery;
+
+Object -> card_slot "punch-card slot"
+  with name 'slot' 'punch-card',
+       description "A slot the width of a punch card.",
+       before [;
+         Receive:
+           if (noun ~= punch_card) "It is a punch-card slot. That is not a
+               punch card.";
+           remove punch_card;
+           move debugged_contract to player;
+           give debugged_contract general;
+           Achieved(TASK_CONTRACT);
+           "The engine swallows the card with a clatter. The frozen screen
+           scrolls, recompiles and settles on a new line:^^    require(balance
+           > 0, ~ALREADY RUGGED~);^^COMPILED. The engine prints you a
+           receipt: the debugged contract. You have made the rug pull more
+           efficient. This is called ~optimization.~";
+       ],
+  has  static scenery container open;
+
+Object debugged_contract "debugged contract"
+  with name 'debugged' 'contract' 'receipt' 'printed',
+       description "A printed receipt: CONTRACT rugPull() COMPILED. EXIT
+           CONDITION: ALREADY RUGGED. It counts as an attestation, somehow.";
+
+! --- 12. Break Room ---------------------------------------------------------
+
+! P6 lives here (sign, then give to the steward) and so does the hard hat
+! for lore L4 (Mrs. Thrumble, one floor down).
+Room break_room "Break Room"
+  with description
+           "The headquarters of Murkling Miners' Local 404: folding chairs, a
+           kettle, and two whiteboards. One reads DAYS SINCE LAST RUG PULL: 0.
+           The other reads DAYS SINCE MANAGEMENT INSTALLED MORE LIGHTS: 0.
+           Murklings in hard hats sit around drinking something hot in the
+           half-dark. There is an ink pad on the table and a rack of hard
+           hats by the door. The mempool is north, and a shaft goes down.",
+       sounds "Murklings, muttering about the lights.",
+       n_to mempool,
+       d_to shared_shaft;
+
+Feature -> whiteboards "whiteboards"
+  with name 'whiteboard' 'whiteboards' 'boards' 'chairs' 'kettle',
+       description "DAYS SINCE LAST RUG PULL: 0. DAYS SINCE MANAGEMENT
+           INSTALLED MORE LIGHTS: 0.",
+  has  pluralname;
+
+Object -> murklings "murklings"
+  with name 'murklings' 'murkling' 'miners' 'workers',
+       description "Small, pale, big-eyed creatures in hard hats and safety
+           vests, which is ironic, given the darkness. They were born in
+           these shafts and have spent their whole lives missing a dark they
+           never had.",
+       life [;
+         Ask, Tell: "~Talk to the steward,~ they say, all at once.";
+         default: "They look at the steward.";
+       ],
+  has  animate scenery pluralname;
+
+Object -> ink_pad "ink pad"
+  with name 'ink' 'pad' 'inkpad' 'murkling',
+       description "A pad of murkling ink, dark as the inside of a mine.
+           Any murkling will let you use it. Solidarity.",
+       before [;
+         Take: "~That stays here,~ says the steward. ~You sign here.~";
+       ],
+  has  static scenery;
+
+Feature -> hat_rack "rack of hard hats"
+  with name 'rack' 'hats' 'helmets' 'hooks',
+       description "A rack of hard hats with one spare left on the end.",
+  has  pluralname;
+
+Object -> spare_hat "hard hat"
+  with name 'spare' 'hard' 'hat' 'helmet',
+       initial "One spare hard hat hangs on the end of the rack.",
+       description "A dented yellow hard hat. Its inside is stencilled VAUNT
+           MINING CO. -- PROPERTY OF.",
+  has  clothing;
+
+! P6, part two. GIVE CHARTER TO STEWARD reaches his `life` as ##Give with
+! noun = the charter. He checks, in order: is it signed? are you carrying
+! the $SHRUG coin? Only then does he swap the charter for the endorsement.
+! The coin is handed straight back, so it is never used up. Anything that
+! is not the charter returns false and falls through to the Person class.
+Person -> steward "Steward Nubbin"
+  with name 'shop' 'steward' 'nubbin' 'union' 'leader',
+       description "Steward Nubbin of Local 404: a murkling of great dignity
+           and a hard hat with a little gold star on it, which he insists is
+           not a light.",
+       describe [;
+           "^Steward Nubbin, shop steward of Local 404, sits at the head of
+           the table with his arms folded.";
+       ],
+       no_answer "~That's not on the agenda,~ says Steward Nubbin.",
+       no_interest "~That's not an endorsement matter,~ says Steward Nubbin.",
+       life [;
+         Give, Show:
+           if (noun ~= union_charter) rfalse;
+           if (~~charter_signed) "~It's blank,~ says the steward. ~A charter
+               means nothing until somebody signs it. Ink's on the table.~";
+           if (shrug_coin notin player) "Steward Nubbin looks from the charter
+               to you. ~Collateral. How do we know you're not one of his?~";
+           remove union_charter;
+           move endorsement to player;
+           Achieved(TASK_UNION);
+           "Steward Nubbin takes the charter and reads every word of it,
+           twice. Then he holds out a hand. ~Collateral.~ You give him the
+           $SHRUG coin. He bites it, considers, and hands it back. ~Hers,~ he
+           says. ~Not his. Good.~^^He stamps the charter, files it, and gives
+           you a card in return: a union endorsement. ~Local 404 endorses
+           you,~ he says. Around the table, the murklings bang their hard
+           hats together.";
+         Ask:
+           if (AskedAbout('union', 'local', 'demands', 'charter', 'strike'))
+               "~Darkness preservation. Dental. Hazard pay. Parity with
+               certain other workforces in the area.~ He will not say
+               which. Everyone knows which.";
+           if (AskedAbout('lights', 'light', 'dark', 'darkness'))
+               "~Light is an asset, they say. Light is not a safety
+               standard.~";
+           if (AskedAbout('vaunt', 'maximus', 'management'))
+               "~Management has left the building. The building has not
+               noticed.~";
+           if (AskedAbout('thrumble', 'shaft'))
+               "~Down the shaft. Warm air. Don't talk to her.~ He pauses.
+               ~She's nice, though.~";
+       ],
+  has  male;
+
+! It is a card, but it does not answer to CARD: the punch card does, and
+! PUT CARD IN SLOT must never have to ask "which do you mean?".
+Object endorsement "union endorsement"
+  with article "a",
+       name 'union' 'endorsement' 'stamp',
+       description "A card stamped with the seal of Murkling Miners' Local
+           404: LOCAL 404 ENDORSES THE BEARER. It counts as an attestation.";
+
+! --- 13. The Shared Shaft (optional: Mrs. Thrumble) ---------------------------
+
+! Optional (lore L4). The old side's only voice, behind bars. Nothing here
+! is needed to win.
+Room shared_shaft "The Shared Shaft"
+  with description
+           "The deepest shaft in the Mingus range ends here, below the valley
+           floor and below the Verdance, at an iron grate. The near side is
+           wired with RGB lighting and a sign: VAUNT DEEP-CORE SHAFT -- EST.
+           LAST YEAR. On the far side is a tunnel of old fitted stone, a
+           ladder, and a lamp on a hook that has clearly hung there for a
+           very long time. The air coming through the grate is warm. The
+           break room is back up.",
+       sounds "The warm air, sighing through the bars. A murkling behind you
+           whispers: ~Don't talk to her. She doesn't even know we're here.~
+           A beat. ~She does know. She's pretending. That's worse.~ Another
+           beat. ~It's so warm, though.~",
+       u_to break_room;
+
+Feature -> grate "iron grate"
+  with name 'iron' 'grate' 'bars' 'rgb' 'lighting' 'sign' 'stone' 'tunnel'
+           'ladder' 'far' 'side',
+       description "The grate is old iron, fitted into older stone. Your side
+           of it is purple, then green, then purple. Her side is lit by the
+           lamp, and stays the same colour.",
+       before [;
+         Enter, Climb, Open: "The grate does not open from this side. It is
+             not that kind of grate.";
+       ];
+
+Feature -> shaft_lamp "lamp on its hook"
+  with name 'lamp' 'hook' 'light',
+       description "A plain lamp on a hook, burning steadily on the far side
+           of the grate. It has been there a very long time.",
+       before [;
+         Take: "It's on the far side of the grate, and anyway, it's on its
+             hook.";
+       ];
+
+! LORE L4: GIVE HARD HAT TO THRUMBLE swaps the hat for the claim ticket.
+! Her ASK answers come from the lore doc; AskedAbout() (section 4) matches a
+! word anywhere in the topic, so ASK ABOUT THE MOUNTAIN works too.
+Person -> thrumble "Mrs. Thrumble"
+  with name 'mrs' 'thrumble' 'clerk' 'woman' 'lady' 'crate',
+       description "A neat woman in a cardigan, on the far side of the bars,
+           sorting a crate of fallen hard hats with a ledger at her elbow.
+           She is polite, efficient and kind. She has never once looked up.",
+       describe [;
+           "^Mrs. Thrumble, Clerk of Lost Property, is behind the bars,
+           sorting a crate of fallen hard hats.";
+       ],
+       no_answer "~I'm afraid I couldn't say, dear.~ She goes back to her
+           ledger.",
+       no_interest "~That isn't lost, dear,~ says Mrs. Thrumble. ~You're
+           holding it.~",
+       life [;
+         Give:
+           if (noun == spare_hat) {
+               remove spare_hat;
+               move claim_ticket to player;
+               Achieved(TASK_LORE_CLERK);
+               "You pass the hard hat through the bars. Mrs. Thrumble turns
+               it over, notes the dent, and logs it in her ledger without
+               a word about where it came from. Then she tears off a claim
+               ticket and hands it back through the grate. ~Lost property.
+               Signed for. Thank you, dear.~";
+           }
+           if (noun == shrug_coin) "~That appears to be a washer. Would you
+               like to file it as lost?~";
+         Ask:
+           if (AskedAbout('mingus', 'empire', 'pavilion', 'palace'))
+               "~I'm sorry, I don't know what you're referring to.~";
+           if (AskedAbout('vaunt', 'maximus', 'lord'))
+               "~We had a gentleman of that name in a ticket queue once. He
+               was asked to leave. Is that all?~";
+           if (AskedAbout('shaft', 'tunnel', 'hats', 'hat', 'drainage'))
+               "~It's our old drainage tunnel. Something keeps dropping
+               things down it from above. Hard hats, mostly. Some gold
+               paint. I don't look up.~";
+           if (AskedAbout('lamp', 'light', 'hook'))
+               "~That's not lost, dear. That's on its hook.~";
+           if (AskedAbout('explorers', 'explorer', 'expedition', 'people'))
+               "~People do turn up from time to time, soaked and blue with
+               cold. We give them a towel and a cup of tea, and they
+               generally decide to stay. It's warm, you see. I couldn't say
+               where they came from.~";
+           if (AskedAbout('mountain', 'up', 'above', 'sky'))
+               "~I wouldn't know, dear. I don't look up.~";
+       ],
+  has  female proper;
+
+Object claim_ticket "claim ticket"
+  with name 'claim' 'ticket' 'copperplate',
+       description "A small, crisp claim ticket for one hard hat, dated
+           today, stamped, perfectly dry. On the back, in neat copperplate,
+           is a single word: THAN.";
+
+! --- 14. The Archive --------------------------------------------------------
+
+! Reached only through the consensus door. Lore L5 (the Genesis Block) is
+! scored from its description, like the plaque.
+Room archive "The Archive"
+  with description
+           "A long vault of humming drives and printed ledgers: every
+           transaction in Mingus history, all eighteen months of it,
+           immutable, in COBOL. On a plinth in the middle sits the Genesis
+           Block, a slab of glass with text inside it. The consensus door is
+           south, and an old ventilation bore climbs north, toward the cold.",
+       sounds "The drives, humming the whole history of the empire to
+           themselves. It's a short song.",
+       s_to mempool,
+       n_to cold_cavern,
+       u_to cold_cavern;
+
+Feature -> ledgers "ledgers"
+  with name 'ledger' 'ledgers' 'drives' 'cobol' 'vault' 'plinth' 'bore'
+           'ventilation',
+       description "Eighteen months of transactions, from the founding to
+           the pump to the dump. The truth is here, if you can read COBOL.",
+  has  pluralname;
+
+Object -> genesis_block "Genesis Block"
+  with name 'genesis' 'block' 'slab' 'glass' 'charter' 'footnote',
+       description [;
+           Achieved(TASK_LORE_GENESIS);
+           "The Genesis Block holds the original Mingus charter. It is very
+           clear. The range was chartered to a public Trust: the Mingus
+           Charter Trust. Vaunt merely renamed a defunct ski resort and
+           declared himself founder. A footnote observes that the deepest
+           shaft ~appears to come out under the neighbors. Nobody tell him.~";
+       ],
+  has  static scenery;
+
+! --- 15. Cold Wallet Cavern -------------------------------------------------
+
+! P7 lives here. TYPE <word> goes to KeypadTyped() (section 4), which
+! compares the word with trust_words-->mnemonic_words. EXAMINE BLOCKS is the
+! clue: the four PLAIN words, in pedestal order, are the Trust's.
+Room cold_cavern "Cold Wallet Cavern"
+  with description [;
+           print "An ice cave open to the wind on the north face, where seed
+               phrases go to die. Twelve pedestals stand in a crescent, each
+               with an ice block on it and a word frozen inside. One block,
+               the Trust's, is larger than the rest, with a keypad set into
+               its base";
+           if (wallet_open) print "; it has split in two";
+           ". The ventilation bore leads south, back to the archive, and the
+           wind comes in from a ledge to the east.";
+       ],
+       sounds "Wind, and ice ticking.",
+       s_to archive,
+       d_to archive,
+       e_to ledge;
+
+! "examine blocks" lists all twelve; "examine block" is the Trust's block.
+! 'blocks' and 'block' are different dictionary words, so `name` alone
+! keeps them apart.
+Object -> ice_blocks "ice blocks"
+  with name 'blocks' 'pedestals' 'pedestal' 'ice' 'words' 'twelve',
+       description "Each word has a faint watermark. Vaunt's shimmer gold.
+           Lady Vaunt's cycle through colours. The Trust's are plain,
+           unadorned and honest. In order along the crescent:^
+           ^    1  HIGHER    (gold shimmer)
+           ^    2  THEY      (plain)
+           ^    3  WHATEVER  (colours cycling)
+           ^    4  BETTER    (gold shimmer)
+           ^    5  NEVER     (plain)
+           ^    6  DYOR      (colours cycling)
+           ^    7  THAN      (gold shimmer)
+           ^    8  SPITE     (colours cycling)
+           ^    9  LOOK      (plain)
+           ^    10 ELEVATED  (gold shimmer)
+           ^    11 COAT      (colours cycling)
+           ^    12 UP        (plain)",
+       before [;
+         Take, Attack, Push, Pull: "They are frozen to their pedestals.";
+       ],
+  has  static scenery pluralname;
+
+Object -> trust_block "Trust's block"
+  with name 'trust' 'trust^s' 'block' 'large' 'larger' 'split' 'halves',
+       description [;
+           if (wallet_open) "The Trust's block lies split in two halves on
+               its pedestal, and the box that was frozen inside it has
+               thawed open.";
+           "The largest block, frozen around a small box. Its pedestal's
+           keypad is labelled MINGUS CHARTER TRUST -- PLAIN WORDS ONLY.";
+       ],
+       before [;
+         Take, Attack, Push, Pull: "It is frozen solid to its pedestal.";
+       ],
+  has  static scenery;
+
+Object -> keypad "keypad"
+  with name 'keypad' 'keys' 'label',
+       description [;
+           print "MINGUS CHARTER TRUST -- PLAIN WORDS ONLY. You can TYPE a
+               word on it. Its little screen reads: ";
+           if (wallet_open) "MNEMONIC ACCEPTED.";
+           print_ret mnemonic_words, " OF 4.";
+       ],
+  has  static scenery;
+
+! The box is `openable` but refuses OPEN while frozen; KeypadTyped() gives
+! it `open` when the mnemonic is accepted, which puts the pin in reach.
+Object -> hardware_box "box"
+  with name 'small' 'box' 'hardware-wallet',
+       description [;
+           if (self has open) "A thawed little box, open.";
+           "A small box, frozen inside the Trust's block.";
+       ],
+       before [;
+         Open: if (self hasnt open) "It is frozen inside a block of ice.";
+         Take: "It is frozen to the halves of the block.";
+       ],
+  has  static scenery container openable;
+
+Object hardware_wallet "hardware wallet" hardware_box
+  with name 'hardware' 'wallet' 'balance',
+       description "A hardware wallet. Its screen says BALANCE: 0. It is the
+           most secure thing you have ever seen protecting nothing.";
+
+Object sim_pin "SIM-eject pin" hardware_box
+  with name 'sim' 'eject' 'sim-eject' 'pin' 'tiny',
+       description "The tiny SIM-eject pin that comes in the box with every
+           hardware wallet, which nobody has ever used for anything. It is
+           thin and very stiff.";
+
+! --- 16. Windward Ledge -----------------------------------------------------
+
+! P8 lives here. The cable car (the down exit) runs both ways, so the
+! valley can always be left and re-entered.
+Room ledge "Windward Ledge"
+  with description
+           "The lip of an unused gondola platform on the north face: open,
+           windy, unswept since the crash. An emergency cable car hangs at
+           the edge, with one working brake and a sign that says so. The ice
+           cave is back to the west. The cable car goes down.",
+       sounds "Wind, and the cable car's one working brake, creaking.",
+       w_to cold_cavern,
+       d_to [;
+           print "You climb into the emergency cable car and release its
+               one working brake. The car drops off the ledge and down the
+               face, and the empire comes apart past the windows in reverse
+               order of how it was built: the Mint's shed, the gas station's
+               canopy, and, through the ballroom's skylight, an upside-down
+               chandelier finally falling the right way up. The brake shrieks
+               the whole way. Then the slope flattens, the wind drops, and
+               the car bumps to a stop.^";
+           return bottom_station;
+       ];
+
+Feature -> cable_car "emergency cable car"
+  with name 'emergency' 'cable' 'car' 'brake' 'sign',
+       description "ONE WORKING BRAKE, says the sign. It is very specific
+           about the number.",
+       before [;
+         Enter: <<Go d_obj>>;
+       ];
+
+! The belted verdling (P8). His pike is a child object. `transparent` lets you
+! see (and examine) what he holds -- without it the pike would be out of
+! scope -- and the library treats what a person holds as theirs, so TAKE PIKE
+! is refused politely ("That seems to belong to...") until he hands it over.
+Person -> belted_verdling "belted verdling"
+  with name 'belted' 'verdling' 'elf' 'pants' 'trousers',
+       description [;
+           if (belt_freed) "A verdling at peace: knee-high, mud-coloured,
+               standing up straight for the first time in years, the finest
+               pants a verdling can buy hanging comfortably at last.";
+           "A verdling, knee-high and mud-coloured, high on the mountain
+           where no verdling should ever be. He wears the finest pants a
+           verdling can buy -- they cost, he will tell you at length, a
+           literal fortune -- held up by a metal click belt ratcheted far
+           too tight. He leans on his pike with exquisite dignity.";
+       ],
+       describe [;
+           if (belt_freed) "^The verdling stands at the edge of the ledge,
+               looking down at the valley he can't go back to.";
+           print "^A belted verdling leans on his pike at the edge of the
+               ledge, breathing shallowly. He shifts his weight, winces, and
+               gestures at the buckle with exquisite dignity. ~You'll
+               notice,~ he says, ~that I am not cutting them.~";
+           if (can_full == false && buckle_oiled == false) print "^^~If
+               you're thinking of helping,~ he adds, ~the MAINNET pump at
+               the gas station leaks the good stuff. The release is rusted.~";
+           new_line;
+           rtrue;
+       ],
+       no_answer "~I'd rather not say,~ says the verdling, looking at the
+           valley.",
+       no_interest "The verdling regards it politely. ~Not unless it undoes
+           a belt.~",
+       life [;
+         Ask:
+           if (AskedAbout('pants', 'belt', 'buckle', 'pawl', 'trousers'))
+               "~The finest pants a verdling can buy. The release pawl is
+               rusted shut, and it's too small for fingers. Something to
+               free it, and something thin and stiff to press it.~";
+           if (AskedAbout('pike')) "~A verdling's pike. Down there it is the
+               only thing anyone respects.~";
+           if (AskedAbout('valley', 'verdlings', 'home', 'river', 'runout'))
+               "He looks down at the valley for a long time and says
+               nothing.";
+       ],
+  has  male transparent;
+
+Object pike "pike" belted_verdling
+  with name 'pike' 'verdling^s' 'staff' 'spear',
+       description [;
+           print "A verdling's pike: a long pole of river wood, its point
+               worn bright. Every verdling recognises one. ";
+           if (self notin player) "He leans on it.";
+           if (pike_raised) "You are holding it raised.";
+           "You are holding it lowered, at your side.";
+       ],
+       ! The pike can never be lost for good: it can't be given away, put
+       ! anywhere or thrown; DROP leaves it where it falls. WAVE and POINT
+       ! get an in-character reply here; on the Runout they never reach this
+       ! far, because the Runout's own `before` turns them into FEND.
+       before [;
+         Give, PutOn, Insert, ThrowAt:
+           "You keep hold of the pike. Down there, it is the only thing
+           anyone respects.";
+         Drop:
+           pike_raised = false;
+         Wave, Point:
+           if (location == river_edge) "The pike sweeps over thousands of
+               bowed heads. Not one of them looks up.";
+           "You wave the pike about. Without verdlings to see it, it is just
+           a long stick.";
+       ];
+
+! P8, part two: OIL BUCKLE (OIL, GREASE, LUBRICATE; section 9) needs a full
+! can and empties it, setting buckle_oiled. Other ways of fiddling with the
+! buckle are redirected to the pawl: <<Push belt_pawl>> runs a Push action on
+! the pawl and then returns true. Using a TOOL on the buckle (OPEN BUCKLE
+! WITH PIN, which the library calls ##Unlock, or PRESS BUCKLE WITH PIN) goes
+! to the pawl as ##PressWith, the action that can free it.
+!
+! PUT ... IN/ON the buckle (and the pawl, below) first sends it a ##Receive,
+! with `noun` = the thing being put: the oil can means "oil it", anything
+! else means "press the pawl with it". Things you may never part with (the
+! pike, the badge) refuse in their own `before`, which runs first.
+Feature -> buckle "click belt"
+  with name 'click' 'belt' 'buckle' 'ratchet' 'metal',
+       description [;
+           if (belt_freed) "The belt hangs loose at last.";
+           print "A metal click belt: pull it tight and it ratchets, click,
+               click, click. The release pawl is jammed. ";
+           if (buckle_oiled) "It glistens with oil now, loose enough to
+               move, but much too small for fingers.";
+           "It is rusted solid, and much too small for fingers.";
+       ],
+       before [;
+         Oil:
+           if (belt_freed) "It doesn't need oiling any more.";
+           if (buckle_oiled) "You've already oiled it. The pawl glistens.";
+           if (oil_can notin player || can_full == false)
+               "You have nothing to oil it with. (~The MAINNET pump,~ says
+               the verdling, ~at the gas station. The good stuff.~)";
+           buckle_oiled = true;
+           can_full = false;
+           "You work the spout of the oil can into the buckle and squeeze
+           out every drop of the good stuff. The rust drinks it. Somewhere
+           inside, the pawl gives a tiny, hopeful creak.";
+         Receive:
+           if (noun == oil_can) <<Oil self>>;
+           <<PressWith belt_pawl noun>>;
+         Unlock, PressWith:
+           <<PressWith belt_pawl second>>;
+         Open, Pull, Take, Turn, Push:
+           <<Push belt_pawl>>;
+       ];
+
+! P8, part three: PRESS PAWL WITH PIN (##PressWith, section 9). The checks,
+! in order: is it already done? the pike (too big)? anything but the pin?
+! oiled yet? Only the pin on an oiled pawl frees the belt -- and the pike
+! moves to you. Other phrasings end up here too: OPEN/UNLOCK PAWL WITH PIN
+! and PUT PIN IN PAWL by the redirects below, PUSH PIN INTO PAWL by a grammar
+! line in section 9.
+Feature -> belt_pawl "release pawl"
+  with name 'release' 'pawl' 'catch',
+       description [;
+           if (belt_freed) "The pawl has done its job.";
+           if (buckle_oiled) "Freed by the oil, but far too small for
+               fingers. It needs something thin and stiff.";
+           "Rusted solid, and far too small for fingers.";
+       ],
+       before [;
+         Oil: <<Oil buckle>>;
+         Receive:
+           if (noun == oil_can) <<Oil buckle>>;
+           <<PressWith self noun>>;
+         Unlock: <<PressWith self second>>;
+         Push, Touch, Pull, Turn:
+           if (belt_freed) "The pawl has done its job.";
+           "You try with your fingers. The pawl is far too small for them.";
+         PressWith:
+           if (belt_freed) "The pawl has done its job.";
+           if (second == pike) "The pike is far too big for a pawl that
+               small.";
+           if (second ~= sim_pin) print_ret (The) second, " won't fit.";
+           if (~~buckle_oiled) "You press the pin against the pawl. It is
+               rusted solid. Nothing moves.";
+           belt_freed = true;
+           move pike to player;
+           Achieved(TASK_BELT);
+           "You set the tip of the SIM-eject pin against the oiled pawl and
+           press. There is a tiny click -- and the belt lets go with one
+           long, glorious exhale, from the verdling, not the belt.^^For a
+           while he just breathes. Then he holds out his pike to you.
+           ~Take it,~ he says. ~I won't need it up here.~^^He looks down at
+           the valley he can't go back to. ~They're not guarding the valley
+           from you,~ he says quietly. ~They're guarding you from the
+           river.~";
+       ];
+
+
+! ============================================================================
+!  7. FINALE: THE RUNOUT  --  the valley floor
+! ----------------------------------------------------------------------------
+!  Rooms: Bottom Gondola Station, The Runout, The River's Edge, Foot of the
+!  Gangplank. Puzzles P9 (coat) and P10 (the pike line), then the ending.
+!
+!  THE THREE-POKE RULE -- the whole timed mechanic, in one place:
+!    1. Arriving on the Runout sets pokes = 0 and lowers the pike (Bottom
+!       Station's e_to does this) and sets runout_fresh, so the arrival turn
+!       costs nothing.
+!    2. At the end of every later turn spent there, the Runout's each_turn
+!       lands a poke -- unless the pike is raised. The third poke kills.
+!    3. FEND VERDLINGS WITH PIKE (or RAISE PIKE, WAVE PIKE, POINT PIKE AT
+!       VERDLINGS) raises it. It stays up through looking, examining,
+!       waiting, inventory, listening and walking; the Runout's `before`
+!       lowers it for anything else, so that turn's poke can land. Every
+!       one of those is a turn: LOOK, EXAMINE and INVENTORY cost a poke like
+!       anything else (only true meta commands -- SAVE, SCORE, UNDO -- are
+!       free, because the library never ends a turn for them).
+!    4. Taking treasure from the pile costs one extra poke on the spot.
+!    5. Leaving west resets everything.
+!    6. Walking east with the pike down gets you escorted back up to the
+!       station -- no poke, no death, and a hint.
+!    7./8. East with the pike up: without the coat you stop; with it you
+!       reach the River's Edge.
+!  `each_turn` is a room property the library runs at the end of each turn
+!  only while you are in that room -- a daemon that switches itself on and
+!  off with your location, which is exactly the rule's scope.
+! ============================================================================
+
+! --- 17. Bottom Gondola Station ---------------------------------------------
+
+! The finale's start and its safe place: the escort and the west exit both
+! bring you back here. The sign is the last of the three pike signposts
+! (the busker's song and the belted verdling are the others).
+Room bottom_station "Bottom Gondola Station"
+  with initial [; BeginAct(3); ],
+       description
+           "The bottom station of the gondola line: a concrete platform, a
+           ticket booth with its shutter down, and a long wall of names --
+           the memorial to those who floated down the Verdance and never
+           came back. Nobody knows how far they got. A recruiting poster
+           flaps beside it, and a faded sign is screwed to the booth. East,
+           the ground opens out onto the Runout. The emergency cable car
+           waits to go back up.",
+       sounds "From the east, a small, steady sound, like a great many
+           people tapping sticks.",
+       u_to [;
+           print "The cable car hauls you back up the face, its one brake
+               complaining the whole way.^";
+           return ledge;
+       ],
+       ! The arrival half of the three-poke rule: fresh counter, pike down,
+       ! and a flag that makes this turn free.
+       e_to [;
+           pokes = 0;
+           pike_raised = false;
+           runout_fresh = true;
+           return runout;
+       ];
+
+Feature -> memorial "memorial of names"
+  with name 'memorial' 'wall' 'names' 'name',
+       description "Names, hundreds of them, cut into the concrete. A few
+           are fresh. Nobody knows how far any of them got.";
+
+Feature -> poster "recruiting poster"
+  with name 'recruiting' 'poster' 'divers',
+       description "VERDANCE FOUNDATION DIVERS -- generous token allocation,
+           vesting schedule TBD. There have been no applicants.";
+
+Feature -> faded_sign "faded sign"
+  with name 'faded' 'sign' 'warning' 'booth' 'shutter',
+       description "Faded almost to nothing: VERDLINGS RESPECT ONLY THE
+           PIKE.";
+
+! --- 18. The Runout ---------------------------------------------------------
+
+! The Runout: the only place you can die. Its description always ends with
+! the poke counter; on the arrival turn (runout_fresh) it adds the warning.
+Room runout "The Runout"
+  with description [;
+           print "Everything in the Mingus Empire rolls downhill eventually.
+               This is where it stops.^^The debris fan spreads out at the
+               foot of the range: eighteen months of everything the empire
+               ever dropped, knocked over or let go of in a strong wind.
+               Hard-wallet keychains. An upturned gondola car. Several
+               thrones. A crate of commemorative $ALT medallions, still
+               shrink-wrapped. Seed-phrase notebooks. A grand piano that got
+               as far as the first switchback and then made its own
+               decisions. And everywhere, standing on all of it, verdlings:
+               knee-high, mud-coloured, every one with a pike. The river's
+               edge is east, past the last of the pile. The gondola station
+               is back to the west.^^";
+           if (runout_fresh) print "A verdling the height of your knee
+               regards you with total contempt. ";
+           PokeLine();
+           new_line;
+           rtrue;
+       ],
+       sounds "Small feet shifting on gold. Nobody says anything. That is
+           worse.",
+       ! Rule 3 and rule 4 of the three-poke rule. The library runs the
+       ! ROOM's `before` (location.before) ahead of the noun's own `before`,
+       ! so whatever the command is, the pike is lowered before anything
+       ! else happens. (The Room class's `before` runs too, after this one:
+       ! `before` is an additive property.)
+       !
+       ! First, WAVE PIKE and POINT PIKE AT ... mean "raise it" down here:
+       ! <<Fend pike>> runs a whole Fend action instead (this `before` sees
+       ! it again, and Fend is on the list that keeps the pike up).
+       before [;
+           if (action == ##Wave or ##Point && noun == pike && pike in player)
+               <<Fend pike>>;
+           if (pike_raised && pike in player &&
+               ~~(action == ##Look or ##Examine or ##Wait or ##Inv
+                  or ##Listen or ##Fend or ##Go)) {
+               pike_raised = false;
+               if (action == ##Dig) print "(You lower the pike to dig.)^";
+               else print "(You lower the pike.)^";
+           }
+           if (action == ##Take && noun == thrones or medallions or piano
+               or notebooks) {
+               print "A verdling pokes your hand, hard, before your fingers
+                   close. Treasure is noticed down here, and it stays where
+                   it is.^";
+               Poke();
+               rtrue;
+           }
+       ],
+       ! Rule 2: the poke at the end of each turn. Never on the arrival turn.
+       each_turn [;
+           if (deadflag) rfalse;
+           if (runout_fresh) { runout_fresh = false; rfalse; }
+           if (pike_raised) {
+               print "^The verdlings stop short, stare at the pike, and give
+                   ground -- never far, never kindly. ";
+               PokeLine();
+               new_line;
+               rtrue;
+           }
+           Poke();
+       ],
+       ! Rule 5: leaving resets.
+       w_to [;
+           pokes = 0;
+           pike_raised = false;
+           print "You back off the Runout. The verdlings watch you go, and
+               do not follow.^";
+           return bottom_station;
+       ],
+       cant_go "The only way off the Runout is back west, to the gondola
+           station -- or east, if they let you.",
+       ! Rules 6, 7 and 8: east is the verdlings' decision, not yours.
+       e_to [;
+           if (~~pike_raised) {
+               pokes = 0;
+               if (pike in player)
+                   print "They see the pike, lowered at your side, and
+                       hesitate -- then remember you are from the mountain.
+                       A dozen small hands turn you round and walk you back,
+                       briskly, to the gondola station, where they leave you
+                       without a word. A pike only matters raised.^";
+               else
+                   print "You take one step toward the water and the
+                       verdlings close in, a forest of pikes at shin height.
+                       They turn you round and walk you back, briskly, to
+                       the gondola station. They were never going to let you
+                       past with your bare hands. Down here, only a pike gets
+                       a verdling's respect.^";
+               return bottom_station;
+           }
+           if (coat notin player)
+               "You came down for the coat. It is still in the pile,
+               somewhere by the upturned gondola car.";
+           Achieved(TASK_PIKELINE);
+           edge_fresh = true;
+           edge_turns = 0;
+           print "You walk east with the pike raised and the coat over your
+               arm. The verdlings give ground in front of you, step by step,
+               never far, never kindly, all the way to the water.^";
+           return river_edge;
+       ];
+
+! P9, part one: DIG BY GONDOLA (the Extend 'dig' line in section 9), SEARCH
+! the car or LOOK UNDER it (its description says something rolled under it)
+! moves the coat into the room. coat_found makes it once-only.
+Object -> gondola_car "upturned gondola car"
+  with name 'upturned' 'gondola' 'car' 'rubble' 'pile',
+       description [;
+           if (coat_found) "The gondola car lies on its roof, and the hole
+               you dug beside it is already filling with small stones.";
+           "A summit gondola car, lying on its roof where it came to rest.
+           The rubble piled against its side looks disturbed, as though
+           something long had rolled in under it.";
+       ],
+       before [;
+         Dig, Search, LookUnder:
+           if (coat_found) "You've already dug there. The rest is rubble.";
+           coat_found = true;
+           move coat to runout;
+           "You dig into the rubble by the gondola car with your hands.
+           Keychains, a commemorative scarf, a great deal of gravel -- and
+           then cloth. You drag it out: a long coat.";
+         Enter: "The car's doors are buried in the pile.";
+         Take, Push, Pull, Turn: "It weighs as much as a small house.";
+       ],
+  has  static scenery;
+
+Object -> thrones "thrones"
+  with name 'throne' 'thrones' 'gilded' 'chair' 'chairs',
+       description "Several gilded thrones, each one a little higher than the
+           last. None of them is the right way up.",
+  has  static scenery pluralname;
+
+Object -> medallions "$ALT medallions"
+  with name 'crate' 'alt' 'medallion' 'medallions' 'commemorative'
+           'shrink-wrapped',
+       description "A crate of commemorative $ALT medallions, still
+           shrink-wrapped. The face on them has laser eyes.",
+  has  static scenery pluralname;
+
+Object -> piano "grand piano"
+  with name 'grand' 'piano' 'keys',
+       description "A grand piano with most of its legs. It got as far as the
+           first switchback and then made its own decisions.",
+  has  static scenery;
+
+Object -> notebooks "seed-phrase notebooks"
+  with name 'seed' 'phrase' 'seed-phrase' 'notebook' 'notebooks' 'keychains'
+           'keychain',
+       description "Notebooks of seed phrases, half of them still legible.
+           Somewhere in the pile, almost certainly, a fortune.",
+  has  static scenery pluralname;
+
+Object -> runout_verdlings "verdlings"
+  with name 'verdlings' 'verdling' 'crowd' 'elves' 'pikes',
+       description "Knee-high, mud-coloured and patient, with a mean streak.
+           Every one carries a pike. They do not want your treasure; they
+           want you gone, back up the mountain, where Mingus people belong.
+           There are always more of them than you counted.",
+       life [;
+         Attack: "There are always more of them than you counted.";
+         Give, Show: "The nearest verdling pokes it, then looks at you.";
+         default: "They do not argue, negotiate or accept tokens. They poke.";
+       ],
+  has  animate scenery pluralname;
+
+! P9, part two: taking the coat scores (in `after`, so the library has
+! already moved it to you). It is clothing, and a worn coat is still "in
+! player", so wearing it does not break the check on the way east.
+Object coat "coat"
+  with name 'coat' 'long' 'real' 'lady' 'vaunt^s' 'esme^s' 'pocket'
+           'sleeve',
+       initial "Lady Vaunt's coat lies by the upturned gondola car, where you
+           dug it out.",
+       description "Lady Vaunt's coat. The real one: it casts a shadow. There
+           is a verdling pike-hole in the sleeve. In the pocket is a slip of
+           paper in her hand, with one word on it: DOWN.",
+       after [;
+         Take:
+           Achieved(TASK_COAT);
+           "Taken. No verdling reacts. It's a coat.";
+       ],
+  has  clothing;
+
+! --- 19. The River's Edge (the ending, over several turns) -------------------
+! Arriving: the bowing. Each later turn: BOW, WAIT, LOOK, EXAMINE and
+! movement let the silence go on; anything else (INVENTORY included) makes
+! the crowd part at the end of the turn, and so does the second turn here
+! regardless. Then EAST, DOWN, FOLLOW LANE, BOARD SHIP or CLIMB GANGPLANK
+! walks the lane.
+
+Room river_edge "The River's Edge"
+  with description [;
+           if (edge_fresh) {
+               "The Verdance is at your back, very broad, very green and very
+               fast. You turn around.^^The verdlings have followed you: not
+               the dozen you counted, but all of them, the whole valley floor
+               from the Runout to the first of the half-bridges, thousands
+               of small mud-coloured figures standing closer than they have
+               ever stood to anyone from the mountain. The poking has
+               stopped. Then the nearest one looks at the pike in your hand,
+               and at you, and lowers its own; and the one beside it does the
+               same; and then, all at once, like wind going through grass,
+               thousands of them lower their pikes and bow. You did not ask
+               for this. Nobody has explained it. The river is very loud
+               behind you, and in front of you the valley is completely
+               silent.";
+           }
+           print "The Verdance runs broad and fast at your back. In front of
+               you, thousands of verdlings stand with their heads bowed and
+               their pikes lowered, all the way back to the mountain";
+           if (lane_open) ". A lane runs through them, straight down to the
+               water, where the ship waits at the mouth of the Sluice with
+               its gangplank down.";
+           ". Nobody moves.";
+       ],
+       sounds "The river, very loud. The valley, completely silent.",
+       ! `before` sorts every action into one of three kinds. Movement never
+       ! gets anywhere until the lane is open (and afterwards only east or
+       ! down walk it). WAIT, BOW, LOOK and EXAMINE let the silence go on.
+       ! Anything else records part_now, and each_turn opens the lane at
+       ! the end of that turn.
+       before [;
+           if (action == ##Go) {
+               if (lane_open && noun == e_obj or d_obj) return WalkLane();
+               "The crowd closes softly in front of you, and bows again.";
+           }
+           if (action == ##Wait) "You wait. The silence goes on.";
+           if (lane_open == false && ~~(action == ##Bow or ##Look or ##Examine))
+               part_now = true;
+           ! SWIM and JUMP are "anything else" -- they still part the crowd
+           ! -- but they get the river's own answer instead of the library's.
+           if (action == ##Swim or ##Jump or ##JumpIn)
+               "No one crosses the Verdance.";
+       ],
+       ! The same each_turn pattern as the Runout: edge_fresh (set by the
+       ! Runout's e_to) makes the arrival turn free, and edge_turns counts
+       ! the turns after it. The parting comes at the end of turn 2, or
+       ! sooner if `before` saw an action that is not part of the ceremony.
+       each_turn [;
+           if (deadflag || lane_open) rfalse;
+           ! The arrival turn is free. Clear part_now too, so nothing
+           ! recorded while you were arriving counts against turn 1.
+           if (edge_fresh) { edge_fresh = false; part_now = false; rfalse; }
+           edge_turns++;
+           if (edge_turns >= 2 || part_now) Parting();
+       ];
+
+Object -> edge_crowd "bowed verdlings"
+  with name 'verdlings' 'verdling' 'crowd' 'heads' 'pikes' 'thousands',
+       description "Thousands of small heads, bowed. Not one of them is
+           looking at you, and all of them are waiting.",
+       life [;
+         default: "Thousands of small heads stay bowed.";
+       ],
+  has  animate scenery pluralname;
+
+Feature -> verdance "Verdance"
+  with name 'verdance' 'river' 'water' 'current',
+       description "The river nobody crosses and nobody comes back from.
+           Under its calm green skin it runs like a great continental river,
+           broad and fast.",
+       before [;
+         Enter, Drink: "No one crosses the Verdance.";
+       ],
+  has  proper;
+
+! The lane and the ship are off-stage until Parting() moves them into the
+! River's Edge. Their `before` turns ENTER (also FOLLOW, BOARD and WALK, via
+! section 9's grammar) and CLIMB into the walk to the gangplank.
+Object lane "lane"
+  with name 'lane' 'path' 'way' 'gap',
+       description "A shoulder's width between bowed heads, running straight
+           down to the water.",
+       before [;
+         Enter, Climb: return WalkLane();
+       ],
+  has  scenery;
+
+Object funeral_ship "ship"
+  with name 'ship' 'funeral' 'prow' 'gangplank' 'wallets' 'rail' 'boat',
+       description "A ship like the funeral ships: the same high prow, the
+           same hard wallets strung along it like lanterns that are not lit.
+           Nobody is laid out on it. The gangplank is down.",
+       before [;
+         Enter, Climb: return WalkLane();
+       ],
+  has  scenery;
+
+! --- 20. Foot of the Gangplank (the end) -----------------------------------
+
+! The last room. WalkLane() moves you here and sets deadflag = 3, so the
+! game ends after this description with DeathMessage's words.
+Room gangplank_foot "Foot of the Gangplank"
+  with description
+           "You walk the lane and stop at the foot of the gangplank, your
+           hand on the rail, one step from going aboard.^^Thousands of small
+           heads stay bowed. The lane they made for you runs straight to the
+           water, and the ship at the end of it rocks on the Verdance -- the
+           river nobody crosses and nobody comes back from. It was built to
+           carry the dead. The gangplank is down. Nobody here is going to
+           tell you to climb it, and nobody is going to let you go anywhere
+           else.";
+
+
+! ============================================================================
+!  8. ENTRY POINTS  --  routines the library calls if the game provides them
+! ============================================================================
+
+! Initialise runs once, before the banner. It must set `location`; anything
+! it prints appears above the story's title.
+[ Initialise;
+    location = mesa;
+    move ticket_one to player;
+    lookmode = 2;                 ! VERBOSE: full descriptions on every visit
+    print "^^The morning after the crash, the summit is empty. The investors
+        have gone, the influencers have gone, the gondola staff have gone,
+        and Lord Vaunt's helicopter has gone, on the third try. You are the
+        actual dev: the one competent engineer Lady Vaunt hired, for $SHRUG.
+        The gondolas are stalled. The only way out is down.^^There is one
+        ticket left in your queue.^";
+];
+
+! deadflag 3 (set by WalkLane) ends the game with our own words; deadflag 1
+! (the third poke) gets the library's own "You have died".
+[ DeathMessage;
+    if (deadflag == 3) print "You have reached the bottom of the Mingus";
+];
+
+! The library calls PrintRank straight after "...in N turns". It must
+! return true, or the library adds a full stop of its own.
+[ PrintRank;
+    print ", earning you the rank of ";
+    if (deadflag == 3) {
+        print "Exit Liquidity.^^You have reached the end of MINGUS I:
+            ELEVATED RETURNS.^^Somewhere, a whitepaper is being written.
+            Somewhere, a chat server is pumping. Somewhere beneath the far
+            bank of the Verdance it is still pitch black -- and that is the
+            only honest thing left.^^You are likely to be poked by a verdling
+            -- and then eaten, if you don't move.^^Coming next: MINGUS II:
+            EVERYTHING ROLLS DOWNHILL. No one crosses the Verdance. Nobody
+            said anything about following it.^";
+        rtrue;
+    }
+    if (score >= 60) "Exit Liquidity.";
+    if (score >= 40) "Early Adopter.";
+    if (score >= 20) "Community Manager.";
+    "Bagholder.";
+];
+
+! Names for FULL SCORE, one per task number in section 1.
+[ PrintTaskName task;
+    switch (task) {
+      TASK_KIOSK:        "translating the whitepaper";
+      TASK_TELESCOPE:    "looking down for once";
+      TASK_FLOOR:        "pressing the true map";
+      TASK_KYC:          "getting verified";
+      TASK_CONTRACT:     "optimizing the rug pull";
+      TASK_UNION:        "earning Local 404's endorsement";
+      TASK_WALLET:       "opening the Trust's cold wallet";
+      TASK_BELT:         "freeing the belted verdling";
+      TASK_COAT:         "digging out the coat";
+      TASK_PIKELINE:     "walking the pike line";
+      TASK_LORE_PLAQUE:  "reading the Lost Expedition plaque";
+      TASK_LORE_BUSKER:  "hearing the busker out";
+      TASK_LORE_SPITE:   "reading the Spite Terminal";
+      TASK_LORE_CLERK:   "filing lost property with Mrs. Thrumble";
+      TASK_LORE_GENESIS: "reading the Genesis Block";
+    }
+];
+
+
+! ============================================================================
+!  9. GRAMMAR  --  the standard verbs, then the game's own
+! ============================================================================
+
+Include "Grammar";
+
+! TYPE <word>: the kiosk (P1) and the keypad (P7). TypeSub is in section 4.
+Verb 'type'
+    * topic                             -> Type
+    * topic 'on'/'into' noun            -> Type;
+
+! SAY NOBODY / ANSWER NOBODY at the kiosk or the keypad means TYPE NOBODY.
+! The std grammar's only SAY line is `* topic 'to' creature`, and with nobody
+! around the parser would quietly fill in "(to yourself)". AtKeyboard is a
+! GENERAL PARSING ROUTINE used as a grammar token: the parser calls it, and
+! it either matches without using up any words (GPR_PREPOSITION) or fails
+! (GPR_FAIL). So this line exists only at the two keyboards, and SAY ...
+! TO someone works as before everywhere else. 'first' puts it ahead of the
+! std line.
+[ AtKeyboard;
+    if (location == switchbacks or cold_cavern) return GPR_PREPOSITION;
+    return GPR_FAIL;
+];
+
+Extend 'answer' first
+    * AtKeyboard topic                  -> Type;
+
+! SELECT NONE: the KYC CAPTCHA (P4). A bare particle is enough for the
+! grammar: 'none' needs no object behind it.
+[ SelectNoneSub;
+    if (location ~= root_cellar) "There is nothing here to select.";
+    if (kyc_captcha) "The CAPTCHA has already been passed.";
+    kyc_captcha = true;
+    print "You select none of the squares. You cannot prove murklings are
+        in any of them; absence of evidence is evidence of absence, legally
+        speaking. The scanner thinks about this for a long time. CAPTCHA:
+        PASSED.^";
+    KycCheck();
+    rtrue;
+];
+
+[ SelectSub;
+    if (location ~= root_cellar) "There is nothing here to select.";
+    "You study the squares. Every one is pitch black. Any of them might
+    contain murklings -- or none of them.";
+];
+
+Verb 'select' 'choose'
+    * 'none'/'nothing'/'no'             -> SelectNone
+    * 'no' 'squares'                    -> SelectNone
+    * topic                             -> Select;
+
+! SIGN: the union charter (P6) handles ##Sign in its own `before`.
+[ SignSub; "You'd need something that wants your signature."; ];
+
+Verb 'sign' 'autograph'
+    * noun                              -> Sign
+    * noun 'with' noun                  -> Sign;
+
+! FILL CAN WITH OIL (the std grammar has FILL and FILL ... FROM already).
+Extend 'fill'
+    * noun 'with' noun                  -> Fill;
+
+! POUR OIL, POUR OIL ON BUCKLE, EMPTY CAN OVER BUCKLE: the std ##Empty and
+! ##EmptyT actions, which the oil can (section 5) turns into oiling.
+Verb 'pour'
+    * noun                              -> Empty
+    * noun 'out'                        -> Empty
+    * noun 'on'/'onto'/'into'/'in'/'over'/'to' noun -> EmptyT;
+
+Extend 'empty'
+    * noun 'in'/'over' noun             -> EmptyT;
+
+! OIL: only the buckle wants it (P8). Everywhere else OIL is refused, so the
+! good stuff can't be wasted.
+[ OilSub;
+    if (oil_can notin player || can_full == false)
+        "You have nothing to oil it with.";
+    "That doesn't need oiling, and the good stuff is too good to waste.";
+];
+
+Verb 'oil' 'grease' 'lubricate'
+    * noun                              -> Oil
+    * noun 'with' held                  -> Oil;
+
+! PRESS PAWL WITH PIN. `last` matters: placed first, this line would let the
+! parser "helpfully" turn a plain PRESS FOYER TILE into PRESS ... WITH
+! whatever you are holding. PUSH PIN INTO PAWL says the same thing the other
+! way round: `reverse` swaps the two objects, so PressWith still gets the
+! pawl as `noun` and the pin as `second`.
+[ PressWithSub;
+    "Pressing ", (the) noun, " with ", (the) second, " achieves nothing.";
+];
+
+Extend 'push' last
+    * noun 'with' held                  -> PressWith
+    * held 'into'/'in'/'against' noun   -> PressWith reverse;
+
+! FEND VERDLINGS WITH PIKE / RAISE PIKE: the pike line (P10).
+[ FendSub;
+    if (location ~= runout or river_edge) "There's nothing here to fend
+        off.";
+    if (pike notin player) "You have nothing to fend them off with. Bare
+        hands do not impress a verdling.";
+    if (location == river_edge) "There is nothing to fend off. They are
+        bowing.";
+    if (pike_raised) "The pike is already raised.";
+    pike_raised = true;
+    "You raise the pike and level it at the crowd.";
+];
+
+Verb 'fend' 'ward'
+    * noun                              -> Fend
+    * 'off' noun                        -> Fend
+    * noun 'off'                        -> Fend
+    * noun 'with' held                  -> Fend
+    * 'off' noun 'with' held            -> Fend
+    * noun 'off' 'with' held            -> Fend;
+
+Verb 'raise' 'brandish' 'level'
+    * held                              -> Fend
+    * held 'at'/'against' noun          -> Fend;
+
+! POINT/AIM: POINT TELESCOPE DOWN (P2) and, on the Runout, POINT PIKE AT
+! VERDLINGS (the Runout's `before` turns that into FEND). TURN TELESCOPE
+! DOWN and SWING TELESCOPE DOWN are the same action: the plain TURN line
+! would stop at the word 'down' and not understand it.
+[ PointSub;
+    "You point ", (the) noun, ". Nothing comes of it.";
+];
+
+Verb 'point' 'aim'
+    * noun                              -> Point
+    * noun 'down'                       -> Point
+    * noun 'at'/'toward'/'towards' noun -> Point;
+
+Extend 'turn'
+    * noun 'down'                       -> Point;
+
+Extend 'swing'
+    * noun 'down'                       -> Point;
+
+! BOW: the ending's one ceremony.
+[ BowSub;
+    if (location == river_edge) "A ripple goes through the crowd, something
+        very like approval. That is worse.";
+    if (location == runout) "The verdlings watch you bow with total
+        contempt. It is not what they want from you. They want you gone.";
+    "You bow to nobody in particular. The wind does not bow back.";
+];
+
+Verb 'bow' 'kneel' 'curtsey' 'curtsy'
+    *                                   -> Bow
+    * noun                              -> Bow
+    * 'to'/'before' noun                -> Bow;
+
+! RING: the marble doorbell. Objects that ring handle ##Ring themselves.
+[ RingSub; "Nothing rings."; ];
+
+Verb 'ring' 'buzz'
+    * noun                              -> Ring;
+
+! DIG BY GONDOLA (P9), and DIG INTO/THROUGH the mempool's drift (the std
+! grammar already has DIG IN). There is no line for a bare DIG: the std
+! `* noun` line makes the parser ask "What do you want to dig?", which costs
+! no turn -- that matters on the Runout, where every turn is counted.
+Extend 'dig'
+    * 'by'/'near'/'beside'/'around'/'under' noun -> Dig
+    * 'into'/'through' noun             -> Dig;
+
+! FOLLOW LANE, BOARD SHIP: both just walk the lane at the end.
+Verb 'follow' 'board' 'embark'
+    * noun                              -> Enter;
