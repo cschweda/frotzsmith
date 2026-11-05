@@ -1,0 +1,2 @@
+examine hermit
+wake hermit

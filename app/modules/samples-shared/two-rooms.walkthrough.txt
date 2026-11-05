@@ -1,0 +1,3 @@
+take coin
+east
+inventory

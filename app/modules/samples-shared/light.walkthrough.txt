@@ -1,0 +1,3 @@
+turn on lantern
+examine lantern
+turn off lantern

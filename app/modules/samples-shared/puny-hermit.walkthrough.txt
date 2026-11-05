@@ -1,0 +1,5 @@
+take apple
+north
+examine hermit
+ask hermit about woods
+give apple to hermit

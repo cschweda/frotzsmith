@@ -3,8 +3,8 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { sampleWalkthrough } from './walkthroughs'
-import { sampleById } from '~/modules/inform6/samples'
-import { sampleById as zilSampleById } from '~/modules/languages/zil/samples'
+import { SAMPLES, sampleById } from '~/modules/inform6/samples'
+import { ZIL_SAMPLES, sampleById as zilSampleById } from '~/modules/languages/zil/samples'
 
 const architect = readFileSync(fileURLToPath(new URL('./architect-legacy.walkthrough.txt', import.meta.url)), 'utf8')
   .split('\n')
@@ -23,8 +23,17 @@ describe('sampleWalkthrough', () => {
     expect(zilSampleById('zil-architect-legacy')).toBeTruthy()
   })
 
-  it('is null for a sample without one, an unknown id, or a prototype name', () => {
-    expect(sampleWalkthrough('std-skeleton')).toBeNull()
+  it('every bundled sample in both languages has a walkthrough', () => {
+    for (const s of SAMPLES) expect(sampleWalkthrough(s.id), s.id).not.toBeNull()
+    for (const s of ZIL_SAMPLES) expect(sampleWalkthrough(s.id), s.id).not.toBeNull()
+  })
+
+  it('Mingus I shares one walkthrough between its I6 and ZIL ids', () => {
+    expect(sampleWalkthrough('std-mingus-1')).toEqual(sampleWalkthrough('zil-mingus-1'))
+    expect(sampleWalkthrough('std-mingus-1')!.at(-1)).toBe('east')
+  })
+
+  it('is null for an unknown id or a prototype name', () => {
     expect(sampleWalkthrough('no-such-sample')).toBeNull()
     expect(sampleWalkthrough('constructor')).toBeNull()
     expect(sampleWalkthrough('__proto__')).toBeNull()

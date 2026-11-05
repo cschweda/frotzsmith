@@ -1,0 +1,6 @@
+look
+take lamp
+examine lamp
+north
+south
+inventory

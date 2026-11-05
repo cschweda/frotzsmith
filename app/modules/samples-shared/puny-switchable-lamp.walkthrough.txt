@@ -1,0 +1,4 @@
+take lantern
+examine lantern
+switch on lantern
+down

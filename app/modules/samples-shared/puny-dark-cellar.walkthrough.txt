@@ -1,0 +1,7 @@
+down
+up
+take lantern
+down
+look
+take key
+inventory

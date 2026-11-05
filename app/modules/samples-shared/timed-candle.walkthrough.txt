@@ -1,0 +1,5 @@
+examine candle
+wait
+z
+z
+z
