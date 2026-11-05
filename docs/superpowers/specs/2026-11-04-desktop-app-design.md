@@ -145,6 +145,11 @@ pnpm — not worth switching for).
 
 ### 5.3a Multi-file ZIL (author's decision: in v1)
 
+> **Status: done for the web (M2b, 2026-11-04).** ZILF compiles a file set (bundle
+> `r5262550-w2`), the explorer shows and edits extra `.zil` files, diagnostics open the file
+> they name, and `.frotzsmith` packages carry them. Desktop folders follow in M3; the §5.3b
+> zillib-clash warning in M2c.
+
 - ZIL links files the way I6's `Include` does: the main file pulls others in with
   `<INSERT-FILE "rooms">`; ZILF resolves `rooms.zil` relative to the main file / include paths
   and reads it in at that point (order matters). A `.zil` nothing inserts isn't compiled.

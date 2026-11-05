@@ -54,6 +54,7 @@ mimetype                       required, first, stored
 frotzsmith.json                required: the manifest (§4)
 <main file>                    required: the game's source (§5), named in the manifest
 *.h                            optional: include files for Inform 6 projects, at any path (§5)
+*.zil                          optional: a ZIL project's other source files, at any path (§5)
 tests/                         optional: test scripts, one per file (§6)
 <stem>.skein                   optional: the Skein (§7)
 ```
@@ -116,7 +117,8 @@ Readers **MUST** ignore unknown fields; writers **MUST** keep unknown fields the
 ## 5. The main file and include files
 
 - The main file **MUST** be UTF-8 text with no NUL byte. For `language: "i6"` its extension **MUST** be `.inf`; for `"zil"`, `.zil`.
-- An Inform 6 project's include files are UTF-8 text files ending `.h`, which **MAY** sit at any path in the package. A reader keeps each as an include file of the project. Includes are Inform 6 only: in a project whose `language` is `"zil"`, a `.h` file is an unrecognised file (§3), kept and not an include.
+- An Inform 6 project's include files are UTF-8 text files ending `.h`, which **MAY** sit at any path in the package. A reader keeps each as an include file of the project. In a project whose `language` is `"zil"`, a `.h` file is an unrecognised file (§3), kept and not an include.
+- A ZIL project's include files are every other file ending `.zil` (ignoring case), UTF-8 text with no NUL byte, at any path. `main` names the root file the compile starts from; the main file pulls the others in with `<INSERT-FILE "rooms">` (resolved as ZILF does on a case-insensitive disk: the main file's own folder first, then the project root, then the ZIL library), and **nothing else records the links**: the `INSERT-FILE` lines are the single source of truth. A `.zil` nothing inserts is kept but not compiled. A reader **MAY** limit what it keeps; Frotzsmith refuses the whole package when a ZIL project has more than 100 such files, one over 1 MiB, or more than 4 MiB in all (measured in UTF-16 code units), or two whose paths collide with each other or with `main` (§2), and its writer never writes such a set. (Packages written before multi-file ZIL kept these files as unrecognised files; a reader now opens them as includes.) In an Inform 6 project a `.zil` file is an unrecognised file.
 - An include file **MUST NOT** be named like a file of an Inform 6 library the application supplies: a reader that mounts includes next to the library **MUST** refuse a package with an include whose name (its file name, or that name without `.h`), compared ignoring case, is a library file of **any** library it offers — for Frotzsmith, the Standard Library's `English`, `Exits`, `Grammar`, `infglk`, `infix`, `linklpa`, `Parser`, `VerbLib` and `version`, and PunyInform's `ext_cheap_scenery`, `ext_flags`, `ext_menu`, `ext_quote_box`, `ext_talk_menu`, `ext_waittime`, `globals`, `grammar`, `messages`, `parser`, `puny` and `scope`. Such a file could otherwise replace the library for every game. (Deliberately replacing a library file is reserved for a later version, see `libraryOverrides` in §4.)
 - Line endings **SHOULD** be LF; readers **MUST** accept CRLF.
 - A reader that understands only the main file **MAY** open a package by reading `frotzsmith.json`'s `main` and that file alone; that is a conforming **minimal reader** (§10).
@@ -194,6 +196,8 @@ The media type `application/vnd.frotzsmith.package+zip` is not yet registered. T
 - **0.1 (2026-11-04):** first draft, written alongside Frotzsmith's first implementation of the format.
   - Same day, after a security review: no archive comment; no Unicode Path / Comment extra fields; Unix file types checked from any host; no file that is also a folder; no data after a DEFLATE stream; Windows-reserved, invisible and look-alike characters and names refused; collisions compared by NFKC + full case fold; includes named like library files refused (§5); at most 200 test scripts / 1 MiB (§6); Skein node ids, nesting and known-fields-only rebuild (§7).
   - Same day, after review of those changes: the case fold is applied twice (`ẞ`/`ß`/`ss` collide); a Unicode Path field that only repeats the entry's own name is allowed (Info-ZIP on Linux); names a writer makes up get `_` after a Windows device name (§6); a writer leaves out, and names, files it can't write instead of failing (§12).
+
+- **0.1, later (2026-11-04):** ZIL projects carry their other `.zil` files as includes (§3, §5): `main` names the root, `INSERT-FILE` is the only link record, and a reader may cap them (Frotzsmith: 100 files, 1 MiB each, 4 MiB in all).
 
 ## 15. Feedback
 

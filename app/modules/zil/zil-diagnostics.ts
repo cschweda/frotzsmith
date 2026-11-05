@@ -5,9 +5,11 @@ import type { Diagnostic, Severity } from '~/modules/inform6/types'
  * shape (same type used by the Inform 6 path) so the editor's click-to-jump
  * and Results panel work identically for both languages.
  *
- * The real ZILF diagnostic format (observed from the committed bundle):
+ * The real ZILF diagnostic format (observed from the committed bundle; the
+ * wrapper strips its `/project/` prefix, so names are project-relative):
  *
- *   /game.zil:2: error ZIL0122: unrecognized routine or instruction: UNDEFINED-FUNCTION
+ *   game.zil:1: error ZIL0122: unrecognized routine or instruction: UNDEFINED-FUNCTION
+ *   rooms.zil:12: error MDL0214: ROOM: already defined: WEST-OF-HOUSE
  *
  * Pattern: <file>:<line>: <severity> <CODE>: <message text>
  *
@@ -26,6 +28,8 @@ const BARE_RE = /^(error|warning|fatal|note|info)\s+((?:[A-Z]+\d+):\s*.+)$/
 
 // File-only prefix without a line number: /path/file.zil: error ZIL0050: message
 const FILE_ONLY_RE = /^(.+?):\s*(error|warning|fatal|note|info)\s+((?:[A-Z]+\d+):\s*.+)$/
+
+const TOO_MANY_INSERTS = 'inserted too many times'
 
 function toSeverity(raw: string): Severity {
   if (raw === 'warning' || raw === 'note') return 'warning'
@@ -86,5 +90,10 @@ export function parseZilDiagnostics(raw: string[]): Diagnostic[] {
     result.push({ severity: 'error', message: trimmed })
   }
 
-  return result
+  // A circular INSERT-FILE ends with this one diagnostic, buried among dozens
+  // of knock-on errors. Put it first so the author sees the cause (stable
+  // order otherwise).
+  const cause = result.filter(d => d.message.includes(TOO_MANY_INSERTS))
+  if (cause.length === 0) return result
+  return [...cause, ...result.filter(d => !d.message.includes(TOO_MANY_INSERTS))]
 }

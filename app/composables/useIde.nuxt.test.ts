@@ -27,6 +27,7 @@ import { useProjectFiles } from './useProjectFiles'
 import { useTestScripts } from './useTestScripts'
 import { usePlayTranscript } from './usePlayTranscript'
 import { useOutsideSource } from './outside-source'
+import { useZilProjectFiles } from './useZilProjectFiles'
 import { useLanguage } from './useLanguage'
 import { loadSampleSource } from '~/modules/inform6/samples'
 import { formatI6 } from '~/utils/format-i6'
@@ -49,6 +50,7 @@ vi.stubGlobal('useSourceDocument', useSourceDocument)
 vi.stubGlobal('useExtensions', useExtensions)
 vi.stubGlobal('useProjectFiles', useProjectFiles)
 vi.stubGlobal('useTestScripts', useTestScripts)
+vi.stubGlobal('useZilProjectFiles', useZilProjectFiles)
 vi.stubGlobal('useLanguage', useLanguage)
 
 // Mock useCompiler to avoid WASM.
@@ -542,5 +544,91 @@ describe('useIde — language-switch artifact reset (restore)', () => {
     useLanguage().setLanguage('zil')
     ide.restore()
     expect(ide.targetMode.value).toBe('auto')
+  })
+})
+
+describe('useIde — the open ZIL project\'s extra files', () => {
+  const seed = () => useZilProjectFiles().replaceAll([{ path: 'rooms.zil', text: 'R' }], 'main.zil')
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    _compileMock.mockResolvedValue({
+      ok: true, storyFile: new Uint8Array([1]), storyExt: 'z3' as const,
+      diagnostics: [], rawStderr: '', ms: 1, byteLength: 1, stats: null,
+    })
+    useLanguage().setLanguage('zil')
+    useZilProjectFiles().clear()
+  })
+
+  it('a ZIL compile passes the files and mainPath; an I6 compile passes neither', async () => {
+    seed()
+    await useIde().runCompile()
+    expect(_compileMock.mock.calls.at(-1)![1]).toMatchObject({
+      files: [{ path: 'rooms.zil', text: 'R' }], mainPath: 'main.zil',
+    })
+    useLanguage().setLanguage('i6')
+    // let the 500 ms freeze-click debounce pass
+    await new Promise(r => setTimeout(r, 520))
+    await useIde().runCompile()
+    const opts = _compileMock.mock.calls.at(-1)![1]
+    expect(opts.files).toBeUndefined()
+    expect(opts.mainPath).toBeUndefined()
+    // switching language did not wipe the store
+    expect(useZilProjectFiles().files.value).toHaveLength(1)
+  })
+
+  it('loadSample, newProject and loadOpenedFile clear them; editing the main source and loadSource do not', async () => {
+    const ide = useIde()
+    seed()
+    ide.source.value += '\n; edited'
+    expect(useZilProjectFiles().files.value).toHaveLength(1)
+    ide.loadSource('<ROUTINE GO () <CRLF>>') // package open / restores use this
+    expect(useZilProjectFiles().files.value).toHaveLength(1)
+    ide.loadOpenedFile('<ROUTINE GO () <CRLF>>')
+    expect(useZilProjectFiles().files.value).toEqual([])
+    seed()
+    ide.newProject('std')
+    expect(useZilProjectFiles().files.value).toEqual([])
+    expect(useZilProjectFiles().mainPath.value).toBe('story.zil')
+    seed()
+    await ide.loadSample('no-such-sample') // unknown sample: nothing loads, files kept
+    expect(useZilProjectFiles().files.value).toHaveLength(1)
+    await ide.loadSample('zil-skeleton')
+    expect(useZilProjectFiles().files.value).toEqual([])
+  })
+
+  it('an edit typed in an extra file\'s tab is what the next compile receives', async () => {
+    seed()
+    const pf = useProjectFiles()
+    pf.openFile('zil:rooms.zil')
+    pf.writeActive('<ROOM KITCHEN>')
+    await useIde().runCompile()
+    expect(_compileMock.mock.calls.at(-1)![1].files).toEqual([{ path: 'rooms.zil', text: '<ROOM KITCHEN>' }])
+  })
+
+  it('jumpTo opens the file a diagnostic names and signals its line', () => {
+    seed()
+    const ide = useIde()
+    const pf = useProjectFiles()
+    ide.jumpTo(4, 'rooms.zil')
+    expect(pf.activeId.value).toBe('zil:rooms.zil')
+    expect(ide.jumpSignal.value).toMatchObject({ line: 4, fileId: 'zil:rooms.zil' })
+    ide.jumpTo(3, 'main.zil')
+    expect(ide.jumpSignal.value).toMatchObject({ line: 3, fileId: 'source' })
+    expect(pf.activeId.value).toBe('source')
+    ide.jumpTo(2)
+    expect(ide.jumpSignal.value).toMatchObject({ line: 2, fileId: 'source' })
+  })
+
+  it('jumpTo a file outside the project (zillib) changes no tab and sends no jump', () => {
+    seed()
+    const ide = useIde()
+    const pf = useProjectFiles()
+    pf.openFile('zil:rooms.zil')
+    const before = ide.jumpSignal.value
+    ide.jumpTo(1, '/zillib/parser.zil')
+    expect(pf.activeId.value).toBe('zil:rooms.zil')
+    expect(ide.jumpSignal.value).toBe(before)
   })
 })

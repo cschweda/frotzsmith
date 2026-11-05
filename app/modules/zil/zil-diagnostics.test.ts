@@ -110,3 +110,29 @@ describe('parseZilDiagnostics — edge cases', () => {
     expect(diags[0]!.severity).toBe('fatal')
   })
 })
+
+describe('parseZilDiagnostics — circular INSERT-FILE cause first', () => {
+  it('moves the "inserted too many times" diagnostic to the front, keeping the rest in order', () => {
+    const diags = parseZilDiagnostics([
+      'a.zil:1: error ZIL0001: first',
+      'b.zil:1: error ZIL0002: second',
+      'b.zil:1: error ZIL0003: a.zil is inserted too many times — is there a circular INSERT-FILE?',
+      'a.zil:2: error ZIL0004: fourth',
+    ])
+    expect(diags.map((d) => d.message.slice(0, 7))).toEqual(['ZIL0003', 'ZIL0001', 'ZIL0002', 'ZIL0004'])
+  })
+
+  it('leaves the order alone when there is no such diagnostic', () => {
+    const diags = parseZilDiagnostics(['a.zil:1: error ZIL0001: x', 'b.zil:2: error ZIL0002: y'])
+    expect(diags.map((d) => d.file)).toEqual(['a.zil', 'b.zil'])
+  })
+
+  it('keeps project-relative names, including subfolders and /zillib', () => {
+    const [a, b] = parseZilDiagnostics([
+      'lib/items.zil:7: error ZIL0122: nope',
+      '/zillib/parser.zil:9: error ZIL0122: nope',
+    ])
+    expect(a).toMatchObject({ file: 'lib/items.zil', line: 7 })
+    expect(b).toMatchObject({ file: '/zillib/parser.zil', line: 9 })
+  })
+})

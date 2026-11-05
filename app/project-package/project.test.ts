@@ -130,6 +130,61 @@ describe('round trip', () => {
   })
 })
 
+describe('ZIL projects carry their .zil files (M2b)', () => {
+  const zil = (): ProjectSnapshot => ({
+    language: 'zil',
+    main: { name: 'story.zil', text: '<VERSION ZIP>\n<INSERT-FILE "rooms">\n<INSERT-FILE "lib/items">\n' },
+    includes: [
+      { path: 'rooms.zil', text: '<ROOM KITCHEN (DESC "Kitchen")>\n' },
+      { path: 'lib/items.zil', text: '<OBJECT LAMP (DESC "lamp")> ; é ✓\n' },
+    ],
+    extensions: [],
+    tests: [{ name: 'Walk', text: 'look\n' }],
+    skein: null,
+    settings: { target: 'z3' },
+    title: 'Cellar',
+    opaque: [{ path: 'notes/plan.md', bytes: enc.encode('# plan') }],
+    manifestExtra: {},
+    created: '2026-11-04T00:00:00.000Z',
+  })
+
+  it('a 3-file ZIL project round-trips its paths, texts and main', async () => {
+    const p = zil()
+    const bytes = await writeProjectPackage(p, o)
+    expect([...readContainer(bytes).keys()]).toEqual(expect.arrayContaining(['story.zil', 'rooms.zil', 'lib/items.zil']))
+    const { project } = await readProjectPackage(bytes)
+    expect(project.main).toEqual(p.main)
+    expect(project.includes).toEqual(p.includes)
+    expect(project).toEqual(p)
+  })
+
+  it('an M2a-era package (extra .zil kept as opaque) opens it as an include', async () => {
+    const bytes = pkg(m({ language: 'zil', main: 'g.zil' }), {
+      'g.zil': '<INSERT-FILE "Rooms">', 'Rooms.ZIL': '<ROOM HALL>', 'sub/x.zil': '; x', 'readme.md': 'hi',
+    })
+    const { project } = await readProjectPackage(bytes)
+    expect(project.includes).toEqual([{ path: 'Rooms.ZIL', text: '<ROOM HALL>' }, { path: 'sub/x.zil', text: '; x' }])
+    expect(project.opaque.map(f => f.path)).toEqual(['readme.md'])
+  })
+
+  it('an Inform 6 project keeps a .zil as opaque', async () => {
+    const bytes = pkg(m(), { 'g.inf': '[ Main; ];', 'x.zil': 'hi' })
+    const { project } = await readProjectPackage(bytes)
+    expect(project.includes).toEqual([])
+    expect(project.opaque.map(f => f.path)).toEqual(['x.zil'])
+  })
+
+  it('refuses an extra .zil that is not UTF-8 text', async () => {
+    const bytes = pkg(m({ language: 'zil', main: 'g.zil' }), { 'g.zil': '<ROUTINE GO ()>', 'bad.zil': new Uint8Array([0xff, 0xfe]) })
+    expect(await refusal(bytes)).toContain('bad.zil')
+  })
+
+  it('the writer refuses a ZIL file set the editor could not open (planZilFiles)', async () => {
+    const p = { ...zil(), includes: Array.from({ length: 101 }, (_, i) => ({ path: `f${i}.zil`, text: '' })) }
+    await expect(writeProjectPackage(p, o)).rejects.toThrow('A project can have at most 100 extra ZIL files.')
+  })
+})
+
 describe('skein path and test extras', () => {
   const treeA = () => addPath(createTree(), ['a']).tree
   const sk = (tree: unknown) => JSON.stringify({ v: 1, lang: 'i6', storyKey: 'k', tree })

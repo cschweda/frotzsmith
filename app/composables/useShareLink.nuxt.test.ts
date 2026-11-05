@@ -25,6 +25,7 @@ vi.stubGlobal('useLanguage', () => ({ profile: _profile }))
 
 const { useShareLink } = await import('./useShareLink')
 const { useOutsideSource } = await import('./outside-source')
+const { useZilProjectFiles } = await import('./useZilProjectFiles')
 
 function setHash(frag: string | null) {
   history.replaceState(null, '', frag ? `/#${frag}` : '/')
@@ -126,5 +127,80 @@ describe('copyShareLink', () => {
     expect(await useShareLink().copyShareLink()).toBe(false)
     expect(_toastAdd).toHaveBeenCalledTimes(1)
     expect((_toastAdd.mock.calls[0]![0] as { color: string }).color).toBe('error')
+  })
+})
+
+describe('consumeShareFragment — extra ZIL files', () => {
+  type Toast = { description: string; actions?: Array<{ onClick: () => void }> }
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    _profile.value = { id: 'zil', route: '/zil', stateKey: 'zil' }
+    _source.value = ''
+    useZilProjectFiles().replaceAll([{ path: 'rooms.zil', text: 'R' }, { path: 'items.zil', text: 'I' }], 'story.zil')
+    setHash(encodeShareFragment('<ROUTINE GO () <CRLF>>', 'zil')!)
+  })
+
+  it('over a pristine main with extra files: asks first, and says the other .zil files go', () => {
+    expect(useShareLink().consumeShareFragment()).toBe(true)
+    expect(_loadSource).not.toHaveBeenCalled()
+    expect(useZilProjectFiles().files.value).toHaveLength(2)
+    const t = _toastAdd.mock.calls[0]![0] as Toast
+    expect(t.description).toBe('Loading it replaces the source in the editor and removes the project’s 2 other .zil files, so nothing was replaced yet.')
+    expect(t.actions?.length).toBe(1)
+  })
+
+  it('dismissing the offer keeps the extra files', () => {
+    useShareLink().consumeShareFragment()
+    // no click on the action
+    expect(useZilProjectFiles().files.value).toHaveLength(2)
+    expect(_loadSource).not.toHaveBeenCalled()
+  })
+
+  it('Replace editor contents loads the source and clears the extra files', () => {
+    useShareLink().consumeShareFragment()
+    const t = _toastAdd.mock.calls[0]![0] as Toast
+    t.actions![0]!.onClick()
+    expect(_loadSource).toHaveBeenCalledWith('<ROUTINE GO () <CRLF>>')
+    expect(useZilProjectFiles().files.value).toEqual([])
+  })
+
+  it('over real work with extra files, the offer names them too', () => {
+    _source.value = '<ROUTINE GO () <TELL "mine">>'
+    useShareLink().consumeShareFragment()
+    const t = _toastAdd.mock.calls[0]![0] as Toast
+    expect(t.description).toContain('removes the project’s 2 other .zil files')
+  })
+})
+
+describe('copyShareLink — extra ZIL files', () => {
+  const EXTRA = 'The link carries only the main file, not the project’s other ZIL files; Download project shares all of them.'
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } })
+    _source.value = '<ROUTINE GO () <CRLF>>'
+  })
+
+  it('the copied toast says what the link leaves out when the project has extra files', async () => {
+    _profile.value = { id: 'zil', route: '/zil', stateKey: 'zil' }
+    useZilProjectFiles().replaceAll([{ path: 'rooms.zil', text: 'R' }], 'story.zil')
+    expect(await useShareLink().copyShareLink()).toBe(true)
+    const t = _toastAdd.mock.calls[0]![0] as { description: string }
+    expect(t.description).toContain(EXTRA)
+  })
+
+  it('…and not when it has none', async () => {
+    _profile.value = { id: 'zil', route: '/zil', stateKey: 'zil' }
+    useZilProjectFiles().clear()
+    expect(await useShareLink().copyShareLink()).toBe(true)
+    expect((_toastAdd.mock.calls[0]![0] as { description: string }).description).not.toContain('only the main file')
+  })
+
+  it('…nor in the Inform 6 editor, whatever the ZIL store holds', async () => {
+    useZilProjectFiles().replaceAll([{ path: 'rooms.zil', text: 'R' }], 'story.zil')
+    _profile.value = { id: 'i6', route: '/', stateKey: 'i6' }
+    expect(await useShareLink().copyShareLink()).toBe(true)
+    expect((_toastAdd.mock.calls[0]![0] as { description: string }).description).not.toContain('only the main file')
   })
 })

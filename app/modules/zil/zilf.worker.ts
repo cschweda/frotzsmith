@@ -7,7 +7,8 @@
  * off-thread, keeping the UI fully responsive.
  *
  * Message protocol:
- *   IN  → { source: string, version: number, requestId: number }
+ *   IN  → { files: Record<string,string>, main: string, version: number, requestId: number }
+ *         (files = every project file by relative path, INCLUDING the main file)
  *   OUT → { success, storyBase64, diagnostics, requestId }   (compile payload)
  *       | { error: string, requestId: number }               (boot/compile failure)
  *       | { stage: string }                                  (progress breadcrumb)
@@ -47,7 +48,7 @@ const stage = (s: string) => post({ stage: s })
 
 /** Cached exports — booted once, reused for every compile message. */
 let exportsCache: {
-  ZilfExports: { Compile: (source: string, version: number) => string }
+  ZilfExports: { CompileProject: (filesJson: string, mainPath: string, version: number) => string }
 } | null = null
 
 /** Resolves once the runtime is booted; shared across concurrent messages. */
@@ -94,13 +95,15 @@ async function getExports() {
   return bootPromise
 }
 
-async function handleCompile({ source, version, requestId }: { source: string; version: number; requestId: number }) {
+type CompileRequest = { files: Record<string, string>; main: string; version: number; requestId: number }
+
+async function handleCompile({ files, main, version, requestId }: CompileRequest) {
   try {
     const exports = await getExports()
     if (!exports) throw new Error('ZILF runtime failed to boot (exports are null)')
 
     stage(`compiling (request ${requestId})`)
-    const raw = exports.ZilfExports.Compile(source, version)
+    const raw = exports.ZilfExports.CompileProject(JSON.stringify(files), main, version)
     const result = JSON.parse(raw) as {
       success: boolean
       storyBase64: string | null
@@ -115,7 +118,7 @@ async function handleCompile({ source, version, requestId }: { source: string; v
 }
 
 // addEventListener, never `self.onmessage =` — see the header comment (#114918).
-self.addEventListener('message', (event: MessageEvent<{ source: string; version: number; requestId: number }>) => {
+self.addEventListener('message', (event: MessageEvent<CompileRequest>) => {
   void handleCompile(event.data)
 })
 

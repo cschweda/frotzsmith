@@ -25,13 +25,15 @@ export function useIde() {
   const { compile } = useCompiler()
   const { profile } = useLanguage()
   const { enabledFiles, restore: restoreExtensions } = useExtensions()
-  const { activeFile, readFile, writeActive, restore: restoreProjectFiles } = useProjectFiles()
+  const { activeFile, readFile, writeActive, openFile, diagnosticTarget, restore: restoreProjectFiles } = useProjectFiles()
   const { restore: restoreScripts } = useTestScripts()
+  const zilFiles = useZilProjectFiles()
 
   const status = useState<CompileStatus>('frotz:status', () => 'idle')
   const result = useState<CompileResult | null>('frotz:result', () => null)
   const activeTab = useState<RightTab>('frotz:tab', () => 'results')
-  const jumpSignal = useState<{ line: number; nonce: number } | null>('frotz:jump', () => null)
+  /** A clicked diagnostic: the line, and the tab it is in (`'source'` or `zil:<path>`). */
+  const jumpSignal = useState<{ line: number; fileId: string; nonce: number } | null>('frotz:jump', () => null)
   /** Which pane the single-pane (mobile) layout shows. Shared so actions
    *  elsewhere can bring the right pane forward — e.g. tapping a diagnostic
    *  must show the editor it scrolls. Ignored by the desktop two-pane layout. */
@@ -129,6 +131,7 @@ export function useIde() {
           : 'auto'
     }
     restoreExtensions()
+    if (profile.value.id === 'zil') zilFiles.restore()
     // Restore source before project files so tab reconciliation runs against the
     // restored source's library profile (not the demo's), keeping library tabs.
     restoreSource()
@@ -206,6 +209,10 @@ export function useIde() {
         profileId: pid,
         ext: effectiveExt.value,
         extensions: enabledFiles.value,
+        // Only ZIL compiles take the project's extra files (I6 never does).
+        ...(profile.value.id === 'zil'
+          ? { files: zilFiles.files.value.map(f => ({ ...f })), mainPath: zilFiles.mainPath.value }
+          : {}),
       })
       if (superseded()) return
       result.value = r
@@ -234,9 +241,15 @@ export function useIde() {
     }
   }
 
-  function jumpTo(line: number) {
+  /** Show `line` of the file a diagnostic names (`file` as the compiler gave
+   *  it; none means the main source). A file outside the project, such as a
+   *  zillib file, has no tab: nothing moves, the line stays in Results. */
+  function jumpTo(line: number, file?: string) {
+    const fileId = diagnosticTarget(file)
+    if (fileId === null) return
+    openFile(fileId)
     mobileView.value = 'editor'
-    jumpSignal.value = { line, nonce: (jumpSignal.value?.nonce ?? 0) + 1 }
+    jumpSignal.value = { line, fileId, nonce: (jumpSignal.value?.nonce ?? 0) + 1 }
   }
 
   /** Re-indent and tidy the active editable file (source or an uploaded ext). */
@@ -271,6 +284,14 @@ export function useIde() {
     void getExtrasStore().clear(profile.value.stateKey)
   }
 
+  /** A different game is being loaded into a ZIL editor: its extra files
+   *  belong to the old one. Called by the callers that bring a new source
+   *  (never by loadSource: package open and restores keep their files). An
+   *  I6 session leaves the ZIL project alone. */
+  function releaseZilFiles() {
+    if (profile.value.id === 'zil') zilFiles.clear()
+  }
+
   /** Load a built-in sample into the editor, prettified for consistent formatting
    *  (unless the sample sets `format: false`).
    *  Async: I6 sample bodies live in per-sample lazy chunks (loadSampleSource). */
@@ -284,6 +305,7 @@ export function useIde() {
       setTargetMode(s.target)
       resetForNewSource()
       releaseExtras()
+      releaseZilFiles()
       useOutsideSource().trust() // the author's own choice of source (F2)
       return
     }
@@ -306,6 +328,7 @@ export function useIde() {
     setTargetMode(s.target ?? 'auto')
     resetForNewSource()
     releaseExtras()
+    releaseZilFiles()
     useOutsideSource().trust() // the author's own choice of source (F2)
   }
 
@@ -322,6 +345,7 @@ export function useIde() {
    *  like a package does, so Skein auto-run waits until Play or Run (F2). */
   function loadOpenedFile(text: string) {
     loadSource(text)
+    releaseZilFiles() // a plain file brings no extra files; package open and restores keep theirs
     useOutsideSource().markOutside()
   }
 
@@ -335,6 +359,7 @@ export function useIde() {
     if (profile.value.id === 'i6') setProfileMode(library)
     resetForNewSource()
     releaseExtras()
+    releaseZilFiles()
     useOutsideSource().trust() // a blank project of the author's own (F2)
   }
 

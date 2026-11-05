@@ -3,6 +3,7 @@ import { parseZilDiagnostics } from '~/modules/zil/zil-diagnostics'
 import { cachedAsync } from '~/utils/cached-async'
 import { createWorkerRpc, timedOutResult } from './worker-rpc'
 import zilSkeletonSource from '~/modules/languages/zil/samples/skeleton.zil?raw'
+import { buildZilFileSet, ZIL_DEFAULT_MAIN_PATH, type ZilProjectFile } from '~/modules/zil/zil-project'
 import { ZILF_FRAMEWORK_BASE } from '~~/frotzsmith.config'
 
 /**
@@ -67,7 +68,7 @@ const WARMUP_GRACE_MS = 120_000
 // ─── shared types ─────────────────────────────────────────────────────────────
 
 type ZilfExportCache = {
-  ZilfExports: { Compile: (source: string, version: number) => string }
+  ZilfExports: { CompileProject: (filesJson: string, mainPath: string, version: number) => string }
 }
 
 type CompilePayload = {
@@ -255,7 +256,10 @@ export function warmZilCompiler(): void {
   if (conn?.saveData || conn?.effectiveType?.includes('2g')) return
   _warmKicked = true
   const warm: Promise<void> = rpc
-    .call({ source: zilSkeletonSource, version: 3 }, { timeoutMs: null })
+    .call(
+      { files: { [ZIL_DEFAULT_MAIN_PATH]: zilSkeletonSource }, main: ZIL_DEFAULT_MAIN_PATH, version: 3 },
+      { timeoutMs: null },
+    )
     .then((outcome) => {
       // Only a worker that can't load at all says anything about later compiles.
       if (outcome.kind === 'unavailable') _workerFailed = true
@@ -279,7 +283,13 @@ export function warmZilCompiler(): void {
  * ```
  */
 export function useZilfWasm() {
-  async function compile(source: string, version: number): Promise<CompileResult> {
+  async function compile(
+    source: string,
+    version: number,
+    opts: { files?: ZilProjectFile[]; mainPath?: string } = {},
+  ): Promise<CompileResult> {
+    const main = opts.mainPath ?? ZIL_DEFAULT_MAIN_PATH
+    const files = buildZilFileSet(source, main, opts.files)
     const started = performance.now()
     const storyExt = versionToExt(version)
 
@@ -291,7 +301,7 @@ export function useZilfWasm() {
         ? Promise.race([_warmPending, new Promise(r => setTimeout(r, WARMUP_GRACE_MS))])
         : undefined
       const outcome = await rpc.call(
-        { source, version },
+        { files, main, version },
         { timeoutMs: WORKER_TIMEOUT_MS, clockStartsAfter },
       )
       if (outcome.kind === 'ok') return buildResultFromPayload(outcome.value, storyExt, started)
@@ -306,7 +316,7 @@ export function useZilfWasm() {
     // cached exports and are much faster.
     try {
       const exports = await getMainThreadExports()
-      const raw = exports.ZilfExports.Compile(source, version)
+      const raw = exports.ZilfExports.CompileProject(JSON.stringify(files), main, version)
       const payload = JSON.parse(raw) as CompilePayload
       return buildResultFromPayload(payload, storyExt, started)
     } catch (err: unknown) {

@@ -43,6 +43,7 @@ export default defineNuxtPlugin((nuxtApp) => {
   setBeforeReload(async () => {
     await nuxtApp.runWithContext(async () => {
       useSourceDocument().flushPendingSave()
+      useZilProjectFiles().flushPendingSave()
       await useSkein().flushSaves()
     })
   })

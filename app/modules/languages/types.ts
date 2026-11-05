@@ -1,3 +1,4 @@
+import type { ZilProjectFile } from '~/modules/zil/zil-project'
 import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import type { LanguageSupport } from '@codemirror/language'
 
@@ -12,6 +13,10 @@ export interface CompileOpts {
   /** User-uploaded extension files to mount (Inform 6 only). One named like
    *  a library file replaces it only with `overridesLibrary`. */
   extensions?: { name: string; content: string; overridesLibrary?: true }[]
+  /** Extra project files (ZIL only), pulled in by the main file's INSERT-FILE. */
+  files?: ZilProjectFile[]
+  /** Project-relative name of the main file (ZIL only); defaults to `story.zil`. */
+  mainPath?: string
 }
 
 /**

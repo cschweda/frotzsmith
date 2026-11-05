@@ -23,12 +23,19 @@ const names = (list: readonly string[]) => formatNameList(list.map(n => displayP
 /** The open dialog's notes: the extensions a package installs or enables
  *  (they reach every Inform 6 game, not just this one) and the files it
  *  carries that the IDE doesn't show. */
-export function openDialogNotes(p: { extensions: readonly string[]; hiddenNames: readonly string[] }): string[] {
+export function openDialogNotes(p: {
+  extensions: readonly string[]
+  hiddenNames: readonly string[]
+  /** ZIL: the extra `.zil` files the project brings (this project only). */
+  sourceFiles?: readonly string[]
+}): string[] {
   const notes: string[] = []
   const e = p.extensions.length
   if (e > 0) {
     notes.push(`It adds ${e === 1 ? 'an extension' : `${e} extensions`} used by every Inform 6 game in this browser: ${names(p.extensions)}.`)
   }
+  const s = p.sourceFiles?.length ?? 0
+  if (s > 0) notes.push(`It adds ${s === 1 ? 'a source file' : `${s} source files`}: ${names(p.sourceFiles!)}.`)
   const h = p.hiddenNames.length
   if (h > 0) {
     notes.push(`It carries ${h === 1 ? 'a file' : `${h} files`} Frotzsmith doesn’t show, kept and included when you download: ${names(p.hiddenNames)}.`)
@@ -82,8 +89,12 @@ export function openedNotes(p: {
   hiddenNames?: readonly string[]
   /** Extensions the open installed or enabled. */
   extensions?: readonly string[]
+  /** ZIL: the extra `.zil` files the open added. */
+  sourceFiles?: readonly string[]
 }): string[] {
   const notes: string[] = []
+  const s = p.sourceFiles?.length ?? 0
+  if (s > 0) notes.push(`It added ${s === 1 ? 'a source file' : `${s} source files`}: ${names(p.sourceFiles!)}.`)
   // An unopened Skein is kept as a hidden file, but gets its own line.
   const hidden = p.hiddenCount - (p.skeinNotOpened !== null ? 1 : 0)
   const listed = p.hiddenNames?.length ? `: ${names(p.hiddenNames)}.` : '.'
@@ -104,4 +115,10 @@ export function openedNotes(p: {
 export function joinPhrases(items: readonly string[]): string {
   if (items.length <= 1) return items.join('')
   return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+}
+
+/** What a plain open or a share link would take from a ZIL project with extra
+ *  files: “the project’s other .zil file” / “the project’s 3 other .zil files”. */
+export function otherZilFilesPhrase(count: number): string {
+  return count === 1 ? 'the project’s other .zil file' : `the project’s ${count} other .zil files`
 }

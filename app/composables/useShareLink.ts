@@ -1,6 +1,8 @@
 import { encodeShareFragment, decodeShareFragment } from '~/utils/share-link'
 import { isPristine } from '~/utils/pristine'
+import { otherZilFilesPhrase } from '~/utils/package-messages'
 import { useOutsideSource } from '~/composables/outside-source'
+import { useZilProjectFiles } from '~/composables/useZilProjectFiles'
 
 /**
  * Share the editor's source as a URL — zero backend: the source rides
@@ -15,6 +17,7 @@ export function useShareLink() {
   const { source, loadSource } = useIde()
   const { profile } = useLanguage()
   const { markOutside } = useOutsideSource()
+  const zilFiles = useZilProjectFiles()
 
   /** Handle an incoming #src= fragment (call once after restore() on mount).
    *  Returns true when a valid fragment for THIS language was recognized. */
@@ -29,7 +32,10 @@ export function useShareLink() {
     // Recognized → clear the hash so a refresh doesn't re-prompt.
     history.replaceState(null, '', window.location.pathname + window.location.search)
 
-    if (isPristine(source.value)) {
+    // A shared link carries one source only: loading it removes a ZIL
+    // project's other .zil files, so they count as work to ask about.
+    const extra = profile.value.id === 'zil' ? zilFiles.files.value.length : 0
+    if (isPristine(source.value) && extra === 0) {
       loadSource(decoded.source)
       markOutside() // no Skein auto-run until Play/Run (audit F2)
       useToast().add({
@@ -41,7 +47,9 @@ export function useShareLink() {
     } else {
       useToast().add({
         title: 'This link carries a shared game source',
-        description: 'You have work in the editor, so nothing was replaced. Load it?',
+        description: extra > 0
+          ? `Loading it replaces the source in the editor and removes ${otherZilFilesPhrase(extra)}, so nothing was replaced yet.`
+          : 'You have work in the editor, so nothing was replaced. Load it?',
         color: 'info',
         icon: 'i-lucide-inbox',
         duration: 0, // sticky — an accidental dismiss would lose the offer
@@ -53,6 +61,7 @@ export function useShareLink() {
             onClick: () => {
               if (profile.value.id === decoded.lang) {
                 loadSource(decoded.source)
+                if (profile.value.id === 'zil') zilFiles.clear()
                 markOutside()
               }
             },
@@ -88,9 +97,13 @@ export function useShareLink() {
       })
       return false
     }
+    // A link holds one source: say so when the ZIL project has more files.
+    const leavesOut = profile.value.id === 'zil' && zilFiles.files.value.length > 0
     useToast().add({
       title: 'Share link copied',
-      description: 'Anyone opening it gets this source in their editor — the code travels inside the link; nothing is uploaded.',
+      description:
+        'Anyone opening it gets this source in their editor — the code travels inside the link; nothing is uploaded.' +
+        (leavesOut ? ' The link carries only the main file, not the project’s other ZIL files; Download project shares all of them.' : ''),
       color: 'success',
       icon: 'i-lucide-link',
     })

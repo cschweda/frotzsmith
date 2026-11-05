@@ -3,6 +3,7 @@
  * live here so it can be unit-tested directly with Vitest; the `useProjectFiles`
  * composable wraps these functions with reactive state and the backing stores.
  */
+import { pathKey } from '~/project-package/paths'
 
 export interface ProjectFileMeta {
   id: string
@@ -41,9 +42,16 @@ export function buildProjectFileList(input: {
   sourceName: string
   enabledExtensions: { id: string; name: string; origin: 'bundled' | 'uploaded' }[]
   libraryNames: string[]
+  /** Extra editable project files (a ZIL project's `zil:<path>` files), listed
+   *  after the main file sorted by name. */
+  projectFiles?: { id: string; name: string }[]
 }): ProjectFileMeta[] {
+  const extras = [...(input.projectFiles ?? [])].sort((a, b) =>
+    a.name.toLowerCase() < b.name.toLowerCase() ? -1 : a.name.toLowerCase() > b.name.toLowerCase() ? 1 : 0,
+  )
   const project: ProjectFileMeta[] = [
     { id: 'source', name: input.sourceName, group: 'project', editable: true },
+    ...extras.map(f => ({ id: f.id, name: f.name, group: 'project' as const, editable: true })),
     ...input.enabledExtensions.map(e => ({
       id: e.id,
       name: `${e.name}.h`,
@@ -58,6 +66,21 @@ export function buildProjectFileList(input: {
     editable: false,
   }))
   return [...project, ...library]
+}
+
+/** The file id a ZIL diagnostic opens: the main file (or no file) → `'source'`,
+ *  one of the extra files → `zil:<its stored path>` (matched by `pathKey`, as
+ *  ZILF finds files case-insensitively), anything else (a zillib file) → null. */
+export function diagnosticFileId(
+  file: string | undefined,
+  mainPath: string,
+  extraPaths: readonly string[],
+): string | null {
+  if (file === undefined || file === '') return 'source'
+  const key = pathKey(file)
+  if (key === pathKey(mainPath)) return 'source'
+  const hit = extraPaths.find(p => pathKey(p) === key)
+  return hit === undefined ? null : `zil:${hit}`
 }
 
 export interface TabState {

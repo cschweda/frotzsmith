@@ -19,6 +19,11 @@ describe('refusalSentence', () => {
 })
 
 describe('openedNotes', () => {
+  it('names the source files a ZIL package added', () => {
+    expect(openedNotes({ hiddenCount: 0, ignored: [], skeinNotOpened: null, sourceFiles: ['rooms.zil', 'lib/a.zil'] })).toEqual([
+      'It added 2 source files: “rooms.zil”, “lib/a.zil”.',
+    ])
+  })
   const none = { hiddenCount: 0, ignored: [], skeinNotOpened: null }
   it('says nothing when there is nothing to say', () => {
     expect(openedNotes(none)).toEqual([])
@@ -57,6 +62,16 @@ describe('joinPhrases (the confirmation names what an open replaces)', () => {
 // the extensions a package brings and the hidden files it carries — quoted,
 // display-safe and capped.
 describe('openDialogNotes', () => {
+  it('names the source files a ZIL package adds, capped at 5', () => {
+    expect(openDialogNotes({ extensions: [], hiddenNames: [], sourceFiles: ['rooms.zil'] })).toEqual([
+      'It adds a source file: “rooms.zil”.',
+    ])
+    const many = ['a.zil', 'b.zil', 'c.zil', 'd.zil', 'e.zil', 'f.zil', 'g.zil']
+    expect(openDialogNotes({ extensions: [], hiddenNames: [], sourceFiles: many })).toEqual([
+      'It adds 7 source files: “a.zil”, “b.zil”, “c.zil”, “d.zil”, “e.zil” and 2 more.',
+    ])
+    expect(openDialogNotes({ extensions: [], hiddenNames: [], sourceFiles: ['x\u202e.zil'] })[0]).not.toContain('\u202e')
+  })
   it('names the extensions, saying they reach every Inform 6 game', () => {
     expect(openDialogNotes({ extensions: ['ext/lamp.h'], hiddenNames: [] })).toEqual([
       'It adds an extension used by every Inform 6 game in this browser: “ext/lamp.h”.',
