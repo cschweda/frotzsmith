@@ -1,0 +1,74 @@
+west
+read drill
+west
+take register
+east
+east
+up
+read receipt
+bow
+pull lever
+down
+put register in chest
+say hello
+ask lucan about sandwich
+up
+out
+east
+take strongbox
+take sweep
+take grapnel
+take nameboard
+west
+in
+down
+put nameboard in chest
+up
+south
+put sweep in socket
+throw grapnel
+pull line
+ask lucan about old side
+ask lucan about songs
+steer east
+north
+out
+ring bell
+ask thrumble about ascendancy
+north
+examine patches
+north
+take lifebelt
+wear lifebelt
+south
+south
+ring bell
+in
+down
+put songbook in chest
+up
+untie rope
+north
+examine chain
+throw grapnel at chain
+climb chain
+take tag
+pull box with pike
+west
+east
+down
+south
+down
+put tag in chest
+up
+north
+unhook grapnel
+south
+wait
+out
+put key in switch
+north
+south
+in
+down
+put plaque in chest

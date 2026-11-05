@@ -12,7 +12,7 @@
  *   Tara McGrew, Jayson Smith, and Josh Lawrence), sample/empty/empty.zil
  *   (skeleton basis), zillib/tests/test-light.zil (light demo basis).
  *   Hand-written samples: two-rooms, npc, puzzle, daemon, architect-legacy,
- *   mingus-1.
+ *   mingus-1, mingus-2.
  */
 
 import type { StoryExt } from '~/modules/languages/types'
@@ -26,6 +26,7 @@ import lightSrc from './samples/light.zil?raw'
 import daemonSrc from './samples/daemon.zil?raw'
 import architectLegacySrc from './samples/architect-legacy.zil?raw'
 import mingus1Src from './samples/mingus-1.zil?raw'
+import mingus2Src from './samples/mingus-2.zil?raw'
 
 /** A single ZIL sample in the Frotzsmith sample library. */
 export interface ZilSample {
@@ -38,7 +39,7 @@ export interface ZilSample {
   /**
    * Preferred Z-machine version to compile to when this sample is loaded.
    * The concept demos target z3 (VERSION ZIP) — the compact Zork format;
-   * the longer games (The Architect's Legacy, Mingus I) target z5.
+   * the longer games (The Architect's Legacy, Mingus I, Mingus II) target z5.
    */
   target: StoryExt
   /** Raw ZIL source text (imported with ?raw). */
@@ -50,8 +51,8 @@ export interface ZilSample {
  * against the committed ZILF bundle (public/zilf/<rev>/_framework).
  * The concept demos target z3 (<VERSION ZIP>) — the standard for small
  * single-file zillib games. The longer games target z5: The Architect's
- * Legacy and Mingus I: Elevated Returns, each the same game as the Inform 6
- * sample of that name.
+ * Legacy, Mingus I: Elevated Returns and Mingus II: Everything Rolls
+ * Downhill, each the same game as the Inform 6 sample of that name.
  */
 export const ZIL_SAMPLES: ZilSample[] = [
   {
@@ -113,9 +114,16 @@ export const ZIL_SAMPLES: ZilSample[] = [
   {
     id: 'zil-mingus-1',
     name: 'Mingus I: Elevated Returns · longer game',
-    description: 'A crypto satire in three acts: 20 rooms, 10 puzzles, a three-poke finale',
+    description: 'A fall from great heights, in three acts: 20 rooms, 10 puzzles, a three-poke finale',
     target: 'z5',
     source: mingus1Src,
+  },
+  {
+    id: 'zil-mingus-2',
+    name: 'Mingus II: Everything Rolls Downhill · longer game',
+    description: 'A river voyage in five landings: 20 rooms, 10 puzzles, a guide and a trickster',
+    target: 'z5',
+    source: mingus2Src,
   },
 ]
 

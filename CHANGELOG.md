@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Added — 2026-11-05 Mingus II
+- **New longer sample: Mingus II: Everything Rolls Downhill** (Inform 6
+  and ZIL, both z5), the sequel to Mingus I. A funeral ship floats down the Verdance
+  through five landings: 20 rooms, 10 puzzles and five names to keep, 100
+  points. It teaches how to code an NPC: Lucan Fairweather, the Thursday
+  tenor, follows you, leads you to the one thing you'll need, talks, reacts
+  to what you give and show him, and dies in a scripted event on a timer.
+  Sandwich, the front-runner, and Mrs. Thrumble show two more NPC patterns.
+  It also shows a vehicle made of fixed rooms and one variable, and a
+  current that gives you exactly one turn to act. Its walkthrough is in the
+  Solution tab, and a golden test plays it to the win.
+- **Mingus II in ZIL** (`zil-mingus-2`): the same game written natively for
+  zillib, in one file. It has the same rooms, puzzles, score and timings,
+  and it wins with the same 74-command walkthrough. Its NPC section explains
+  each technique in ZIL terms: following and leading from one end-of-turn
+  interrupt, the ASK/TELL topic table and its fallback, the greeting,
+  GIVE/SHOW, the state machine, the scripted timer, and what stays after
+  Lucan dies. INVENTORY takes a turn here, as it does in Inform.
+
+### Changed — 2026-11-05 Mingus I
+- **Mingus I's empire now has a name:** the Mingan Ascendancy, in both the Inform 6 and ZIL samples and in the lore.
+- **Mingus I's tagline is now "a fall from great heights, in three acts"** — no "crypto". The in-game banner and the Samples dropdown description use the same wording, in both languages.
+
 ### Added — 2026-11-05 Solutions
 - **Every game can have a solution:** the game told as it plays — the
   opening, then each `> command` and the game's full reply — made by
@@ -59,7 +82,7 @@ both).
 
 ### Added — 2026-11-05 Mingus I: Elevated Returns (Inform 6 and ZIL samples)
 - **A second longer sample game, in both languages.** *Mingus I: Elevated
-  Returns* is a crypto satire in three acts: 20 rooms, 10 puzzles and 5 lore
+  Returns* is a fall from great heights, in three acts: 20 rooms, 10 puzzles and 5 lore
   points, 60 in all. It ships as an Inform 6 sample and as a ZIL sample
   (zillib, one file), both targeting z5 and loading exactly as written. The
   two are the same game: the same rooms, puzzles and score, the same

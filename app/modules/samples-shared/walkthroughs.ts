@@ -13,6 +13,7 @@
 // The longer games: one walkthrough shared by the Inform 6 and ZIL versions.
 import architectLegacy from './architect-legacy.walkthrough.txt?raw'
 import mingus1 from './mingus-1.walkthrough.txt?raw'
+import mingus2 from './mingus-2.walkthrough.txt?raw'
 // Inform 6, Standard Library.
 import stdSkeleton from './std-skeleton.walkthrough.txt?raw'
 import demo from './demo.walkthrough.txt?raw'
@@ -51,6 +52,8 @@ const WALKTHROUGHS: Record<string, string> = Object.assign(Object.create(null) a
   'zil-architect-legacy': architectLegacy,
   'std-mingus-1': mingus1,
   'zil-mingus-1': mingus1,
+  'std-mingus-2': mingus2,
+  'zil-mingus-2': mingus2,
 
   'std-skeleton': stdSkeleton,
   'std-two-rooms': demo,

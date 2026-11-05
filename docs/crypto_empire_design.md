@@ -1,5 +1,5 @@
 # MINGUS I: ELEVATED RETURNS
-*A Mingus Empire adventure — first in a series*
+*A Mingan Ascendancy adventure — first in a series*
 ## Full Three-Act Structure
 
 *"You are likely to be poked by a verdling — and then eaten, if you don't move."*
@@ -8,9 +8,9 @@
 
 ## DESIGN PHILOSOPHY
 
-The Mingus range is a run of red-rock peaks, mesas and ridgelines above a high-desert valley. Somebody has built an empire on top of it and into it: cliff palaces, switchback stairs, gondolas, wind-scoured terraces, observatories, and mine shafts bored deep into the rock. It is called **the Mingus Empire**. It is brand new. It is bigger, louder and higher than anything nearby, it is gilded on surfaces that do not need gilding, and all of it can be seen from miles away. That last part is the point.
+The Mingus range is a run of red-rock peaks, mesas and ridgelines above a high-desert valley. Somebody has built an empire on top of it and into it: cliff palaces, switchback stairs, gondolas, wind-scoured terraces, observatories, and mine shafts bored deep into the rock. It is called **the Mingan Ascendancy**. It is brand new. It is bigger, louder and higher than anything nearby, it is gilded on surfaces that do not need gilding, and all of it can be seen from miles away. That last part is the point.
 
-The **Verdance** runs along the valley floor. Past it lies the far bank, low and lush and green, and somewhere beneath that green is an older empire. It is underground, quiet and legendary, and it was there first. Nobody in the Mingus Empire has ever seen it. Everybody in the Mingus Empire talks about it.
+The **Verdance** runs along the valley floor. Past it lies the far bank, low and lush and green, and somewhere beneath that green is an older empire. It is underground, quiet and legendary, and it was there first. Nobody in the Mingan Ascendancy has ever seen it. Everybody in the Mingan Ascendancy talks about it.
 
 The empire was founded eighteen months ago by **Lord Maximus Vaunt the First** (self-numbered; he plans to be several): heir to a parking-lot fortune, real estate visionary, serial bankrupt, blockchain evangelist. He launched **$ALT**, an "altitude-backed stablecoin" pegged to the sunrise and promising returns of 4000% APY ("elevated returns"). **Lady Esmé Vaunt**, in a spite-filing divorce maneuver, counter-launched **$SHRUG** and an NFT collection of her coat in various poses.
 
@@ -42,13 +42,13 @@ That's the legend, anyway. Nobody alive was there. The river poets sing it more 
 **The current** is the other half of the dread. Under the calm green surface the Verdance runs like a great continental river — broad, brown-shouldered, and *fast*: anything that goes in is gone downstream before it can shout. **Mingans have a shared nightmare**: climbing out onto an old half-bridge, the planks tilting, the slow slide to the broken end, and the drop — and then the current taking you, quick and quiet, down the river no one comes back from. Children dare each other to touch the first pylon. Nobody goes past the second.
 
 **In play** *(hooks)*:
-- **Mingus I:** the half-bridges are in view from every terrace — the empire's most honest monument. A seed-word or a song can sit on a bridge plaque ("Phase 2: Far Bank").
+- **Mingus I:** the half-bridges are in view from every terrace — the Ascendancy's most honest monument. A seed-word or a song can sit on a bridge plaque ("Phase 2: Far Bank").
 - **Mingus II:** the bridges are landmarks and hazards from the water — shadows overhead, debris below, a current that speeds up at every broken end. One of them might be the only place a boat can be stopped… or the place the player is *dropped* into the river in the first place.
 
-**The funeral ships.** The Verdance is where Mingus sends its dead. When someone of standing dies, the **Mingans** build a ship and deck it out like a launch party: hard wallets strung like lanterns, $ALT medallions heaped in the hold, a gilded figurehead with laser eyes, the deceased's seed phrase engraved on a plaque and bolted to the mast. Then they send it down the river — **no one who has floated down it has ever come back**, so it is the most final thing they know how to do. The wallets go with them; so do the keys. *"It is the most secure custody solution the empire has ever devised,"* the parser notes. *"Nothing has ever been withdrawn."*
+**The funeral ships.** The Verdance is where Mingus sends its dead. When someone of standing dies, the **Mingans** build a ship and deck it out like a launch party: hard wallets strung like lanterns, $ALT medallions heaped in the hold, a gilded figurehead with laser eyes, the deceased's seed phrase engraved on a plaque and bolted to the mast. Then they send it down the river — **no one who has floated down it has ever come back**, so it is the most final thing they know how to do. The wallets go with them; so do the keys. *"It is the most secure custody solution the Ascendancy has ever devised,"* the parser notes. *"Nothing has ever been withdrawn."*
 
 **The launch problem:** the ships have to get past **the verdlings**, who hold the open valley floor between the mountain and the water and poke anything that comes down off the Mingus — mourners included. So funerals are engineered around them:
-- **The Sluice** — a long covered chute bored through the bottom of the range, ending at the river's edge. Verdlings are claustrophobic: they won't go near it. The ship goes down inside the mountain and out onto the water without ever touching the Runout. (When the Sluice jams, there are no funerals, and the empire's dead pile up in cold storage at the summit. The joke writes itself; let it.)
+- **The Sluice** — a long covered chute bored through the bottom of the range, ending at the river's edge. Verdlings are claustrophobic: they won't go near it. The ship goes down inside the mountain and out onto the water without ever touching the Runout. (When the Sluice jams, there are no funerals, and the Ascendancy's dead pile up in cold storage at the summit. The joke writes itself; let it.)
 - **Night launches** at the old landing, timed for when the verdlings are asleep in the open — risky, fast, and the subject of several river-poet songs.
 
 **Why it matters for the series:** a funeral ship is the only thing anyone has ever sent down the Verdance on purpose. In **Mingus II**, it's how the player gets onto the river — on a funeral ship the verdlings make ready for them at the end of Mingus I, launched through the Sluice. The gold on board is everyone's fortune and nobody's: the player can't spend a dead man's $ALT without his seed phrase, and the plaque on the mast is right there.
@@ -92,9 +92,9 @@ When the player finally reaches it (Mingus II from the far bank, or Mingus III o
 > *It is floating there still, I suppose."*
 > — dulcimer, bottom station (the whole song; she plays it twice)
 
-**In play:** songs are an honest hint channel in a dishonest empire. A verse can point at something the player needs (in Mingus I, a song about "the one who looked down and saw where it fell" is a nudge toward the observatory telescope before the Runout finale); in Mingus II and III, the player finally sees parts of what the songs describe — and finds out which songs were right.
+**In play:** songs are an honest hint channel in a dishonest Ascendancy. A verse can point at something the player needs (in Mingus I, a song about "the one who looked down and saw where it fell" is a nudge toward the observatory telescope before the Runout finale); in Mingus II and III, the player finally sees parts of what the songs describe — and finds out which songs were right.
 
-| | The Mingus Empire (up here) | The old side |
+| | The Mingan Ascendancy (up here) | The old side |
 |---|---|---|
 | **Brags about** | Sky, views, sunrise, "we have WEATHER," "elevated returns," light as an asset | Nothing. It does not brag. This is the problem. |
 | **Actually has** | Wind, rockfalls, thin air, altitude sickness, freezing nights, lightning | Shelter, a steady temperature, quiet, the dark |
@@ -103,22 +103,22 @@ When the player finally reaches it (Mingus II from the far bank, or Mingus III o
 
 The old side is felt only as:
 
-- **The glow on the far bank.** From the ridgeline overlooks you can see a few low chimney vents in the green, giving off a steady, warm, unremarkable light at dusk. It never flickers. The Mingus Empire's lights flicker constantly, and on stormy nights get struck by lightning. Nobody comments on this, loudly.
+- **The glow on the far bank.** From the ridgeline overlooks you can see a few low chimney vents in the green, giving off a steady, warm, unremarkable light at dusk. It never flickers. The Mingan Ascendancy's lights flicker constantly, and on stormy nights get struck by lightning. Nobody comments on this, loudly.
 - **The telescopes.** The Observatory has twelve telescopes. All twelve point down at the far bank. None of them has ever seen anything.
 - **Copied signage.** Many Mingus signs were obviously copied from somewhere else, then enlarged and hung upside down, because the originals were "for a basement."
 - **Poached decor.** Chandeliers, doorknobs and one entire spiral staircase were "acquired." Staff become vague when asked how. The staircase still goes down. It is now bolted to a cliff and goes up.
 - **Lies about fundamentals.** Every Mingus NPC says the old side is "basically closed," "underwater, financially," or "flooding as we speak." It is not.
 - **The Verdance.** It marks the eastern edge of every map, and every Mingus map draws it narrower than it is. The far bank is green: real grass, real cottonwoods, real water. The Mingus side is red dust, scrub and spray-painted astroturf, and it resents this deeply.
-- **"No one crosses the Verdance."** Every Mingus resident says it, half as a warning and half as a sales pitch. The whispered stories of explorers who crossed and never came back are the closest thing the empire has to a founding myth, and of course it has monetized them. There was a "Verdance Expedition" NFT drop (defunct; the roadmap ends at "Step 3: cross"). There is a bronze Lost Expedition plaque on the ridgeline overlook with a DONATE QR code where the names should be. And there is always someone whose cousin made it across.
-- **Mrs. Thrumble.** The one person from the old side the player ever meets: its Clerk of Lost Property. She appears at a barred window on a far-side pier in the Verdance (Act I), at the bottom of the deepest mine shaft (Act II), and, under protest, by speakerphone in court (Act III). She is polite, efficient and kind. She does not acknowledge that the Mingus Empire exists. She has never once looked up.
+- **"No one crosses the Verdance."** Every Mingus resident says it, half as a warning and half as a sales pitch. The whispered stories of explorers who crossed and never came back are the closest thing the Ascendancy has to a founding myth, and of course it has monetized them. There was a "Verdance Expedition" NFT drop (defunct; the roadmap ends at "Step 3: cross"). There is a bronze Lost Expedition plaque on the ridgeline overlook with a DONATE QR code where the names should be. And there is always someone whose cousin made it across.
+- **Mrs. Thrumble.** The one person from the old side the player ever meets: its Clerk of Lost Property. She appears at a barred window on a far-side pier in the Verdance (Act I), at the bottom of the deepest mine shaft (Act II), and, under protest, by speakerphone in court (Act III). She is polite, efficient and kind. She does not acknowledge that the Mingan Ascendancy exists. She has never once looked up.
 
 **Sample lines**
 
-> **Gondola Attendant**: "Welcome to the Mingus Empire. Four thousand feet higher than the competition. Well. Four thousand feet higher than the *announced* competition."
+> **Gondola Attendant**: "Welcome to the Mingan Ascendancy. Four thousand feet higher than the competition. Well. Four thousand feet higher than the *announced* competition."
 
 > **Murkling foreman**: "Down there they sit in the dark all day. The dark! Like potatoes. Up here we've got *weather*." (Lightning strikes the ridge. The lights go out.) "...That's weather."
 
-> **Tour Guide**: "Darkness is a legacy technology. The Mingus Empire runs on light, which is why light costs 0.002 ETH per room."
+> **Tour Guide**: "Darkness is a legacy technology. The Mingan Ascendancy runs on light, which is why light costs 0.002 ETH per room."
 
 > **Gift Shop Clerk**: "Don't buy the postcards from across there. They're smaller. Ours are the same picture, but bigger. It's grass."
 
@@ -130,13 +130,13 @@ The old side is felt only as:
 
 > **Lord Vaunt (recorded message)**: "People say to me, Maximus, is it true the old side is better? And I say: which old side? I've never heard of them. I hear they're closing. I hear it was never very good on the old side. Tremendous moisture problems. Up here we have sunrise. Every single day. Who else can say that?"
 
-> **Mrs. Thrumble** (asked about the Mingus Empire): "I'm sorry, I don't know what you're referring to."
+> **Mrs. Thrumble** (asked about the Mingan Ascendancy): "I'm sorry, I don't know what you're referring to."
 
 > **Mrs. Thrumble** (asked about the enormous gilded palace on the mountain): "I wouldn't know, dear. I don't look up."
 
 > **Mrs. Thrumble** (shown an $ALT coin): "That appears to be a washer. Would you like to file it as lost?"
 
-> **Parser** (if the player types `GO EAST` at the Verdance): "The Verdance is in the way. Beyond it, and below it, is a place you are not in, which the Mingus Empire would like you to know is worse."
+> **Parser** (if the player types `GO EAST` at the Verdance): "The Verdance is in the way. Beyond it, and below it, is a place you are not in, which the Mingan Ascendancy would like you to know is worse."
 
 **The rule for writers**: the old side gets no name, no rooms, no art, and no lines except Mrs. Thrumble's. Every reference to it comes from someone on this side, and every one of those people is a little insecure about it. Mingus brags about the sky and envies the dark. That is the whole relationship.
 
@@ -146,10 +146,10 @@ The old side is felt only as:
 
 ### $ALT (Lord Vaunt's Token)
 
-**Whitepaper excerpt**: *"$ALT is the first altitude-backed stablecoin, pegged to the sunrise itself. Unlike fiat currencies tied to outdated concepts like 'productivity' or 'trust,' $ALT derives value from the one constant in the Mingus Empire: it is very high up. Darkness is a legacy technology. Light is an asset class. Our sunrise is earlier than the competition's, by approximately four minutes. Elevated returns!"*
+**Whitepaper excerpt**: *"$ALT is the first altitude-backed stablecoin, pegged to the sunrise itself. Unlike fiat currencies tied to outdated concepts like 'productivity' or 'trust,' $ALT derives value from the one constant in the Mingan Ascendancy: it is very high up. Darkness is a legacy technology. Light is an asset class. Our sunrise is earlier than the competition's, by approximately four minutes. Elevated returns!"*
 
 - **Logo**: Vaunt's face, gilded, with laser eyes, rising over a peak
-- **Current status**: Down 94% from ATH ("all-time high," which in the Mingus Empire is also a place you can visit)
+- **Current status**: Down 94% from ATH ("all-time high," which in the Mingan Ascendancy is also a place you can visit)
 - **Holder benefits**: Access to Vaunt-controlled areas, reduced tolls, gondola priority boarding, "alpha" Discord channel (read-only)
 - **Tagline**: *"Elevated returns!"*
 
@@ -173,7 +173,7 @@ The old side is felt only as:
 
 ### VAUNT PAVILION
 
-The summit estate and front door of the Mingus Empire, perched on the highest mesa in the range so it can look down on the valley and on the far bank in particular. Maximus Vaunt is obsessed with the famous halls of the old side. He has never been inside them; he was politely asked to leave a ticket queue once, in 2019. He heard they were "deep," so he made his tall. He heard they were "carved," so he had his gilded. He heard they were "underground," and decided that was a branding problem.
+The summit estate and front door of the Mingan Ascendancy, perched on the highest mesa in the range so it can look down on the valley and on the far bank in particular. Maximus Vaunt is obsessed with the famous halls of the old side. He has never been inside them; he was politely asked to leave a ticket queue once, in 2019. He heard they were "deep," so he made his tall. He heard they were "carved," so he had his gilded. He heard they were "underground," and decided that was a branding problem.
 
 The result is a sprawling estate that doesn't follow the golden ratio, or any ratio. Wings jut over the cliff edge at wrong angles. Doorframes are 12 feet tall for no reason. The doorbell is marble. Gilding peels in the wind. Foreclosure notices, weathered but persistent, flutter on every door, and every one that blows off rolls downhill, along with every other liability the estate ever had.
 
@@ -185,9 +185,9 @@ Most of it is abandoned now. But the service gondola still runs, and the mesa's 
 
 *"You enter a ballroom the size of a cathedral, if cathedrals were designed by someone who'd only heard of them secondhand. It is a replica of a great hall in the old side, built upside down. Gilded stalagmites hang from the ceiling. Gilded stalactites stand on the floor and trip you. The 'cave mouth' is a skylight. Where the original would have had a hundred feet of rock overhead, this has a hundred feet of sky, and the sky is leaking. A brass plaque insists the room is BIGGER, by 'about a foot, if you measure diagonally.' Now it is quiet, and the chandeliers—acquired, provenance unclear, designed to hang in a cellar—sway in a gale that very much should exist, because you are on a mountain."*
 
-**Description**: The ballroom imitates the famous hall below, but it was built by someone working from rumors, a blurry postcard and ego instead of blueprints. Because the original is underground, Vaunt inverted everything to make it "elevated." Columns are thicker than necessary. The dance floor is a map of the Mingus Empire inlaid in gold, and its geography is wrong: the locations have been moved so they spell "VAUNT" when viewed from the mezzanine. The Verdance along the eastern edge is inlaid as a hairline crack, and the far bank is labeled simply "DAMP."
+**Description**: The ballroom imitates the famous hall below, but it was built by someone working from rumors, a blurry postcard and ego instead of blueprints. Because the original is underground, Vaunt inverted everything to make it "elevated." Columns are thicker than necessary. The dance floor is a map of the Mingan Ascendancy inlaid in gold, and its geography is wrong: the locations have been moved so they spell "VAUNT" when viewed from the mezzanine. The Verdance along the eastern edge is inlaid as a hairline crack, and the far bank is labeled simply "DAMP."
 
-**Puzzle Function**: The ballroom floor IS a map, and a puzzle. Tiles can be depressed in sequence. The correct sequence—matching the empire's *real* geography, not Vaunt's vanity version—opens the hatch to the root cellar and the service lift into the mountain.
+**Puzzle Function**: The ballroom floor IS a map, and a puzzle. Tiles can be depressed in sequence. The correct sequence—matching the Ascendancy's *real* geography, not Vaunt's vanity version—opens the hatch to the root cellar and the service lift into the mountain.
 
 **Complication**: Storm clouds have parked over the skylight, so the floor is dark and only certain tiles are lit. To light more tiles, you must provide liquidity to the chandelier's smart contract. (Yes. The chandelier is on-chain. The one it was copied from runs on a wick.) Each tile costs gas. Lighting every tile at once is prohibitively expensive. The puzzle is finding the efficient path.
 
@@ -236,7 +236,7 @@ Parser, on completion: "Verification complete. The Forge informs you that this f
 
 **The Gas Station** *(Economic Hub)*
 
-A literal gas station on the gondola terrace. Pumps labeled "PREMIUM," "REGULAR," "MAINNET" and, at this altitude, "OXYGEN." Here you convert **shillets** to gas (ETH) and back. Shillets are the old, boring, reliable coin minted by the old side. Officially the Mingus Empire does not accept them. In practice nobody accepts anything else. The exchange rate is displayed on a ticker:
+A literal gas station on the gondola terrace. Pumps labeled "PREMIUM," "REGULAR," "MAINNET" and, at this altitude, "OXYGEN." Here you convert **shillets** to gas (ETH) and back. Shillets are the old, boring, reliable coin minted by the old side. Officially the Mingan Ascendancy does not accept them. In practice nobody accepts anything else. The exchange rate is displayed on a ticker:
 
 > CURRENT GAS RATE: 1 ETH = 47 SHILLETS
 > (Updated every 10 moves. May vary. Will vary. Has varied.)
@@ -256,7 +256,7 @@ At the eastern edge of the mesa, a long switchback trail drops down the cliff, p
 
 A Mingus sign on the near bank reads: NO ONE CROSSES THE VERDANCE. Underneath, smaller: ASK ABOUT OUR VERDANCE EXPEDITION NFT (SOLD OUT) (DISCONTINUED).
 
-Ringing the bell brings **Mrs. Thrumble**, Clerk of Lost Property, up a ladder from somewhere below to the window. On the Mingus Empire everything rolls downhill, and things lost up there tumble down the canyons, wash into the Verdance and fetch up at her pier. She will return any item you describe accurately and sign for properly.
+Ringing the bell brings **Mrs. Thrumble**, Clerk of Lost Property, up a ladder from somewhere below to the window. On the Mingan Ascendancy everything rolls downhill, and things lost up there tumble down the canyons, wash into the Verdance and fetch up at her pier. She will return any item you describe accurately and sign for properly.
 
 - She will hand back the Pavilion's missing master key ("A large gold key, rather showy. It came down with a rockfall on Tuesday. Sign here.")
 - She will not, under any circumstances, discuss where it came from.
@@ -295,7 +295,7 @@ A drafty room in the old gondola machine shed that smells of desperation, toner 
 
 **Warning**: Minting the sword leaves you with a JPEG of a sword. The Litigation Demon in Act III is not impressed by JPEGs.
 
-Parser: "You now own a JPEG of the lamp. The lamp remains on the table. It does not recognize your authority. Light is a stateless asset, whatever the Mingus Empire says."
+Parser: "You now own a JPEG of the lamp. The lamp remains on the table. It does not recognize your authority. Light is a stateless asset, whatever the Mingan Ascendancy says."
 
 Murkling: "Down there they don't even *have* a Mint. They just have... things. In the dark. Like it's a pantry."
 
@@ -303,9 +303,9 @@ Murkling: "Down there they don't even *have* a Mint. They just have... things. I
 
 **Maximus's Private Study** *(Lore Dump & Seed Word)*
 
-A glass-walled room at the lip of the mesa, full of plans. Blueprints of the Mingus Empire overlaid with Vaunt's "improvements." Sketches of cliff palaces, a gondola across the Verdance (labeled "HOSTILE ACQUISITION — PHASE 2"), a tunnel *under* it (labeled "IN CASE PHASE 2 IS RUDE"), and a space elevator (labeled "MOON SOON"). A vision board holds blurry long-lens photos of the far bank, which show grass. Vaunt's face has been pasted over the grass and photoshopped to look more gilded.
+A glass-walled room at the lip of the mesa, full of plans. Blueprints of the Mingan Ascendancy overlaid with Vaunt's "improvements." Sketches of cliff palaces, a gondola across the Verdance (labeled "HOSTILE ACQUISITION — PHASE 2"), a tunnel *under* it (labeled "IN CASE PHASE 2 IS RUDE"), and a space elevator (labeled "MOON SOON"). A vision board holds blurry long-lens photos of the far bank, which show grass. Vaunt's face has been pasted over the grass and photoshopped to look more gilded.
 
-**Notable Item**: *The Mingus Survey, Annotated.* The true map of the empire, with Vaunt's handwritten notes in the margins. The annotations show his obsession with the old side. He resents it for being founded first and for being called "the original," and he resents most of all that it is warm. He is sure that one day they will look up and notice him. Every eastern measurement has been rounded up, and every altitude has been rounded up twice.
+**Notable Item**: *The Mingus Survey, Annotated.* The true map of the Ascendancy, with Vaunt's handwritten notes in the margins. The annotations show his obsession with the old side. He resents it for being founded first and for being called "the original," and he resents most of all that it is warm. He is sure that one day they will look up and notice him. Every eastern measurement has been rounded up, and every altitude has been rounded up twice.
 
 **Seed Word Location**: Circled in gold marker on the oldest blueprint. WORD 5 OF 12: **"THERE"**
 
@@ -313,13 +313,13 @@ A glass-walled room at the lip of the mesa, full of plans. Blueprints of the Min
 
 ### THE FLOOR PUZZLE (Ballroom Completion)
 
-To open the cellar hatch, depress tiles in order matching the empire's true geography:
+To open the cellar hatch, depress tiles in order matching the Ascendancy's true geography:
 
 1. **The Foyer of Unprecedented Arrival** (the summit gondola station; formerly a loading dock)
-2. **The Shared Shaft** (the deepest mine shaft in the mountain; the Mingus Empire claims to have dug all of it)
+2. **The Shared Shaft** (the deepest mine shaft in the mountain; the Mingan Ascendancy claims to have dug all of it)
 3. **Pumping Station No. 2** (pumps Verdance water four thousand feet uphill at enormous expense; there is no No. 1, because on the old side water arrives on its own)
 4. **The Observatory** (twelve telescopes, all pointed at the far bank)
-5. **The Gift Shop** (largest room in the empire by floor area; sells exclusively enlarged postcards of grass)
+5. **The Gift Shop** (largest room in the Ascendancy by floor area; sells exclusively enlarged postcards of grass)
 
 The vanity floor scrambles these to spell VAUNT and pushes the whole map east, so that the Observatory appears to sit in the middle of the Verdance, looking straight down. You must have seen the real map (the Survey in Maximus's Study) to know the correct positions.
 
@@ -327,7 +327,7 @@ The vanity floor scrambles these to spell VAUNT and pushes the whole map east, s
 
 **Efficient Solution**: If you found the $SHRUG dev chat, you learn the chandelier has a "whale mode." Dump 1 ETH all at once and every tile lights for 30 seconds. Expensive but error-proof.
 
-**Completion**: The floor rumbles. A section descends into the root cellar, and beyond it a service lift bores down into the mountain. The parser: "The ballroom fulfills its only remaining purpose: to be left behind. You go down. Everyone in this empire eventually wants to go down."
+**Completion**: The floor rumbles. A section descends into the root cellar, and beyond it a service lift bores down into the mountain. The parser: "The ballroom fulfills its only remaining purpose: to be left behind. You go down. Everyone in the Ascendancy eventually wants to go down."
 
 ---
 
@@ -348,9 +348,9 @@ The lift descends into the rock. Above you, the ballroom falls silent and the wi
 ---
 
 ## ACT II: THE BLOCKCHAIN CATACOMBS
-*"The mine is dark. The mine is cold. The mine is 'decentralized,' which means nobody fixes the lights. It is also the only part of the Mingus Empire anyone actually wants to be in."*
+*"The mine is dark. The mine is cold. The mine is 'decentralized,' which means nobody fixes the lights. It is also the only part of the Mingan Ascendancy anyone actually wants to be in."*
 
-Deep inside the mountain, the old COBOL Catacombs have been converted to a mining operation. These shafts are the only real dark the Mingus Empire has, so naturally they are where the money is. Server farms hum. Murklings in hard hats operate ASICs. The air is thin and smells of ozone and broken promises. Fluorescent lights flicker in patterns that might be Morse code but are actually just electrical failure, and every so often a rockfall knocks a few of them out entirely, to quiet applause from the workforce. A motivational banner reads: DARKNESS IS A LEGACY TECHNOLOGY. A murkling has added, in chalk underneath: "THEN WHY IS IT SO NICE."
+Deep inside the mountain, the old COBOL Catacombs have been converted to a mining operation. These shafts are the only real dark the Mingan Ascendancy has, so naturally they are where the money is. Server farms hum. Murklings in hard hats operate ASICs. The air is thin and smells of ozone and broken promises. Fluorescent lights flicker in patterns that might be Morse code but are actually just electrical failure, and every so often a rockfall knocks a few of them out entirely, to quiet applause from the workforce. A motivational banner reads: DARKNESS IS A LEGACY TECHNOLOGY. A murkling has added, in chalk underneath: "THEN WHY IS IT SO NICE."
 
 **Map Layout**:
 The Mempool → The Validator Pit → The Firewall → The Break Room (Murkling Union HQ) → The Shared Shaft → The Cold Wallet Cavern → The Archive (Blockchain Ledger)
@@ -420,7 +420,7 @@ A whiteboard reads: "DAYS SINCE LAST RUG PULL: 0." A second whiteboard reads: "D
 
 The deepest shaft in the Mingus range, a vertical bore that drops below the valley floor, below the Verdance, and stops at an iron grate. The Mingus side of the grate is wired with RGB lighting and a sign: VAUNT DEEP-CORE SHAFT™ — EST. LAST YEAR. On the other side is a tunnel of old fitted stone, a ladder, a rope and a lamp on a hook. The lamp has clearly hung there for a very long time. The air coming through the grate is warm.
 
-This is as close as the Mingus Empire has ever come to the old side. The murklings come here on breaks just to stand in the warm air.
+This is as close as the Mingan Ascendancy has ever come to the old side. The murklings come here on breaks just to stand in the warm air.
 
 Mrs. Thrumble is on the other side of the grate, sorting a crate of hard hats that fell down the shaft.
 
@@ -441,7 +441,7 @@ Murkling beside you, whispering: "Don't talk to her. She doesn't even know we're
 - `CAST INVISIBLE_HAND()` → Krugg hallucinates a free market. Wanders off to "let the market decide." (Requires spell scroll from The Mint; costs 0.1 ETH to mint a spell, but it works.)
 - `SHOW TRADE_DEFICIT_BAG` → His eyes fill with tears. Grants pity passage. "You understand the fundamentals," he whispers.
 - `STAKE $ALT` → If holding 1000+ $ALT, you can stake it as collateral for free passage. But it's locked for 100 moves. If you need it before then, too bad.
-- `PRESENT DIVORCE FILING` → The termination clause from Lady Vaunt's cabinet. Krugg sees Vaunt's empire is ending. He gives you his **Validator Key** and walks off down the haulage shaft, toward the warm air. "I should have been a dentist," he says. He does not return. (In one ending, a postcard arrives from him. It has no picture, because it was printed in the dark. It says only: "Nobody here charges for anything. It's fifty-five degrees all year. I hate it. I'm very happy.")
+- `PRESENT DIVORCE FILING` → The termination clause from Lady Vaunt's cabinet. Krugg sees Vaunt's Ascendancy is ending. He gives you his **Validator Key** and walks off down the haulage shaft, toward the warm air. "I should have been a dentist," he says. He does not return. (In one ending, a postcard arrives from him. It has no picture, because it was printed in the dark. It says only: "Nobody here charges for anything. It's fifty-five degrees all year. I hate it. I'm very happy.")
 
 **Seed Word Location**: Engraved on the Validator Key. WORD 8 OF 12: **"EVEN"**
 
@@ -516,7 +516,7 @@ Inside: The Blockchain Ledger. Every transaction in Mingus history, all eighteen
 ## ACT III: THE CLASS ACTION MURKLING
 *"The court will come to order. Gas fees are payable in advance. Objections cost extra. The court will recess for lightning."*
 
-The **Supreme Court of the Mingus Empire (Provisional)** convenes at the summit, in the old Observatory, retrofitted as an arbitration chamber. Twelve telescopes have been pushed to the walls, still pointing at the far bank. Three courts. Any order. Merit-based victory. The blockchain is evidence. The murklings are the jury (they asked for the lights off; denied). The parser is the judge. The bench is a lightning rod, and nobody has told the judge.
+The **Supreme Court of the Mingan Ascendancy (Provisional)** convenes at the summit, in the old Observatory, retrofitted as an arbitration chamber. Twelve telescopes have been pushed to the walls, still pointing at the far bank. Three courts. Any order. Merit-based victory. The blockchain is evidence. The murklings are the jury (they asked for the lights off; denied). The parser is the judge. The bench is a lightning rod, and nobody has told the judge.
 
 **Win Condition**: 2 of 3 merit points. Each completed optional thread from Acts I/II grants +1 bonus merit.
 
@@ -524,7 +524,7 @@ The **Supreme Court of the Mingus Empire (Provisional)** convenes at the summit,
 
 ### COURT OF TOKENS *(Merit Point 1)*
 
-**The Case**: Vaunt claims sole ownership of $ALT and, by extension, the Mingus Empire itself.
+**The Case**: Vaunt claims sole ownership of $ALT and, by extension, the Mingan Ascendancy itself.
 
 **Evidence Required**:
 - Genesis Block (proves the fraudulent founding)
@@ -535,11 +535,11 @@ The **Supreme Court of the Mingus Empire (Provisional)** convenes at the summit,
 
 **Solution Fork**:
 - If you minted key items as NFTs → present them. Demon accepts. Merit point awarded.
-- If you kept physical items → you must prove that "physical possession equals ownership." The Mingus Empire is eighteen months old and has no precedent of its own, so you must cite foreign case law: *Pocket v. Hand*, from "a lower jurisdiction the court does not discuss" ("Possession is nine-tenths of the law; the other tenth was stolen"). The judge accepts it through gritted teeth.
+- If you kept physical items → you must prove that "physical possession equals ownership." The Mingan Ascendancy is eighteen months old and has no precedent of its own, so you must cite foreign case law: *Pocket v. Hand*, from "a lower jurisdiction the court does not discuss" ("Possession is nine-tenths of the law; the other tenth was stolen"). The judge accepts it through gritted teeth.
 - If you have the Debugged Smart Contract → you can challenge the Demon's billing code. It crashes. Demon disappears. Merit point awarded by default.
 
 **Witness (optional)**: If you hold Mrs. Thrumble's claim ticket, you can subpoena her. She attends by speakerphone. The line is perfectly clear, which the court finds insulting.
-> Court: "Do you recognize the Mingus Empire?"
+> Court: "Do you recognize the Mingan Ascendancy?"
 > Thrumble: "I'm sorry, I don't know what you're referring to."
 > Court: "It is directly above you. It is the largest structure in the valley."
 > Thrumble: "I wouldn't know. I don't look up."
@@ -554,12 +554,12 @@ Her testimony counts as physical-provenance evidence and awards the merit point 
 
 ### COURT OF PUBLIC OPINION *(Merit Point 2)*
 
-A holographic **Skimmer**—once a common pickpocket, now rebranded as "Crypto Influencer & Thought Leader"—spreads FUD across the feeds from a summit livestream setup. His ring light is brighter than anything in the empire, and he would like you to know it can be seen from the far bank. (It can. Nobody on the old side is looking.)
+A holographic **Skimmer**—once a common pickpocket, now rebranded as "Crypto Influencer & Thought Leader"—spreads FUD across the feeds from a summit livestream setup. His ring light is brighter than anything in the Ascendancy, and he would like you to know it can be seen from the far bank. (It can. Nobody on the old side is looking.)
 
 **Claims to Debunk**:
 1. "$ALT is backed by altitude and sunrise, the most stable assets." → Counter: The sunrise is free. Altitude is just a long way to fall. It backs nothing. Show the whitepaper translation from Act I.
 2. "Lady Vaunt rugged her own token." → Counter: Show $SHRUG's actual tokenomics (from the Spite Terminal). She didn't rug; she just stopped caring. Different.
-3. "The Mingus Empire will rise higher than ever under Vaunt leadership." → Counter: Show the abandoned ballroom photos. Show the foreclosure notices, which are still rolling downhill. A peak is not the same thing as a foundation.
+3. "The Mingan Ascendancy will rise higher than ever under Vaunt leadership." → Counter: Show the abandoned ballroom photos. Show the foreclosure notices, which are still rolling downhill. A peak is not the same thing as a foundation.
 4. *(Bonus, if you visited the Verdance Grate)* "The old-siders are flooding as we speak." → Counter: Show Mrs. Thrumble's claim ticket, dated today, stamped, filed, perfectly dry. The crowd goes very quiet.
 
 **Win State**: Crowd sentiment shifts. The Skimmer's follower count drops below the threshold for "relevance." He is removed from the courtroom for "insufficient engagement."
@@ -583,7 +583,7 @@ The Mainframe, in the Observatory dome. It is the blockchain's core. Vaunt's gol
 **Chaos Solution** (EMINENT DOUGHMAIN):
 1. Load corrupted contract
 2. Execute `EMINENT_DOUGHMAIN()`
-3. Blockchain crashes entirely. Every light in the empire goes out at once. No one owns anything. For the first time in its history the Mingus Empire is dark, quiet and stateless, and the murklings weep with joy.
+3. Blockchain crashes entirely. Every light in the Ascendancy goes out at once. No one owns anything. For the first time in its history the Mingan Ascendancy is dark, quiet and stateless, and the murklings weep with joy.
 
 Parser: "You have destroyed the financial system. The murklings are delighted. The developers are crying. Down below, nobody notices. This is the anarchist ending. You didn't solve the puzzle; you deleted it."
 
@@ -609,13 +609,13 @@ She hands you a token: **$NOTHING**, newly minted, backed by nothing, and it say
 
 **If Vaunt escaped** (rug-pull timer ran out): The helicopter rises. Inside, Vaunt is already livestreaming. "This is not the end. This is the beginning. MINGUS II: THE GILDED EXILE. Coming soon. Subscribe. Like. Mint. Higher than anything on the old side."
 
-The Mingus Empire collapses into receivership. You are appointed interim custodian by the **Bureau for the Welfare of Stranded Spelunkers**, an agency that has never before been asked to rescue anyone from *up*. Your salary is paid in $ALT. It is worthless. This is the joke and also your life now. Your new office has the best view in the valley. It is very cold.
+The Mingan Ascendancy collapses into receivership. You are appointed interim custodian by the **Bureau for the Welfare of Stranded Spelunkers**, an agency that has never before been asked to rescue anyone from *up*. Your salary is paid in $ALT. It is worthless. This is the joke and also your life now. Your new office has the best view in the valley. It is very cold.
 
 ---
 
 ### THE BELTED VERDLING *(REQUIRED — Act II or III; the key to the ending)*
 
-High on the mountain, where no verdling should ever be, lives one anyway. **He left the valley years ago** — nobody, including him, will say why — and he has been **in hiding** ever since. *(The reveal, saved for the finale: he was the verdlings' chief. He walked away from all of them. The player is never told this in words.)* Being a verdling, he can't bear to go indoors (the mountain is all tunnels, galleries and "holes"), so he lives in the empire's open, windy, forgotten places: a rooftop above the Mint, the lip of an unused gondola platform, a terrace nobody has swept since the crash. He still has his pike. He is very polite, and very uncomfortable.
+High on the mountain, where no verdling should ever be, lives one anyway. **He left the valley years ago** — nobody, including him, will say why — and he has been **in hiding** ever since. *(The reveal, saved for the finale: he was the verdlings' chief. He walked away from all of them. The player is never told this in words.)* Being a verdling, he can't bear to go indoors (the mountain is all tunnels, galleries and "holes"), so he lives in the Ascendancy's open, windy, forgotten places: a rooftop above the Mint, the lip of an unused gondola platform, a terrace nobody has swept since the crash. He still has his pike. He is very polite, and very uncomfortable.
 
 **His problem:** his **pants**. They are, he will tell you at length, *the finest pants a verdling can buy* — they cost a literal fortune — and they are held up by one of those **metal click belts**: pull it tight and it ratchets, *click, click, click*. Except the release is broken. He cannot undo the belt. He cannot slide out of the pants. And he will not cut them, because they are the best pants in the world. So for years he has been walking around the mountain, eating Mingan food, **gaining a little weight**, and feeling the pants and the belt slowly, patiently strangle his middle. He would be **so grateful** for any help.
 
@@ -638,15 +638,15 @@ He also tells you — quietly, looking at the valley he can't go back to — the
 
 ## FINALE: THE DESCENT TO THE RUNOUT
 
-*Mingus I is the fight down and out of the mountain. Whatever happened at the summit — a forked chain, a burned one, or Vaunt's helicopter wobbling off into the crosswind — the empire is finished, and the only way out is down. The game ends at the bottom: on the valley floor, at the edge of the Verdance, with the verdlings. It is the last puzzle in Mingus I and the first taste of Mingus II.*
+*Mingus I is the fight down and out of the mountain. Whatever happened at the summit — a forked chain, a burned one, or Vaunt's helicopter wobbling off into the crosswind — the Ascendancy is finished, and the only way out is down. The game ends at the bottom: on the valley floor, at the edge of the Verdance, with the verdlings. It is the last puzzle in Mingus I and the first taste of Mingus II.*
 
-**The descent** *(short, the run-out of the story)*: the gondolas are stalled, so it's the switchback stairs, the scree chutes and the emergency cable car with one working brake. A few last scenes, collapsing in reverse order of how the empire was built: the mint, the gas station, the ballroom's upside-down chandelier finally falling the right way up. Then the slope flattens, the wind drops, and you are standing on everything the empire ever lost.
+**The descent** *(short, the run-out of the story)*: the gondolas are stalled, so it's the switchback stairs, the scree chutes and the emergency cable car with one working brake. A few last scenes, collapsing in reverse order of how the Ascendancy was built: the mint, the gas station, the ballroom's upside-down chandelier finally falling the right way up. Then the slope flattens, the wind drops, and you are standing on everything the Ascendancy ever lost.
 
 ### THE RUNOUT *(the finale — the Valley Floor)*
 
-*"Everything in the Mingus Empire rolls downhill eventually. This is where it stops."*
+*"Everything in the Mingan Ascendancy rolls downhill eventually. This is where it stops."*
 
-At the base of the range, on the debris fan just before the Verdance, lies **the Runout**: eighteen months of everything the empire has dropped, knocked over, kicked off a terrace or let go of in a strong wind. Hard-wallet keychains. A gondola car. Several thrones. A crate of commemorative $ALT medallions, still shrink-wrapped. Lost seed-phrase notebooks, half of them still legible. A grand piano that got as far as the first switchback and then made its own decisions. Somewhere in the pile, almost certainly, a fortune.
+At the base of the range, on the debris fan just before the Verdance, lies **the Runout**: eighteen months of everything the Ascendancy has dropped, knocked over, kicked off a terrace or let go of in a strong wind. Hard-wallet keychains. A gondola car. Several thrones. A crate of commemorative $ALT medallions, still shrink-wrapped. Lost seed-phrase notebooks, half of them still legible. A grand piano that got as far as the first switchback and then made its own decisions. Somewhere in the pile, almost certainly, a fortune.
 
 Getting down is easy — gravity is the one thing in Mingus that has never once been down 94%. Staying is the problem.
 
@@ -710,14 +710,14 @@ The player walks the lane (the only direction that works; every other direction,
 
 Full phrase: *"HIGHER BETTER THAN DOWN THERE THEY NEVER EVEN LOOK UP AT US"*
 
-Parser: "This is a terrible seed phrase. It is also, as far as anyone can tell, the empire's entire business plan. The court redacted the last word for security, and it was right to. That one word is holding up the whole mountain."
+Parser: "This is a terrible seed phrase. It is also, as far as anyone can tell, the Ascendancy's entire business plan. The court redacted the last word for security, and it was right to. That one word is holding up the whole mountain."
 
 ---
 
 ### ENDING VARIANTS
 
 **THE FORKED PATH** (Clean victory, $SHRUG-aligned)
-> The blockchain splits. The Vaunt branch withers. The Mingus Empire returns to community governance. Murklings get dental, and the mine shafts get their dark back. The ballroom is turned right side up and converted to public housing, with heating. Someone takes down the summit sign that says HIGHEST EMPIRE IN THE VALLEY. Nobody puts up a new one.
+> The blockchain splits. The Vaunt branch withers. The Mingan Ascendancy returns to community governance. Murklings get dental, and the mine shafts get their dark back. The ballroom is turned right side up and converted to public housing, with heating. Someone takes down the summit sign that says HIGHEST EMPIRE IN THE VALLEY. Nobody puts up a new one.
 > Score: "You have achieved the reformist ending. The system has been fixed. For now. Until the next Vaunt."
 
 **THE BURNED BRIDGE** (Chaos victory, EMINENT DOUGHMAIN)
@@ -730,7 +730,7 @@ Parser: "This is a terrible seed phrase. It is also, as far as anyone can tell, 
 
 **THE COMPLETIONIST** (All threads, all merits, seed phrase recovered)
 > You own the lamp. You own the truth. You own nothing that can be tokenized.
-> Score: "You have achieved the nostalgic ending. You finally see what the Mingus Empire was trying to be. It was on the old side the whole time, warm and quiet, and it never once looked up."
+> Score: "You have achieved the nostalgic ending. You finally see what the Mingan Ascendancy was trying to be. It was on the old side the whole time, warm and quiet, and it never once looked up."
 
 ---
 
@@ -760,8 +760,8 @@ Parser: "This is a terrible seed phrase. It is also, as far as anyone can tell, 
 - **HYPOTHERMIA**: Stayed too long in the Cold Wallet Cavern. Your seed phrase froze with you.
 - **ROCKFALL**: Stood under the cliff wing during a "minor correction." The mountain moved, and so did you, downhill. Mrs. Thrumble files your hat.
 - **ALTITUDE SICKNESS**: Climbed the Whitepaper Switchbacks too fast without paying for OXYGEN. The parser: "You have achieved an all-time high. It was not worth it."
-- **STRUCK**: Held a gilded object on the summit during a storm. The Mingus Empire did say it had weather.
-- **TERMS OF DISSERVICE**: Soul collected per Clause 47 (TOS Trap, if retained from original design). You receive a confirmation email in the Complaints Department, Sub-Basement Nine (the empire's only basement; it is one foot deep). It goes to spam.
+- **STRUCK**: Held a gilded object on the summit during a storm. The Mingan Ascendancy did say it had weather.
+- **TERMS OF DISSERVICE**: Soul collected per Clause 47 (TOS Trap, if retained from original design). You receive a confirmation email in the Complaints Department, Sub-Basement Nine (the Ascendancy's only basement; it is one foot deep). It goes to spam.
 - **SWAM FOR IT**: Tried to cross the Verdance. No one crosses the Verdance. The current returns you, soaked, to the foot of the switchbacks, and a docent hands you a commemorative NFT of the attempt. Your wallet does not return. Mrs. Thrumble files it as lost property. You may collect it in Act II for a small fee, payable in shillets.
 
 ### Soft Fails
@@ -780,8 +780,8 @@ Parser: "This is a terrible seed phrase. It is also, as far as anyone can tell, 
 - **DOUGHMAIN MAXIMALIST**: Crashed the blockchain with the bugged contract. Victory through destruction. The most honest ending.
 - **SPEEDRUGGED**: Completed in under 200 moves. You missed everything. The parser: "You have optimized the fun out of the experience. This is peak crypto behavior."
 - **NFT SKEPTIC**: Never minted anything. Owned only physical items. The murkling at the Mint will never forgive you.
-- **ACKNOWLEDGED**: Got Mrs. Thrumble to say the word "Vaunt." (There is exactly one way.) The empire throws a parade in your honor down the switchbacks. It is the largest parade in Mingus history. It is eleven murklings, and the wind takes two of them.
-- **SHILLET SHOPPER**: Finished the game having paid for everything in shillets. "You have funded the Mingus Empire entirely with the money of the people below it. This is, historically, how it has always been funded."
+- **ACKNOWLEDGED**: Got Mrs. Thrumble to say the word "Vaunt." (There is exactly one way.) The Ascendancy throws a parade in your honor down the switchbacks. It is the largest parade in Mingus history. It is eleven murklings, and the wind takes two of them.
+- **SHILLET SHOPPER**: Finished the game having paid for everything in shillets. "You have funded the Mingan Ascendancy entirely with the money of the people below it. This is, historically, how it has always been funded."
 
 ---
 
@@ -803,11 +803,11 @@ Parser: "This is a terrible seed phrase. It is also, as far as anyone can tell, 
 
 1. **The Ballroom as Thesis**: Maximus Vaunt's upside-down replica of the hall below is the game's central image. It is hubris built on hearsay: a sky palace imitating a cellar, grandeur without proportion, an empire without legitimacy, a copy of a place its maker never saw and could never have reached by building upward. It should feel sad and absurd at the same time.
 
-2. **The Rivalry as Spine**: Every satirical beat should be able to point downhill. The old side is the control group: sheltered, solvent, quiet, real, and indifferent to the competition, which is exactly what makes the Mingus Empire's insecurity funny. The mountain has everything the cellar lacks (sky, sunrise, views, weather) and markets all of it. The cellar has the one thing the mountain cannot buy, which is somewhere to hide. Never show the old side. Never name it. Mrs. Thrumble is the only window, and her window has bars.
+2. **The Rivalry as Spine**: Every satirical beat should be able to point downhill. The old side is the control group: sheltered, solvent, quiet, real, and indifferent to the competition, which is exactly what makes the Mingan Ascendancy's insecurity funny. The mountain has everything the cellar lacks (sky, sunrise, views, weather) and markets all of it. The cellar has the one thing the mountain cannot buy, which is somewhere to hide. Never show the old side. Never name it. Mrs. Thrumble is the only window, and her window has bars.
 
-3. **Mountain Problems as Mechanics**: The empire's real problems should keep surfacing as game systems, not just jokes: wind (scatters paperwork), rockfalls (Lost Property), thin air (OXYGEN at the pump; altitude-sickness death), freezing nights (Cold Wallet timer; the real coat matters), lightning (summit hazards), and gravity (all losses roll downhill, toward the Verdance and the people who don't look up).
+3. **Mountain Problems as Mechanics**: The Ascendancy's real problems should keep surfacing as game systems, not just jokes: wind (scatters paperwork), rockfalls (Lost Property), thin air (OXYGEN at the pump; altitude-sickness death), freezing nights (Cold Wallet timer; the real coat matters), lightning (summit hazards), and gravity (all losses roll downhill, toward the Verdance and the people who don't look up).
 
-4. **Dual Economies**: Shillets (stable, old-school, "not accepted," accepted everywhere) vs. ETH (volatile, new chaos). Players must manage both. Neither is "better." Shillets are reliable but limited; ETH is powerful but unpredictable. No Mingus NPC should ever point out that the empire runs on its rival's money.
+4. **Dual Economies**: Shillets (stable, old-school, "not accepted," accepted everywhere) vs. ETH (volatile, new chaos). Players must manage both. Neither is "better." Shillets are reliable but limited; ETH is powerful but unpredictable. No Mingus NPC should ever point out that the Ascendancy runs on its rival's money.
 
 5. **Faction Fluidity**: Holding both coins is allowed. The game only forces a choice at key moments. This mirrors real crypto tribalism: everyone claims loyalty until the trade is right.
 
@@ -815,7 +815,7 @@ Parser: "This is a terrible seed phrase. It is also, as far as anyone can tell, 
 
 7. **Satirical Targets**: Crypto bros (obvious), but also crypto skeptics (the "realistic ending" mocks smug I-told-you-so energy), reformists (the "clean" ending is still just another system), anarchists (the "chaos" ending solves nothing), and anyone who has ever defined themselves against a rival who isn't paying attention. Everyone gets roasted.
 
-8. **Parser Voice**: Exhausted, dry, slightly pitying. It has processed millions of commands. It has seen every ending. It does not judge; it merely observes, with a sigh. It is the only voice in the Mingus Empire that mentions the old side neutrally.
+8. **Parser Voice**: Exhausted, dry, slightly pitying. It has processed millions of commands. It has seen every ending. It does not judge; it merely observes, with a sigh. It is the only voice in the Mingan Ascendancy that mentions the old side neutrally.
 
 9. **Content Note (bundled sample)**: The game is suitable for a public demo. It contains no profanity. Its political satire targets archetypes (the bombastic founder-heir, the indifferent spouse with the competent dev), not real people, and no real person's name appears anywhere in it. Mingus and the Verdance are fantasy names that borrow the flavor of a real mountain range and river; the places in the game are invented.
 
@@ -827,15 +827,17 @@ The trilogy walks the player down the mountain, one game at a time — and gets 
 
 | # | Title | Where | The premise |
 |---|---|---|---|
-| I | **Elevated Returns** *(this game)* | From the summit down to the valley floor | The crypto-gilded mountain empire at its peak, its crash — and the fight down and out of the mountain. Ends on the Runout: the three-poke verdling finale, the bowing, and the verdlings parting to reveal a funeral ship — the game ends at its gangplank. |
+| I | **Elevated Returns** *(this game)* | From the summit down to the valley floor | The crypto-gilded Mingan Ascendancy at its peak, its crash — and the fight down and out of the mountain. Ends on the Runout: the three-poke verdling finale, the bowing, and the verdlings parting to reveal a funeral ship — the game ends at its gangplank. |
 | II | **Everything Rolls Downhill** | **Down the Verdance**, alternating banks | "No one crosses the Verdance." Nobody said anything about *following* it. You get onto the river the only way anyone ever has — on a **funeral ship**, through the Sluice — and ride it downstream, putting in on the **Mingus bank** (open river-land, verdling country), out on the **water**, and — taboo broken — on the **old-side bank**, where the old side's mines and half-buried buildings begin. The river is enormous, a world of its own. Rivers roll downhill too. |
-| III | *(title TBD)* | **Stranded on the old-side bank, then the forest** | Your boat is wrecked on the far side. The only way home is a long trek back up the old-side bank — past mine heads, shafts and underground buildings you never enter and nobody names — and then through the forest. **The trilogy's last scene:** the trees open onto a clearing, and in the middle of the clearing stands a house. It's a small house. In this light, it looks white. *End of Mingus III, and of the trilogy.* |
+| III | **The Old Side** | **Stranded on the old-side bank, then the forest** | Your boat is wrecked on the far side. The only way home is a long trek back up the old-side bank — past mine heads, shafts and underground buildings you never enter and nobody names — and then through the forest. **The trilogy's last scene:** the trees open onto a clearing, and in the middle of the clearing stands a house. It's a small house. In this light, it looks white. *End of Mingus III, and of the trilogy.* |
 
 **Mingus II — the tough one (notes, not yet designed):** it isn't all on the water. It **switches between banks**: the **Mingus bank** (river-land on the mountain side) → **the Verdance itself** → the **old-side bank** (river-land on the old side) → and back. The old-side bank is where the far side stops being rumour: **mines and lots of underground buildings** — entrances, shafts, half-buried halls — seen from outside and at the edges, never fully entered or explained, and **never named**. Nothing on that bank is identified as belonging to any existing game or empire; it is simply *the old side*, built down instead of up. Crossing at all breaks "No one crosses the Verdance" — that taboo is the game's tension. The verdlings stay on the Mingus bank's open ground (they won't cross, and they won't go near anything underground), so the old-side bank has its own, quieter dangers.
 
 **Mingus III (notes):** the boat is wrecked and you are stranded on the old-side bank. The game is the walk home — upriver along the old side's edge, then inland through the forest. The old side is still never entered, explained or named; it is landscape, not a destination.
 
 **The final image (handle with restraint):** a small house in the middle of a clearing that *looks* white — a nudge for those who know, never a crossover. Never call it "the white house" (in prose, in room names or object names, or in any parser response); the colour is only an impression ("it looks white"). No mailbox, no boarded door, no leaflet, no named room, no description beyond the clearing and the house; the game ends on the first sight of it.
+
+**In-game taglines (author, 2026-11-05):** the `Headline` / banner line under each title never calls the games "crypto" — there is no crypto to play with. Mingus I: *"A Frotzsmith sample: a fall from great heights, in three acts."* Mingus II: *"A Frotzsmith sample: a river voyage in five landings."* **Mingus III (note for its build):** keep the same pattern and no "crypto" — e.g. *"A Frotzsmith sample: the long walk home."* — and use the same wording in the Samples dropdown description.
 
 **Series rules:** the old empire stays unnamed and unseen in all three (at most, Mingus III sees its *edge* from the water); verdlings never cross the river and never go underground, so in Mingus III they are a shoreline threat, not a passenger; each game stands alone and ends with a tease of the next.
 
@@ -845,17 +847,17 @@ The trilogy walks the player down the mountain, one game at a time — and gets 
 
 | Name | What it is |
 |---|---|
-| The Mingus Empire | The newcomer: a mountain empire built up and into the Mingus range; the game's entire setting |
-| Mingus range | The high-desert peaks, mesas and ridgelines the empire is built on and bored into |
+| The Mingan Ascendancy | The newcomer: a mountain empire built up and into the Mingus range; the game's entire setting |
+| Mingus range | The high-desert peaks, mesas and ridgelines the Ascendancy is built on and bored into |
 | The Verdance | The great river along the valley floor between the range and the far bank. "No one crosses the Verdance" — and no one who has floated down it has ever come back. |
-| The Runout | The debris fan at the base of the Mingus, just before the Verdance, where everything the empire drops ends up; a fortune, if you can stay |
+| The Runout | The debris fan at the base of the Mingus, just before the Verdance, where everything the Ascendancy drops ends up; a fortune, if you can stay |
 | Verdlings | Little Verdance elves with a mean streak; each carries a pike and pokes miners back up the mountain; can't be bribed |
 | The belted verdling *(name TBD)* | An exiled verdling hiding in the mountain's open places, locked in the finest pants a verdling can buy by a broken click belt; free him (oil + the hardware wallet's SIM-eject pin) and he gives you his pike — **required to finish Mingus I**; secretly the verdlings' chief who walked away |
 | The old side / "across there" | The original empire, underground beneath the green far bank. Mingus people **always** call it "the old side," or "across there" — never a name. Its people: "old-siders." Never named, never shown. |
 | The reservoir | The old side's reservoir, "as big as a city," that once held all the water; empty now; a grassy hill from the road, a vast bowl of black concentric rings from the rim. Rumour in Mingus I; the trilogy's goal — the Verdance is its released water |
 | The headgate | A stone house at the reservoir's lip holding one enormous ancient wheel that diverts the old side's underground source: set to RIVER (the Verdance), or back to RESERVOIR (the bowl fills, the river runs out) |
 | The river poets | Mingus singers and buskers whose songs are about the old side; none of them has ever seen it; the songs contradict each other and double as honest hints |
-| Mingans | The people of the Mingus Empire (adj. Mingan) |
+| Mingans | The people of the Mingan Ascendancy (adj. Mingan) |
 | The half-bridges | Mingan bridges that all stop midway over the Verdance; never once completed — no divers will sink pylons among the river's huge creatures; every roadmap ends at "Phase 2: Far Bank" |
 | The legend of the lantern | The nearest any bridge came: engineers misread a figure with a shiny lantern on the far bank shouting at them, pushed on, and the bridge collapsed; the poets argue whether he was beckoning or warning |
 | The pylon-less bridge | The grail of Mingan engineering: a bridge to the old side with no pylons; many schemes, none working |
@@ -886,10 +888,10 @@ The trilogy walks the player down the mountain, one game at a time — and gets 
 | Whitepaper Switchbacks | Act I cliff stair of buzzword-translation kiosks |
 | Mingus Survey, Annotated | The true map, with Vaunt's insecure margin notes |
 | Mingus Charter Trust | The public trust that actually owns the range; controls the Archive |
-| Supreme Court of the Mingus Empire (Provisional) | Act III venue, in the summit Observatory |
+| Supreme Court of the Mingan Ascendancy (Provisional) | Act III venue, in the summit Observatory |
 | *Pocket v. Hand* | Foreign precedent "from a lower jurisdiction the court does not discuss" |
 | Bureau for the Welfare of Stranded Spelunkers | Appoints you custodian in the bag-holder ending |
-| Complaints Department, Sub-Basement Nine | The empire's only basement (one foot deep); where the TOS-trap death emails your soul |
+| Complaints Department, Sub-Basement Nine | The Ascendancy's only basement (one foot deep); where the TOS-trap death emails your soul |
 | Foyer of Unprecedented Arrival | Floor-puzzle location 1 (summit gondola station) |
 | The Shared Shaft | Floor-puzzle location 2; also the Act II boundary encounter |
 | Pumping Station No. 2 | Floor-puzzle location 3 (no No. 1; on the old side, water arrives on its own) |
@@ -899,7 +901,7 @@ The trilogy walks the player down the mountain, one game at a time — and gets 
 | MINGUS I: ELEVATED RETURNS | This game's title — Vaunt's own pitch line for $ALT, and a mountain pun |
 | MINGUS II: THE GILDED EXILE | The sequel *Vaunt* keeps announcing on his livestream; it will never ship |
 | MINGUS II: EVERYTHING ROLLS DOWNHILL | The real sequel: riding the Verdance downstream, alternating between the Mingus bank and the old-side bank |
-| MINGUS III *(title TBD)* | The trilogy's end: shipwrecked on the old-side bank, the walk home through the forest to a small house in a clearing (it looks white) |
+| MINGUS III: THE OLD SIDE | The trilogy's end: shipwrecked on the old-side bank, the walk home through the forest to a small house in a clearing (it looks white) |
 
 ---
 

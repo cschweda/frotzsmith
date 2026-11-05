@@ -13,7 +13,7 @@
   good way to learn either language.
 
   THE STORY
-    The Mingus Empire, a crypto-gilded palace built on top of a mountain,
+    The Mingan Ascendancy, a gilded palace built on top of a mountain,
     crashed last night. Everyone has gone. You are the actual dev -- the one
     competent engineer Lady Esme Vaunt hired, for $SHRUG -- and your only
     ticket asks you to fetch her coat from the bottom of the mountain. The
@@ -110,7 +110,7 @@
 
 <CONSTANT GAME-BANNER
 "Mingus I: Elevated Returns|
-A Frotzsmith sample: a crypto satire in three acts.">
+A Frotzsmith sample: a fall from great heights, in three acts.">
 
 ;"--- Scoring ----------------------------------------------------------------
   USE-SCORING? switches on zillib's scoring module (SCORE, FULL SCORE, the
@@ -310,6 +310,7 @@ Verdance. Nobody said anything about following it." CR>)>>>
 <VOC "MANAGEMENT" NOUN>
 <VOC "MINGUS" NOUN>
 <VOC "EMPIRE" NOUN>
+<VOC "ASCENDANCY" NOUN>
 <VOC "PAVILION" NOUN>
 <VOC "PALACE" NOUN>
 <VOC "DRAINAGE" NOUN>
@@ -355,7 +356,7 @@ all three." CR>)>>
   DANCE)."
 <ROUTINE PERSON-F ("OPT" ARG)
     <COND (<==? .ARG ,M-WINNER>
-           <TELL CT ,WINNER " looks at you the way everyone in the empire looks
+           <TELL CT ,WINNER " looks at you the way everyone in the Ascendancy looks
 at an engineer with an idea." CR>)
           (<VERB? ASK-ABOUT TELL-ABOUT>
            <TELL <GETP ,PRSO ,P?NO-ANSWER> CR>)
@@ -513,7 +514,7 @@ flight of stone steps. Under where the centre tile was, someone has etched a
 single word: HIGHER.|
 |
 The ballroom fulfills its only remaining purpose: to be left behind. The way
-down is open. Everyone in this empire eventually wants to go down." CR>)>)
+down is open. Everyone in the Ascendancy eventually wants to go down." CR>)>)
           (ELSE
            <SETG TILE-PROGRESS 0>
            <TELL "The " <GETP .TL ,P?LABEL> " tile sinks, then rises with a
@@ -654,8 +655,8 @@ the switchback stair to the Pavilion starts east.")
 <ROUTINE MESA-F (RARG)
     <COND (<AND <==? .RARG ,M-BEG> <VERB? WALK> ,PRSO-DIR
                 <NOT <EQUAL? ,PRSO ,P?NORTH ,P?EAST>>>
-           <TELL "The mesa ends in air on that side. The empire is built to be
-looked down from, not walked off." CR>)>>
+           <TELL "The mesa ends in air on that side. The Ascendancy is built to
+be looked down from, not walked off." CR>)>>
 
 ;"LORE L1. Reading (or examining) the plaque awards the lore achievement.
   AWARD-POINTS only counts an achievement once, so it is safe to call every
@@ -1145,7 +1146,7 @@ skylight, and the sky is leaking. A brass plaque is fixed to a column, and the
 chandeliers -- acquired, provenance unclear, designed to hang in a cellar --
 sway in a gale that very much should exist, because you are on a mountain.|
 |
-The dance floor is a map of the empire inlaid in gold, rearranged so that it
+The dance floor is a map of the Ascendancy inlaid in gold, rearranged so that it
 spells VAUNT when seen from the mezzanine. Five of its tiles are marked: FOYER,
 SHAFT, STATION, OBSERVATORY and SHOP. The Verdance along its eastern edge is a
 hairline crack, and the far bank is labelled simply DAMP.">
@@ -1227,7 +1228,7 @@ ballroom that is the right way up." CR>)>>
     (DESC "Vaunt's Private Study")
     (IN ROOMS)
     (LDESC "A glass-walled room at the lip of the mesa, full of plans.
-Blueprints of the empire cover every surface, overlaid with Vaunt's
+Blueprints of the Ascendancy cover every surface, overlaid with Vaunt's
 \"improvements\": a gondola across the Verdance (HOSTILE ACQUISITION -- PHASE
 2), a tunnel under it (IN CASE PHASE 2 IS RUDE), a space elevator (MOON SOON). A
 vision board holds blurry long-lens photographs of the far bank. The terrace is
@@ -1275,7 +1276,7 @@ a loading dock)|
     2. The Shared Shaft (the deepest shaft in the mountain)|
     3. Pumping Station No. 2 (there is no No. 1)|
     4. The Observatory|
-    5. The Gift Shop (largest room in the empire by floor area)|
+    5. The Gift Shop (largest room in the Ascendancy by floor area)|
 |
 The margins are Vaunt's. THEY WERE HERE FIRST. SO WHAT. -- WHY IS IT WARM
 THERE. -- ONE DAY THEY WILL LOOK UP. Every eastern measurement has been rounded
@@ -1422,7 +1423,7 @@ of grass. Their lens caps have never been taken off.")
 <ROUTINE TELESCOPES-F ()
     <COND (<VERB? LOOK-THROUGH SEARCH TURN PUSH PULL POINT>
            <TELL "The twelve are welded in place, all looking across. It is the
-empire's one unshakeable position." CR>)
+Ascendancy's one unshakeable position." CR>)
           (<VERB? TAKE> <TELL "They are welded to the floor." CR>)>>
 
 <OBJECT TELESCOPE
@@ -1453,7 +1454,7 @@ never flickers. You watch it for a while and it goes on not flickering." CR>)
                  (ELSE
                   <AWARD-POINTS 5 ,ACH?TELESCOPE>
                   <TELL "You put your eye to the telescope. Straight down, the
-foot of the range swims into focus: the Runout, a fan of everything the empire
+foot of the range swims into focus: the Runout, a fan of everything the Ascendancy
 ever dropped, alive with small mud-coloured figures. And there, by the upturned
 gondola car, lies a long coat. It casts a shadow. Nothing else down there does
 anything so honest." CR>)>)
@@ -2088,7 +2089,7 @@ grate. \"Lost property. Signed for. Thank you, dear.\"" CR>)
            <TELL "\"That appears to be a washer. Would you like to file it as
 lost?\"" CR>)
           (<NOT <VERB? ASK-ABOUT>> <PERSON-F>)
-          (<ABOUT? ,W?MINGUS ,W?EMPIRE ,W?PAVILION ,W?PALACE>
+          (<ABOUT? ,W?MINGUS ,W?EMPIRE ,W?ASCENDANCY ,W?PAVILION ,W?PALACE>
            <TELL "\"I'm sorry, I don't know what you're referring to.\"" CR>)
           (<ABOUT? ,W?VAUNT ,W?MAXIMUS ,W?LORD>
            <TELL "\"We had a gentleman of that name in a ticket queue once. He was
@@ -2126,7 +2127,7 @@ transaction in Mingus history, all eighteen months of it, immutable, in COBOL.
 On a plinth in the middle sits the Genesis Block, a slab of glass with text
 inside it. The consensus door is south, and an old ventilation bore climbs
 north, toward the cold.")
-    (SOUNDS "The drives, humming the whole history of the empire to themselves.
+    (SOUNDS "The drives, humming the whole history of the Ascendancy to themselves.
 It's a short song.")
     (SOUTH TO MEMPOOL)
     (NORTH TO COLD-CAVERN)
@@ -2318,7 +2319,7 @@ The cable car goes down.")
   Gondola Station, and the start of the finale (act 3)."
 <ROUTINE LEDGE-DOWN-F ()
     <TELL "You climb into the emergency cable car and release its one working
-brake. The car drops off the ledge and down the face, and the empire comes apart
+brake. The car drops off the ledge and down the face, and the Ascendancy comes apart
 past the windows in reverse order of how it was built: the Mint's shed, the gas
 station's canopy, and, through the ballroom's skylight, an upside-down
 chandelier finally falling the right way up. The brake shrieks the whole way.
@@ -2675,11 +2676,11 @@ worse.")
            <SETG RUNOUT-FRESH T>
            <RFALSE>)
           (<==? .RARG ,M-LOOK>
-           <TELL "Everything in the Mingus Empire rolls downhill eventually. This
+           <TELL "Everything in the Mingan Ascendancy rolls downhill eventually. This
 is where it stops.|
 |
 The debris fan spreads out at the foot of the range: eighteen months of
-everything the empire ever dropped, knocked over or let go of in a strong wind.
+everything the Ascendancy ever dropped, knocked over or let go of in a strong wind.
 Hard-wallet keychains. An upturned gondola car. Several thrones. A crate of
 commemorative $ALT medallions, still shrink-wrapped. Seed-phrase notebooks. A
 grand piano that got as far as the first switchback and then made its own

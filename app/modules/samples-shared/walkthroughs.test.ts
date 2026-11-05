@@ -33,6 +33,16 @@ describe('sampleWalkthrough', () => {
     expect(sampleWalkthrough('std-mingus-1')!.at(-1)).toBe('east')
   })
 
+  it('Mingus II has a 74-command walkthrough ending with put plaque in chest', () => {
+    expect(sampleWalkthrough('std-mingus-2')).toHaveLength(74)
+    expect(sampleWalkthrough('std-mingus-2')!.at(-1)).toBe('put plaque in chest')
+  })
+
+  it('Mingus II shares one walkthrough between its I6 and ZIL ids', () => {
+    expect(sampleWalkthrough('std-mingus-2')).toEqual(sampleWalkthrough('zil-mingus-2'))
+    expect(sampleWalkthrough('zil-mingus-2')!.at(-1)).toBe('put plaque in chest')
+  })
+
   it('is null for an unknown id or a prototype name', () => {
     expect(sampleWalkthrough('no-such-sample')).toBeNull()
     expect(sampleWalkthrough('constructor')).toBeNull()
