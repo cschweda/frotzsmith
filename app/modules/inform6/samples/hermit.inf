@@ -16,20 +16,39 @@
 !  * Object / has light — room with the `light` attribute so it isn't dark
 !  * n_to / s_to       — direction properties wiring rooms together
 !  * Object -> (arrow) — places the object inside the parent (its location)
+!  * Object x "..." Hut — places the object by NAMING its parent instead
 !  * has animate       — marks this object as a living character
 !  * life [ ]          — routine property handling conversation verbs on NPCs
+!  * article           — overrides the "a"/"an" the library prints
+!  * move x to y       — moves an object while the game runs
 !
 !  HOW THE GAME FLOWS
 !    You start in a Forest Clearing. NORTH is the Hermit's Hut, where the hermit
 !    sits and an apple lies. EXAMINE HERMIT, ASK HERMIT ABOUT anything, TAKE
 !    APPLE and GIVE APPLE TO HERMIT: he accepts it. No ending.
+!
+!  MAP
+!    Hermit's Hut   (hermit + red apple)
+!         |
+!    Forest Clearing   <- start
+!
+!  HOW A COMMAND REACHES THE HERMIT'S CODE
+!    1. The parser reads GIVE APPLE TO HERMIT and matches it to a grammar line
+!       for 'give', producing the action Give with noun = apple and
+!       second = hermit.
+!    2. The library's Give action checks the player holds the apple. If not,
+!       the Standard Library takes it first ("(first taking the red apple)").
+!    3. Because the hermit `has animate`, the library then asks the hermit's
+!       `life` routine to deal with it. If `life` returns true, that is the
+!       whole answer; if it returns false, the library prints its own stock
+!       reply ("The old hermit doesn't seem interested.").
 ! ============================================================================
 
 ! ---------------------------------------------------------------------------
 !  GAME METADATA
 !  Constant declares a compile-time named value. Story and Headline are
-!  special names the Standard Library uses to build the status line and the
-!  "banner" printed at game start. The `^` inside strings is a newline.
+!  special names the Standard Library prints in the "banner" at game start
+!  (title, then subtitle). The `^` inside strings is a newline.
 ! ---------------------------------------------------------------------------
 Constant Story "THE HERMIT";
 Constant Headline "^A Frotzsmith sample showing a talking NPC.^";
@@ -43,9 +62,10 @@ Constant Headline "^A Frotzsmith sample showing a talking NPC.^";
 !    Include "Grammar" — grammar tables for those verbs; always goes LAST
 !
 !  PunyInform difference: PunyInform collapses all three into two files
-!  (globals.h + puny.h) and uses !% compiler-option lines at the very top
-!  of the file instead. The Standard Library approach shown here is the
-!  classic Inform 6 style and targets z5/z8 story files.
+!  (globals.h + puny.h), the second of which pulls in PunyInform's parser,
+!  verbs and grammar in one go. It also commonly puts !% compiler-option
+!  lines at the very top of the file. The Standard Library approach shown
+!  here is the classic Inform 6 style and targets z5/z8 story files.
 ! ---------------------------------------------------------------------------
 Include "Parser";
 Include "VerbLib";
@@ -55,12 +75,15 @@ Include "VerbLib";
 !  The library calls Initialise() automatically at startup.
 !  `location` is a global variable (declared by Parser) that holds the room
 !  the player is currently in. You MUST set it here.
-!  A bare string as the last statement prints it and returns true.
+!  A bare string as the last statement prints it, adds a newline and returns
+!  true. (Only a return value of 2 would change anything: it hides the
+!  banner. So here the message prints, then the banner, then the first LOOK.)
 !
 !  PunyInform difference: instead of setting `location` inside Initialise,
 !  PunyInform uses `Constant INITIAL_LOCATION_VALUE = RoomName;` before the
-!  includes. The opening message is printed with `print` rather than a bare
-!  string, because PunyInform's Initialise does not implicitly print.
+!  includes. The puny version of this sample prints its opening message with
+!  `print`; a bare string would print just the same (that is the Inform 6
+!  language, not the library), so the choice there is only style.
 ! ---------------------------------------------------------------------------
 [ Initialise;
     location = Clearing;
@@ -72,6 +95,8 @@ Include "VerbLib";
 !  Every room needs the `light` attribute; without it the room is pitch dark.
 !  Direction properties (n_to, s_to, e_to, etc.) hold the destination room
 !  or a routine. The library checks them when the player moves.
+!  The Clearing names Hut before Hut is declared; Inform allows forward
+!  references like this to objects.
 ! ---------------------------------------------------------------------------
 Object Clearing "Forest Clearing"
   with description
@@ -79,6 +104,8 @@ Object Clearing "Forest Clearing"
        n_to Hut,          ! going north takes the player to Hut
   has  light;             ! `light` — room is lit; without this it is dark
 
+!  The hut is the second room; its s_to leads back. Exits are one-way, so
+!  each room lists its own.
 Object Hut "Hermit's Hut"
   with description
         "A cramped hut, warm with woodsmoke. The clearing lies back south.",
@@ -96,7 +123,9 @@ Object Hut "Hermit's Hut"
 !  `name` property — a list of dictionary words that the parser accepts as
 !  names for this object. Must be lowercase, single-quoted.
 !
-!  `has edible` — lets the library handle "eat apple" without extra code.
+!  `has edible` — lets the library handle "eat apple" without extra code:
+!  EAT removes the apple from play: "You eat the red apple. Not bad."
+!  (Eat it and you can no longer give it away; the sample does not stop you.)
 ! ---------------------------------------------------------------------------
 Object -> apple "red apple"
   with name 'red' 'apple',
@@ -106,29 +135,58 @@ Object -> apple "red apple"
 ! ---------------------------------------------------------------------------
 !  THE NPC — the hermit himself
 !  "Object hermit ... Hut" places hermit inside Hut at game start.
-!  Notice: no `->` here; instead the third argument names the parent room.
+!  Notice: no `->` here; instead the name after the short name names the
+!  parent object. This form is handy when the parent is not the object
+!  declared just before (here it happens to be the same Hut either way,
+!  since the apple was declared with `->` and is not a room).
+!
+!  `name 'old' 'hermit' 'man'`
+!    The words the player may use: HERMIT, OLD MAN, MAN all work.
+!
+!  `article "an"`
+!    The article the library prints before the short name in lists such as
+!    "You can see a red apple and an old hermit here." Without it the
+!    library would print "a old hermit". (Any string works: "some", "the".)
 !
 !  `has animate`
 !    Marks this as a living creature. The library will route conversation
-!    commands (ASK, TELL, GIVE, SHOW, ANSWER, ...) to its `life` routine
-!    rather than printing a generic "That's not something you can talk to."
-!    Also affects how the library describes the object ("the old hermit" vs
-!    "the old hermit (closed)") and enables FOLLOW handling.
+!    commands (ASK, TELL, GIVE, SHOW, ANSWER, ...) to its `life` routine.
+!    It also changes some stock replies: TAKE HERMIT answers "I don't
+!    suppose the old hermit would care for that." instead of "Taken.", and
+!    the hermit can be addressed with orders like HERMIT, HELLO.
 !
 !  `life [ ; ... ]`
-!    A routine-valued property. When a conversation action is directed at
+!    A routine-valued property: the value in the property slot is a routine,
+!    written inline between square brackets. The `;` right after `[` means
+!    "no local variables". When a conversation action is directed at
 !    an animate object, the library calls that object's `life` routine with
-!    `action` set to the relevant action constant. The switch cases below
-!    match those action constants by name.
+!    the global `action` set to the relevant action. The labels below
+!    (`Ask, Tell, Answer:`) are action names; the routine body works like a
+!    switch on `action`, and only the matching block runs.
 !
 !    Ask, Tell, Answer  — cover ASK HERMIT ABOUT X, TELL HERMIT ABOUT X,
 !                         ANSWER X TO HERMIT. All map to the same response.
+!                         An order the hermit doesn't understand, such as
+!                         HERMIT, HELLO, also arrives here as Answer.
 !    Give               — fired by GIVE <object> TO HERMIT. `noun` holds the
-!                         object being given. We check if it's the apple.
-!    default            — any other life-style action (SHOW, KISS, etc.)
+!                         object being given (`second` is the hermit). We
+!                         check if it's the apple.
+!    default            — any other life-style action. In the Standard
+!                         Library those are Show, Kiss, Attack, ThrowAt,
+!                         WakeOther and Order (an order the hermit could
+!                         obey, like HERMIT, GO NORTH): KISS HERMIT and
+!                         ATTACK HERMIT land here.
 !
 !    Returning a string (bare "...") prints it and returns true, which
 !    signals "action handled — don't print a default message."
+!    Without the `default:` block, life would return false for KISS and the
+!    library would print its own reply instead.
+!
+!  `move apple to hermit;`
+!    Changes the object tree while the game runs: the apple's parent becomes
+!    the hermit, so it leaves the player's inventory. (The hermit is not a
+!    container, so the apple is now out of sight: EXAMINE APPLE afterwards
+!    gives "You can't see any such thing.")
 ! ---------------------------------------------------------------------------
 Object hermit "old hermit" Hut
   with name 'old' 'hermit' 'man',
@@ -137,11 +195,14 @@ Object hermit "old hermit" Hut
        life [;
            Ask, Tell, Answer:     ! handles: ASK/TELL/ANSWER ... TO hermit
                "~The woods know more than I ever shall,~ the hermit murmurs.";
+           !  Inside strings `~` stands for a double quote (") character.
            Give:                  ! handles: GIVE <noun> TO hermit
                if (noun == apple) {
                    move apple to hermit;   ! transfers apple from player to hermit
                    "The hermit accepts the apple with a grateful bow.";
                }
+               !  Reached only when noun is not the apple (the block above
+               !  returned). The hermit refuses, and the object stays put.
                "The hermit gently declines.";
            default:               ! any other life action (SHOW, KISS, etc.)
                "The hermit only smiles.";
@@ -150,9 +211,15 @@ Object hermit "old hermit" Hut
 
 ! ---------------------------------------------------------------------------
 !  GRAMMAR — must be the LAST include in the file
-!  This sets up the parser tables for all built-in verbs. Nothing you write
-!  after this line will be seen by the grammar machinery, so any custom
-!  Verb directives must appear BEFORE this Include.
+!  This sets up the parser tables for all built-in verbs ('ask', 'give',
+!  'tell' ...). The library checks that VerbLib came first. A brand-new verb
+!  of your own can be declared before or after this line; `Extend`, which
+!  adds to one of the library's verbs, must come after it. (There is no
+!  TALK TO verb in the Standard Library: try it and the parser says "That's
+!  not a verb I recognise." A Verb directive could add one.)
+!
+!  Include "Exits" is a small Frotzsmith helper that prints "Obvious exits:"
+!  after each room description.
 ! ---------------------------------------------------------------------------
 Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

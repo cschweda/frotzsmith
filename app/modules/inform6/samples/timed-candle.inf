@@ -17,6 +17,11 @@
 !    when you want the daemon to cease. Any number of objects can have active
 !    daemons simultaneously.
 !
+!    What counts as a "turn": only a command that makes game time pass.
+!    A command the parser can't understand ("That's not a verb I
+!    recognise.") and "meta" commands about the game itself (SCORE, SAVE,
+!    UNDO ...) do NOT run daemons, so they don't burn the candle.
+!
 !    Typical uses: burning fuses, NPC behaviour, weather changes, recurring
 !    room events, resource depletion (oxygen, battery, time limit).
 !
@@ -31,10 +36,19 @@
 !    `self.propertyname` without hard-coding the object's identifier.
 !
 !  Custom properties
-!    Any identifier not already used by the library can be a property name
-!    storing integer data. `life 5` here declares a property named `life`
-!    with initial value 5. Access from code: `self.life` (inside the object),
-!    `candle.life` (from outside). The value is read/written like any variable.
+!    You can store your own data in a property: write a name and a value in
+!    the `with` list and Inform creates the property for you. `life 5` here
+!    gives the candle a property called `life` with the initial value 5.
+!    Access from code: `self.life` (inside the object), `candle.life` (from
+!    outside). The value is read/written like any variable.
+!
+!    A WORD OF WARNING about this particular name: `life` is NOT new. It is
+!    one of the Standard Library's own properties: the routine that says how
+!    a creature reacts to ASK, GIVE, KISS ... (see The Hermit sample). Using
+!    it here as a plain number is harmless only because the candle is not
+!    `animate`, so the library never consults the candle's `life`. In your
+!    own games, pick a name the library doesn't use (say `burn_left`) so
+!    nobody reading the code mistakes it for the NPC property.
 !
 !  `self` keyword
 !    Inside any property routine, `self` is automatically set to the object
@@ -47,34 +61,53 @@
 !              Use when you need per-turn side effects (messages, property changes).
 !    Timer   — counts down n turns, then fires its `time_out` routine ONCE and
 !              stops automatically.
-!      StartTimer(obj, n)  — fires after n more turns.
+!      StartTimer(obj, n)  — sets obj.time_left to n and starts the count.
 !      StopTimer(obj)      — cancel before it fires.
-!      `time_left` property — automatically decremented each turn.
-!      `time_out` property  — routine called when the counter reaches zero.
+!      `time_left` property — automatically decremented each turn. The
+!                             object must declare it (`time_left 0,`) or
+!                             StartTimer stops with a run-time error.
+!      `time_out` property  — routine called once the counter has reached
+!                             zero. In the Standard Library that is one turn
+!                             after it hits 0: StartTimer(obj, 2) fires at
+!                             the end of the THIRD turn. (PunyInform
+!                             counts the same way.)
 !    Choose a timer when you only need a single deferred event with no
 !    per-turn messages; choose a daemon for ongoing changes each turn.
+!    (This candle prints a warning part-way through, which a timer alone
+!    could not do; that is why it uses a daemon.)
 !
 !  `give obj attr` / `give obj ~attr`
 !    Runtime attribute manipulation. `give candle ~light;` removes the light
 !    attribute from the candle at runtime, extinguishing it mechanically.
 !    If the room has no other light source, this plunges it into darkness.
 !    This is left as an exercise: add `give self ~light;` in the life==0 block.
+!    As written, the candle "sputters out" in words only: it keeps its
+!    `light` attribute and its short name "lit candle" afterwards.
 !
 !  HOW THE GAME FLOWS
 !    One room, the Study, with a lit candle that burns for five turns. Do
 !    anything (WAIT, EXAMINE CANDLE...) and watch: on the third turn it
 !    gutters, on the fifth it sputters out. No ending.
+!
+!  A NOTE ON THE ROOM TEXT
+!    The Study's description says "You carry a single lit candle", but the
+!    candle actually starts on the floor (`Object ->` puts it in the room),
+!    so LOOK also says "You can see a lit candle here." Adding
+!    `move candle to player;` to Initialise would make the text literally
+!    true. The daemon works either way: it runs wherever the candle is.
 ! ============================================================================
 
 ! --- Game metadata constants --------------------------------------------------
-! `Constant` declares a compile-time symbol. Story and Headline feed the
-! Standard Library's status bar and opening banner. `^` = newline in strings.
+! `Constant` declares a compile-time symbol. Story and Headline are printed
+! in the Standard Library's opening banner. `^` = newline in strings.
 Constant Story "TIMED CANDLE";
 Constant Headline "^A Frotzsmith sample: daemons & timed events.^";
 
 ! --- Standard Library includes -----------------------------------------------
 ! Mandatory order: Parser → VerbLib → [your code] → Grammar.
-! "Parser"  — reads, tokenises, and dispatches the player's commands.
+! "Parser"  — reads, tokenises, and dispatches the player's commands; it
+!             also holds StartDaemon/StopDaemon and the end-of-turn code
+!             that calls daemons.
 ! "VerbLib" — built-in action routines and the Before/After hook framework.
 Include "Parser";
 Include "VerbLib";
@@ -91,9 +124,12 @@ Include "VerbLib";
 !      after EVERY player action, the library calls candle.daemon() once.
 !      It does not matter where the candle is (room, inventory, a container);
 !      the daemon fires based on the object being registered, not its location.
+!      `candle` is used here before its declaration further down; Inform
+!      allows that for objects.
 !
 !   3. The print statement is the player's opening message (scene-setting text).
-!      Two `^^` at the end produce a blank line before the first room description.
+!      Two `^^` at the end produce a blank line before the banner, which the
+!      library prints once Initialise returns, followed by the first LOOK.
 [ Initialise;
     location = Study;
     StartDaemon(candle);          ! register candle.daemon() — fires every turn
@@ -122,6 +158,9 @@ Object Study "Study"
 ! PROPERTY: daemon  [ ; … ]
 !   The embedded routine that the library calls once per turn after the
 !   player acts, for as long as the daemon is active (see StartDaemon above).
+!   `[;` opens the routine: the `;` straight after `[` means it has no
+!   local variables. `],` closes it; the comma separates it from the next
+!   property, exactly as after any other property value.
 !
 !   Breakdown of the routine body:
 !
@@ -134,6 +173,8 @@ Object Study "Study"
 !     A threshold warning printed when two turns remain. Good UX practice:
 !     give the player advance notice before something significant happens.
 !     You can add checks at any life value (e.g., life == 4 for an early hint).
+!     `==` compares; a single `=` would assign. The message starts with `^`
+!     so it sits on its own line after the command's own reply.
 !     With life starting at 5, the turn sequence is:
 !       Turn 1: life 5→4
 !       Turn 2: life 4→3
@@ -145,15 +186,21 @@ Object Study "Study"
 !     The extinguishing block. Prints the final message and then calls
 !     StopDaemon(self) to deregister the daemon. This is ESSENTIAL: without
 !     StopDaemon the routine would keep firing every turn with life going
-!     negative, reprinting the "sputters out" message indefinitely.
+!     negative (-1, -2 ...). The message itself would not repeat (life is 0
+!     only once), but the daemon would keep running for nothing.
+!     `{ ... }` groups several statements so the `if` controls all of them.
 !     Extension idea: add `give self ~light;` before StopDaemon to remove the
 !     candle's light attribute, making the room dark if the Study also had
 !     its `light` attribute removed.
 !
+!   A daemon's return value is ignored by the library, so this routine
+!   just ends at `]` without returning anything in particular.
+!
 ! PROPERTY: life   (initial value: 5)
-!   A custom integer property storing remaining burn turns. Property names may
-!   be any identifier not reserved by the library; `life` is unused by default.
-!   Initial value 5 is set at compile time; it is decremented at runtime.
+!   A custom integer storing remaining burn turns. As explained in the
+!   header, `life` is really a library property name being reused; it is
+!   safe on this non-animate object. Initial value 5 is set at compile
+!   time; it is decremented at runtime.
 !
 ! ATTRIBUTE: light
 !   The candle starts as a light source (`has light`). The room counts as lit
@@ -173,6 +220,8 @@ Object -> candle "lit candle"
   has  light;                              ! starts as a live light source
 
 ! --- Grammar (must be the final Include) -------------------------------------
-! Grammar.h defines all built-in verb/grammar tables. Always the last Include.
+! Grammar.h defines all built-in verb/grammar tables ('wait', 'z', 'examine'
+! ...). Always the last library Include. "Exits" is a small Frotzsmith
+! helper that lists the room's obvious exits (the Study has none).
 Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

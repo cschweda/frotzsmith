@@ -15,17 +15,24 @@
 !      • the room object itself `has light`, OR
 !      • the player carries an object that `has light`, OR
 !      • an object `has light` and is present in the room.
-!    Without any light source the parser intercepts sight-based actions (LOOK,
-!    EXAMINE, TAKE, etc.) and prints:
-!      "It is pitch dark, and you can't see a hand in front of you."
+!    (A light inside a CLOSED opaque container does not count: the box
+!    blocks it.)
+!    Without any light source the player is "in the dark": the room heading
+!    becomes "Darkness" and LOOK prints:
+!      "It is pitch dark, and you can't see a thing."
+!    Objects in the room are out of SCOPE (the set of things the parser
+!    lets the player refer to), so TAKE KEY or EXAMINE CRATES answer
+!    "You can't see any such thing." — exactly as if the key were not there.
 !    The objects still exist — they're just invisible. Navigation (UP, DOWN…)
 !    still works, so the player can feel their way out.
 !
 !  Direction properties  (d_to, u_to, n_to, s_to, e_to, w_to, ne_to, …)
 !    Stored on room objects. The value can be:
 !      • a room object — the library moves the player there automatically.
+!      • a string      — printed instead of moving ("The door is shut.").
 !      • a routine    — run for conditional exits (locked doors, etc.).
 !      • false        — direction blocked; prints "You can't go that way."
+!    (Leaving the property out entirely also gives "You can't go that way.")
 !
 !  `Object ->` nesting
 !    The `->` notation places an object inside the most recently declared parent
@@ -48,35 +55,52 @@
 !    Include "VerbLib";  — default action routines (Go, Take, Drop, Look…).
 !    [your objects and code here]
 !    Include "Grammar";  — verb grammar tables; must follow VerbLib because
-!                          it references routines defined there.
+!                          it maps words to the actions VerbLib defines (each
+!                          library file checks the order and complains if
+!                          it is wrong).
 !
 !  HOW THE GAME FLOWS
 !    You start in the lit Hall with a lantern. Go DOWN without it and the
 !    Cellar is pitch dark. Come back UP, TAKE LANTERN, go DOWN again: now the
 !    Cellar is lit and a rusty key can be seen and taken. No ending.
+!
+!  MAP
+!    Hall     (lit; brass lantern)   <- start
+!      | down / up
+!    Cellar   (dark; rusty key)
+!
+!  ALSO WORTH TRYING
+!    DROP LANTERN in the Cellar, go UP and come back DOWN: the Cellar is still
+!    lit, because the lantern on the floor is "present in the room", and the
+!    room listing says "a brass lantern (providing light)".
 ! ============================================================================
 
 ! --- Game metadata constants --------------------------------------------------
-! `Constant` declares a compile-time symbol (immutable, resolved before
-! compilation). The Standard Library reads `Story` and `Headline` to build the
-! status-bar title and the opening banner printed at game start.
+! `Constant` declares a compile-time symbol (a fixed name/value pair that never
+! changes while the game runs). The Standard Library prints `Story` (in bold)
+! and then `Headline` in the opening banner at game start.
 ! `^` inside a string literal is Inform's newline escape character.
 Constant Story "THE DARK CELLAR";
 Constant Headline "^A Frotzsmith sample: darkness & light.^";
 
 ! --- Standard Library includes -----------------------------------------------
-! "Parser" must precede "VerbLib". Your own code goes between VerbLib and
-! Grammar. "Grammar" is always the very last Include. See the header for why.
+! `Include "file";` reads another file at this point, as though it had been
+! pasted in. "Parser" must precede "VerbLib". Your own code goes between
+! VerbLib and Grammar. "Grammar" is always the very last Include. See the
+! header for why.
 Include "Parser";
 Include "VerbLib";
 
 ! --- Initialise : set starting location and print the opening message ---------
-! The Standard Library calls this routine once before the first turn begins.
+! A routine is written `[ Name; statements ];`. This one has a special name:
+! the Standard Library calls Initialise once before the first turn begins.
 ! `location` is a built-in global variable that tracks the player's current
 ! room. Assigning it here places the player in the Hall. The `print` statement
-! is the first text the player sees (aside from the banner).
-! Two `^` at the end produce a blank line after the message before the first
-! room description is automatically printed.
+! is the first text the player sees: it appears BEFORE the banner, because
+! the library prints the banner only after Initialise returns.
+! Two `^` at the end produce a blank line after the message.
+! The `!` part at the end of a code line is a comment too; the code before
+! it still runs.
 [ Initialise;
     location = Hall;                    ! place the player in the Hall
     print "^The cellar below is pitch black. You'll want a light.^^";
@@ -87,13 +111,18 @@ Include "VerbLib";
 !   InternalName : Hall     — used in Inform code (d_to Cellar, location = Hall).
 !   "Printed name": "Hall"  — what the player sees as the room header on LOOK.
 !
-! `with` opens the property list. Properties are key/value pairs on the object.
-!   description   — the string printed when the player types LOOK (or first
-!                   enters the room in verbose mode). Required on every room.
+! `with` opens the property list. Properties are named values on the object,
+! separated by commas.
+!   description   — the string printed when the player types LOOK (or
+!                   enters the room). A room without one just shows its
+!                   name, so every real room should have one.
 !   d_to Cellar   — DOWN exits go to Cellar. The library handles movement.
+!                   (Cellar is declared further down; naming it early is
+!                   allowed.)
 !
 ! `has` opens the attribute list. Attributes are boolean flags (on or off).
 !   light         — this room is always lit; the player never sees darkness here.
+! The `;` after the last attribute ends the object.
 Object Hall "Hall"
   with description "A plain hall. Wooden steps descend into a cellar.",
        d_to Cellar,          ! DOWN → Cellar; the library moves the player
@@ -110,6 +139,9 @@ Object Hall "Hall"
 ! `has light` — the lantern is itself a light source. When the player carries
 ! it (or it sits in a room), that room is counted as lit by the library.
 ! Result: taking the lantern into the dark Cellar makes the Cellar visible.
+! This lantern is always lit. A lantern you switch on and off needs the
+! `switchable` attribute and code that gives/removes `light` (see the
+! Switchable Lamp sample).
 Object -> lantern "brass lantern"
   with name 'brass' 'lantern' 'lamp' 'light',
        description "A brass lantern, glowing with a steady warm light.",
@@ -118,10 +150,14 @@ Object -> lantern "brass lantern"
 ! --- Room: Cellar (DARK unless the lantern is present) -----------------------
 ! The cellar has NO `light` attribute, so it is dark unless a light source is
 ! brought into it. With the lantern, its description (and the key) appear.
+! Because there is no `has` line at all, the object ends with the `;` after
+! its last property.
 !
 ! Without a light source:
-!   • LOOK prints the darkness message instead of the room description.
-!   • EXAMINE, TAKE, and most other actions fail with "too dark to see."
+!   • The heading reads "Darkness" and LOOK prints the darkness message
+!     instead of the room description (and no "Obvious exits" line).
+!   • EXAMINE, TAKE, and most other actions on things here fail with
+!     "You can't see any such thing."
 !   • The rusty_key below exists but is completely invisible.
 ! With the lantern:
 !   • The room description is shown normally.
@@ -129,6 +165,7 @@ Object -> lantern "brass lantern"
 !
 ! `u_to Hall` — typing UP returns the player to the Hall above. The exit
 ! network for this two-room game: Hall —[down]→ Cellar —[up]→ Hall.
+! The "crates" in the description are only words, not objects.
 Object Cellar "Cellar"
   with description
         "A damp stone cellar, crates stacked in the corners. Steps lead up.",
@@ -140,13 +177,18 @@ Object Cellar "Cellar"
 ! let the player interact with objects they cannot see. Once the lantern
 ! arrives, LOOK reveals it and TAKE / EXAMINE work normally.
 ! This is the payoff of the light puzzle: go dark → get light → get key.
+! The identifier is `rusty_key` (underscores are allowed in identifiers,
+! spaces are not); the player types 'rusty', 'old' or 'key'.
 Object -> rusty_key "rusty key"
   with name 'rusty' 'old' 'key',
        description "A small, much-corroded iron key.";
 
 ! --- Grammar (must be the final Include) -------------------------------------
 ! Grammar.h defines all built-in verb/grammar tables. It must come after
-! VerbLib.h (which defines the action routines Grammar references) and after
-! all your objects (so any custom `Verb` directives you add are included).
+! VerbLib.h (it maps words such as 'take' to the actions VerbLib defines,
+! and the library checks the order). New verbs of your own may go before
+! or after it; `Extend` lines that add to a library verb go after it.
+! "Exits" is a small Frotzsmith helper that lists "Obvious exits:" after a
+! lit room's description (it stays silent in the dark).
 Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

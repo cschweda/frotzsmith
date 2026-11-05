@@ -13,6 +13,12 @@
 !  * locked      attribute  — starts in the locked state
 !  * static      attribute  — cannot be picked up ("That's fixed in place.")
 !  * with_key    property   — names the Object that acts as the matching key
+!  * Object -> -> (two arrows) — an object nested two levels deep
+!
+!  The whole puzzle is written with NO routines of our own: the attributes
+!  and one property below switch on library behaviour that already exists.
+!  That is the usual first step in Inform: describe the object, and let the
+!  library's standard rules do the work.
 !
 !  HOW THE LOCK-AND-KEY PUZZLE WORKS
 !  ----------------------------------
@@ -22,13 +28,29 @@
 !     - `lockable`   allows LOCK/UNLOCK commands
 !     - `locked`     initial state: the chest is locked at game start
 !     - `static`     the chest cannot be picked up or moved
+!     The chest has no `open` attribute, so it also starts CLOSED. A closed
+!     container hides what is inside it: the coin cannot be seen or taken
+!     until the chest is opened.
 !  2. `with_key brasskey` tells the library which object unlocks it.
-!     UNLOCK CHEST WITH KEY checks that the player holds the named key
-!     object; if so, it clears the `locked` attribute automatically.
+!     UNLOCK CHEST WITH KEY checks that the second object is the named key
+!     (the grammar line for UNLOCK asks for a HELD object there, so the
+!     library picks the key up first if needed: "(first taking the brass
+!     key)"). If it matches, the library clears the `locked` attribute.
 !  3. Once `locked` is cleared, OPEN CHEST succeeds (because `openable`
-!     is set) and the coin inside becomes accessible.
+!     is set): the library gives the chest the `open` attribute and the
+!     coin inside becomes accessible ("You open the wooden chest, revealing
+!     a gold coin.").
 !  4. The coin is placed two levels deep (-> ->) so it starts inside the
 !     chest, which is itself inside the Study room (->).
+!  The library also handles the reverse: CLOSE CHEST, then LOCK CHEST WITH
+!  KEY, puts things back the way they began.
+!
+!  WHAT HAPPENS IF YOU TRY THINGS OUT OF ORDER
+!    OPEN CHEST (still locked)  → "The wooden chest seems to be locked."
+!    UNLOCK CHEST (no key named) → "What do you want to unlock the wooden
+!                                   chest with?" (the parser asks for the
+!                                   missing object)
+!    TAKE CHEST                  → "The wooden chest is fixed in place."
 !
 !  STANDARD LIBRARY vs PUNYINFORM
 !  --------------------------------
@@ -38,11 +60,18 @@
 !  Include "VerbLib";                  Include "globals.h";
 !  Include "Grammar";  (last)          Include "puny.h";
 !  [ Initialise; location = Room; ]    Constant INITIAL_LOCATION_VALUE = Room;
+!  The attributes and with_key are the same in both libraries.
 !
 !  HOW THE GAME FLOWS
 !    One room, a dusty Study, with a brass key and a locked chest. TAKE KEY,
 !    UNLOCK CHEST WITH KEY, OPEN CHEST, TAKE COIN. OPEN CHEST before unlocking
 !    it is refused. The coin is the reward; there is no ending beyond it.
+!
+!  THE OBJECT TREE AT START (what `->` builds)
+!    Study
+!      ├── brasskey      (->)
+!      └── chest         (->)
+!            └── coin    (-> ->)
 ! ============================================================================
 
 ! ---------------------------------------------------------------------------
@@ -55,8 +84,10 @@ Constant Headline "^A Frotzsmith sample: a lock-and-key puzzle.^";
 
 ! ---------------------------------------------------------------------------
 !  STANDARD LIBRARY INCLUDES (must appear in this order)
-!  "Parser"  — input tokeniser and object-matching engine
-!  "VerbLib" — action routines for all built-in verbs
+!  "Parser"  — input tokeniser and object-matching engine; also defines the
+!              attributes (container, locked ...) and properties (with_key)
+!              used below, so it must come before the objects
+!  "VerbLib" — action routines for all built-in verbs (Open, Unlock ...)
 !  "Grammar" — grammar tables; always the LAST include
 ! ---------------------------------------------------------------------------
 Include "Parser";
@@ -65,7 +96,9 @@ Include "VerbLib";
 ! ---------------------------------------------------------------------------
 !  INITIALISE ROUTINE
 !  Sets the player's starting room via the global `location` and prints an
-!  opening message. A bare string as the last statement prints and returns.
+!  opening message. A bare string as the last statement prints it, adds a
+!  newline and returns true; the library then prints the banner and does
+!  the first LOOK.
 ! ---------------------------------------------------------------------------
 [ Initialise;
     location = Study;
@@ -76,7 +109,10 @@ Include "VerbLib";
 !  THE ROOM
 !  `has light` is required or the room is pitch dark and the player sees
 !  nothing. There are no direction properties here — the puzzle lives in a
-!  single room so there is nowhere to go.
+!  single room so there is nowhere to go (every direction gets "You can't
+!  go that way.").
+!  The "old desk" is only part of the description text, not an object, so
+!  EXAMINE DESK gets "You can't see any such thing."
 ! ---------------------------------------------------------------------------
 Object Study "Dusty Study"
   with description "A dusty study, bare but for a wooden chest and an old desk.",
@@ -91,7 +127,9 @@ Object Study "Dusty Study"
 !
 !  Note: `with_key` on the chest below points to this exact object (brasskey).
 !  The library compares the object the player typed against with_key at
-!  unlock time, so the identifier must match.
+!  unlock time, so the identifier must match. The identifier is `brasskey`
+!  (one word) because an identifier cannot contain a space; the player
+!  never types it; they type the `name` words 'brass' and 'key'.
 ! ---------------------------------------------------------------------------
 Object -> brasskey "brass key"
   with name 'brass' 'key',       ! words the parser recognises for this key
@@ -99,7 +137,8 @@ Object -> brasskey "brass key"
 
 ! ---------------------------------------------------------------------------
 !  THE LOCKED CONTAINER
-!  `->` places chest inside Study.
+!  `->` places chest inside Study. (One arrow: the most recent object with
+!  NO arrows is Study; the key is a sibling, not a parent.)
 !
 !  Attribute breakdown:
 !    container — other objects may be located inside this one; required for
@@ -108,13 +147,14 @@ Object -> brasskey "brass key"
 !    openable  — enables OPEN CHEST and CLOSE CHEST commands
 !    lockable  — enables LOCK CHEST WITH KEY and UNLOCK CHEST WITH KEY
 !    locked    — sets the initial state to locked; without this the chest
-!                would start open and the puzzle is trivially solved
+!                would start closed but unlocked, and OPEN CHEST would work
+!                straight away (no puzzle)
 !    static    — prevents TAKE CHEST ("That's fixed in place."); use this
 !                for furniture and heavy objects the player shouldn't carry
 !
 !  Property:
 !    with_key brasskey — the Object that fits this lock. The library checks
-!                        at unlock time that the player is holding brasskey.
+!                        at unlock time that the second object is brasskey.
 !                        Any other object (even one named 'key') will fail.
 ! ---------------------------------------------------------------------------
 Object -> chest "wooden chest"
@@ -127,8 +167,13 @@ Object -> chest "wooden chest"
 !  THE TREASURE — nested two levels deep inside the chest
 !  `-> ->` means "child of the child of the most recently declared Object."
 !  Since chest is a `->` child of Study, `-> ->` makes coin a child of chest.
-!  The library will list it when the player opens the chest and LOOKs inside.
+!  (Each arrow means one level below the most recent object with one arrow
+!  fewer.) The library lists it when the chest is opened and on LOOK IN
+!  CHEST: "In the wooden chest is a gold coin."
 !  No attributes are needed; a plain object is takeable by default.
+!  There is no ending: taking the coin is the payoff. To end the game here
+!  you would add an `after` rule to the coin that sets `deadflag = 2` (a
+!  win); the Haunted House and Architect's Legacy samples show endings.
 ! ---------------------------------------------------------------------------
 Object -> -> coin "gold coin"
   with name 'gold' 'coin',
@@ -137,6 +182,8 @@ Object -> -> coin "gold coin"
 ! ---------------------------------------------------------------------------
 !  GRAMMAR — must be the LAST include in every Standard Library game
 !  Sets up parser tables for all built-in verbs including LOCK and UNLOCK.
+!  Include "Exits" (a Frotzsmith helper) prints "Obvious exits:" after each
+!  room description; the Study has none, so it prints nothing here.
 ! ---------------------------------------------------------------------------
 Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

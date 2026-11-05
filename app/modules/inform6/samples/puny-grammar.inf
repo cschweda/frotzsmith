@@ -7,6 +7,16 @@
 !  How to add your own verbs: write an action routine named <Action>Sub, then a
 !  `Verb` directive that maps one or more command words + a syntax line to it.
 !  Try:  XYZZY   ·   INCANT LAMP   ·   INVOKE LAMP
+!  (The Standard Library version, grammar.inf, explains grammar tokens at
+!  length; this file focuses on the same steps the PunyInform way.)
+!
+!  THE TWO `!%` LINES
+!    At the very top of a file, a `!%` line is a compiler switch (as if typed
+!    on the command line); anywhere else it is just a comment. -~S turns
+!    strict mode's run-time checks off for a smaller story (PunyInform's
+!    recommended setting, not a requirement), and $OMIT_UNUSED_ROUTINES=1
+!    drops routines nothing calls. The `! ...` after each one is an ordinary
+!    comment on the same line.
 !
 !  KEY IDEAS
 !    * [ XyzzySub; ... ]  — the routine that runs when the Xyzzy action fires.
@@ -14,11 +24,34 @@
 !    * A bare string in a routine acts as print_ret: it prints and returns true.
 !    * `~` inside a string is the Inform 6 escape for a literal double-quote.
 !
-!  ORDER NOTE (PunyInform): the Inform 6 compiler collects every `Verb` directive
-!  in the file into one grammar table, so — unlike the Standard Library, where
-!  verbs must precede the final `Include "Grammar";` — the verbs and action
-!  routines here sit comfortably AFTER puny.h. (Objects that use a library
-!  attribute such as `light` must come after puny.h, so it is already declared.)
+!  WHAT HAPPENS WHEN THE PLAYER TYPES  INCANT LAMP
+!    1. The parser finds 'incant' in the dictionary as a verb (our Verb line).
+!    2. It tries the verb's grammar lines: `* noun` wants one object, and
+!       "lamp" matches the lamp's name words, so noun = lamp.
+!    3. `-> Incant` names the action, so the library runs IncantSub.
+!    4. IncantSub compares noun with the lamp and prints the flare message.
+!
+!  ORDER NOTE: the Inform 6 compiler collects every `Verb` directive in the
+!  file into one grammar table, so a Verb for a brand-new word may go before
+!  or after the library — in both libraries. (The Standard Library sample
+!  happens to put its Verbs before Include "Grammar"; that is a choice, not
+!  a rule.) Here the verbs and action routines sit AFTER puny.h.
+!  `Extend` is different: it adds lines to a verb the library defines, so it
+!  must come after the library's grammar — after puny.h here, after
+!  Include "Grammar" in the Standard Library. Before it, the compiler says
+!  "There is no previous grammar for the verb".
+!  (Attributes such as `light` are declared in globals.h; objects normally
+!  go after puny.h, as here.)
+!
+!  WHERE THE TWO LIBRARIES' PARSERS ANSWER DIFFERENTLY  (verified in play)
+!    INCANT (no object)  Std:  guesses the only object: "(the brass lamp)"
+!                              and goes ahead.
+!                        Puny: "I think you wanted to say "incant
+!                              something". Please try again."
+!    PLUGH LAMP          Std:  "I only understood you as far as wanting to
+!                              plugh."
+!                        Puny: "I only understood you as far as "plugh" but
+!                              then you lost me."
 !
 !  HOW THE GAME FLOWS
 !    One room, the Magic Chamber, with a brass lamp. XYZZY (or PLUGH) answers
@@ -27,33 +60,50 @@
 ! ============================================================================
 
 ! --- Story metadata: title + subtitle shown in the opening banner ------------
+! `Constant` gives a name to a value fixed at compile time.
 Constant Story "CUSTOM GRAMMAR";
 Constant Headline "^A Frotzsmith sample: adding your own verbs (PunyInform).^";
 
 ! PunyInform reads this constant to place the player at startup (no `location =`
 ! needed). It may name an object defined further down — resolved at link time.
+! It must come before globals.h, which is where it is read.
 Constant INITIAL_LOCATION_VALUE = Chamber;
 
 ! --- PunyInform library: globals.h first, then puny.h (parser + grammar) -----
+! globals.h declares the variables, attributes and properties; puny.h brings
+! the parser, the standard actions and PunyInform's grammar.h. There is no
+! separate Grammar include at the end, as the Standard Library has.
 Include "globals.h";
 Include "puny.h";
 
 ! --- The world: a lit room and a takeable lamp -------------------------------
+! `Object Chamber "Magic Chamber"`: identifier, then the printed short name.
+! `with` lists properties, `has` attributes; the `;` ends the object.
+! The runes and plinth exist only in the description text.
 Object Chamber "Magic Chamber"
   with description "Runes cover the walls. A brass lamp rests on a plinth.",
-  has  light;             ! `light` → the room is lit (attribute declared by puny.h)
+  has  light;             ! `light` → the room is lit (attribute declared in globals.h)
 
+! The lamp is a plain object: takeable, examinable, and the library's own
+! verbs work on it too (RUB LAMP: "You achieve nothing by this.").
 Object -> lamp "brass lamp"   ! `->` makes the lamp start inside Chamber
   with name 'brass' 'lamp',   ! dictionary words the parser matches for this object
        description "An ornate brass lamp.";
 
 ! --- Action routines (named <Action>Sub) -------------------------------------
 ! The parser turns a verb word into an action (XYZZY -> Xyzzy) and then calls
-! the matching <Action>Sub routine.
+! the matching <Action>Sub routine. The "Sub" suffix is how the compiler
+! links an action name to its routine; a grammar line naming an action
+! with no Sub routine is a compile error.
+! A routine is `[ Name; statements ];` — the `;` after the name ends the
+! header (there are no local variables here).
 [ XyzzySub;
     "A hollow voice says, ~Fool!~";   ! bare string = print + return true; ~ prints "
 ];
 
+! IncantSub compares the global `noun` (set by the parser) with the lamp.
+! `if (cond) "text";` prints the text and returns from the routine when the
+! condition holds, so the last line runs only for any other object.
 [ IncantSub;
     ! `noun` holds the object the player named, e.g. INCANT LAMP.
     if (noun == lamp) "The lamp flares brightly at your incantation!";
@@ -63,6 +113,10 @@ Object -> lamp "brass lamp"   ! `->` makes the lamp start inside Chamber
 ! --- Grammar: map words and a syntax line to each action ---------------------
 !  ('rub', 'wave' etc. already exist in the library, so we use novel words to
 !   avoid clashing with built-in verbs; use `Extend` to add to an existing one.)
+!  Each directive: `Verb` + one or more words (synonyms), then grammar lines.
+!  A grammar line is `*` + tokens + `-> Action`. The directive ends at `;`.
+!  `*` with nothing after it: the verb on its own (XYZZY).
+!  `* noun`: the verb plus one object in sight (INCANT LAMP).
 Verb 'xyzzy' 'plugh'                             ! two synonyms, one verb
     *                                           -> Xyzzy;    ! `*` alone = no object
 
@@ -70,6 +124,9 @@ Verb 'incant' 'invoke'
     * noun                                      -> Incant;   ! requires one object
 
 ! --- Startup message (the room itself is set by INITIAL_LOCATION_VALUE) -------
+! Initialise must exist in PunyInform too (the library calls it by name). It
+! runs once, before the banner. `print` here; a bare string would work the
+! same (only a return value of 2 matters: it hides the banner).
 [ Initialise;
     print "^A faintly magical chamber. Perhaps a magic word would help?^";
 ];

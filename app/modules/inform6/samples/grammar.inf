@@ -13,6 +13,20 @@
 !  * * -> Action        — syntax line: no arguments needed, fire Action
 !  * * noun -> Action   — syntax line: one object required, fire Action
 !  * noun token         — parser matches any visible, in-scope object
+!  * if (...) "text";   — a test that prints, returns and ends the routine
+!
+!  WHAT HAPPENS WHEN THE PLAYER TYPES  INCANT LAMP
+!    1. The parser looks up the first word, 'incant', in the dictionary and
+!       finds it is a verb (our Verb directive below made it one).
+!    2. It tries that verb's grammar lines in order. `* noun` wants one
+!       object: "lamp" matches the lamp's `name` words, so noun = lamp.
+!    3. The line ends `-> Incant`, so the action is Incant. The library runs
+!       any `before` rules (there are none here) and then IncantSub.
+!    4. IncantSub sees noun == lamp and prints the flare message.
+!    If the player types just INCANT, the parser notices one object is
+!    missing; with only one sensible object around it fills it in itself
+!    and says "(the brass lamp)". With several, it would ask "What do you
+!    want to incant?"
 !
 !  HOW CUSTOM GRAMMAR WORKS
 !  ------------------------
@@ -30,7 +44,8 @@
 !     - `*` opens a syntax line. Everything after `*` up to `->` is a
 !       list of tokens describing what the player can type after the verb.
 !     - `-> Xyzzy` names the action (must match the Sub routine name without
-!       the "Sub" suffix, and with initial capital).
+!       the "Sub" suffix; Inform identifiers ignore upper/lower case, so the
+!       initial capital is convention, not a requirement).
 !     - Multiple syntax lines can follow, one per `*`, giving the verb
 !       different argument patterns (e.g., with a noun, or without one).
 !
@@ -47,15 +62,26 @@
 !  The library already defines 'rub', 'wave', 'push', etc. If you want to
 !  add a synonym to an existing verb, use `Extend` instead of `Verb`:
 !    Extend 'examine' * 'closely' noun -> Examine;
-!  Using `Verb` for a word the library already knows will cause a conflict.
+!  Using `Verb` for a word the library already knows will cause a conflict
+!  (a compile error: two different verb definitions for the same word).
 !  (That's why this demo uses 'xyzzy'/'plugh' and 'incant'/'invoke' —
 !  none of those words appear in the Standard Library's built-in vocabulary.)
+!  `Extend` has its own position rule: it must come AFTER Include "Grammar",
+!  because the verb it extends doesn't exist until Grammar defines it.
+!  (Put it before, and the compiler reports "There is no previous grammar
+!  for the verb".)
 !
-!  IMPORTANT ORDER RULE
-!  --------------------
-!  All `Verb` and `Extend` directives, AND all `[ ...Sub; ]` routines, must
-!  appear BEFORE `Include "Grammar";`. The Grammar include finalises the
-!  parse tables; anything after it is invisible to the parser.
+!  ORDER RULES (checked against the compiler)
+!  ------------------------------------------
+!  * A `Verb` for a brand-new word may go BEFORE or AFTER Include "Grammar".
+!    Both work; this file puts its Verbs before.
+!  * An `Extend` of a library verb must go AFTER Include "Grammar".
+!  * A `[ ...Sub; ]` routine may go anywhere in the file: the compiler
+!    resolves names across the whole program. It only has to EXIST — a
+!    grammar line naming an action with no Sub routine is a compile error
+!    ("No ...Sub action routine found for action").
+!  Many authors put all their own grammar right after Include "Grammar",
+!  so Verb and Extend lines sit together.
 !
 !  STANDARD LIBRARY vs PUNYINFORM
 !  --------------------------------
@@ -65,7 +91,9 @@
 !  Include "VerbLib";                  Include "globals.h";
 !  Include "Grammar";  (last)          Include "puny.h";
 !  [ Initialise; location = Room; ]    Constant INITIAL_LOCATION_VALUE = Room;
-!  Verb / Extend before "Grammar"      Verb / Extend before Include "puny.h"
+!  Extend after "Grammar"              Extend after Include "puny.h"
+!  (PunyInform's puny.h includes its own grammar.h, so puny.h plays the
+!  part of Grammar there.)
 !
 !  HOW THE GAME FLOWS
 !    One room, the Magic Chamber, with a brass lamp. XYZZY (or PLUGH) answers
@@ -75,18 +103,27 @@
 
 ! ---------------------------------------------------------------------------
 !  GAME METADATA
+!  `Constant` names a fixed value; the library prints Story (the title) and
+!  Headline (the subtitle) in the opening banner. `^` is a newline.
 ! ---------------------------------------------------------------------------
 Constant Story "CUSTOM GRAMMAR";
 Constant Headline "^A Frotzsmith sample: adding your own verbs.^";
 
 ! ---------------------------------------------------------------------------
 !  STANDARD LIBRARY INCLUDES
+!  `Include` reads the named library file at this point. Parser (the
+!  command reader, plus the attribute and property names the objects use)
+!  must come first, then VerbLib (the built-in actions: Take, Look ...).
 ! ---------------------------------------------------------------------------
 Include "Parser";
 Include "VerbLib";
 
 ! ---------------------------------------------------------------------------
 !  INITIALISE — set starting room and print opening message
+!  The library calls Initialise once at startup. `location = Chamber;` puts
+!  the player in the room (required in the Standard Library). The bare
+!  string prints the line, adds a newline and returns true; the banner and
+!  first room description follow.
 ! ---------------------------------------------------------------------------
 [ Initialise;
     location = Chamber;
@@ -95,6 +132,9 @@ Include "VerbLib";
 
 ! ---------------------------------------------------------------------------
 !  THE ROOM
+!  An Object with no parent is a room. `with description` is the text LOOK
+!  prints. The runes and the plinth are only words in that text, not
+!  objects; the lamp below is a real object.
 ! ---------------------------------------------------------------------------
 Object Chamber "Magic Chamber"
   with description "Runes cover the walls. A brass lamp rests on a plinth.",
@@ -103,6 +143,10 @@ Object Chamber "Magic Chamber"
 ! ---------------------------------------------------------------------------
 !  A TAKEABLE OBJECT — target for the incant verb
 !  No special attributes needed; a plain Object is takeable and examinable.
+!  `->` puts it inside the Chamber at the start. Its `name` words 'brass'
+!  and 'lamp' are what the `noun` token in INCANT's grammar line matches.
+!  (The library's own verbs work on it too: RUB LAMP answers "You achieve
+!  nothing by this.", because 'rub' is a Standard Library verb.)
 ! ---------------------------------------------------------------------------
 Object -> lamp "brass lamp"
   with name 'brass' 'lamp',
@@ -119,11 +163,13 @@ Object -> lamp "brass lamp"
 !    `~` inside strings is the Inform 6 escape for a literal double-quote.
 !
 !  [ IncantSub; ]
-!    The verb "incant" takes a noun, so `noun` holds the matched object.
+!    The verb "incant" takes a noun, so the global `noun` holds the matched
+!    object (the library sets it before calling the routine).
 !    We branch on whether noun is the lamp and respond differently.
 !    `if (noun == lamp) "...";`  prints and returns if true (no explicit
 !    return needed — the string statement exits the routine).
-!    The final bare string is the fallback for any other object.
+!    The final bare string is the fallback for any other object
+!    (INCANT ME, for instance). `==` tests equality; `=` would assign.
 ! ---------------------------------------------------------------------------
 
 ! --- Action routines (named <Action>Sub) -------------------------------------
@@ -138,7 +184,8 @@ Object -> lamp "brass lamp"
 
 ! ---------------------------------------------------------------------------
 !  VERB DIRECTIVES
-!  These must come BEFORE `Include "Grammar";`.
+!  These sit before `Include "Grammar";`. (For brand-new words that is a
+!  choice, not a rule: after it works too. `Extend` must come after.)
 !  Each directive adds words to the dictionary and defines one or more
 !  syntax lines (argument patterns) for the verb.
 !
@@ -152,6 +199,8 @@ Object -> lamp "brass lamp"
 !    `* noun -> Incant` — syntax line: requires one object (noun token).
 !    `noun` matches any visible, in-scope object the parser can identify.
 !    The player types: INCANT LAMP  or  INVOKE LAMP, etc.
+!    The directive ends at its `;`. Extra spaces before `->` are only
+!    layout: they line the actions up in a column.
 !
 !  Why 'xyzzy'/'plugh'/'incant'/'invoke'?
 !    The Standard Library already defines 'rub', 'wave', 'polish', etc. as
@@ -170,7 +219,10 @@ Verb 'incant' 'invoke'
     * noun                                      -> Incant;
 
 ! ---------------------------------------------------------------------------
-!  GRAMMAR — must be the LAST include; finalises all parse tables
+!  GRAMMAR — the last library include; defines all the library's verbs
+!  It must follow VerbLib (the library checks). "Exits" is a small Frotzsmith
+!  helper that prints "Obvious exits:" after a room description (the
+!  Chamber has none).
 ! ---------------------------------------------------------------------------
 Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

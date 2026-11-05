@@ -10,10 +10,37 @@
 !    Four rooms: the Great Hall in the middle, with the Library north, the
 !    Kitchen east and the Walled Garden south. Type EXITS (or DIRS) in each
 !    room to see its ways out. No puzzle and no ending.
+!
+!  MAP
+!                 Library
+!                    |
+!               Great Hall ── Kitchen
+!                    |
+!              Walled Garden
+!    (The Hall is the start. Each outer room leads only back to the Hall.)
+!
+!  KEY CONCEPTS IN THIS FILE
+!    • Local variables       — `[ ExitsSub i first;` declares two of them
+!    • objectloop (x in obj) — run code once for each child of an object
+!    • provides              — does this object have that property at all?
+!    • obj.(expression)      — read a property chosen at run time
+!    • metaclass(value)      — is this value an Object, Routine, String ...?
+!    • LanguageDirection     — the library prints a direction's English name
+!    • ~~                    — logical NOT
+!    • A one-line Object     — a whole object declaration on a single line
+!
+!  A NOTE ON "Obvious exits:" APPEARING TWICE
+!    Every Frotzsmith Standard Library sample includes Exits.h, which prints
+!    an "Obvious exits:" line after each room description automatically. It
+!    uses the same Compass technique as ExitsSub below. So in this sample you
+!    see the list once on arrival (from Exits.h) and again whenever you type
+!    EXITS (from ExitsSub). This file shows how to do it by hand, as a verb.
 ! ============================================================================
 
 ! ---------------------------------------------------------------------------
 ! STORY METADATA
+! `Constant` names a fixed value. The library prints Story and Headline in
+! the opening banner.
 ! ---------------------------------------------------------------------------
 Constant Story "LIST EXITS";
 Constant Headline "^A std-only EXITS verb using Compass + LanguageDirection.^";
@@ -21,13 +48,17 @@ Constant Headline "^A std-only EXITS verb using Compass + LanguageDirection.^";
 ! ---------------------------------------------------------------------------
 ! STANDARD LIBRARY INCLUDES
 ! Parser + VerbLib in standard order; Grammar comes last after all objects
-! and the custom Verb declaration.
+! and the custom Verb declaration. (The Verb could also follow Grammar,
+! because 'exits' is a new word the library doesn't define.)
 ! ---------------------------------------------------------------------------
 Include "Parser";
 Include "VerbLib";
 
 ! ---------------------------------------------------------------------------
 ! INITIALISE — start the player in the Hall
+! `location = Hall;` sets the starting room (required in the Standard
+! Library). The bare string prints the opening line, adds a newline and
+! returns true; the banner and first LOOK come after it.
 ! ---------------------------------------------------------------------------
 [ Initialise;
     location = Hall;
@@ -39,18 +70,27 @@ Include "VerbLib";
 ! A small map with multiple connections so the player can verify EXITS from
 ! different vantage points.  Each room has the `light` attribute so it is
 ! always lit.  Direction properties (n_to, s_to, e_to, w_to) define the map.
+! The Hall puts three direction properties on one line; commas separate
+! properties whether they are on one line or several.
 ! ---------------------------------------------------------------------------
 Object Hall "Great Hall"
   with description "A vast stone hall. Passages lead off in several directions.",
        n_to Library, e_to Kitchen, s_to Garden,
   has  light;
 
+! The three outer rooms are written as ONE-LINE objects: exactly the same
+! declaration as the Hall (identifier, short name, `with` properties, `has`
+! attributes, final `;`), just without line breaks. Each has a single exit
+! back to the Hall, so EXITS there answers with one direction.
 Object Library "Library" with description "Dusty shelves line the walls.", s_to Hall, has light;
 Object Kitchen "Kitchen" with description "A cold hearth and a long table.", w_to Hall, has light;
 Object Garden "Walled Garden" with description "Overgrown roses and a dry fountain.", n_to Hall, has light;
 
 ! ---------------------------------------------------------------------------
 ! ExitsSub — THE CUSTOM ACTION ROUTINE FOR THE EXITS VERB
+!
+! The name matters: the Verb line below says `-> Exits`, and the library
+! runs the routine called ExitsSub (action name + "Sub") to carry it out.
 !
 ! WHY THIS IS STANDARD-LIBRARY-ONLY
 !   The Standard Library creates a special object called `Compass`.  Inside
@@ -60,12 +100,18 @@ Object Garden "Walled Garden" with description "Overgrown roses and a dry founta
 !   corresponding direction property constant (n_to, s_to, e_to, …).
 !   This lets us enumerate every possible direction at runtime without
 !   hard-coding a long if/else chain.
+!   (These are the same objects the parser uses when the player types
+!   NORTH: the word 'north' is a name of n_obj.)
 !
 !   PunyInform does NOT create the Compass object or any direction child
 !   objects — it omits them to keep the binary small.  That is why there
 !   is no puny-list-exits.inf counterpart for this sample.
 !
 ! LOCAL VARIABLES
+!   Names written after the routine name and before the first `;` are local
+!   variables: private to this routine, and reset to 0 each time it is
+!   called. (The library calls an action routine without arguments, so
+!   these are just scratch variables.)
 !   i     — holds the current direction child object during the loop
 !   first — a Boolean flag: 0 until the first exit is printed, then 1.
 !            Used to decide whether to print a comma separator before
@@ -79,6 +125,8 @@ Object Garden "Walled Garden" with description "Overgrown roses and a dry founta
     ! objectloop (i in Compass) — iterates over every direct child of the
     ! `Compass` object.  Each child `i` is a direction object (n_obj, etc.).
     ! The loop body runs once per direction, covering all 12 possibilities.
+    ! The body is the single `if` statement that follows (no braces are
+    ! needed around one statement); its own `{ ... }` holds the details.
     objectloop (i in Compass)
 
         ! i.door_dir — reads the `door_dir` property of direction object i.
@@ -94,13 +142,25 @@ Object Garden "Walled Garden" with description "Overgrown roses and a dry founta
         !     - an Object  → a destination room  (a straightforward exit)
         !     - a Routine  → a conditional exit (e.g. a door that may be locked)
         !     - nothing/0  → property is absent or explicitly set to 0 (no exit)
+        !   The brackets in `location.(...)` mean "the property whose number is
+        !   this value": the property is picked while the game runs instead of
+        !   being written into the code. Reading a routine-valued property with
+        !   `.` only fetches the routine's address; it does not run it.
         !   `metaclass()` returns the type of its argument as a class value:
         !     Object, Routine, String, or nothing (the special zero object).
         !   Testing ~= nothing (not equal to nothing) accepts both Object and
         !   Routine exits while correctly skipping absent or zero properties.
+        !   (It would also accept a String exit such as `w_to "The door is
+        !   shut."`, listing a way that can't actually be taken. None of
+        !   these rooms uses one; a stricter test would skip String.)
+        !   `&&` is "and": the right side is only checked when the left side
+        !   is true, so the property is never read on a room without it.
         if (location provides i.door_dir && metaclass(location.(i.door_dir)) ~= nothing) {
             ! Print ", " before the second and subsequent exit names so the
-            ! output reads "north, east, south" rather than "north east south".
+            ! output reads "north, south, east" rather than "north south east".
+            ! (The order is the order of the Compass objects — north, south,
+            ! east, west, ... — not the order the room's properties are
+            ! written in.)
             if (first) print ", ";
 
             ! LanguageDirection(propval) — a Standard Library function that
@@ -116,6 +176,7 @@ Object Garden "Walled Garden" with description "Overgrown roses and a dry founta
 
     ! After the loop: if `first` is still 0 (false), no exits were found.
     ! `~~first` is logical NOT in I6: true when first equals 0.
+    ! (A single `~` would be bitwise NOT, which is something else.)
     if (~~first) print "none";
 
     ! A bare "." string acts as `print_ret ".": prints a period, newline,
@@ -129,12 +190,17 @@ Object Garden "Walled Garden" with description "Overgrown roses and a dry founta
 ! Three command synonyms all map to the same Exits action.
 ! The grammar line `*  -> Exits` matches the command with NO noun — the
 ! player just types EXITS (or DIRS or DIRECTIONS) with nothing after it.
+! Typing EXITS HALL would not match this line, and the parser would say it
+! only understood part of the command.
 ! ---------------------------------------------------------------------------
 Verb 'exits' 'dirs' 'directions'
     *                       -> Exits;
 
 ! ---------------------------------------------------------------------------
-! GRAMMAR — must be included last, after all Verb declarations
+! GRAMMAR — the last library include
+! It must follow VerbLib (the library checks). "Exits" (Exits.h) is the
+! Frotzsmith helper that prints the automatic "Obvious exits:" line on
+! arrival — see the note in the header.
 ! ---------------------------------------------------------------------------
 Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

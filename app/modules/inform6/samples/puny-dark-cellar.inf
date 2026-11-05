@@ -9,15 +9,18 @@
 !  lit; the cellar is not. Take the lantern down with you.
 !  Try:  down       (too dark)
 !        up, take lantern, down, take key, look
+!  (The Standard Library version is dark-cellar.inf.)
 ! ----------------------------------------------------------------------------
 !  `!%` COMPILER OPTION LINES  (the very first two lines above)
 !    Lines beginning with `!%` are Inform 6 compiler option directives. They
-!    look like comments but are processed BEFORE the source is compiled. They
-!    must be the absolute first lines in the file — no code or blank lines
-!    before them. Do not move, alter, or comment them out.
+!    look like comments but are processed BEFORE the source is compiled, as
+!    if typed on the compiler's command line. They only count at the very
+!    top of the file — further down, a `!%` line is just a comment — so
+!    keep them first.
 !      -~S                     — disable strict mode. Strict mode adds extra
-!                                runtime checks but costs memory; PunyInform
-!                                doesn't need it and targets are size-constrained.
+!                                runtime checks but costs memory and speed.
+!                                PunyInform's template switches it off; the
+!                                game also compiles with it on.
 !      $OMIT_UNUSED_ROUTINES=1 — dead-code elimination: any routine never
 !                                called is stripped from the compiled story file,
 !                                reducing its size. Critical for z3/z5 limits.
@@ -27,9 +30,10 @@
 !  INITIAL LOCATION
 !    Standard Library : `location = Hall;` inside the Initialise() routine.
 !    PunyInform       : `Constant INITIAL_LOCATION_VALUE = Hall;` declared
-!                       BEFORE the includes. PunyInform reads this constant
-!                       during library startup and places the player itself.
-!                       You do NOT assign `location` in Initialise().
+!                       BEFORE the includes. globals.h makes it the starting
+!                       value of `location`, and the library moves the
+!                       player there once Initialise() has run.
+!                       You need not assign `location` in Initialise().
 !
 !  INCLUDES
 !    Standard Library : Include "Parser";  Include "VerbLib"; … Include "Grammar";
@@ -38,15 +42,30 @@
 !                                               all bundled into one file.
 !    There is no separate Grammar.h to include at the end. The include order
 !    globals.h → puny.h is still mandatory.
+!    (Nor is there an Include "Exits": Frotzsmith's exits helper needs the
+!    Standard Library's Compass, so rooms here print no "Obvious exits:".)
 !
 !  OBJECT / ATTRIBUTE / PROPERTY SYNTAX
 !    Identical in both libraries. Object, with, has, and the `->` nesting arrow
 !    work exactly the same. The light/darkness mechanics are also the same.
 !
+!  WHAT THE PLAYER SEES IN THE DARK  (verified in play; the wording differs)
+!                          Standard Library               PunyInform
+!    LOOK                  "It is pitch dark, and you     "It is pitch dark here!"
+!                           can't see a thing."
+!    TAKE KEY              "You can't see any such        "You can't see any such
+!                           thing."                         thing."
+!    EXAMINE CRATES        "You can't see any such        "Sorry, I don't understand
+!                           thing."                         what "crates" means."
+!    (The crates are only words in the description. The Standard Library
+!    answers the same as for an unseen object; PunyInform says the word is
+!    not in its dictionary at all.)
+!
 !  Initialise()
-!    PunyInform still calls Initialise() at game start. Use it for the opening
-!    print-out and any one-time setup (daemons, giving items, etc.). No need to
-!    set `location` — INITIAL_LOCATION_VALUE already handled that.
+!    PunyInform still calls Initialise() at game start, and it must exist (the
+!    library calls it by name, so leaving it out is a compile error). Use it
+!    for the opening print-out and any one-time setup (daemons, giving items,
+!    etc.). No need to set `location` — INITIAL_LOCATION_VALUE handles that.
 !    In this file, Initialise() appears AFTER the objects (valid in Inform 6
 !    because forward references are resolved at link time).
 !
@@ -54,18 +73,24 @@
 !    You start in the lit Hall with a lantern. Go DOWN without it and the
 !    Cellar is pitch dark. Come back UP, TAKE LANTERN, go DOWN again: now the
 !    Cellar is lit and a rusty key can be seen and taken. No ending.
+!
+!  MAP
+!    Hall     (lit; brass lantern)   <- start
+!      | down / up
+!    Cellar   (dark; rusty key)
 ! ============================================================================
 
 ! --- Game metadata constants --------------------------------------------------
-! `Constant` declares a compile-time symbol. Story and Headline are read by
-! PunyInform to populate the status-bar title and the opening banner.
+! `Constant` declares a compile-time symbol. Story and Headline are printed
+! by PunyInform's opening banner (title, then subtitle).
 ! `^` inside a string literal is Inform's newline escape.
 Constant Story "THE DARK CELLAR";
 Constant Headline "^A Frotzsmith sample: darkness & light (PunyInform).^";
 
 ! --- PunyInform: initial player location ------------------------------------
-! This constant MUST be declared before the includes. PunyInform reads it
-! during library initialisation to set the player's starting room. The value
+! This constant MUST be declared before the includes: globals.h uses it as
+! the initial value of the `location` variable, and once Initialise has run
+! the library moves the player there. The value
 ! is the object identifier Hall, declared later in this file — forward
 ! references in Constant declarations are fine in Inform 6.
 ! Compare to the Standard Library idiom: `location = Hall;` in Initialise().
@@ -73,7 +98,9 @@ Constant INITIAL_LOCATION_VALUE = Hall;
 
 ! --- PunyInform includes (order is mandatory) --------------------------------
 ! "globals.h" — declares all PunyInform global variables: location, score,
-!               moves, the player object, and more. Must come before puny.h.
+!               turns, the player object, and more, plus the attributes
+!               (light ...) and properties (d_to ...) used below. Must come
+!               before puny.h.
 ! "puny.h"    — the complete PunyInform library in a single file: the parser,
 !               all default action routines (Go, Take, Drop, Look…), and the
 !               grammar tables. No separate Grammar.h needed.
@@ -81,9 +108,11 @@ Include "globals.h";
 Include "puny.h";
 
 ! --- Room: Hall (lit) ---------------------------------------------------------
-! Object syntax is identical to the Standard Library.
+! Object syntax is identical to the Standard Library: identifier, short name,
+! `with` properties (comma-separated), `has` attributes, final `;`.
 ! `has light` — room is always lit; no light source required here.
 ! `d_to Cellar` — typing DOWN moves the player to the Cellar object.
+! The `!` part after a code line is a comment too; the code before it runs.
 Object Hall "Hall"
   with description "A plain hall. Wooden steps descend into a cellar.",
        d_to Cellar,          ! DOWN → Cellar
@@ -95,6 +124,8 @@ Object Hall "Hall"
 ! `name` lists the parser vocabulary — single-quoted dictionary words.
 ! `has light` makes this object a light source: wherever it goes, that location
 ! counts as lit. Carrying it into the dark Cellar will light the Cellar up.
+! PunyInform lists it as "a brass lantern (providing light)" — the Standard
+! Library adds that note only in some listings (e.g. in a room it has lit).
 Object -> lantern "brass lantern"
   with name 'brass' 'lantern' 'lamp' 'light',
        description "A brass lantern, glowing with a steady warm light.",
@@ -104,9 +135,11 @@ Object -> lantern "brass lantern"
 ! brought into it.
 !
 ! PunyInform handles darkness the same way as the Standard Library: in a dark
-! room LOOK prints "It is pitch dark…" and sight-based actions (EXAMINE, TAKE,
-! etc.) fail. The rusty_key below exists in the game world but is invisible.
+! room the heading is "Darkness", LOOK prints "It is pitch dark here!", and
+! things in the room can't be seen, so TAKE KEY answers "You can't see any
+! such thing." The rusty_key below exists in the game world but is invisible.
 ! Movement commands (UP, DOWN…) still work — the player can feel their way out.
+! With no `has` line, the object ends at the `;` after its last property.
 Object Cellar "Cellar"
   with description
         "A damp stone cellar, crates stacked in the corners. Steps lead up.",
@@ -116,16 +149,20 @@ Object Cellar "Cellar"
 ! `Object ->` places the key inside the Cellar. Without a light source the
 ! player cannot see or pick it up. Once the lantern arrives, LOOK reveals the
 ! key and TAKE / EXAMINE work normally. That's the whole puzzle.
+! (Drop the lantern in the Cellar and the room stays lit: a light source on
+! the floor lights the room just as one in your hands does.)
 Object -> rusty_key "rusty key"
   with name 'rusty' 'old' 'key',
        description "A small, much-corroded iron key.";
 
 ! --- Initialise routine -------------------------------------------------------
-! PunyInform calls this after it has already placed the player in
-! INITIAL_LOCATION_VALUE (Hall). Use it only for the opening message and any
-! one-time setup. The `^` at the start gives a leading blank line before the
-! text. (No trailing `^^` here — PunyInform adds its own spacing after the
-! Initialise message before printing the first room description.)
+! PunyInform calls this once at startup, BEFORE it prints the banner and
+! moves the player into INITIAL_LOCATION_VALUE (Hall). Use it only for the
+! opening message and any one-time setup. The `^` at the start gives a
+! leading blank line before the text. (No trailing `^^` here — PunyInform
+! prints a blank line after the banner itself.)
+! The routine returns 0 (it just ends); returning 2 would hide the banner,
+! in PunyInform exactly as in the Standard Library.
 [ Initialise;
     print "^The cellar below is pitch black. You'll want a light.^";
 ];

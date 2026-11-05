@@ -86,6 +86,204 @@
 !    - Conditional exits written as routines (the panel, the lift, the water).
 !    - ChooseObjects, to settle "which blueprint?" without a question.
 !
+!  READING THIS FILE IF YOU ARE NEW TO INFORM 6
+!    Everything that starts with `!` is a comment: the compiler skips from
+!    the `!` to the end of the line. The small samples (Skeleton, Two Rooms,
+!    Dark Cellar, Hermit, Locked Chest ...) teach the basics one at a time,
+!    but you don't have to read them first: every Inform 6 construct used
+!    here is explained again where it FIRST appears in this file. Sections
+!    1-4 are machinery, sections 5-7 are the world in the order the player
+!    meets it, and sections 8-9 connect the game to the library.
+!
+!  HOW THE GAME IS BUILT  (the reasoning behind the layout)
+!    - One file, nine numbered sections, each opened by a banner of `=`
+!      signs, so a search for "5. CHAPTER ONE" lands in the right place.
+!    - Everything that REMEMBERS progress is declared in section 1: the task
+!      table for the score and one Global per puzzle flag. The world
+!      sections only read and change them. When a puzzle misbehaves, the
+!      STATE table below tells you every place that touches its flag.
+!    - Behaviour shared by many objects lives in a class (section 3); logic
+!      shared by several objects lives in a helper routine (section 4). The
+!      three brass devices all call BrassSounded, so the rule "low, high,
+!      between" is written once, not three times.
+!    - Rooms appear in the order the player reaches them, each followed by
+!      the objects inside it (placed there with the `->` arrow). The numbers
+!      in the room banners ("--- 7. Lift Landing ---") follow the map, so the
+!      optional rooms 13 and 18 sit next to the room you reach them from.
+!    - Chapters are presentation: each chapter's first room prints a banner
+!      from its `initial` routine (BeginChapter). No code checks which
+!      chapter you are in.
+!    - There is no darkness (every Room has light) and no death: all the
+!      difficulty is in the puzzles. Every one-way change -- the floor
+!      panel, the lift, the drained passage, the stairs -- only opens a way,
+!      and nothing a puzzle needs can be used up, so a stuck player can
+!      always walk back and try again.
+!
+!  ROOM BY ROOM, CHAPTER BY CHAPTER  (the exits exactly as the code has
+!  them; "if flag" marks an exit written as a routine that checks a flag)
+!
+!    CHAPTER ONE -- the house (section 5)
+!      1 Overgrown Garden  N Entrance Hall. Start. Every other direction:
+!                          the `cant_go` message.
+!      2 Entrance Hall     S Garden, W Library, E Drawing Room, N Study
+!      3 Library           E Entrance Hall
+!      4 Drawing Room      W Entrance Hall, D Cellar Stairs if panel_open
+!      5 Study             S Entrance Hall
+!      6 Cellar Stairs     U Drawing Room, D Lift Landing
+!    CHAPTER TWO -- the construction site (section 6)
+!      7 Lift Landing      U Cellar Stairs, D Survey Chamber if lift_ready
+!      8 Survey Chamber    U Lift Landing (by lift), E Great Hall,
+!                          S Spring Gallery
+!      9 Great Hall        W Survey Chamber, N Foreman's Hut
+!     13 Foreman's Hut     S Great Hall              (optional: Inspector)
+!     10 Spring Gallery    N Survey Chamber, E Flooded Passage
+!     11 Flooded Passage   W Spring Gallery, E Mirror Gallery if
+!                          passage_drained
+!     12 Mirror Gallery    W Flooded Passage, D Vault Antechamber if
+!                          stairs_open
+!    CHAPTER THREE -- the prototype vault (section 7)
+!     14 Vault Antechamber U Mirror Gallery, E Messenger's Alcove,
+!                          N Shifting Room (and starts its daemon)
+!     18 Messenger's Alcove W Vault Antechamber      (optional: Messenger)
+!     15 Shifting Room     S Vault Antechamber, N Resonance Chamber only
+!                          while the counter shows 13
+!     16 Resonance Chamber S Shifting Room, N Final Chamber if
+!                          resonance_done
+!     17 Final Chamber     S Resonance Chamber. READ BLUEPRINT here wins.
+!
+!  PUZZLE DEPENDENCIES  (what each puzzle needs, and what it gives)
+!    P1 dial       needs  the widths 1, 1, 2, 3, 5 from the plaques and the
+!                         library note ("the next")
+!                  gives  the open drawer: the journal (clue for P3, and
+!                         the thing to SHOW in P5) and the brass key (P4)
+!    P2 blueprint  needs  the left half (handle the slim book, Library) and
+!                         the right half (SEARCH the wastebasket, Study)
+!                  gives  the mended blueprint, whose SPIRAL is the P4 clue
+!    P3 brass      needs  the journal's "Low, then high, then the voice
+!                         between"
+!                  gives  panel_open: DOWN from the Drawing Room
+!    P4 lift       needs  P3 (to get there), the brass key (P1), the
+!                         spiral (P2's clue; the code doesn't check you
+!                         have the blueprint, only the dial setting)
+!                  gives  lift_ready: DOWN from the Lift Landing
+!    P5 Foreman    needs  P4 (to get there); the journal, or the right ASK
+!                  gives  the tuning fork (P8) and hints for P6 and P7
+!    P6 springs    needs  P4 (to get there); wheel and pump in either order
+!                  gives  passage_drained: EAST from the Flooded Passage
+!    P7 mirror     needs  P6 (to get there)
+!                  gives  the crystal (P8) and stairs_open: DOWN
+!    P8 resonance  needs  P7 (to get there, and the crystal), P5 (the fork),
+!                         and waiting in the Shifting Room for counter 13
+!                  gives  resonance_done: NORTH to the Final Chamber
+!    So: P1 and P2 in either order -> P3 -> P4 -> {P5, P6 -> P7} -> P8 -> win.
+!
+!  STATE: every Global flag, who changes it, who reads it  (section 1)
+!    chapter          set: BeginChapter         read: BeginChapter
+!    brass_progress   set: BrassSounded         read: BrassSounded
+!    panel_open       set: BrassSounded         read: BrassSounded,
+!                                               drawing_room (description,
+!                                               d_to), floor_panel
+!    lift_symbol      set: lift_dial (SetTo)    read: lift_dial, lift_lever
+!    lift_ready       set: lift_lever           read: lift_landing
+!                                               (description, d_to),
+!                                               lift_cage, lift_lever
+!    foreman_helped   set: foreman.confide      read: foreman.confide
+!    wheel_turned     set: bronze_wheel         read: bronze_wheel,
+!                                               CheckSprings
+!    passage_drained  set: CheckSprings         read: CheckSprings, pump,
+!                                               spring_gallery,
+!                                               flooded_passage, flood_water
+!    mirror_facing    set: great_mirror         read: great_mirror,
+!                                               mirror_gallery
+!    stairs_open      set: crystal (after Take) read: crystal, great_mirror,
+!                                               mirror_gallery
+!    shift_step       set: vault_antechamber    read: ArchDirection,
+!                          (n_to resets it),    PrintCounter, shifting_room,
+!                          shifting_room daemon brass_counter, moving_arch
+!    shift_stilled    set: shifting_room n_to   read: vault_antechamber n_to,
+!                                               shifting_room
+!    resonance_done   set: tuning_fork          read: tuning_fork,
+!                                               resonance_chamber
+!  State kept on objects instead (where the library already understands it):
+!    desk_drawer `locked`/`open` (the dial), lift_cage `locked`/`open`
+!    (UNLOCK), pump `on` (SWITCH ON), right_half `general` (searched once),
+!    treatise.half_fallen, drawer_dial.setting, and WHERE things are: the
+!    halves, blueprint, tuning fork and crystal start off-stage (no parent)
+!    and are moved into play by the code that "creates" them.
+!
+!  SCORING  (Achieved(task) is called in the place shown; 50 in all)
+!    task              no. pts  awarded in                 the command
+!    TASK_DIAL          0   5   drawer_dial before SetTo   SET DIAL TO 8
+!    TASK_BLUEPRINT     1   5   JoinHalves                 PUT LEFT HALF ON RIGHT HALF
+!    TASK_BRASS         2   5   BrassSounded, third note   RING BELL, STRIKE CHIME,
+!                                                          BLOW HORN
+!    TASK_LIFT          3   5   lift_lever before Pull     PULL LEVER
+!    TASK_FOREMAN       4   5   foreman.confide            SHOW JOURNAL TO FOREMAN
+!    TASK_SPRINGS       5   5   CheckSprings               TURN WHEEL + TURN ON PUMP
+!    TASK_MIRROR        6   5   crystal after Take         TAKE CRYSTAL
+!    TASK_RESONANCE     7   5   tuning_fork before Sound   STRIKE FORK
+!    TASK_LORE_CARDS    8   2   calling_cards description  EXAMINE CARDS  (Entrance Hall)
+!    TASK_LORE_MARKS    9   2   survey_marks description   EXAMINE MARKS  (Survey Chamber)
+!    TASK_LORE_FORMS   10   2   inspector life (Ask)       ASK INSPECTOR ABOUT IRREGULAR
+!                                                          BUILDING  (Foreman's Hut)
+!    TASK_LORE_NOTE    11   2   coded_note description     READ NOTE  (Messenger's Alcove)
+!    TASK_LORE_WALL    12   2   formula_wall description   EXAMINE WALL  (Vault Antechamber)
+!
+!  THE WALKTHROUGH, LINE BY LINE
+!    app/modules/samples-shared/architect-legacy.walkthrough.txt is the
+!    shortest route: 48 commands, one per line, which the test suite replays
+!    against this file (and against the ZIL version, which shares it). It
+!    skips the lore, so it ends on 40 of 50. Line numbers below are lines
+!    of that file:
+!     1      north                  Garden -> Entrance Hall
+!     2-5    west, examine plaque,  Library: width 2; reading the slim book
+!            read book, take half   drops the left half; take it
+!     6-7    east, north            Hall -> Study
+!     8-11   examine plaque (5),    the right half turns up in the basket;
+!            search wastebasket,    PUT ... ON ... joins them        P2 +5
+!            take half, put left
+!            half on right half
+!     12     set dial to 8          the drawer opens                 P1 +5
+!     13-15  take journal, take     the journal holds the P3 clue
+!            key, read journal
+!     16-17  south, east            Hall -> Drawing Room
+!     18-20  ring bell, strike      low, high, between: the panel
+!            chime, blow horn       opens                            P3 +5
+!     21-22  down, down             Cellar Stairs -> Lift Landing (Chapter Two)
+!     23-25  unlock cage with key,  the lift wakes                   P4 +5
+!            set dial to spiral,
+!            pull lever
+!     26-27  down, east             lift -> Survey Chamber -> Great Hall
+!     28     show journal to        the Foreman gives the fork       P5 +5
+!            foreman
+!     29-30  west, south            -> Survey Chamber -> Spring Gallery
+!     31-32  turn wheel, turn on    the passage drains               P6 +5
+!            pump
+!     33-34  east, east             -> Flooded Passage -> Mirror Gallery
+!     35-37  turn mirror (to        the beam on the socket grows the
+!            north), turn mirror    crystal; taking it opens the
+!            (to east), take        stairs                           P7 +5
+!            crystal
+!     38-39  down, north            -> Vault Antechamber (Chapter Three)
+!                                   -> Shifting Room (counter 1,1; the
+!                                   daemon moves it to 2 that turn)
+!     40-43  wait x4                counter 3, 5, 8, 13: the way opens
+!     44     north                  -> Resonance Chamber
+!     45-46  put crystal on         the stones sing; north opens     P8 +5
+!            pedestal, strike fork
+!     47-48  north, read blueprint  Final Chamber; reading the master
+!                                   blueprint ends the game: *** The work
+!                                   continues ***
+!
+!  HOW THE WIN IS DETECTED
+!    There is no score check. The master blueprint's `description` routine
+!    (section 7) prints the ending and sets the library variable `deadflag`
+!    to 3. At the end of that turn the library sees deadflag is no longer 0
+!    and ends the game; because the value is 3 or more, it asks the game's
+!    DeathMessage routine (section 8) what to print between the asterisks.
+!    ChooseObjects (section 8) makes READ BLUEPRINT pick the master blueprint
+!    over the one you are carrying.
+!
 !  Compiles cleanly with the bundled Standard Library 6.12; targets z5.
 ! ============================================================================
 
@@ -94,6 +292,10 @@
 !  1. SETUP  --  story constants, the score table, and all puzzle state
 ! ============================================================================
 
+! `Constant NAME value;` gives a name to a value fixed when you compile; it
+! can never change while the game runs. The Standard Library prints Story
+! (the title) and Headline (the subtitle) in the opening banner; `^` inside
+! a string is a newline. The banner appears after Initialise's text.
 Constant Story      "The Architect's Legacy";
 Constant Headline   "^A Frotzsmith sample: a longer game in three chapters.^";
 
@@ -102,6 +304,12 @@ Constant Headline   "^A Frotzsmith sample: a longer game in three chapters.^";
 ! is worth, and Achieved(task) awards it exactly once (it remembers). FULL
 ! SCORE lists completed tasks by name via PrintTaskName (section 8).
 ! A bare `Constant TASKS_PROVIDED;` (value 0) switches the task system on.
+! These constants must come BEFORE Include "VerbLib" (section 2): VerbLib
+! gives each one a default if it is not yet defined (TASKS_PROVIDED 1, which
+! means "off"; MAX_SCORE 0), and a definition after that is an error.
+! NUMBER_TASKS is how many tasks there are; the TASK_ names below are just
+! numbers 0-12, named so the code can say Achieved(TASK_DIAL) instead of
+! Achieved(0).
 
 Constant TASKS_PROVIDED;
 Constant NUMBER_TASKS  13;
@@ -121,6 +329,11 @@ Constant TASK_LORE_FORMS 10;   ! lore: the Inspector on irregular building
 Constant TASK_LORE_NOTE  11;   ! lore: the Messenger's coded note
 Constant TASK_LORE_WALL  12;   ! lore: checking the formula wall
 
+! `Array name -> v v v;` makes a BYTE array (each entry 0-255), read as
+! task_scores->3. `-->` (two dashes) makes a WORD array (entries are full
+! 16-bit values: numbers, strings, objects), read as compass_names-->1.
+! The library reads task_scores->task when Achieved(task) awards it, so the
+! entry order must match the TASK_ numbers.
 !                   P1 P2 P3 P4 P5 P6 P7 P8 | cards marks forms note wall
 Array task_scores -> 5  5  5  5  5  5  5  5    2     2     2     2    2;
 
@@ -128,6 +341,14 @@ Array task_scores -> 5  5  5  5  5  5  5  5    2     2     2     2    2;
 ! Everything the game needs to remember about the player's progress lives
 ! here, named for the puzzle it belongs to. Objects still use attributes
 ! (open, locked, on) where the library already understands them.
+!
+! `Global name = value;` declares a variable that every routine can see and
+! that keeps its value from turn to turn (and is saved with SAVE). Without
+! `= value` it starts at 0. `false` is 0 and `true` is 1.
+! lift_symbol starts as 'circle' -- single quotes make a DICTIONARY WORD,
+! the same kind of value the parser produces when the player types a word,
+! so the dial can later store whatever word the player set it to.
+! The STATE table in the header lists who sets and who reads each one.
 
 Global chapter        = 0;        ! which chapter banner has been shown
 Global brass_progress = 0;        ! P3: notes played correctly so far (0-3)
@@ -143,6 +364,10 @@ Global shift_step     = 1;        ! P8: Shifting Room position, 0-6 (see there)
 Global shift_stilled  = false;    ! P8: once passed, the Shifting Room stands still
 Global resonance_done = false;    ! P8: the stones have sung; north is open
 
+! Two word arrays used as lookup tables. compass_names-->n is the name of
+! direction n (0 north, 1 east, 2 south, 3 west), used by the mirror and the
+! Shifting Room's arch. fibonacci-->n is the Shifting Room counter at step n;
+! entries are numbered from 0, so fibonacci-->6 is 13.
 Array compass_names --> "north" "east" "south" "west";
 Array fibonacci     --> 1 1 2 3 5 8 13;
 
@@ -151,6 +376,11 @@ Array fibonacci     --> 1 1 2 3 5 8 13;
 !  2. LIBRARY
 ! ============================================================================
 
+! `Include "file";` reads a library file at this point, as if pasted in.
+! Parser first (the command reader, and the attributes and properties every
+! object below uses), then VerbLib (the standard actions: Take, Go, Look...).
+! The third library file, Grammar, comes last of all, in section 9.
+! Classes and objects come after VerbLib.
 Include "Parser";
 Include "VerbLib";
 
@@ -164,6 +394,21 @@ Include "VerbLib";
 ! in the way of the puzzles. `sounds` is what LISTEN hears here: because
 ! `before` is an ADDITIVE property, a room can have its own `before` as well
 ! and this class one still runs after it.
+!
+! HOW A CLASS IS WRITTEN: `Class Name` then the same `with` (properties) and
+! `has` (attributes) lists an object would have, ending at `;`. Writing
+! `Room garden "Overgrown Garden" with ...;` later makes an object of the
+! class: it gets everything below, plus what it adds or replaces itself.
+! `sounds 0,` declares a property of our own (the library has no `sounds`);
+! 0 means "nothing to hear". A room may set it to a string or a routine.
+! The `before` routine: `[;` opens it ("no local variables"), and the label
+! `Listen:` makes the code below it run only for the Listen action. LISTEN
+! on its own has no noun (noun == 0); LISTEN TO BELL would have one, and is
+! left alone. PrintOrRun(self, sounds) prints the property if it is a
+! string, or runs it if it is a routine. `rtrue` (return true) tells the
+! library "handled, print nothing else". When the `if` fails, the routine
+! runs off its end and returns false: the library's own LISTEN reply is used.
+! `has light`: every room is lit (no darkness anywhere in this game).
 Class Room
   with sounds 0,
        before [;
@@ -177,6 +422,16 @@ Class Room
 
 ! Feature: things named in a room description that you can examine but that
 ! the library should neither list nor let you carry off.
+! One block answers four actions (`Take, Pull, Push, Turn:`). `print_ret`
+! prints a list of items, then a newline, then returns true. In the list,
+! (The) self is a PRINT RULE: the object's short name with "The" in front;
+! (IsOrAre) self prints "is" or "are" to match (it says "are" for objects
+! with the `pluralname` attribute). A string may run over several source
+! lines; each line break inside it prints as one space.
+! `has scenery`: not listed in the room description, and can't be taken.
+! A Feature that needs its own `before` (the ladder, say) adds one; since
+! `before` is additive, its own runs first and this one only if it returns
+! false.
 Class Feature
   with before [;
          Take, Pull, Push, Turn:
@@ -189,6 +444,13 @@ Class Feature
 ! Plaque: Quill screwed one of these into every room of the house (and one
 ! flower bed). Five instances differ only in `yards` and `what` -- a class
 ! saves five copies of the same description.
+! `short_name "brass plaque"` gives every plaque its printed name, so the
+! instances below need no "..." after their identifier. `yards` and `what`
+! are properties of our own. In the description routine, `self.yards` reads
+! a property of the plaque being examined; `(string) self.what` prints the
+! string stored in `what`. `print` does NOT end the routine; the final bare
+! string prints, adds a newline and returns true. `if ... ; else ...;` on
+! one line is ordinary Inform: each branch is one statement.
 Class Plaque
   with name 'small' 'brass' 'plaque',
        short_name "brass plaque",
@@ -206,6 +468,10 @@ Class Plaque
 ! striking, blowing or hitting any of them goes to one routine, BrassSounded
 ! (section 4), which keeps the puzzle logic in a single place. `order` is the
 ! device's position in the correct sequence; `note` describes its voice.
+! Sound is an action this game invents (its Verb is in section 9); Attack,
+! Blow, Push and Touch are library actions, caught here so HIT BELL or
+! BLOW HORN also play the note. BrassSounded(self) CALLS the helper with
+! the device as its argument.
 Class BrassDevice
   with order 0,
        note "a note",
@@ -221,6 +487,14 @@ Class BrassDevice
 ! Person: the four characters. `life` is ADDITIVE too: each character's own
 ! life routine handles the topics it cares about and returns false for
 ! anything else, which falls through to these shared, in-character fallbacks.
+! `life` is the library property for how a creature (an `animate` object)
+! responds to ASK, TELL, ANSWER, SHOW, GIVE, KISS, ATTACK and so on.
+! no_answer and no_interest are properties of our own, holding a reply
+! string; each character overrides them with its own lines.
+! `orders` runs when the player gives the character a command (FOREMAN,
+! GO NORTH). It is additive as well; this one answers every order.
+! `has animate`: the object is a living being (the library won't let you
+! TAKE it, and sends conversation to `life`).
 Class Person
   with no_answer "There is no answer.",   ! reply to an unknown ASK/TELL topic
        no_interest "~No, thank you.~",    ! reply to SHOW/GIVE of a dull thing
@@ -250,6 +524,10 @@ Class Person
 ! BeginChapter(n): print a chapter banner the first time the player crosses
 ! into chapter n. Called from each chapter's first room: a room's `initial`
 ! routine runs as the player arrives, just before the room is described.
+! A routine's header lists its local variables; the first ones receive the
+! arguments, so BeginChapter(2) runs with n = 2. A bare `return;` leaves at
+! once. `style bold` / `style roman` switch the Z-machine's text style;
+! `new_line` prints one line break.
 [ BeginChapter n;
     if (n <= chapter) return;
     chapter = n;
@@ -267,6 +545,15 @@ Class Person
 ! AskedAbout(w1 ... w6): true if any of the given words appears anywhere in
 ! the topic of the current ASK/TELL. "ask foreman about the old architect"
 ! matches 'architect' even though the topic starts with "the old".
+! How it works: after ASK X ABOUT ..., the library leaves the topic's
+! position in the global consult_from and its length in consult_words. The
+! parser's word pointer `wn` is set to the topic's first word, and each
+! NextWord() returns the next word as a dictionary value. A call may pass
+! fewer than six words; the missing arguments are simply 0, and the `w ~= 0`
+! test stops a 0 from matching an unknown word (which NextWord also returns
+! as 0). `w == w1 or w2 or w3` is Inform's shorthand for "w equals any of
+! these". `for (i = 0 : i < n : i++)` is a loop: start, test, step, with
+! colons between them. i and w (after the gap) are plain local variables.
 [ AskedAbout w1 w2 w3 w4 w5 w6  i w;
     wn = consult_from;
     for (i = 0 : i < consult_words : i++) {
@@ -278,6 +565,11 @@ Class Person
 
 ! P2: lay the two halves of the blueprint together. Reached from PUT/INSERT
 ! (one half on the other) and from the JOIN verb in section 9.
+! `in` / `notin` test whether one object is directly inside another (here,
+! held by the player). `||` is "or". `remove x;` takes an object out of play
+! (it no longer has a parent); `move x to y;` puts one anywhere. The halves
+! are removed and the blueprint, which until now was nowhere, appears in
+! the player's hands. Each bare string prints and returns true.
 [ JoinHalves;
     if (blueprint in player) "You've already mended the blueprint.";
     if (left_half notin player || right_half notin player) {
@@ -296,6 +588,12 @@ Class Person
 
 ! P3: one of the brass devices has sounded. The correct order is
 ! bell (order 0, low), chime (order 1, high), horn (order 2, between).
+! The flow: if the device is the next one in order, count it and (via the
+! switch) print that step's text -- every case returns. Otherwise the
+! routine carries on: a wrong FIRST note just fades; a wrong note later
+! resets brass_progress to 0 with a discord. `brass_progress++` adds one.
+! `dev.order` reads the order property of whichever device was passed in.
+! Once the panel is open, the devices just play their notes.
 [ BrassSounded dev;
     if (panel_open)
         print_ret (The) dev, " gives ", (string) dev.note,
@@ -329,6 +627,10 @@ Class Person
 
 ! P6: called after either water machine is worked. Drains the passage once
 ! BOTH the ancient wheel and the modern pump are going, in either order.
+! `pump hasnt on` tests the library's `on` attribute, which SWITCH ON sets.
+! The routine returns false while either half is missing, so the caller can
+! print its own "not yet" line; it returns true (rtrue) after draining.
+! `print` with ^ at both ends puts the message in its own paragraph.
 [ CheckSprings;
     if (passage_drained || wheel_turned == false || pump hasnt on) rfalse;
     passage_drained = true;
@@ -343,6 +645,10 @@ Class Person
 ! P8: the Shifting Room's arch. Position 0-6 runs with the counter
 ! 1,1,2,3,5,8,13; the arch moves a quarter turn per step and stands north
 ! (with the shutter down) only at step 6, when the counter reads 13.
+! `%` is the remainder after division, so (shift_step + 2) % 4 counts round
+! 0-3 as the step grows: step 1 -> 3 (west), 2 -> 0 (north), 3 -> 1 (east),
+! 4 -> 2 (south), 5 -> 3 (west), 6 -> 0 (north). It returns the STRING from
+! compass_names; callers print it with (string).
 [ ArchDirection;
     return compass_names-->((shift_step + 2) % 4);
 ];
@@ -368,6 +674,10 @@ Class Person
 ! ============================================================================
 
 ! --- The player's own belongings --------------------------------------------
+! The notebook has no parent in its declaration, so it starts nowhere;
+! Initialise (section 8) moves it to the player. In a dictionary word, `^`
+! stands for an apostrophe: 'surveyor^s' is the word SURVEYOR'S. It has no
+! `has` line: a plain object you can drop, take and examine.
 
 Object notebook "surveyor's notebook"
   with name 'notebook' 'surveyor' 'surveyor^s' 'my',
@@ -377,6 +687,12 @@ Object notebook "surveyor's notebook"
 
 ! --- 1. Overgrown Garden ------------------------------------------------------
 
+! The first room. `Room garden "Overgrown Garden"` makes an object of class
+! Room: lit, with the class's LISTEN rule. For a room, `initial` runs as the
+! player arrives, just before the description -- including the very first
+! LOOK at the start of the game, which is how Chapter One's banner appears.
+! `cant_go` is the library's message for a direction with no exit (here,
+! every direction but north). `sounds` is our class property for LISTEN.
 Room garden "Overgrown Garden"
   with initial [; BeginChapter(1); ],
        description
@@ -393,9 +709,14 @@ Room garden "Overgrown Garden"
        cant_go "The garden wall is high and the gate has rusted shut behind
            you. The county expects its report: the house is north.";
 
+! An object of class Plaque, inside the garden (`->`). It only sets the two
+! values that differ; the name, short name, description and `scenery` all
+! come from the class. (It replaces `what`, so it reads "BED", not "ROOM".)
 Plaque -> garden_plaque
   with yards 1, what "BED";
 
+! `pluralname`: the library treats the object as plural ("The flower beds
+! are ...", "them"), which IsOrAre in the Feature class relies on.
 Feature -> flower_beds "flower beds"
   with name 'flower' 'flowers' 'bed' 'beds' 'brambles' 'bindweed' 'soil',
        description "You pace the beds out. The smallest is a yard wide, and so
@@ -404,6 +725,10 @@ Feature -> flower_beds "flower beds"
            cross a border.",
   has  pluralname;
 
+! ENTER HOUSE means walking north. `<<Go n_obj>>` starts the Go action
+! with the library's "north" compass object as its noun, then returns true.
+! `proper`: the name is a proper noun, so the library never puts "the" or
+! "a" in front of "Quillon House".
 Feature -> house_exterior "Quillon House"
   with name 'quillon' 'house' 'brick' 'slate' 'window' 'windows' 'chimney'
            'chimneys',
@@ -418,6 +743,8 @@ Feature -> house_exterior "Quillon House"
 
 ! --- 2. Entrance Hall --------------------------------------------------------
 
+! The hub of Chapter One: four exits, each a plain room name. The room's
+! text tells the player the way to everywhere, which saves them mapping.
 Room entrance_hall "Entrance Hall"
   with description
            "A tall, chilly hall with a black-and-white tiled floor in a pattern
@@ -456,6 +783,9 @@ Feature -> floor_tiles "tiled floor"
 
 ! Lore (2 points): reading the calling cards. Achieved() awards a task only
 ! once, so reading them again scores nothing more.
+! An ordinary Object (not a Feature) with the same `static scenery` effect,
+! plus its own TAKE refusal. Its description is a routine so that reading
+! the cards can score: Achieved first, then the text (bare string).
 Object -> calling_cards "calling cards"
   with name 'calling' 'card' 'cards' 'stack' 'tray' 'silver' 'table',
        description [;
@@ -505,6 +835,20 @@ Feature -> ladder "wheeled ladder"
            since fused into a single geological humbug. You climb back down.";
        ];
 
+! The slim book. New here:
+!   half_fallen false    a property of our own holding a flag
+!   initial "..."        for a THING, the line used in the room description
+!                        until it is first moved (taken); after that the
+!                        library's own "You can see ..." line is used
+!   release_half [ ... ] a routine stored in a property and called like a
+!                        function: self.release_half(). Writing it once
+!                        lets EXAMINE/READ and TAKE share it.
+!   move left_half to location  -- `location` is the room the player is in
+!   after [ Take: ... ]  `after` runs once the library's Take has succeeded.
+!                        The first time, it prints "Taken." itself, drops
+!                        the half and returns true, which stops the library
+!                        printing its own "Taken." a second time.
+!                        Later, rfalse lets the normal message through.
 Object -> treatise "slim book"
   with name 'slim' 'book' 'treatise' 'grammar' 'of' 'rooms' 'margin',
        half_fallen false,
@@ -538,6 +882,12 @@ Object -> treatise "slim book"
 
 ! P2: the two halves of the blueprint. PUT one ON (or IN) the other calls
 ! JoinHalves (section 4), whichever half is named first.
+! No parent: the left half starts off-stage, until the slim book's
+! release_half moves it into the room. In `before`, `second` is the second
+! object of the command (PUT noun ON second). `return JoinHalves();` runs
+! the helper and passes on what it returns (true: handled). If the second
+! object isn't the other half, the routine returns false and the library
+! carries on with an ordinary PUT ON.
 Object left_half "left half of a blueprint"
   with name 'left' 'half' 'torn' 'blueprint' 'piece' 'sheet',
        description "The left half of a blueprint on heavy linen paper, torn
@@ -551,6 +901,10 @@ Object left_half "left half of a blueprint"
 
 ! --- 4. Drawing Room ---------------------------------------------------------
 
+! A description written as a routine, so the open panel can be mentioned.
+! It prints its text piece by piece and ends with `new_line`. The DOWN exit
+! is a routine: return a room to go there, or print something (a bare
+! string prints and returns true) to stay put.
 Room drawing_room "Drawing Room"
   with description [;
            print "A long, formal room of faded green silk and dust-sheeted
@@ -581,6 +935,8 @@ Feature -> brass_board "mahogany board"
            horn in a row. Small brass pipes run from the back of each
            instrument down into the floor.";
 
+! The three BrassDevices: each sets only its own `order` (0, 1, 2 -- the
+! position in the correct sequence) and `note`, replacing the class values.
 BrassDevice -> brass_bell "brass bell"
   with name 'squat' 'brass' 'bell',
        order 0,
@@ -620,6 +976,7 @@ Feature -> floor_panel "floor panel"
 
 ! --- 5. Study ----------------------------------------------------------------
 
+! The Study: P1 (the drawer and its dial) and half of P2 (the wastebasket).
 Room study "Study"
   with description
            "The only room in the house that looks lived in: ink stains, a coat
@@ -635,6 +992,8 @@ Room study "Study"
 Plaque -> study_plaque
   with yards 5;
 
+! `has supporter` (added to the Feature class's `scenery`): things can be
+! put ON the desk.
 Feature -> study_desk "heavy desk"
   with name 'heavy' 'desk' 'writing',
        description "A partners' desk in walnut, scarred by a lifetime of
@@ -648,6 +1007,11 @@ Feature -> study_clutter "study clutter"
 
 ! P1: the drawer is locked by its dial, not by a key: OPEN and UNLOCK point
 ! at the dial, which does the unlocking (drawer_dial, below).
+! The drawer's `before Open` refuses while it is `locked`; once unlocked the
+! routine returns false and the library's own OPEN runs. It is `lockable`
+! but has no with_key, so UNLOCK DRAWER WITH KEY never works: only the dial
+! unlocks it. `container openable` with no `open`: it starts shut, hiding
+! the journal and key.
 Object -> desk_drawer "desk drawer"
   with name 'drawer' 'desk',
        description [;
@@ -664,6 +1028,12 @@ Object -> desk_drawer "desk drawer"
 
 ! P1: SET DIAL TO 8 (or TURN DIAL TO 8). `setting` remembers the number;
 ! 8, the next number after the plaques' 1, 1, 2, 3, 5, unlocks the drawer.
+! The command SET DIAL TO 8 matches the library's grammar line
+! `'set' * noun 'to' special -> SetTo`. The `special` token accepts a
+! number or a word, and puts it in `second`. `give desk_drawer ~locked
+! open;` changes two attributes at once: clear `locked`, set `open`.
+! The guard order matters: out of range first, then "already open", then
+! the wrong number, and only then the success.
 Object -> drawer_dial "brass dial"
   with name 'brass' 'dial' 'lock' 'combination' 'numbers',
        setting 0,
@@ -691,6 +1061,8 @@ Object -> drawer_dial "brass dial"
        ],
   has  scenery;
 
+! The journal and key name their parent (desk_drawer) after the short name.
+! Inside the closed drawer they can't be seen until the dial opens it.
 Object journal "leather journal" desk_drawer
   with name 'leather' 'journal' 'diary' 'green',
        description "Quill's journal, bound in green leather, his handwriting
@@ -709,6 +1081,9 @@ Object brass_key "brass key" desk_drawer
 ! P2's other half. The right half is not in the basket at the start:
 ! SEARCH (or EMPTY) puts it there the first time, so it is found rather
 ! than seen.
+! `general` is an attribute the library sets aside for authors: it means
+! whatever you want. Here: "the right half has been found". The basket is
+! a `container open` so the half, once moved into it, can be seen and taken.
 Object -> wastebasket "wastebasket"
   with name 'wastebasket' 'basket' 'bin' 'wicker' 'drafts' 'crumpled'
            'rubbish',
@@ -745,6 +1120,7 @@ Object right_half "right half of a blueprint"
 
 ! The mended blueprint, which JoinHalves gives you in place of the halves. Its
 ! spiral is the clue for the lift's symbol dial (P4).
+! No parent: off-stage until JoinHalves moves it to the player.
 Object blueprint "blueprint of Quillon House"
   with name 'blueprint' 'plan' 'mended' 'house' 'quillon',
        description "A cross-section of Quillon House, drawn with a
@@ -757,6 +1133,7 @@ Object blueprint "blueprint of Quillon House"
 
 ! --- 6. Cellar Stairs --------------------------------------------------------
 
+! A plain connecting room; the way up and down are both ordinary exits.
 Room cellar_stairs "Cellar Stairs"
   with description
            "Narrow stone steps descend in a tight square spiral, each flight
@@ -787,6 +1164,10 @@ Feature -> cellar_steps "stone steps"
 
 ! --- 7. Lift Landing ---------------------------------------------------------
 
+! Chapter Two begins here (its `initial` prints the banner). The DOWN exit
+! routine is the lift itself: `print` the ride (no return), then
+! `return survey_chamber;` to move the player. The other branches print a
+! refusal and return true.
 Room lift_landing "Lift Landing"
   with initial [; BeginChapter(2); ],
        description [;
@@ -826,6 +1207,10 @@ Room lift_landing "Lift Landing"
 
 ! P4, step one: the cage gate takes the brass key (the spiral key); any other
 ! key is refused.
+! `with_key brass_key` names the only key that fits. `after Unlock` runs
+! once the library has unlocked it: give it `open` too, and print our own
+! message (a bare string returns true, replacing "You unlock the lift
+! cage.").
 Object -> lift_cage "lift cage"
   with name 'lift' 'brass' 'cage' 'gate' 'elevator' 'crystals' 'cables'
            'pipes' 'copper',
@@ -852,6 +1237,9 @@ Object -> lift_cage "lift cage"
 
 ! P4, step two: SET DIAL TO <symbol>. lift_symbol stores the dictionary word
 ! itself ('spiral'), and (address) prints it back. The lever checks it.
+! `switch (second) { 'circle', 'square', ...: }` -- case labels may be
+! dictionary words, separated by commas. `(address) w` prints a dictionary
+! word. If no case matches, the switch does nothing and the last string runs.
 Object -> lift_dial "symbol dial"
   with name 'symbol' 'symbols' 'dial',
        description [;
@@ -901,6 +1289,8 @@ Object -> lift_lever "iron lever"
 
 ! --- 8. Survey Chamber -------------------------------------------------------
 
+! UP is a routine that prints the ride and then returns the room: a way to
+! add a message to an ordinary exit.
 Room survey_chamber "Survey Chamber"
   with description
            "A broad chamber cut from the living rock with a precision that
@@ -961,6 +1351,26 @@ Feature -> hall_vault "vaulted ceiling"
 ! about and returns false for everything else, so the Person class's
 ! fallbacks (no_answer, no_interest) take over. His `each_turn` routine adds
 ! a little life to the room every few turns while he is in view.
+! Details:
+!   describe [ ... ]   replaces the library's "You can see a Foreman here"
+!                      line in the room description.
+!   confide [ shown; ] a routine property with a parameter: the Foreman
+!                      calls self.confide(true) from SHOW and
+!                      self.confide(false) from ASK.
+!   life, Show/Give:   `noun` is the thing shown or given (the Foreman is
+!                      `second`). Note the journal is only shown; it stays
+!                      with you.
+!   life, Ask:         each `if` returns when its topic matches. When none
+!                      does, the block ends, `life` returns false, and the
+!                      Person class's life prints no_answer.
+!   orders             replaces the class's reply for orders such as
+!                      FOREMAN, GO NORTH (it returns true, so the class
+!                      version never runs).
+!   each_turn          runs at the end of every turn while the Foreman is
+!                      in sight. `turns` is the library's turn counter; `%`
+!                      is the remainder, so only every third turn prints
+!                      something, cycling through three lines.
+!   has male           he is "him" to the parser (ASK HIM ABOUT LIFT).
 Person -> foreman "Foreman"
   with name 'foreman' 'man' 'grey' 'whiskered' 'apron',
        description "A broad, grey-whiskered man in a canvas apron, chalk-dusted
@@ -1051,6 +1461,9 @@ Person -> foreman "Foreman"
 ! The tuning fork, the Foreman's gift (P5) and the key to P8: striking it
 ! in the Resonance Chamber, with the crystal on the pedestal, sings the
 ! stones awake. Anywhere else it is just a note.
+! No parent: off-stage until the Foreman's confide moves it to the player.
+! Its Sound/Attack rule checks, in order: the right room, already done,
+! the crystal on the pedestal (`notin` = "not directly inside/on").
 Object tuning_fork "tuning fork"
   with name 'steel' 'tuning' 'fork' 'tines',
        description "A steel tuning fork, heavier than it looks, its tines
@@ -1100,6 +1513,8 @@ Feature -> hut_furniture "hut furniture"
 ! The Inspector. Asking her about irregular building practices is a lore
 ! point; other topics and actions fall back on the Person class's replies
 ! (her no_answer and no_interest lines).
+! A Person with her own describe, replies and an Ask-only `life`. Anything
+! else (SHOW, GIVE, TELL, unknown topics) falls through to the class.
 Person -> inspector "Inspector"
   with name 'inspector' 'woman' 'official' 'thin' 'raincoat' 'badge'
            'lanyard' 'clipboard',
@@ -1139,6 +1554,8 @@ Person -> inspector "Inspector"
 
 ! --- 10. Spring Gallery -----------------------------------------------------
 
+! The description routine builds one paragraph from pieces with `print`,
+! choosing the middle part by the passage_drained flag, then `rtrue`.
 Room spring_gallery "Spring Gallery"
   with description [;
            print "Water is everywhere here: dripping from the ceiling,
@@ -1161,6 +1578,8 @@ Room spring_gallery "Spring Gallery"
 
 ! P6, the ancient half: TURN the wheel to open the old sluice (wheel_turned).
 ! CheckSprings drains the passage once the pump is running too.
+! `if (CheckSprings() == false) "...";` calls the helper and, when it has
+! not drained the passage, adds a hint that one machine is not enough.
 Object -> bronze_wheel "bronze wheel"
   with name 'bronze' 'great' 'wheel' 'sluice' 'waterway' 'ancient' 'carved',
        description [;
@@ -1191,6 +1610,10 @@ Object -> bronze_wheel "bronze wheel"
 ! handle SWITCH ON / OFF and the `on` attribute; the after routine checks the
 ! springs. Once the passage is drained, switching it off is refused, so you
 ! cannot strand yourself.
+! Here the library's own SwitchOn runs (no `before` for it): it checks
+! `switchable`, sets `on`, then calls `after`. Our after prints the new
+! message and returns true, so the library's "You switch the electric pump
+! on." is not printed as well.
 Object -> pump "electric pump"
   with name 'modern' 'electric' 'pump' 'yellow' 'black' 'hose' 'switch',
        description [;
@@ -1219,6 +1642,8 @@ Object -> pump "electric pump"
 
 ! --- 11. Flooded Passage ----------------------------------------------------
 
+! A routine `description` can return early with a bare string, as here.
+! `sounds` is a routine too, which PrintOrRun (the Room class) runs.
 Room flooded_passage "Flooded Passage"
   with description [;
            if (passage_drained)
@@ -1255,6 +1680,8 @@ Feature -> flood_water "water"
 
 ! --- 12. Mirror Gallery -----------------------------------------------------
 
+! `(string) compass_names-->mirror_facing` prints the name of the way the
+! mirror faces. `else if` chains: only the first true branch prints.
 Room mirror_gallery "Mirror Gallery"
   with description [;
            print "A tall, narrow gallery, its walls sheathed in polished
@@ -1284,6 +1711,10 @@ Room mirror_gallery "Mirror Gallery"
 ! P7: each TURN swings the mirror a quarter turn (mirror_facing 0-3: north,
 ! east, south, west). Facing east, onto the crystal socket, grows the
 ! crystal; the other facings say where the beam lands.
+! (mirror_facing + 1) % 4 steps 3 -> 0 -> 1 -> 2 -> 3: from the starting
+! west, two turns reach east. The switch has cases for 0, 2 and 3 only; for
+! 1 (east) it does nothing and the code after it runs. The crystal is moved
+! into the socket the first time only; afterwards the beam just strikes it.
 Object -> great_mirror "great mirror"
   with name 'great' 'mirror' 'pivot' 'frame' 'disc' 'silvered',
        description [;
@@ -1333,6 +1764,9 @@ Object -> crystal_socket "crystal socket"
 ! P7's reward. Taking the crystal the first time opens the stairs down
 ! (stairs_open) and scores; it is also a light source (`has light`) for the
 ! dark rooms below, and P8 needs it on the pedestal.
+! No parent: off-stage until the mirror moves it into the socket. `has
+! light` makes it a light source (not needed in this always-lit game, but
+! true to the story).
 Object crystal "glowing crystal"
   with name 'glowing' 'crystal' 'gem' 'stone',
        description "A crystal the size of your fist, grown from daylight. It
@@ -1361,6 +1795,10 @@ Object crystal "glowing crystal"
 
 ! --- 14. Vault Antechamber --------------------------------------------------
 
+! Chapter Three's banner comes from this room's `initial`. The NORTH exit
+! routine resets the Shifting Room and starts its daemon: StartDaemon(obj)
+! makes the library run obj.daemon at the end of every turn until
+! StopDaemon(obj).
 Room vault_antechamber "Vault Antechamber"
   with initial [; BeginChapter(3); ],
        description
@@ -1417,6 +1855,8 @@ Feature -> alcove_lamp "lamp"
            is cold, and polished by a great deal of waiting.";
 
 ! The Messenger, in the optional alcove: silent, and pointing at the note.
+! A Person with no `life` of its own: every conversation action uses the
+! class's life, which prints these no_answer / no_interest lines.
 Person -> messenger "Messenger"
   with name 'messenger' 'figure' 'cloaked' 'hooded' 'cloak' 'hood',
        description "A slight figure in a grey travelling cloak, hood up, face
@@ -1432,6 +1872,8 @@ Person -> messenger "Messenger"
 
 ! Lore (2 points): the Messenger's note, a Caesar cipher (shift 3) with the
 ! answer already pencilled in.
+! `initial` gives its line in the room description until it is moved.
+! READ NOTE is the Examine action, so the description routine scores it.
 Object -> coded_note "folded note"
   with name 'folded' 'note' 'message' 'coded' 'code' 'wax' 'paper',
        initial "A folded note, sealed with grey wax, lies on the bench beside
@@ -1459,6 +1901,13 @@ Object -> coded_note "folded note"
 ! have gone north through the open shutter, shift_stilled is set and the
 ! room stays as it was then -- arch north, way open -- on every later visit.
 
+! Here a ROOM has a `daemon`: the routine the library runs each turn while
+! StartDaemon(shifting_room) is in force. Inside it, `self` is the room.
+! The first line stops the daemon as soon as the player is elsewhere
+! (`rfalse` just ends the routine; a daemon's return value is not used).
+! Its messages start with `^` so they follow the turn's own reply.
+! `before Wait` replaces the library's "Time passes." -- WAIT still takes
+! a turn, so the daemon still runs after it.
 Room shifting_room "Shifting Room"
   with description [;
            if (shift_stilled) {
@@ -1582,6 +2031,11 @@ Feature -> standing_stones "standing stones"
 
 ! P8, part two: the crystal goes on the pedestal (PUT CRYSTAL ON PEDESTAL);
 ! striking the tuning fork then sings the stones awake.
+! Receive is not a command the player types: when something is PUT ON or
+! INSERTed into an object, the library first gives that object a Receive
+! action (noun = the thing arriving), with `receive_action` saying which
+! of the two it was. `<<PutOn noun self>>` restarts the action as PUT ON
+! this pedestal and returns true.
 Object -> pedestal "basalt pedestal"
   with name 'black' 'basalt' 'pedestal',
        description "A pedestal of black basalt with a shallow, cupped top,
@@ -1597,6 +2051,8 @@ Object -> pedestal "basalt pedestal"
 
 ! --- 17. Final Chamber  (the win) ------------------------------------------
 
+! The last room. The lectern is a supporter, so the master blueprint can lie
+! ON it (it names the lectern as its parent).
 Room final_chamber "Final Chamber"
   with description
            "The last room is small and plain, which after everything else is
@@ -1654,6 +2110,16 @@ Object master_blueprint "master blueprint" lectern
 !  8. ENTRY POINTS  --  routines the library calls if the game provides them
 ! ============================================================================
 
+! Initialise: the library calls it once, before anything is printed.
+!   location = garden;   the Standard Library MUST be told the first room
+!   move notebook ...;   the player starts holding the notebook
+!   lookmode = 2;        VERBOSE (6.12 starts verbose anyway; this keeps it
+!                        explicit). 1 is BRIEF, 3 SUPERBRIEF.
+!   print "...";         the opening text. The routine then ends, returning
+!                        0, so the library prints the banner next (it would
+!                        skip it only for a return value of 2), and then the
+!                        first LOOK -- which runs the garden's `initial` and
+!                        prints the Chapter One banner.
 [ Initialise;
     location = garden;
     move notebook to player;
@@ -1667,11 +2133,16 @@ Object master_blueprint "master blueprint" lectern
 ];
 
 ! deadflag 3 (set by the master blueprint) ends the game with our own words.
+! The library prints "*** ", calls DeathMessage, then " ***", whenever
+! deadflag is 3 or more. (deadflag 1 prints "You have died", 2 "You have
+! won".) This game only ever uses 3.
 [ DeathMessage;
     if (deadflag == 3) print "The work continues";
 ];
 
 ! Names for FULL SCORE, one per task number in section 1.
+! Called by FULL SCORE once for each task achieved, with its number. Each
+! case label is a TASK_ constant; the bare strings print and return.
 [ PrintTaskName task;
     switch (task) {
       TASK_DIAL:        "opening Quill's desk";
@@ -1695,6 +2166,10 @@ Object master_blueprint "master blueprint" lectern
 ! the master blueprint so READ BLUEPRINT means the one you came for.
 ! Likewise X DESK means the desk itself, not the desk drawer (OPEN DESK
 ! DRAWER still works: the drawer matches more words, so it is chosen first).
+! ChooseObjects is an entry point the parser calls while deciding between
+! objects that match the same words. With code 2 it asks "how much do you
+! like this one?"; a higher number wins (0 is neutral). `obj ==
+! master_blueprint or study_desk` is the `or` shorthand again.
 [ ChooseObjects obj code;
     if (code == 2 && obj == master_blueprint or study_desk) return 5;
     return 0;
@@ -1705,6 +2180,11 @@ Object master_blueprint "master blueprint" lectern
 !  9. GRAMMAR  --  the standard verbs, then the game's own
 ! ============================================================================
 
+! Grammar comes after VerbLib and after the whole world: the library checks
+! the order. The game's own verbs follow it. A brand-new Verb could go before
+! or after Grammar; an `Extend`, which adds to a library verb, must be after.
+! (This game does not include Frotzsmith's Exits.h, so rooms print no
+! "Obvious exits:" line: the room text names the exits instead.)
 Include "Grammar";
 
 ! SOUND: ring the bell, strike the chime, blow the horn, strike the fork.
@@ -1714,17 +2194,28 @@ Include "Grammar";
     "You produce a dull, unmusical noise.";
 ];
 
+! Verb 'w1' 'w2' ... declares new words, all synonyms; each `* tokens ->
+! Action` line is one pattern. `noun` is any object in sight; 'on'/'against'
+! /'with' is "any one of these words"; the second `noun` (STRIKE FORK ON
+! PEDESTAL) becomes `second`. Both patterns lead to the Sound action, which
+! the brass devices and the fork answer in their own `before`; anything
+! else reaches SoundSub above.
 Verb 'ring' 'strike' 'sound' 'toll' 'play' 'tap' 'bang'
     * noun                              -> Sound
     * noun 'on'/'against'/'with' noun   -> Sound;
 
 ! The library's BLOW wants a HELD object; the brass horn is bolted down.
+! `Extend 'blow' first` puts this line AHEAD of the library's own grammar
+! for BLOW, so BLOW HORN reaches Sound even though the horn can't be held.
 Extend 'blow' first
     * noun                              -> Sound;
 
 ! JOIN: an alternative to PUT LEFT HALF ON RIGHT HALF.
 [ JoinSub; return JoinHalves(); ];
 
+! Words in quotes inside a grammar line are literal: JOIN HALVES, JOIN
+! BLUEPRINT PIECES. The lines are tried in order, so those come before the
+! general `* noun` patterns. JoinSub just calls the same helper as PUT ON.
 Verb 'join' 'combine' 'assemble' 'mend' 'reassemble' 'repair'
     * 'halves'/'pieces'                 -> Join
     * 'blueprint' 'halves'/'pieces'     -> Join
@@ -1732,5 +2223,8 @@ Verb 'join' 'combine' 'assemble' 'mend' 'reassemble' 'repair'
     * noun 'to'/'with'/'and' noun       -> Join;
 
 ! TURN DIAL TO 8 / TURN DIAL TO SPIRAL: the same as SET ... TO ...
+! `Extend 'turn'` (no `first`) adds the line after the library's own TURN
+! patterns, so TURN WHEEL and TURN MIRROR still mean Turn. SetTo is the
+! library's action for SET X TO Y; the two dials answer it in `before`.
 Extend 'turn'
     * noun 'to' special                 -> SetTo;

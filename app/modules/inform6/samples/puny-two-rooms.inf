@@ -8,24 +8,31 @@
 !  and movement. PunyInform is a compact replacement library aimed at small,
 !  fast Z-machine games. Compiler options are set on the `!%` lines above.
 !  Try:  look, take lamp, examine lamp, north, south, inventory
+!
+!  Lines starting with `!` (below the first two) are comments: the compiler
+!  ignores everything from `!` to the end of the line. The Standard Library
+!  version of this game is demo.inf; comparing the two shows exactly what
+!  changes between the libraries (very little, in a game this small).
 ! ----------------------------------------------------------------------------
 !  HOW THIS FILE IS STRUCTURED
 !  ────────────────────────────
-!  1. `!%` compiler-option lines  (processed before compilation; not comments)
+!  1. `!%` compiler-option lines  (read by the compiler before compiling)
 !  2. Game identity Constants
 !  3. INITIAL_LOCATION_VALUE      (tells PunyInform where the player starts)
 !  4. Include "globals.h"         (PunyInform global vars + configuration)
 !  5. Include "puny.h"            (parser + verbs + grammar — all in one file)
-!  6. Room and object definitions (between or after the includes)
-!  7. [ Initialise; ]             (optional; prints welcome banner)
+!  6. Room and object definitions (after the includes)
+!  7. [ Initialise; ]             (required; here it only prints a welcome)
 !
-!  `!%` COMPILER OPTION LINES — do NOT move, delete, or comment these out
+!  `!%` COMPILER OPTION LINES — keep them as the very first lines
 !  ────────────────────────────────────────────────────────────────────────
-!  !% -~S          disables strict mode. PunyInform does not provide the
-!                  strict-mode runtime stubs, so this switch is required.
-!                  (Strict mode adds run-time type checking; useful for
-!                  development with the Standard Library, but incompatible
-!                  with PunyInform's slimmer footprint.)
+!  A `!%` line at the top of the file is a compiler switch, as if typed on
+!  the compiler's command line; lower down it would only be a comment.
+!  !% -~S          turns strict mode off. Strict mode (normally on) adds
+!                  run-time checks that catch programming mistakes, at the
+!                  cost of a larger, slower story. PunyInform's template
+!                  turns it off to keep games small; it is recommended, not
+!                  required (the game compiles and plays without it).
 !
 !  !% $OMIT_UNUSED_ROUTINES=1
 !                  instructs the Inform 6 compiler to remove any routine
@@ -40,20 +47,31 @@
 !                           Grammar (3 includes)    (2 includes)
 !  Start location           location = X in         Constant
 !                           Initialise              INITIAL_LOCATION_VALUE=X
-!  Default Z format         Z5 / Z8                 Z3 (smaller / faster)
-!  Strict mode              supported               must be disabled (-~S)
+!  Story formats            z5 / z8 (and Glulx)     z3 / z5 / z8
+!  Strict mode              usually left on         usually switched off (-~S)
 !  Target audience          full-featured games     compact / retro games
+!  Exits line               Frotzsmith's Exits.h    none (no Exits.h)
+!  Room text on a revisit   repeated (VERBOSE is     name only (BRIEF is the
+!                           the 6.12 default)        default; VERBOSE changes it)
+!  Stock replies (wording)  "You can't see any      "Sorry, I don't understand
+!                           such thing." for an      what "door" means." for a
+!                           unknown word             word the game doesn't know
 !
 !  HOW THE GAME FLOWS
 !    You start in the Cottage, where a brass lamp lies. TAKE LAMP (and EXAMINE
 !    it), go NORTH to the Meadow and SOUTH back; INVENTORY shows the lamp.
 !    No puzzle and no ending: a map with one thing in it.
+!
+!  MAP
+!        Meadow
+!          |
+!        Cottage   <- start; the brass lamp is here
 ! ============================================================================
 
 ! --- Game identity constants -------------------------------------------------
 !  `Constant Story` supplies the game title. The Standard Library and
-!  PunyInform both read this constant to display the title in the status bar
-!  and in the opening banner.
+!  PunyInform both print it in bold in the opening banner. (The status bar
+!  shows the current room and the score/moves.)
 !
 !  `Constant Headline` is the subtitle line in the opening banner.
 !  `^` inside a string literal is the Inform 6 newline escape character.
@@ -62,19 +80,23 @@ Constant Story "TWO ROOMS";
 Constant Headline "^A Frotzsmith sample (PunyInform edition).^";
 
 ! --- Starting location (PunyInform-specific) --------------------------------
-!  INITIAL_LOCATION_VALUE is read by globals.h to place the player inside
-!  the named room before the game loop starts. This replaces the Standard
+!  INITIAL_LOCATION_VALUE is read by globals.h: it becomes the starting
+!  value of the global `location`, and after Initialise the library moves
+!  the player there. This replaces the Standard
 !  Library pattern of writing `location = Cottage;` inside [ Initialise; ].
 !  The value must be the Inform 6 identifier of a room object defined later
 !  in this file (forward references are fine; the compiler resolves them).
+!  It has to come before Include "globals.h", which is where it is read.
 
 Constant INITIAL_LOCATION_VALUE = Cottage;
 
 ! --- PunyInform library includes --------------------------------------------
 !  globals.h must be included FIRST. It declares the global variables used
-!  throughout PunyInform (location, score, turns, the_time, etc.) and reads
+!  throughout PunyInform (location, score, turns, the_time, etc.), the
+!  attributes and properties objects use, and reads
 !  any configuration constants you set before this line (including
 !  INITIAL_LOCATION_VALUE and optional feature-flags like OPTIONAL_EXTENDED_METAVERBS).
+!  `Include "file";` reads the file at this point, as if pasted in.
 
 Include "globals.h";
 
@@ -83,25 +105,36 @@ Include "globals.h";
 !    — all built-in verb handlers (Take, Drop, Examine, Look, Go, …)
 !    — the grammar tables (maps words like "take"/"get" to the Take action)
 !  Unlike the Standard Library there is NO separate `Include "Grammar";` at
-!  the end of the file. Grammar is already compiled inside puny.h.
+!  the end of the file. puny.h includes PunyInform's grammar.h itself.
 !
-!  Place all Object, Class, and custom Verb definitions either between the
-!  two includes or — more commonly — after puny.h, as is done here.
+!  Place all Object, Class, and custom Verb definitions after puny.h, as is
+!  done here. (An `Extend` of a library verb must come after it.)
 
 Include "puny.h";
 
 ! --- Room: Cottage ----------------------------------------------------------
 !  `Object Cottage "Cottage"` — `Cottage` is the Inform 6 identifier used in
 !  code. "Cottage" (in quotes) is the player-visible short name.
+!  After the header, `with` starts the PROPERTIES (named values, separated by
+!  commas) and `has` the ATTRIBUTES (on/off flags). The `;` ends the object.
 !
 !  `with description "…"` — long description shown on >LOOK or first entry.
+!  (PunyInform starts in BRIEF mode: come back SOUTH from the Meadow and you
+!  get just the room name and its contents. The 6.12 Standard Library starts
+!  in VERBOSE mode and repeats the description every time.)
 !
 !  `n_to Meadow` — the n_to *property* makes NORTH move the player to the
 !  Meadow room object. Directions available: n_to, s_to, e_to, w_to, ne_to,
 !  nw_to, se_to, sw_to, u_to (up), d_to (down), in_to, out_to.
-!  A direction property can hold a room object (simple link), a routine
-!  (computed or conditional exit), or the special value `false` (no exit;
-!  custom message via a before/after routine).
+!  A direction property can hold a room object (simple link), a string (a
+!  message printed instead of moving), or a routine (computed or
+!  conditional exit). A direction with no property gets "You can't go that
+!  way."
+!  (`Meadow` is declared further down; that is allowed.)
+!
+!  The "sturdy door" is only words in the description, not an object:
+!  EXAMINE DOOR gets PunyInform's "Sorry, I don't understand what "door"
+!  means." because the game has no such dictionary word at all.
 !
 !  `has light` — the `light` attribute marks the room as lit. Every room
 !  the player visits needs a light source: either `has light` on the room
@@ -125,10 +158,11 @@ Object Cottage "Cottage"
 !  the parser matches when the player types noun phrases. Words are in single
 !  quotes. Both 'brass' and 'lamp' are added, so "take lamp", "take brass",
 !  and "examine brass lamp" all refer to this object.
+!  Single quotes = words the player may TYPE; double quotes = text the game
+!  PRINTS. The short name "brass lamp" is never used for parsing.
 !
 !  `description "…"` — response to >EXAMINE LAMP. Objects without a
-!  description get the library default: "You see nothing special about the
-!  brass lamp."
+!  description get the library's stock reply instead.
 !
 !  No `has` line is needed for a plain portable object. The library lets the
 !  player TAKE any object that lacks `static` or `scenery`. To make the lamp
@@ -144,6 +178,7 @@ Object -> lamp "brass lamp"
 !    Meadow  → (south) → Cottage
 !  Each room independently lists its own exits; there is no automatic
 !  reverse-link — you must add both sides by hand.
+!  No arrow: Meadow is a top-level object (a room), not inside the lamp.
 
 Object Meadow "Meadow"
   with description
@@ -152,17 +187,22 @@ Object Meadow "Meadow"
   has  light;
 
 ! --- Initialise routine -----------------------------------------------------
-!  In PunyInform, [ Initialise; ] is optional for location setup (that is
-!  handled by INITIAL_LOCATION_VALUE above). Its typical use is printing a
-!  welcome message or running one-time setup logic before the first prompt.
+!  A routine is written `[ Name; statements ];`. PunyInform calls
+!  Initialise once at startup, before the banner and before it moves the
+!  player into INITIAL_LOCATION_VALUE. The routine must exist (the library
+!  calls it by name), but in PunyInform it does not have to set the
+!  location. Its typical use is printing a welcome message or running
+!  one-time setup logic before the first prompt.
 !
 !  `print "…^^"` — prints the string; `^` = newline, so `^^` = blank line.
 !  The two separate print calls let you edit each line independently without
 !  touching the other.
 !
-!  Unlike the Standard Library, a bare string literal used as a statement
-!  (the `"…"` shorthand for print+newline+rtrue) still works in PunyInform,
-!  but `print` is shown here for clarity.
+!  A bare string literal used as a statement (the `"…"` shorthand for
+!  print + newline + rtrue) works exactly the same in PunyInform as in the
+!  Standard Library — it is part of the Inform 6 language, not the library.
+!  `print` is shown here for clarity. (Only a return value of 2 would change
+!  anything: it hides the banner. This routine returns 0.)
 
 [ Initialise;
     print "^Welcome to the Frotzsmith demo (PunyInform edition)!^^";

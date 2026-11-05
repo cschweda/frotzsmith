@@ -8,16 +8,17 @@
 !  it goes out. PunyInform supports the same StartDaemon / StopDaemon model and
 !  the `daemon` property. Compiler options are on the `!%` lines above.
 !  Try:  wait, z, z, z, z   (and watch the candle)
+!  (The Standard Library version is timed-candle.inf.)
 ! ----------------------------------------------------------------------------
 !  `!%` COMPILER OPTION LINES  (the very first two lines above)
 !    Lines beginning with `!%` are Inform 6 compiler option directives. They
-!    look like comment lines but are processed BEFORE compilation begins. They
-!    MUST be the absolute first lines in the file — no blank lines, no code,
-!    no other comments before them. Do not move, alter, or comment them out.
+!    look like comment lines but are processed BEFORE compilation begins.
+!    They only take effect as the first lines of the file (further down
+!    they are plain comments), so keep them at the top.
 !      -~S                     — disable strict mode. Strict mode adds extra
-!                                runtime type checks but is unnecessary for
-!                                PunyInform's lean object model; disabling it
-!                                saves code space.
+!                                runtime type checks; switching it off saves
+!                                code space. PunyInform's template does this;
+!                                it is a recommendation, not a requirement.
 !      $OMIT_UNUSED_ROUTINES=1 — dead-code elimination: the compiler identifies
 !                                and strips every routine that is never called,
 !                                reducing story file size. Especially useful
@@ -28,8 +29,9 @@
 !  INITIAL LOCATION
 !    Standard Library : `location = Study;` inside Initialise().
 !    PunyInform       : `Constant INITIAL_LOCATION_VALUE = Study;` BEFORE the
-!                       includes. PunyInform reads this constant at startup and
-!                       places the player in Study before Initialise() runs.
+!                       includes. globals.h makes it the starting value of
+!                       `location`; the library moves the player there right
+!                       after Initialise() has run.
 !
 !  INCLUDES
 !    Standard Library : Include "Parser"; Include "VerbLib"; … Include "Grammar";
@@ -43,14 +45,33 @@
 !    StopDaemon(obj)   — deregister obj; its daemon() stops being called.
 !    `daemon` property — holds the embedded routine `[ ; … ]` the library calls.
 !    `self`            — inside the routine, automatically refers to the object.
-!    PunyInform's internal daemon table is smaller than the Standard Library's
-!    (it supports fewer simultaneous daemons), but for typical small games
-!    this is not a practical limitation.
+!    Both libraries share one table between timers and daemons, with room
+!    for 32 at once by default (the constant MAX_TIMERS).
+!    Only turns that take game time run daemons: a command the parser can't
+!    understand ("That is not a verb I recognize.") or a meta command such
+!    as SCORE leaves the candle alone.
+!
+!    One PunyInform difference to know about: to save memory, PunyInform
+!    stores `daemon` in the same slot as `time_out` (they are aliases). An
+!    object can therefore be a daemon OR a timer, not both. In the Standard
+!    Library they are separate properties.
+!
+!  TIMERS (not used here, but the same in both libraries)
+!    StartTimer(obj, n) sets obj.time_left = n; time_out runs once the count
+!    has passed 0 — StartTimer(obj, 2) fires at the end of the THIRD turn.
+!
+!  THE `life` PROPERTY NAME
+!    The candle stores its burn count in a property called `life`. In both
+!    libraries `life` is really the library's own NPC property (how a
+!    creature reacts to ASK, GIVE ...; see The Hermit). It is safe here only
+!    because the candle is not `animate`, so the library never looks at it.
+!    A fresh name (say `burn_left`) would be clearer in your own games.
 !
 !  Initialise()
-!    Still called by PunyInform at game start, after the player is placed in
-!    INITIAL_LOCATION_VALUE. Use it for the opening print and StartDaemon calls.
-!    You no longer need (and should not try) to set `location` here.
+!    Still called by PunyInform at game start (it must exist), before the
+!    banner and before the player is moved into INITIAL_LOCATION_VALUE. Use
+!    it for the opening print and StartDaemon calls.
+!    You don't need to set `location` here (you could; it would also work).
 !    In this file, Initialise() appears after the objects — valid because Inform 6
 !    resolves forward references at link time.
 !
@@ -58,26 +79,30 @@
 !    One room, the Study, with a lit candle that burns for five turns. Do
 !    anything (WAIT, EXAMINE CANDLE...) and watch: on the third turn it
 !    gutters, on the fifth it sputters out. No ending.
+!    (PunyInform's reply to WAIT is "Nothing happens."; the Standard
+!    Library's is "Time passes." — stock messages differ between libraries.)
 ! ============================================================================
 
 ! --- Game metadata constants --------------------------------------------------
-! Story = status-bar title; Headline = subtitle in the opening banner.
-! `^` inside a string literal is Inform's newline escape.
+! Story = the title, Headline = the subtitle; both printed in the opening
+! banner. `^` inside a string literal is Inform's newline escape.
 Constant Story "TIMED CANDLE";
 Constant Headline "^A Frotzsmith sample: daemons & timed events (PunyInform).^";
 
 ! --- PunyInform: initial player location ------------------------------------
-! Declare this constant BEFORE the includes so PunyInform can read it during
-! library startup. It replaces the Standard Library's `location = Study;` in
-! Initialise(). Forward reference to Study (declared further below) is fine in
-! Inform 6 Constant declarations.
+! Declare this constant BEFORE the includes: globals.h reads it to set the
+! starting value of `location`. It replaces the Standard Library's
+! `location = Study;` in Initialise(). Forward reference to Study (declared
+! further below) is fine in Inform 6 Constant declarations.
 Constant INITIAL_LOCATION_VALUE = Study;
 
 ! --- PunyInform includes (order is mandatory) --------------------------------
 ! "globals.h" — declares all PunyInform global variables (location, score,
-!               moves, the player object, etc.). Must come before puny.h.
+!               turns, the player object, etc.) and the timer/daemon table.
+!               Must come before puny.h.
 ! "puny.h"    — the complete PunyInform library in a single file: the parser,
-!               all default action routines, and grammar tables. No Grammar.h.
+!               all default action routines, and grammar tables (including
+!               StartDaemon / StopDaemon). No Grammar.h.
 Include "globals.h";
 Include "puny.h";
 
@@ -85,8 +110,11 @@ Include "puny.h";
 ! A single-room game. `has light` keeps the Study permanently visible.
 ! To turn this into a true race-the-clock puzzle: remove `has light` from the
 ! Study, then add `give self ~light;` inside the candle's daemon when life == 0.
-! The library will remove the candle's light attribute and, with no other light
+! That line removes the candle's light attribute and, with no other light
 ! source, the room goes dark — mechanically enforcing the consequence.
+! (The text says "You carry a single lit candle", but the candle starts on
+! the floor — `Object ->` below puts it in the room. Adding
+! `move candle to player;` to Initialise would make the text literally true.)
 Object Study "Study"
   with description "A book-lined study. You carry a single lit candle.",
   has  light;                ! room is self-lit, independent of the candle
@@ -105,6 +133,8 @@ Object Study "Study"
 !   The embedded routine PunyInform calls once per turn (after the player's
 !   action) while the daemon is active. PunyInform uses the same call
 !   convention as the Standard Library: `self` is set to the owning object.
+!   `[;` opens the routine (no local variables); `],` closes it and
+!   separates it from the next property.
 !
 !   `self.life = self.life - 1;`
 !     Decrements the burn counter by one each turn. Using `self` instead of
@@ -113,6 +143,8 @@ Object Study "Study"
 !
 !   `if (self.life == 2) print "…";`
 !     Warning threshold check — fires when two turns of burn time remain.
+!     `==` compares (a single `=` would assign). The leading `^` puts the
+!     message on its own line after the command's reply.
 !     With life starting at 5, the turn-by-turn life sequence is:
 !       Turn 1: 5→4  (silent)
 !       Turn 2: 4→3  (silent)
@@ -122,15 +154,20 @@ Object Study "Study"
 !
 !   `if (self.life == 0) { … StopDaemon(self); }`
 !     Extinguishing block: print the final message, then call StopDaemon(self)
-!     to deregister the daemon. StopDaemon is CRITICAL — without it the routine
-!     keeps firing every turn after life drops below zero, reprinting the
-!     "sputters out" message on every subsequent action.
+!     to deregister the daemon. Without it the routine would keep firing
+!     every turn with life going negative (-1, -2 ...). The message itself
+!     would not repeat (life is 0 only once), but the daemon would keep
+!     running for nothing, taking one of the timer slots.
+!     `{ ... }` groups the two statements so the `if` controls both.
 !     Extension: add `give self ~light;` before StopDaemon to remove the light
 !     attribute at runtime and mechanically darken any room with no other source.
+!     As written, the candle goes out in words only: it keeps `light` and
+!     its short name "lit candle".
 !
 ! PROPERTY: life   (initial value: 5)
-!   A custom integer property — any identifier not reserved by PunyInform works.
-!   Stores the remaining burn turns. Read it as `self.life` inside the object
+!   The burn counter, stored in a property. As the header explains, `life`
+!   is the library's NPC property name reused on a non-animate object.
+!   Read it as `self.life` inside the object
 !   or `candle.life` from other routines. Initial value is set at compile time.
 !
 ! ATTRIBUTE: light
@@ -153,9 +190,12 @@ Object -> candle "lit candle"
   has  light;                              ! candle is a light source until stopped
 
 ! --- Initialise routine -------------------------------------------------------
-! PunyInform calls this after it has already placed the player in Study.
+! PunyInform calls this once at startup, before the banner and before it
+! moves the player into the Study.
 ! StartDaemon activates the candle.daemon() countdown. The opening message
 ! follows immediately. `^` at the start produces a blank line before the text.
+! The daemon does not run during startup: the first call comes at the end
+! of the player's first turn.
 [ Initialise;
     StartDaemon(candle);          ! begin calling candle.daemon() each turn
     print "^The candle is lit -- but it won't burn forever. Watch the turns.^";
