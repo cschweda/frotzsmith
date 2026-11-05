@@ -21,6 +21,10 @@ export interface Extension {
    *  the same name. Without it the compile writes the library after the
    *  extension, so the library wins (audit F1). Never set from a package. */
   overridesLibrary?: true
+  /** An upload stored before audit F1, named like a library file and without
+   *  `overridesLibrary`, whose one-time notice the author has seen (review I-2).
+   *  Such an upload is kept but never mounted. */
+  libraryNoticed?: true
 }
 
 /** A small curated catalog. Each entry is self-contained and compiles cleanly. */

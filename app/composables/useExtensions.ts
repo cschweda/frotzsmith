@@ -6,7 +6,8 @@ import { safeSetItem } from '~/utils/safe-storage'
 import { ZipLimitError, EXTENSIONS_TOTAL_MAX_BYTES } from '~/utils/zip-limits'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
 import { PackageError, quotedPath } from '~/project-package/errors'
-import { pathProblem } from '~/project-package/paths'
+import { pathProblem, safeStem } from '~/project-package/paths'
+import { libraryNamedNote } from '~/utils/package-messages'
 
 /** The Include name a packaged `.h` file mounts under: its file name without
  *  `.h`, sanitized like an upload (`ext/lamp.h` → `lamp`). */
@@ -36,11 +37,18 @@ export function libraryFileFor(nameOrPath: string): string | null {
   return LIBRARY_FILES.get(includeNameOf(nameOrPath).toLowerCase()) ?? null
 }
 
+/** An upload named like a library file that the author never chose to let
+ *  replace it (stored before audit F1): kept, but never mounted. */
+function isShadowed(e: Pick<Extension, 'origin' | 'name' | 'overridesLibrary'>): boolean {
+  return e.origin === 'uploaded' && !e.overridesLibrary && libraryFileFor(e.name) !== null
+}
+
 /** Where an uploaded extension sits in a `.frotzsmith` package: its original
  *  file name (a package path, for one opened from a package) when that is a
- *  valid `.h` path, else `<name>.h`. */
+ *  valid `.h` path, else `<name>.h` — `<name>_.h` when the name is a Windows
+ *  device name (`aux` → `aux_.h`, review I-1). */
 export function includePathOf(ext: Pick<Extension, 'name' | 'title'>): string {
-  return /\.h$/i.test(ext.title) && pathProblem(ext.title) === null ? ext.title : `${ext.name}.h`
+  return /\.h$/i.test(ext.title) && pathProblem(ext.title) === null ? ext.title : `${safeStem(ext.name)}.h`
 }
 
 /**
@@ -117,7 +125,9 @@ export function useExtensions() {
     if (!import.meta.client) return
     const data = {
       uploaded: uploaded.value.map(u => ({
-        id: u.id, name: u.name, title: u.title, content: u.content, ...(u.overridesLibrary ? { overridesLibrary: true } : {}),
+        id: u.id, name: u.name, title: u.title, content: u.content,
+        ...(u.overridesLibrary ? { overridesLibrary: true } : {}),
+        ...(u.libraryNoticed ? { libraryNoticed: true } : {}),
       })),
       enabled: enabledIds.value,
     }
@@ -138,21 +148,49 @@ export function useExtensions() {
       }
       const data = JSON.parse(raw) as { uploaded?: Extension[]; enabled?: string[] }
       uploaded.value = Array.isArray(data.uploaded)
-        ? data.uploaded.map(({ overridesLibrary, ...u }) => ({
+        ? data.uploaded.map(({ overridesLibrary, libraryNoticed, ...u }) => ({
             ...u,
-            description: 'Uploaded extension.',
+            description:
+              overridesLibrary !== true && libraryFileFor(String(u.name)) !== null
+                ? 'Not used: it has the same name as a library file.'
+                : 'Uploaded extension.',
             library: 'any' as const,
             origin: 'uploaded' as const,
             // Only an explicit, recorded choice overrides the library.
             ...(overridesLibrary === true ? { overridesLibrary: true as const } : {}),
+            ...(libraryNoticed === true ? { libraryNoticed: true as const } : {}),
           }))
         : []
       enabledIds.value = Array.isArray(data.enabled) ? data.enabled : []
+      noticeLibraryNamed()
     } catch {
       // corrupt — start clean
       uploaded.value = []
       enabledIds.value = []
     }
+  }
+
+  /** Tell the author, once, about uploads stored before audit F1 that are
+   *  named like a library file: kept, but the library now wins and they are
+   *  not mounted (review I-2). The "told" mark is stored with each upload. */
+  function noticeLibraryNamed() {
+    const fresh = uploaded.value.filter(u => isShadowed(u) && !u.libraryNoticed)
+    const note = libraryNamedNote(fresh.map(u => u.title))
+    if (note === null) return
+    try {
+      useToast().add({
+        title: 'An uploaded extension no longer replaces the library',
+        description: note,
+        color: 'warning',
+        icon: 'i-lucide-triangle-alert',
+        duration: 0,
+      })
+    } catch {
+      console.warn(`[frotzsmith] ${note}`)
+    }
+    const ids = new Set(fresh.map(u => u.id))
+    uploaded.value = uploaded.value.map(u => (ids.has(u.id) ? { ...u, libraryNoticed: true as const } : u))
+    persist()
   }
 
   const all = computed<Extension[]>(() => [...BUNDLED_EXTENSIONS, ...uploaded.value])
@@ -235,7 +273,7 @@ export function useExtensions() {
    *  plus `overridesLibrary` when the author chose to replace a library file. */
   const enabledFiles = computed(() =>
     all.value
-      .filter(e => isEnabled(e.id))
+      .filter(e => isEnabled(e.id) && !isShadowed(e))
       .map(e => (e.overridesLibrary ? { name: e.name, content: e.content, overridesLibrary: true as const } : { name: e.name, content: e.content })),
   )
   const enabledCount = computed(() => enabledFiles.value.length)

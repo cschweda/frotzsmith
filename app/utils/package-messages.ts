@@ -36,11 +36,27 @@ export function openDialogNotes(p: { extensions: readonly string[]; hiddenNames:
   return notes
 }
 
-/** The download toast's note when the package carries hidden files, else null. */
-export function downloadedNote(hidden: readonly string[]): string | null {
+/** The download toast's note: the hidden files the package carries and the
+ *  files it had to leave out (kept in this browser), or null when neither. */
+export function downloadedNote(hidden: readonly string[], leftOut: readonly string[] = []): string | null {
+  const notes: string[] = []
   const h = hidden.length
-  if (h === 0) return null
-  return `It includes ${h === 1 ? 'a file' : `${h} files`} Frotzsmith doesn’t show: ${names(hidden)}.`
+  if (h > 0) notes.push(`It includes ${h === 1 ? 'a file' : `${h} files`} Frotzsmith doesn’t show: ${names(hidden)}.`)
+  const l = leftOut.length
+  if (l > 0) {
+    notes.push(`It leaves out ${l === 1 ? 'a file whose name' : `${l} files whose names`} a project can’t hold, kept in this browser: ${names(leftOut)}.`)
+  }
+  return notes.length ? notes.join(' ') : null
+}
+
+/** The one-time note for uploads stored before audit F1 that are named like
+ *  a library file: the library now wins, so they aren't used. Null when none. */
+export function libraryNamedNote(files: readonly string[]): string | null {
+  if (files.length === 0) return null
+  const one = files.length === 1
+  return one
+    ? `${names(files)} has the same name as a library file, so it no longer replaces the standard library and isn’t used when you compile. It stays in this browser but is left out of project downloads; to use it, upload it again under another name.`
+    : `${names(files)} have the same names as library files, so they no longer replace the standard library and aren’t used when you compile. They stay in this browser but are left out of project downloads; to use them, upload them again under other names.`
 }
 
 /** The "Project opened" toast's notes. */

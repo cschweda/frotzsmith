@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PackageError } from '~/project-package/errors'
 import { ZipLimitError } from '~/utils/zip-limits'
-import { DOWNLOAD_FAILED, OPEN_FAILED, downloadedNote, joinPhrases, openDialogNotes, openedNotes, refusalSentence } from './package-messages'
+import { DOWNLOAD_FAILED, OPEN_FAILED, downloadedNote, joinPhrases, libraryNamedNote, openDialogNotes, openedNotes, refusalSentence } from './package-messages'
 
 describe('refusalSentence', () => {
   it('shows a PackageError sentence as is (download)', () => {
@@ -102,5 +102,29 @@ describe('downloadedNote', () => {
     expect(downloadedNote([])).toBeNull()
     expect(downloadedNote(['notes/a.md'])).toBe('It includes a file Frotzsmith doesn’t show: “notes/a.md”.')
     expect(downloadedNote(['a', 'b', 'c', 'd', 'e', 'f'])).toBe('It includes 6 files Frotzsmith doesn’t show: “a”, “b”, “c”, “d”, “e” and 1 more.')
+  })
+
+  // Review I-2/m-6: what the package can't hold is named, display-safe and capped.
+  it('names the files left out (kept in this browser)', () => {
+    expect(downloadedNote([], [])).toBeNull()
+    expect(downloadedNote([], ['VerbLib.h'])).toBe(
+      'It leaves out a file whose name a project can’t hold, kept in this browser: “VerbLib.h”.',
+    )
+    expect(downloadedNote(['n.md'], ['a:b.txt', 'x\u202etxt.exe'])).toBe(
+      'It includes a file Frotzsmith doesn’t show: “n.md”. It leaves out 2 files whose names a project can’t hold, kept in this browser: “a:b.txt”, “x\ufffdtxt.exe”.',
+    )
+    expect(downloadedNote([], ['1', '2', '3', '4', '5', '6', '7'])).toMatch(/“5” and 2 more\.$/)
+  })
+})
+
+describe('libraryNamedNote', () => {
+  it('says once that a library-named upload no longer replaces the library', () => {
+    expect(libraryNamedNote([])).toBeNull()
+    expect(libraryNamedNote(['VerbLib.h'])).toBe(
+      '“VerbLib.h” has the same name as a library file, so it no longer replaces the standard library and isn’t used when you compile. It stays in this browser but is left out of project downloads; to use it, upload it again under another name.',
+    )
+    expect(libraryNamedNote(['VerbLib.h', 'Parser.h'])).toBe(
+      '“VerbLib.h”, “Parser.h” have the same names as library files, so they no longer replace the standard library and aren’t used when you compile. They stay in this browser but are left out of project downloads; to use them, upload them again under other names.',
+    )
   })
 })

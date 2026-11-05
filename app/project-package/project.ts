@@ -11,7 +11,7 @@ import {
   FORMAT, MANIFEST_MAX_BYTES, MANIFEST_NAME, VERSION, parseManifest, serializeManifest, setOwn, sha256,
   type Language, type Library, type Target,
 } from './manifest'
-import { pathKey } from './paths'
+import { pathKey, pathProblem, safeStem } from './paths'
 
 export interface ProjectSnapshot {
   language: Language
@@ -56,6 +56,51 @@ function checkText(path: string, text: string): void {
 // ---------------------------------------------------------------------------
 // Writing
 // ---------------------------------------------------------------------------
+
+/**
+ * Split files about to be written into the ones a package can hold and the
+ * ones the reader would refuse — kept by an older version of Frotzsmith whose
+ * rules were looser (review I-2/m-6). A file is left out when its path is
+ * unsafe (`pathProblem`), when it collides ignoring case with one already
+ * taken or kept, or when it is a file where another path needs a folder (or
+ * the reverse). `taken` are paths already in the package; `folders` are folders
+ * it will have (e.g. `tests`). Order wins: earlier items are kept first.
+ * Callers keep what is left out where it was (browser storage) and say so.
+ */
+export function splitPackable<T extends { path: string }>(
+  items: readonly T[],
+  taken: readonly string[] = [],
+  folders: readonly string[] = [],
+): { kept: T[]; leftOut: T[] } {
+  const fileKeys = new Set([pathKey(MANIFEST_NAME), pathKey('mimetype')])
+  const folderKeys = new Set(folders.map(pathKey))
+  const prefixKeys = (path: string) => {
+    const seg = path.split('/')
+    return seg.slice(0, -1).map((_, i) => pathKey(seg.slice(0, i + 1).join('/')))
+  }
+  const take = (path: string) => {
+    fileKeys.add(pathKey(path))
+    for (const k of prefixKeys(path)) folderKeys.add(k)
+  }
+  for (const path of taken) take(path)
+  const kept: T[] = []
+  const leftOut: T[] = []
+  for (const item of items) {
+    const key = pathKey(item.path)
+    const fits =
+      pathProblem(item.path) === null &&
+      !fileKeys.has(key) &&
+      !folderKeys.has(key) &&
+      !prefixKeys(item.path).some(k => fileKeys.has(k))
+    if (fits) {
+      take(item.path)
+      kept.push(item)
+    } else {
+      leftOut.push(item)
+    }
+  }
+  return { kept, leftOut }
+}
 
 export async function writeProjectPackage(
   p: ProjectSnapshot,
@@ -104,7 +149,7 @@ export async function writeProjectPackage(
   // Tests last, so a generated name steps around any file already present.
   const tests: Record<string, unknown>[] = []
   for (const t of p.tests) {
-    const slug = slugify(t.name) || 'script'
+    const slug = safeStem(slugify(t.name) || 'script')
     let path = `tests/${slug}.txt`
     for (let n = 2; used.has(pathKey(path)); n++) path = `tests/${slug}-${n}.txt`
     checkText(path, t.text)

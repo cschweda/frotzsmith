@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createTree, addPath } from '../composables/skein-tree'
 import { writeContainer, readContainer, LIMITS } from './container'
 import { PackageError } from './errors'
-import { TEST_LIMITS, readProjectPackage, writeProjectPackage, type ProjectSnapshot } from './project'
+import { TEST_LIMITS, readProjectPackage, splitPackable, writeProjectPackage, type ProjectSnapshot } from './project'
 
 const enc = new TextEncoder()
 const now = new Date('2026-11-09T09:41:12.000Z')
@@ -81,6 +81,23 @@ describe('round trip', () => {
     expect(paths).toEqual(expect.arrayContaining([
       'tests/walk-to-the-cellar.txt', 'tests/win.txt', 'tests/win-2.txt', 'tests/script.txt', 'tests/script-2.txt',
     ]))
+  })
+
+  // Review I-1: a slug can be a Windows device name, which the path rules
+  // refuse — the writer steps around it instead of failing the download.
+  it('names a test whose slug is a Windows device name with a "_", and it reopens', async () => {
+    const p = {
+      ...snapshot(),
+      tests: [
+        { name: 'Con', text: 'a\n' }, { name: 'nul', text: 'b\n' }, { name: 'COM1', text: 'c\n' }, { name: 'Aux!', text: 'd\n' },
+      ],
+    }
+    const bytes = await writeProjectPackage(p, o)
+    expect([...readContainer(bytes).keys()]).toEqual(expect.arrayContaining([
+      'tests/con_.txt', 'tests/nul_.txt', 'tests/com1_.txt', 'tests/aux_.txt',
+    ]))
+    const { project } = await readProjectPackage(bytes)
+    expect(project.tests).toEqual(p.tests)
   })
 
   it('sets created to the write time when the snapshot has none, and keeps it', async () => {
@@ -402,5 +419,34 @@ describe('test-script caps (F13)', () => {
     await expect(writeProjectPackage({ ...s, tests: tests.slice(0, 200) }, o)).resolves.toBeInstanceOf(Uint8Array)
     const big = [{ name: 'a', text: 'x'.repeat(1024 * 1024 + 1) }]
     await expect(writeProjectPackage({ ...s, tests: big }, o)).rejects.toThrow(/1 MB/)
+  })
+})
+
+// Review I-2/m-6: files an older Frotzsmith kept under names the reader now
+// refuses are left out of a download (and stay in the browser), never fail it.
+describe('splitPackable', () => {
+  const items = (...paths: string[]) => paths.map(path => ({ path }))
+  it('keeps safe, distinct paths in order', () => {
+    const r = splitPackable(items('notes/a.md', 'art/b.png'), ['g.inf'])
+    expect(r.kept.map(i => i.path)).toEqual(['notes/a.md', 'art/b.png'])
+    expect(r.leftOut).toEqual([])
+  })
+  it.each([
+    ['a Windows character', 'a:b.txt'],
+    ['a device name', 'CON.txt'],
+    ['a bidi control', 'x\u202etxt.exe'],
+    ['a trailing dot', 'notes.'],
+  ])('leaves out a path with %s', (_label, path) => {
+    expect(splitPackable(items(path, 'ok.md')).leftOut.map(i => i.path)).toEqual([path])
+  })
+  it('leaves out a later path that collides ignoring case, with a taken path too', () => {
+    const r = splitPackable(items('Notes.md', 'notes.MD', 'G.INF', 'Frotzsmith.json'), ['g.inf'])
+    expect(r.kept.map(i => i.path)).toEqual(['Notes.md'])
+    expect(r.leftOut.map(i => i.path)).toEqual(['notes.MD', 'G.INF', 'Frotzsmith.json'])
+  })
+  it('leaves out a file where a folder is needed, and the reverse', () => {
+    const r = splitPackable(items('art', 'art/x.png', 'tests', 'g.inf/z'), ['g.inf'], ['tests'])
+    expect(r.kept.map(i => i.path)).toEqual(['art'])
+    expect(r.leftOut.map(i => i.path)).toEqual(['art/x.png', 'tests', 'g.inf/z'])
   })
 })

@@ -1,12 +1,13 @@
-import { COMPILED, readProjectPackage, writeProjectPackage, type ProjectSnapshot } from '~/project-package/project'
+import { COMPILED, readProjectPackage, splitPackable, writeProjectPackage, type ProjectSnapshot } from '~/project-package/project'
 import { PackageError, displayPath } from '~/project-package/errors'
 import { LIMITS } from '~/project-package/container'
+import { pathProblem, safeStem } from '~/project-package/paths'
 import type { Target } from '~/project-package/manifest'
 import { countNodes, createTree, type SkeinTree } from '~/composables/skein-tree'
 import { getExtrasStore, type ProjectExtras } from '~/composables/project-extras-store'
 import { getSkeinStore } from '~/composables/skein-store'
 import { useOutsideSource } from '~/composables/outside-source'
-import { includeNameOf, includePathOf, planUploaded } from '~/composables/useExtensions'
+import { includeNameOf, includePathOf, libraryFileFor, planUploaded } from '~/composables/useExtensions'
 import { BUNDLED_EXTENSIONS } from '~/modules/inform6/extensions'
 import { SEED_SCRIPT } from '~/composables/useTestScripts'
 import { safeGetItem, safeSetItem } from '~/utils/safe-storage'
@@ -160,12 +161,13 @@ export function useProjectPackage() {
   }
 
   /** The manifest `extensions` list: the opened order kept, unknown names kept
-   *  in place, names disabled since dropped, newly enabled ones appended. */
-  function extensionNames(extras: ProjectExtras | null): string[] {
+   *  in place, names disabled since dropped, newly enabled ones appended.
+   *  `written` are the include paths actually in the package. */
+  function extensionNames(extras: ProjectExtras | null, written: ReadonlySet<string>): string[] {
     const enabled =
       profile.value.id === 'i6'
         ? extensions.all.value
-            .filter(e => extensions.isEnabled(e.id))
+            .filter(e => extensions.isEnabled(e.id) && (e.origin === 'bundled' || written.has(includePathOf(e))))
             .map(e => (e.origin === 'bundled' ? e.name : includePathOf(e)))
         : []
     const keep = new Set([...enabled, ...(extras?.extensions?.unknown ?? [])])
@@ -173,8 +175,15 @@ export function useProjectPackage() {
     return [...new Set([...order, ...enabled.filter(n => !order.includes(n))])]
   }
 
-  /** `hidden`: the files written back that the IDE doesn't show (F15). */
-  async function buildPackage(): Promise<{ bytes: Uint8Array; filename: string; hidden: string[] }> {
+  /**
+   * `hidden`: the files written back that the IDE doesn't show (F15).
+   * `leftOut`: files kept in this browser that the package can't hold because
+   * the reader would refuse them — uploads named like a library file and
+   * hidden files whose names an older Frotzsmith accepted (review I-2/m-6).
+   * They are never deleted; the download just goes without them, so it
+   * always reopens.
+   */
+  async function buildPackage(): Promise<{ bytes: Uint8Array; filename: string; hidden: string[]; leftOut: string[] }> {
     const lang = profile.value.id
     const key = extrasKey()
     const filename = `${ide.storyBase.value}.frotzsmith`
@@ -182,8 +191,7 @@ export function useProjectPackage() {
     const text = ide.source.value
     const target = TARGETS.includes(ide.targetMode.value) ? (ide.targetMode.value as Target) : 'auto'
     const library = ide.profileMode.value
-    const includes =
-      lang === 'i6' ? extensions.uploaded.value.map(u => ({ path: includePathOf(u), text: u.content })) : []
+    const uploads = lang === 'i6' ? extensions.uploaded.value.map(u => ({ path: includePathOf(u), text: u.content })) : []
     const scripts = testScripts.scripts.value.map(s => ({ name: s.name, text: s.text }))
     const tree = skein.tree.value
 
@@ -191,7 +199,25 @@ export function useProjectPackage() {
     const extras = owned ? await getExtrasStore().load(key) : null
 
     const mainExt = lang === 'i6' ? '.inf' : '.zil'
-    const main = extras?.main?.toLowerCase().endsWith(mainExt) ? extras.main : `${slugify(title ?? '') || 'story'}${mainExt}`
+    const main =
+      extras?.main?.toLowerCase().endsWith(mainExt) && pathProblem(extras.main) === null
+        ? extras.main
+        : `${safeStem(slugify(title ?? '') || 'story')}${mainExt}`
+
+    // Leave out what the reader would refuse (it stays where it is): an
+    // upload named like a library file, then any include or hidden file
+    // whose name is unsafe or collides with one already in the package.
+    const libraryNamed = uploads.filter(u => libraryFileFor(u.path) !== null)
+    const fit = splitPackable(
+      [...uploads.filter(u => libraryFileFor(u.path) === null), ...(extras?.entries ?? [])],
+      [main],
+      scripts.length > 0 ? ['tests'] : [],
+    )
+    const includes = fit.kept.filter((f): f is { path: string; text: string } => 'text' in f)
+    const opaque = fit.kept.filter((f): f is { path: string; bytes: Uint8Array } => 'bytes' in f)
+    const leftOut = [...libraryNamed, ...fit.leftOut].map(f => f.path)
+    const skeinPath =
+      extras?.skeinPath !== undefined && pathProblem(extras.skeinPath) === null ? extras.skeinPath : undefined
 
     // Per-test fields go back to the script with the same name (first unused
     // match, so same-named scripts keep theirs in order). A script renamed
@@ -214,17 +240,17 @@ export function useProjectPackage() {
       language: lang,
       main: { name: main, text },
       includes,
-      extensions: extensionNames(extras),
+      extensions: extensionNames(extras, new Set(includes.map(i => i.path))),
       tests,
       // A root-only tree is "no Skein yet".
       skein: countNodes(tree) > 0 ? tree : null,
       settings: lang === 'i6' ? { target, library } : { target },
-      opaque: extras?.entries ?? [],
+      opaque,
       manifestExtra: extras?.manifestExtra ?? {},
     }
     if (title !== undefined) snapshot.title = title
     if (extras?.created !== undefined) snapshot.created = extras.created
-    if (extras?.skeinPath !== undefined) snapshot.skeinPath = extras.skeinPath
+    if (skeinPath !== undefined) snapshot.skeinPath = skeinPath
 
     const bytes = await writeProjectPackage(snapshot, {
       generator: `Frotzsmith ${currentAbout().version}`,
@@ -232,7 +258,7 @@ export function useProjectPackage() {
     })
     // The writer drops compiled stories; everything else opaque goes back in.
     const hidden = snapshot.opaque.map(f => f.path).filter(path => !COMPILED.test(path))
-    return { bytes, filename, hidden }
+    return { bytes, filename, hidden, leftOut }
   }
 
   /**

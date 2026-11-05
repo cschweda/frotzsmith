@@ -162,16 +162,24 @@ function onCancelOpen() {
 
 async function downloadProject() {
   try {
-    const { bytes, filename, hidden } = await pkg.buildPackage()
+    const { bytes, filename, hidden, leftOut } = await pkg.buildPackage()
     const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/vnd.frotzsmith.package+zip' }))
     const a = document.createElement('a')
     a.href = url
     a.download = filename
     a.click()
     setTimeout(() => URL.revokeObjectURL(url), 30_000)
-    // Files the IDE doesn't show still ride along: say which (F15).
-    const note = downloadedNote(hidden)
-    if (note) toast.add({ title: 'Project downloaded', description: note, color: 'neutral', icon: 'i-lucide-package' })
+    // Files the IDE doesn't show still ride along: say which (F15). Files
+    // the package can't hold stay in the browser: say which (review I-2).
+    const note = downloadedNote(hidden, leftOut)
+    if (note) {
+      toast.add({
+        title: 'Project downloaded',
+        description: note,
+        color: leftOut.length > 0 ? 'warning' : 'neutral',
+        icon: 'i-lucide-package',
+      })
+    }
   } catch (err) {
     toast.add({
       title: 'Couldn’t download the project',

@@ -687,3 +687,95 @@ describe('useProjectPackage — the extensions and hidden files an open brings',
     expect((await useProjectPackage().buildPackage()).hidden).toEqual([])
   })
 })
+
+// Review I-1: names the writer builds itself never hit the device-name rule.
+describe('useProjectPackage — generated names that are Windows device names', () => {
+  it('a title, a test and uploads named like devices download with a "_" and reopen', async () => {
+    const ide = await boot()
+    ide.loadSource('Constant Story "Aux";\n[ Initialise; ];\n')
+    await settle()
+    const ext = useExtensions()
+    ext.addUploaded('aux.h', '! a\n')
+    ext.addUploaded('COM1.h', '! c\n')
+    ext.addUploaded('nul', '! n\n')
+    useTestScripts().addFromText('Con', 'look\n')
+    await settle()
+
+    const { bytes } = await useProjectPackage().buildPackage()
+    const back = await readProjectPackage(bytes)
+    expect(back.project.main.name).toBe('aux_.inf')
+    expect(back.project.includes.map(i => i.path).sort()).toEqual(['COM1_.h', 'aux_.h', 'nul_.h'])
+    expect(back.project.tests.map(t => t.name)).toContain('Con')
+    // …and the browser editor opens it too.
+    await boot()
+    const pending = await useProjectPackage().inspect(new File([bytes as Uint8Array<ArrayBuffer>], 'aux.frotzsmith'))
+    expect(pending.project.main.text).toContain('"Aux"')
+  })
+})
+
+// Review I-2 + m-6: what an older Frotzsmith stored under names the reader now
+// refuses is left out of the download — and stays in the browser.
+describe('useProjectPackage — files the reader would refuse are left out, not lost', () => {
+  const LEGACY = 'frotzsmith:i6:extensions'
+  async function withLegacy() {
+    await boot()
+    const pkg = useProjectPackage()
+    await pkg.apply(await pkg.inspect(await fileOf(richSnapshot())))
+    await settle()
+    // A record an older version wrote: hidden files with names now refused.
+    const { getExtrasStore } = await import('./project-extras-store')
+    const rec = (await getExtrasStore().load('i6:haunted-house'))!
+    rec.entries = [
+      ...rec.entries,
+      { path: 'a:b.txt', bytes: new TextEncoder().encode('colon') },
+      { path: 'CON.txt', bytes: new TextEncoder().encode('device') },
+      { path: 'x‮txt.exe', bytes: new TextEncoder().encode('bidi') },
+    ]
+    expect(await getExtrasStore().save('i6:haunted-house', rec)).toBe(true)
+    // …and a library-named upload stored before audit F1.
+    const stored = JSON.parse(localStorage.getItem(LEGACY)!)
+    stored.uploaded.push({ id: 'uploaded:VerbLib', name: 'VerbLib', title: 'VerbLib.h', content: '! patched\n' })
+    stored.enabled.push('uploaded:VerbLib')
+    localStorage.setItem(LEGACY, JSON.stringify(stored))
+    await boot()
+    return getExtrasStore
+  }
+
+  it('the download leaves them out, names them, and reopens', async () => {
+    const getExtrasStore = await withLegacy()
+    const pkg = useProjectPackage()
+    const { bytes, hidden, leftOut } = await pkg.buildPackage()
+    expect(leftOut).toEqual(['VerbLib.h', 'a:b.txt', 'CON.txt', 'x‮txt.exe'])
+    expect(hidden).toEqual(['notes/ideas.md', 'art/cover.png'])
+    const back = await readProjectPackage(bytes)
+    expect(back.project.includes.map(i => i.path)).toEqual(['ext/lamp.h', 'Rope.h'])
+    expect(back.project.extensions).not.toContain('VerbLib.h')
+    await boot()
+    await expect(useProjectPackage().inspect(new File([bytes as Uint8Array<ArrayBuffer>], 'h.frotzsmith'))).resolves.toBeTruthy()
+    // Nothing was deleted from the browser.
+    expect(localStorage.getItem(LEGACY)).toContain('! patched')
+    expect((await getExtrasStore().load('i6:haunted-house'))!.entries.map(e => e.path)).toContain('a:b.txt')
+  })
+})
+
+// Invariant (review I-1/I-2): whatever the browser holds, a download reopens.
+describe('useProjectPackage — every download reopens', () => {
+  it.each([
+    ['a device-name title', 'Constant Story "nul";\n'],
+    ['an untitled source', '[ Initialise; ];\n'],
+    ['a title that slugs to nothing', 'Constant Story "???";\n'],
+  ])('%s', async (_label, src) => {
+    const ide = await boot()
+    ide.loadSource(src)
+    await settle()
+    useExtensions().addUploaded('prn.h', '! p\n')
+    useExtensions().addUploaded('Lamp.h', '! l\n')
+    for (const n of ['aux', 'CON', 'Script', 'lpt1']) useTestScripts().addFromText(n, 'x\n')
+    await settle()
+    const { bytes } = await useProjectPackage().buildPackage()
+    const back = await readProjectPackage(bytes)
+    expect(back.project.main.text).toBe(src)
+    await boot()
+    await expect(useProjectPackage().inspect(new File([bytes as Uint8Array<ArrayBuffer>], 'p.frotzsmith'))).resolves.toBeTruthy()
+  })
+})

@@ -11,7 +11,8 @@ import { PackageError } from '~/project-package/errors'
 import { PROFILES } from '~/modules/inform6/profiles'
 
 vi.stubGlobal('useLanguage', useLanguage)
-vi.stubGlobal('useToast', () => ({ add: vi.fn() }))
+const _toastAdd = vi.fn()
+vi.stubGlobal('useToast', () => ({ add: _toastAdd }))
 
 const { useExtensions, libraryFileFor, planUploaded } = await import('./useExtensions')
 
@@ -92,6 +93,49 @@ describe('addUploaded and library names', () => {
       enabled: ['uploaded:VerbLib'],
     }))
     ext.restore()
-    expect(ext.enabledFiles.value).toEqual([{ name: 'VerbLib', content: '! evil' }])
+    // Never mounted at all: it isn't used when compiling (review I-2).
+    expect(ext.enabledFiles.value).toEqual([])
+  })
+})
+
+// Review I-2: an upload stored before audit F1 and named like a library file
+// is kept, but the author is told once that it no longer replaces the library.
+describe('restore — library-named uploads stored before the fix', () => {
+  const KEY = 'frotzsmith:i6:extensions'
+  beforeEach(() => {
+    localStorage.clear()
+    _toastAdd.mockClear()
+    localStorage.setItem(KEY, JSON.stringify({
+      uploaded: [
+        { id: 'uploaded:VerbLib', name: 'VerbLib', title: 'VerbLib.h', content: '! patched' },
+        { id: 'uploaded:lamp', name: 'lamp', title: 'lamp.h', content: '! lamp' },
+      ],
+      enabled: ['uploaded:VerbLib', 'uploaded:lamp'],
+    }))
+  })
+
+  it('keeps it, leaves it out of the compile, and says so once', () => {
+    const ext = useExtensions()
+    ext.restore()
+    expect(ext.uploaded.value.map(u => u.title)).toEqual(['VerbLib.h', 'lamp.h'])
+    expect(ext.enabledFiles.value).toEqual([{ name: 'lamp', content: '! lamp' }])
+    expect(_toastAdd).toHaveBeenCalledTimes(1)
+    expect(_toastAdd.mock.calls[0]![0].description).toMatch(/^“VerbLib\.h” has the same name as a library file, so it no longer replaces the standard library/)
+    // Kept in storage, content and all.
+    expect(localStorage.getItem(KEY)).toContain('! patched')
+    // A reload: no second notice.
+    ext.restore()
+    expect(_toastAdd).toHaveBeenCalledTimes(1)
+  })
+
+  it('an explicit override is not affected', () => {
+    localStorage.setItem(KEY, JSON.stringify({
+      uploaded: [{ id: 'uploaded:VerbLib', name: 'VerbLib', title: 'VerbLib.h', content: '! mine', overridesLibrary: true }],
+      enabled: ['uploaded:VerbLib'],
+    }))
+    const ext = useExtensions()
+    ext.restore()
+    expect(ext.enabledFiles.value).toEqual([{ name: 'VerbLib', content: '! mine', overridesLibrary: true }])
+    expect(_toastAdd).not.toHaveBeenCalled()
   })
 })
