@@ -12,6 +12,7 @@ import {
   type Language, type Library, type Target,
 } from './manifest'
 import { pathKey, pathProblem, safeStem } from './paths'
+import { planZilFiles } from '../modules/zil/zil-project'
 
 export interface ProjectSnapshot {
   language: Language
@@ -122,6 +123,13 @@ export async function writeProjectPackage(
   const add = (path: string, bytes: Uint8Array) => {
     entries.push({ path, bytes })
     used.add(pathKey(path))
+  }
+
+  // A ZIL project's extra .zil files are its includes: never write a set the
+  // editor would refuse to open (count, size, names).
+  if (p.language === 'zil') {
+    const plan = planZilFiles(p.includes, p.main.name)
+    if (!plan.ok) throw new PackageError('zil-files', plan.message)
   }
 
   checkText(p.main.name, p.main.text)
@@ -292,7 +300,9 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
   const opaque: { path: string; bytes: Uint8Array }[] = []
   for (const [path, data] of container) {
     if (path === MANIFEST_NAME || claimed.has(pathKey(path))) continue
-    if (m.language === 'i6' && path.toLowerCase().endsWith('.h')) {
+    // Includes: `.h` for Inform 6; for ZIL every `.zil` but the main file
+    // (packages written before multi-file ZIL kept these as opaque entries).
+    if (path.toLowerCase().endsWith(m.language === 'i6' ? '.h' : '.zil')) {
       includes.push({ path, text: text(path, data) })
     } else if (path.startsWith('tests/') && path.toLowerCase().endsWith('.txt')) {
       const base = path.slice(path.lastIndexOf('/') + 1)

@@ -10,6 +10,8 @@ import { useOutsideSource } from '~/composables/outside-source'
 import { includeNameOf, includePathOf, libraryFileFor, planUploaded } from '~/composables/useExtensions'
 import { BUNDLED_EXTENSIONS } from '~/modules/inform6/extensions'
 import { SEED_SCRIPT } from '~/composables/useTestScripts'
+import { useZilProjectFiles } from '~/composables/useZilProjectFiles'
+import { planZilFiles, type ZilProjectFile } from '~/modules/zil/zil-project'
 import { safeGetItem, safeSetItem } from '~/utils/safe-storage'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
@@ -33,9 +35,35 @@ export interface PendingOpen {
    *  names). They reach every Inform 6 game in this browser, so the open
    *  always asks first when there are any (audit F1). */
   extensions: string[]
+  /** ZIL: the extra `.zil` files the open adds to the project (its includes).
+   *  They belong to this project only, never to every ZIL game. */
+  sourceFiles: string[]
+}
+
+const strictUtf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
+/** A hidden file's bytes as text, or null when they aren't UTF-8 without NUL. */
+function asText(bytes: Uint8Array): string | null {
+  try {
+    const s = strictUtf8.decode(bytes)
+    return s.includes('\u0000') ? null : s
+  } catch {
+    return null
+  }
 }
 
 const TARGETS: readonly string[] = ['auto', 'z3', 'z4', 'z5', 'z8']
+
+/** The main file's name in a ZIL download: the store's main path, its last
+ *  name made safe from the device-name rule (`con.zil` → `con_.zil`), or
+ *  `fallback` when it still isn't a safe `.zil` path. */
+function zilMainName(mainPath: string, fallback: string): string {
+  const slash = mainPath.lastIndexOf('/')
+  const base = mainPath.slice(slash + 1)
+  const dot = base.indexOf('.')
+  const stem = dot === -1 ? base : base.slice(0, dot)
+  const fixed = `${mainPath.slice(0, slash + 1)}${safeStem(stem)}${dot === -1 ? '' : base.slice(dot)}`
+  return /\.zil$/i.test(fixed) && pathProblem(fixed) === null ? fixed : fallback
+}
 
 /** A Skein's content without its node ids (pre-order: depth, command, outputs,
  *  status), so the same tree compares equal however its ids were minted. */
@@ -72,6 +100,7 @@ export function useProjectPackage() {
   const { profile } = useLanguage()
   const extensions = useExtensions()
   const testScripts = useTestScripts()
+  const zilFiles = useZilProjectFiles()
   const skein = useSkein()
   const sourceDoc = useSourceDocument()
   /** Bumped by useIde on every source load (shared state). */
@@ -94,8 +123,14 @@ export function useProjectPackage() {
           : 'This is an Inform 6 project — open it from the Inform 6 editor.',
       )
     }
+    if (here === 'zil') {
+      // The extra .zil files must be a set the editor can keep, or none open.
+      const zil = planZilFiles(project.includes, project.main.name)
+      if (!zil.ok) throw new PackageError('zil-files', zil.message)
+      return null
+    }
     // Throws ZipLimitError (budget) or PackageError (name clash).
-    return here === 'i6' ? planUploaded(project.includes, project.extensions) : null
+    return planUploaded(project.includes, project.extensions)
   }
 
   async function inspect(file: File): Promise<PendingOpen> {
@@ -116,6 +151,7 @@ export function useProjectPackage() {
       hiddenCount: read.project.opaque.length,
       hiddenNames: read.project.opaque.map(f => f.path).filter(path => path !== read.skeinNotOpened),
       extensions,
+      sourceFiles: read.project.language === 'zil' ? read.project.includes.map(f => f.path) : [],
     }
   }
 
@@ -135,6 +171,9 @@ export function useProjectPackage() {
     const openedGen = sourceGen.value
     if (lang === 'i6') ide.setProfileMode(project.settings.library ?? 'auto')
     ide.setTargetMode(project.settings.target)
+    // loadSource never touches the extra files: the package's replace them.
+    // check() ran planZilFiles on this set, so the replace can't be refused.
+    if (lang === 'zil') zilFiles.replaceAll(project.includes, project.main.name)
     const unknown = plan ? extensions.replaceUploaded(project.includes, project.extensions) : project.extensions
     testScripts.replaceAll(project.tests.map(t => ({ name: t.name, text: t.text })))
     skein.replaceTree(project.skein ?? createTree())
@@ -211,10 +250,31 @@ export function useProjectPackage() {
     const extras = owned ? await getExtrasStore().load(key) : null
 
     const mainExt = lang === 'i6' ? '.inf' : '.zil'
+    const fallbackMain = `${safeStem(slugify(title ?? '') || 'story')}${mainExt}`
     const main =
-      extras?.main?.toLowerCase().endsWith(mainExt) && pathProblem(extras.main) === null
-        ? extras.main
-        : `${safeStem(slugify(title ?? '') || 'story')}${mainExt}`
+      lang === 'zil'
+        ? zilMainName(zilFiles.mainPath.value, fallbackMain)
+        : extras?.main?.toLowerCase().endsWith(mainExt) && pathProblem(extras.main) === null
+          ? extras.main
+          : fallbackMain
+
+    // ZIL: the store's extra files are the includes, then any `.zil` an older
+    // version kept as a hidden file (a reader now opens those as includes, so
+    // they go in only as valid text; else they're left out, kept in the browser).
+    type ZilInclude = ZilProjectFile & { zil: true }
+    const zilIncludes: ZilInclude[] = []
+    const zilUnreadable: string[] = []
+    let hiddenEntries = extras?.entries ?? []
+    if (lang === 'zil') {
+      for (const f of zilFiles.files.value) zilIncludes.push({ path: f.path, text: f.text, zil: true })
+      const legacy = hiddenEntries.filter(e => e.path.toLowerCase().endsWith('.zil'))
+      hiddenEntries = hiddenEntries.filter(e => !e.path.toLowerCase().endsWith('.zil'))
+      for (const e of legacy) {
+        const t = asText(e.bytes)
+        if (t === null) zilUnreadable.push(e.path)
+        else zilIncludes.push({ path: e.path, text: t, zil: true })
+      }
+    }
 
     // Leave out what the reader would refuse (it stays where it is): an
     // upload named like a library file, then any include or hidden file
@@ -222,17 +282,26 @@ export function useProjectPackage() {
     // by path, or (includes) by the Include name a reader mounts it under.
     const libraryNamed = uploads.filter(u => libraryFileFor(u.path) !== null)
     type Upload = (typeof uploads)[number]
-    const fit = splitPackable<Upload | { path: string; bytes: Uint8Array }>(
-      [...uploads.filter(u => libraryFileFor(u.path) === null), ...(extras?.entries ?? [])],
+    const fit = splitPackable<Upload | ZilInclude | { path: string; bytes: Uint8Array }>(
+      [...uploads.filter(u => libraryFileFor(u.path) === null), ...zilIncludes, ...hiddenEntries],
       [main],
       scripts.length > 0 ? ['tests'] : [],
-      f => ('text' in f ? includeNameOf(f.path) : null),
+      f => ('id' in f ? includeNameOf(f.path) : null),
     )
-    const kept = fit.kept.filter((f): f is Upload => 'text' in f)
-    const includes = kept.map(u => ({ path: u.path, text: u.text }))
+    const kept = fit.kept.filter((f): f is Upload => 'id' in f)
+    // ZIL includes, in order, while the set stays one the editor can open.
+    const zilKept: ZilProjectFile[] = []
+    const zilOver: string[] = []
+    for (const f of fit.kept) {
+      if (!('zil' in f)) continue
+      const next = [...zilKept, { path: f.path, text: f.text }]
+      if (planZilFiles(next, main).ok) zilKept.push({ path: f.path, text: f.text })
+      else zilOver.push(f.path)
+    }
+    const includes = lang === 'zil' ? zilKept : kept.map(u => ({ path: u.path, text: u.text }))
     const renamed = kept.filter(u => includeNameOf(u.path) !== u.name).map(u => ({ from: u.title, to: u.path }))
     const opaque = fit.kept.filter((f): f is { path: string; bytes: Uint8Array } => 'bytes' in f)
-    const leftOut = [...libraryNamed, ...fit.leftOut].map(f => f.path)
+    const leftOut = [...[...libraryNamed, ...fit.leftOut].map(f => f.path), ...zilOver, ...zilUnreadable]
     const skeinPath =
       extras?.skeinPath !== undefined && pathProblem(extras.skeinPath) === null ? extras.skeinPath : undefined
 
@@ -298,6 +367,12 @@ export function useProjectPackage() {
       const incoming = new Map(p.project.includes.map(f => [`uploaded:${includeNameOf(f.path)}`, f.text]))
       if (current.length > 0 && (current.length !== incoming.size || current.some(u => incoming.get(u.id) !== u.content)))
         out.push('your uploaded extensions')
+    } else {
+      // The open project's extra .zil files: replaced by the package's.
+      const current = zilFiles.files.value
+      const incoming = p.project.includes
+      if (current.length > 0 && (current.length !== incoming.length || current.some((f, i) => f.path !== incoming[i]!.path || f.text !== incoming[i]!.text)))
+        out.push('the project’s other ZIL files')
     }
 
     const lang = p.project.language

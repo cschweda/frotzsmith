@@ -141,3 +141,35 @@ describe('consumeShareFragment — extra ZIL files', () => {
     expect(useZilProjectFiles().files.value).toEqual([])
   })
 })
+
+describe('copyShareLink — extra ZIL files', () => {
+  const EXTRA = 'The link carries only the main file, not the project’s other ZIL files; Download project shares all of them.'
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } })
+    _source.value = '<ROUTINE GO () <CRLF>>'
+  })
+
+  it('the copied toast says what the link leaves out when the project has extra files', async () => {
+    _profile.value = { id: 'zil', route: '/zil', stateKey: 'zil' }
+    useZilProjectFiles().replaceAll([{ path: 'rooms.zil', text: 'R' }], 'story.zil')
+    expect(await useShareLink().copyShareLink()).toBe(true)
+    const t = _toastAdd.mock.calls[0]![0] as { description: string }
+    expect(t.description).toContain(EXTRA)
+  })
+
+  it('…and not when it has none', async () => {
+    _profile.value = { id: 'zil', route: '/zil', stateKey: 'zil' }
+    useZilProjectFiles().clear()
+    expect(await useShareLink().copyShareLink()).toBe(true)
+    expect((_toastAdd.mock.calls[0]![0] as { description: string }).description).not.toContain('only the main file')
+  })
+
+  it('…nor in the Inform 6 editor, whatever the ZIL store holds', async () => {
+    useZilProjectFiles().replaceAll([{ path: 'rooms.zil', text: 'R' }], 'story.zil')
+    _profile.value = { id: 'i6', route: '/', stateKey: 'i6' }
+    expect(await useShareLink().copyShareLink()).toBe(true)
+    expect((_toastAdd.mock.calls[0]![0] as { description: string }).description).not.toContain('only the main file')
+  })
+})

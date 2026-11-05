@@ -380,7 +380,7 @@ describe('useProjectPackage — refusals change nothing', () => {
     const half = 'x'.repeat(Math.ceil(EXTENSIONS_TOTAL_MAX_BYTES / 2) + 1)
     const project = { ...richSnapshot(), includes: [{ path: 'a.h', text: half }, { path: 'b.h', text: half }] }
     await expect(
-      useProjectPackage().apply({ project, ignored: [], hashMismatches: [], skeinNotOpened: null, hiddenCount: 2, hiddenNames: [], extensions: [] }),
+      useProjectPackage().apply({ project, ignored: [], hashMismatches: [], skeinNotOpened: null, hiddenCount: 2, hiddenNames: [], extensions: [], sourceFiles: [] }),
     ).rejects.toBeInstanceOf(ZipLimitError)
     await settle()
     expect(ideState()).toEqual(before)
@@ -830,5 +830,166 @@ describe('useProjectPackage — every download reopens, whatever the browser hol
     await boot()
     await expect(useProjectPackage().inspect(new File([bytes as Uint8Array<ArrayBuffer>], 'h.frotzsmith'))).resolves.toBeTruthy()
     expect(localStorage.getItem(KEY)).toContain('sub/aux_.h') // nothing deleted
+  })
+})
+
+// M2b Task 5: a ZIL project's extra .zil files travel in the package.
+describe('useProjectPackage — ZIL projects carry all their .zil files', () => {
+  const ZMAIN = zilSkeletonSource.replace('<ROUTINE GO', '<INSERT-FILE "rooms">\n<ROUTINE GO')
+  function zilSnapshot(includes: { path: string; text: string }[] = [
+    { path: 'rooms.zil', text: '<ROOM KITCHEN>\n' },
+    { path: 'lib/items.zil', text: '<OBJECT LAMP>\n' },
+  ]): ProjectSnapshot {
+    return {
+      language: 'zil',
+      main: { name: 'cellar.zil', text: ZMAIN },
+      includes,
+      extensions: [],
+      tests: [{ name: 'Walk', text: 'look\n' }],
+      skein: null,
+      settings: { target: 'z3' },
+      title: 'Cellar',
+      opaque: [],
+      manifestExtra: {},
+    }
+  }
+  const zilState = () => ({ ...ideState(), zil: JSON.parse(JSON.stringify({
+    files: useZilProjectFiles().files.value, main: useZilProjectFiles().mainPath.value,
+  })) })
+
+  it('inspect names the source files; apply replaces the previous extra files and sets the main path', async () => {
+    await boot('zil')
+    useZilProjectFiles().replaceAll([{ path: 'old.zil', text: '; old\n' }], 'story.zil')
+    const pkg = useProjectPackage()
+    const pending = await pkg.inspect(await fileOf(zilSnapshot(), 'cellar.frotzsmith'))
+    expect(pending.sourceFiles).toEqual(['rooms.zil', 'lib/items.zil'])
+    expect(pending.hiddenNames).toEqual([])
+    // The old project's extra files are work the open replaces.
+    expect(await pkg.whatOpenReplaces(pending)).toContain('the project’s other ZIL files')
+    expect(await pkg.needsConfirm(pending)).toBe(true)
+    await pkg.apply(pending)
+    await settle()
+    expect(useZilProjectFiles().files.value).toEqual(zilSnapshot().includes)
+    expect(useZilProjectFiles().mainPath.value).toBe('cellar.zil')
+    // …and they survive a reload.
+    await boot('zil')
+    expect(useZilProjectFiles().files.value).toEqual(zilSnapshot().includes)
+  })
+
+  it('does not name the extra files as replaced when they are the same', async () => {
+    await boot('zil')
+    useZilProjectFiles().replaceAll(zilSnapshot().includes, 'cellar.zil')
+    const pkg = useProjectPackage()
+    const pending = await pkg.inspect(await fileOf(zilSnapshot()))
+    expect(await pkg.whatOpenReplaces(pending)).not.toContain('the project’s other ZIL files')
+  })
+
+  it('opening compiles nothing and sets the outside-source mark', async () => {
+    const ide = await boot('zil')
+    const pkg = useProjectPackage()
+    const nonce = ide.playNonce.value
+    await pkg.apply(await pkg.inspect(await fileOf(zilSnapshot())))
+    await settle(50)
+    expect(_compile).not.toHaveBeenCalled()
+    expect(_replay).not.toHaveBeenCalled()
+    expect(ide.status.value).toBe('idle')
+    expect(ide.playNonce.value).toBe(nonce)
+    expect(useOutsideSource().untrusted.value).toBe(true)
+  })
+
+  it('a package with 101 extra files is refused whole and nothing changes', async () => {
+    await boot('zil')
+    useZilProjectFiles().replaceAll([{ path: 'mine.zil', text: '; mine\n' }], 'story.zil')
+    await settle()
+    const before = zilState()
+    const many = Array.from({ length: 101 }, (_, i) => ({ path: `f${i}.zil`, text: '; f\n' }))
+    // Built by hand: the writer refuses this set too.
+    const { writeContainer } = await import('~/project-package/container')
+    const enc = new TextEncoder()
+    const bytes = writeContainer([
+      { path: 'frotzsmith.json', bytes: enc.encode(JSON.stringify({ format: 'frotzsmith-package', version: '0.1', language: 'zil', main: 'g.zil' })) },
+      { path: 'g.zil', bytes: enc.encode(ZMAIN) },
+      ...many.map(f => ({ path: f.path, bytes: enc.encode(f.text) })),
+    ])
+    const err = await useProjectPackage().inspect(new File([bytes as Uint8Array<ArrayBuffer>], 'many.frotzsmith')).catch(e => e)
+    expect(err).toBeInstanceOf(PackageError)
+    expect(err.message).toBe('A project can have at most 100 extra ZIL files.')
+    // apply re-checks too.
+    const project = (await readProjectPackage(bytes)).project
+    await expect(useProjectPackage().apply({
+      project, ignored: [], hashMismatches: [], skeinNotOpened: null, hiddenCount: 0, hiddenNames: [], extensions: [], sourceFiles: [],
+    })).rejects.toThrow('A project can have at most 100 extra ZIL files.')
+    await settle()
+    expect(zilState()).toEqual(before)
+  })
+
+  it('a download carries the store’s files under its main path and reopens to the same project', async () => {
+    const ide = await boot('zil')
+    ide.loadSource(ZMAIN)
+    useZilProjectFiles().replaceAll([{ path: 'rooms.zil', text: '<ROOM A>\n' }, { path: 'Sub/B.zil', text: '; b\n' }], 'game.zil')
+    await settle()
+    const { bytes, leftOut } = await useProjectPackage().buildPackage()
+    expect(leftOut).toEqual([])
+    const back = await readProjectPackage(bytes)
+    expect(back.project.main).toEqual({ name: 'game.zil', text: ZMAIN })
+    expect(back.project.includes).toEqual([{ path: 'rooms.zil', text: '<ROOM A>\n' }, { path: 'Sub/B.zil', text: '; b\n' }])
+    await boot('zil')
+    await expect(useProjectPackage().inspect(new File([bytes as Uint8Array<ArrayBuffer>], 'g.frotzsmith'))).resolves.toBeTruthy()
+  })
+
+  it('a project with no extra files downloads its main as story.zil', async () => {
+    const ide = await boot('zil')
+    ide.loadSource(ZMAIN)
+    await settle()
+    const back = await readProjectPackage((await useProjectPackage().buildPackage()).bytes)
+    expect(back.project.main.name).toBe('story.zil')
+    expect(back.project.includes).toEqual([])
+  })
+})
+
+// Invariant (review I-1/I-2) for ZIL: whatever the browser holds, a download reopens.
+describe('useProjectPackage — every ZIL download reopens', () => {
+  it('a device-name main, a twin of an include and legacy hidden .zil files', async () => {
+    await boot('zil')
+    const pkg = useProjectPackage()
+    const opened: ProjectSnapshot = {
+      language: 'zil',
+      main: { name: 'g.zil', text: zilSkeletonSource },
+      includes: [{ path: 'rooms.zil', text: '<ROOM A>\n' }],
+      extensions: [],
+      tests: [],
+      skein: null,
+      settings: { target: 'z3' },
+      title: 'Zil Game',
+      opaque: [{ path: 'notes/n.md', bytes: new TextEncoder().encode('n') }],
+      manifestExtra: {},
+    }
+    await pkg.apply(await pkg.inspect(await fileOf(opened)))
+    await settle()
+    // A main path stored as a device name, and an include named like its fixed form.
+    const zf = useZilProjectFiles()
+    expect(zf.replaceAll([{ path: 'rooms.zil', text: '<ROOM A>\n' }, { path: 'con_.zil', text: '; twin\n' }], 'con.zil').ok).toBe(true)
+    // Hidden files an M2a open kept: a .zil that is text, one that isn't, and a twin.
+    const { getExtrasStore } = await import('./project-extras-store')
+    const key = `zil:${useIde().activeStoryKey.value}`
+    const rec = (await getExtrasStore().load(key))!
+    rec.entries = [
+      ...rec.entries,
+      { path: 'legacy.zil', bytes: new TextEncoder().encode('; legacy\n') },
+      { path: 'binary.zil', bytes: new Uint8Array([0xff, 0xfe, 0]) },
+      { path: 'ROOMS.ZIL', bytes: new TextEncoder().encode('; twin\n') },
+    ]
+    expect(await getExtrasStore().save(key, rec)).toBe(true)
+
+    const { bytes, leftOut, hidden } = await pkg.buildPackage()
+    expect([...leftOut].sort()).toEqual(['ROOMS.ZIL', 'binary.zil', 'con_.zil'])
+    expect(hidden).toEqual(['notes/n.md'])
+    const back = await readProjectPackage(bytes)
+    expect(back.project.main.name).toBe('con_.zil')
+    expect(back.project.includes.map(i => i.path)).toEqual(['rooms.zil', 'legacy.zil'])
+    await boot('zil')
+    await expect(useProjectPackage().inspect(new File([bytes as Uint8Array<ArrayBuffer>], 'z.frotzsmith'))).resolves.toBeTruthy()
+    // Nothing was deleted from the browser.
+    expect(useZilProjectFiles().files.value.map(f => f.path)).toContain('con_.zil')
   })
 })

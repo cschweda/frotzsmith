@@ -92,9 +92,13 @@ export function useShareLink() {
       })
       return false
     }
+    // A link holds one source: say so when the ZIL project has more files.
+    const leavesOut = profile.value.id === 'zil' && zilFiles.files.value.length > 0
     useToast().add({
       title: 'Share link copied',
-      description: 'Anyone opening it gets this source in their editor — the code travels inside the link; nothing is uploaded.',
+      description:
+        'Anyone opening it gets this source in their editor — the code travels inside the link; nothing is uploaded.' +
+        (leavesOut ? ' The link carries only the main file, not the project’s other ZIL files; Download project shares all of them.' : ''),
       color: 'success',
       icon: 'i-lucide-link',
     })

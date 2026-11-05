@@ -3,8 +3,9 @@
  * Asks before something from outside replaces real work or changes what every
  * game uses: a .frotzsmith package, a plain source file, a .skein import.
  * Cancel changes nothing. `notes` are extra sentences shown in the body (the
- * extensions a package installs, the hidden files it carries) — already
- * display-safe.
+ * extensions a package installs, the source files a ZIL package adds, the
+ * hidden files it carries; see openDialogNotes) — already display-safe and
+ * capped at 5 names + "and N more".
  */
 import { displayPath } from '~/project-package/errors'
 import { joinPhrases } from '~/utils/package-messages'
