@@ -83,4 +83,16 @@ describe('useZilProjectFiles', () => {
     expect(s.files.value).toEqual([{ path: 'a.zil', text: '2' }])
     expect(_toastAdd).toHaveBeenCalledTimes(1)
   })
+
+  it('storage-full files survive restore() (a language round-trip)', () => {
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new DOMException('full', 'QuotaExceededError')
+    })
+    const s = useZilProjectFiles()
+    s.replaceAll([{ path: 'a.zil', text: '1' }], 'main.zil')
+    expect(localStorage.getItem(KEY)).toBeNull() // nothing was stored
+    s.restore()
+    expect(s.files.value).toEqual([{ path: 'a.zil', text: '1' }])
+    expect(s.mainPath.value).toBe('main.zil')
+  })
 })

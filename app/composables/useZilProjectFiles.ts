@@ -35,10 +35,12 @@ export function useZilProjectFiles() {
    *  plain notice, never half-loaded. */
   function restore() {
     if (!import.meta.client) return
+    const raw = safeGetItem(key())
+    // Nothing stored: keep the session's state. A write that storage refused
+    // (full) leaves no record, and those files must survive a language round-trip.
+    if (raw === null) return
     files.value = []
     mainPath.value = ZIL_DEFAULT_MAIN_PATH
-    const raw = safeGetItem(key())
-    if (raw === null) return
     let valid = false
     let loaded: { mainPath: string; files: ZilProjectFile[] } | null = null
     try {
