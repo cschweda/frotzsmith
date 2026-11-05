@@ -25,14 +25,15 @@ export function useIde() {
   const { compile } = useCompiler()
   const { profile } = useLanguage()
   const { enabledFiles, restore: restoreExtensions } = useExtensions()
-  const { activeFile, readFile, writeActive, restore: restoreProjectFiles } = useProjectFiles()
+  const { activeFile, readFile, writeActive, openFile, diagnosticTarget, restore: restoreProjectFiles } = useProjectFiles()
   const { restore: restoreScripts } = useTestScripts()
   const zilFiles = useZilProjectFiles()
 
   const status = useState<CompileStatus>('frotz:status', () => 'idle')
   const result = useState<CompileResult | null>('frotz:result', () => null)
   const activeTab = useState<RightTab>('frotz:tab', () => 'results')
-  const jumpSignal = useState<{ line: number; nonce: number } | null>('frotz:jump', () => null)
+  /** A clicked diagnostic: the line, and the tab it is in (`'source'` or `zil:<path>`). */
+  const jumpSignal = useState<{ line: number; fileId: string; nonce: number } | null>('frotz:jump', () => null)
   /** Which pane the single-pane (mobile) layout shows. Shared so actions
    *  elsewhere can bring the right pane forward — e.g. tapping a diagnostic
    *  must show the editor it scrolls. Ignored by the desktop two-pane layout. */
@@ -240,9 +241,15 @@ export function useIde() {
     }
   }
 
-  function jumpTo(line: number) {
+  /** Show `line` of the file a diagnostic names (`file` as the compiler gave
+   *  it; none means the main source). A file outside the project, such as a
+   *  zillib file, has no tab: nothing moves, the line stays in Results. */
+  function jumpTo(line: number, file?: string) {
+    const fileId = diagnosticTarget(file)
+    if (fileId === null) return
+    openFile(fileId)
     mobileView.value = 'editor'
-    jumpSignal.value = { line, nonce: (jumpSignal.value?.nonce ?? 0) + 1 }
+    jumpSignal.value = { line, fileId, nonce: (jumpSignal.value?.nonce ?? 0) + 1 }
   }
 
   /** Re-indent and tidy the active editable file (source or an uploaded ext). */

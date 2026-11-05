@@ -1,9 +1,85 @@
 <script setup lang="ts">
-const { files, activeId, openFile, togglePanel } = useProjectFiles()
+import { quotedPath } from '~/project-package/errors'
+
+const { files, activeId, openFile, togglePanel, hasZilFile, addZilFile, removeZilFile } = useProjectFiles()
+const { profile } = useLanguage()
+const isZil = computed(() => profile.value.id === 'zil')
 
 const projectFiles = computed(() => files.value.filter(f => f.group === 'project'))
 const libraryFiles = computed(() => files.value.filter(f => f.group === 'library'))
 const libraryOpen = ref(true)
+
+// ── ZIL: extra .zil files (add / replace / remove, each asked first) ──────────
+const ZIL_ID = 'zil:'
+const zilInput = shallowRef<HTMLInputElement | null>(null)
+const addArea = shallowRef<HTMLElement | null>(null)
+const note = ref('')
+
+const confirmOpen = ref(false)
+const confirm = ref({ title: '', heading: '', description: '', confirmLabel: '' })
+let settleConfirm: ((ok: boolean) => void) | null = null
+function ask(c: typeof confirm.value): Promise<boolean> {
+  settleConfirm?.(false)
+  confirm.value = c
+  confirmOpen.value = true
+  return new Promise(resolve => (settleConfirm = resolve))
+}
+function settle(ok: boolean) {
+  const done = settleConfirm
+  settleConfirm = null
+  confirmOpen.value = false
+  done?.(ok)
+}
+// The modal leaves focus to us: put it back on the Add button.
+function onConfirmClosed() {
+  addArea.value?.querySelector<HTMLElement>('button')?.focus()
+}
+
+async function addZilUploads(list: File[]) {
+  note.value = ''
+  let added = 0
+  for (const file of list) {
+    const path = file.name
+    if (hasZilFile(path)) {
+      const ok = await ask({
+        title: path,
+        heading: `Replace ${quotedPath(path)}?`,
+        description: 'The file in the project is replaced by the one you chose.',
+        confirmLabel: 'Replace',
+      })
+      if (!ok) continue
+    }
+    const res = addZilFile(path, await file.text())
+    if (!res.ok) {
+      note.value = res.message
+      return
+    }
+    added++
+  }
+  if (added) {
+    note.value = `Added ${added} ZIL file${added === 1 ? '' : 's'}. Use <INSERT-FILE "name"> in the main file to compile ${added === 1 ? 'it' : 'them'}.`
+  }
+}
+
+async function onZilFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const list = Array.from(input.files ?? [])
+  input.value = ''
+  await addZilUploads(list)
+}
+
+async function askRemove(id: string) {
+  const path = id.slice(ZIL_ID.length)
+  const ok = await ask({
+    title: path,
+    heading: `Remove ${quotedPath(path)}?`,
+    description: 'The file is taken out of the project and its text is gone from the editor.',
+    confirmLabel: 'Remove',
+  })
+  if (!ok) return
+  removeZilFile(path)
+  note.value = `Removed ${quotedPath(path)}.`
+}
 </script>
 
 <template>
@@ -29,12 +105,12 @@ const libraryOpen = ref(true)
         Project
       </p>
       <ul>
-        <li v-for="file in projectFiles" :key="file.id">
+        <li v-for="file in projectFiles" :key="file.id" class="flex items-center">
           <button
             type="button"
             :aria-current="file.id === activeId ? 'true' : undefined"
             :class="[
-              'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition',
+              'flex min-w-0 flex-1 items-center gap-2 px-3 py-1.5 text-left text-sm transition',
               file.id === activeId
                 ? 'bg-primary/15 font-semibold text-primary'
                 : 'text-default hover:bg-default/60',
@@ -48,6 +124,16 @@ const libraryOpen = ref(true)
             <span class="truncate">{{ file.name }}</span>
             <span v-if="!file.editable" class="sr-only">(read-only)</span>
           </button>
+          <UButton
+            v-if="file.id.startsWith(ZIL_ID)"
+            class="mr-1 shrink-0"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            icon="i-lucide-trash-2"
+            :aria-label="`Remove ${file.name}`"
+            @click="askRemove(file.id)"
+          />
         </li>
       </ul>
 
@@ -87,8 +173,33 @@ const libraryOpen = ref(true)
       </template>
     </nav>
 
-    <!-- Add files: reuse the existing extensions modal -->
-    <div class="shrink-0 border-t border-default p-2">
+    <!-- Add files: ZIL takes extra .zil files; I6 reuses the extensions modal -->
+    <div v-if="isZil" ref="addArea" class="shrink-0 space-y-1.5 border-t border-default p-2">
+      <UButton color="neutral" variant="subtle" size="sm" icon="i-lucide-file-plus-2" @click="zilInput?.click()">
+        Add .zil files
+      </UButton>
+      <input
+        ref="zilInput"
+        type="file"
+        accept=".zil"
+        multiple
+        class="hidden"
+        @change="onZilFileChange"
+      />
+      <p class="text-muted text-xs" role="status">{{ note }}</p>
+      <OpenProjectModal
+        v-model:open="confirmOpen"
+        :title="confirm.title"
+        :replaces="[]"
+        :heading="confirm.heading"
+        :description="confirm.description"
+        :confirm-label="confirm.confirmLabel"
+        @replace="settle(true)"
+        @cancel="settle(false)"
+        @closed="onConfirmClosed"
+      />
+    </div>
+    <div v-else class="shrink-0 border-t border-default p-2">
       <ExtensionsModal />
     </div>
   </div>

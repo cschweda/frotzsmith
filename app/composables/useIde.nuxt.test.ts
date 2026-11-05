@@ -597,4 +597,38 @@ describe('useIde — the open ZIL project\'s extra files', () => {
     await ide.loadSample('zil-skeleton')
     expect(useZilProjectFiles().files.value).toEqual([])
   })
+
+  it('an edit typed in an extra file\'s tab is what the next compile receives', async () => {
+    seed()
+    const pf = useProjectFiles()
+    pf.openFile('zil:rooms.zil')
+    pf.writeActive('<ROOM KITCHEN>')
+    await useIde().runCompile()
+    expect(_compileMock.mock.calls.at(-1)![1].files).toEqual([{ path: 'rooms.zil', text: '<ROOM KITCHEN>' }])
+  })
+
+  it('jumpTo opens the file a diagnostic names and signals its line', () => {
+    seed()
+    const ide = useIde()
+    const pf = useProjectFiles()
+    ide.jumpTo(4, 'rooms.zil')
+    expect(pf.activeId.value).toBe('zil:rooms.zil')
+    expect(ide.jumpSignal.value).toMatchObject({ line: 4, fileId: 'zil:rooms.zil' })
+    ide.jumpTo(3, 'main.zil')
+    expect(ide.jumpSignal.value).toMatchObject({ line: 3, fileId: 'source' })
+    expect(pf.activeId.value).toBe('source')
+    ide.jumpTo(2)
+    expect(ide.jumpSignal.value).toMatchObject({ line: 2, fileId: 'source' })
+  })
+
+  it('jumpTo a file outside the project (zillib) changes no tab and sends no jump', () => {
+    seed()
+    const ide = useIde()
+    const pf = useProjectFiles()
+    pf.openFile('zil:rooms.zil')
+    const before = ide.jumpSignal.value
+    ide.jumpTo(1, '/zillib/parser.zil')
+    expect(pf.activeId.value).toBe('zil:rooms.zil')
+    expect(ide.jumpSignal.value).toBe(before)
+  })
 })

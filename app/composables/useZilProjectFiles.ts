@@ -5,6 +5,13 @@ import { planZilFiles, ZIL_DEFAULT_MAIN_PATH, type ZilProjectFile } from '~/modu
 
 type Plan = { ok: true } | { ok: false; message: string }
 
+// Debounced write for editor typing, module-level so every caller shares one
+// timer (as the main source's autosave does). The store in memory changes at
+// once, so a compile right after typing sees the edit; only the localStorage
+// write (up to 4 MiB) waits for a pause in typing.
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+let pendingWrite: (() => void) | null = null
+
 /**
  * The open ZIL project's extra source files (`rooms.zil`, `lib/items.zil`, …)
  * and the name the main file compiles under. ZIL-only state: it is stored
@@ -22,6 +29,7 @@ export function useZilProjectFiles() {
   const key = () => buildStorageKey('zil', frotzsmith.storageKeys.zilFiles)
 
   function persist() {
+    cancelPendingSave() // this write covers whatever was waiting
     if (!import.meta.client) return
     if (files.value.length === 0 && mainPath.value === ZIL_DEFAULT_MAIN_PATH) {
       safeRemoveItem(key())
@@ -35,6 +43,8 @@ export function useZilProjectFiles() {
    *  plain notice, never half-loaded. */
   function restore() {
     if (!import.meta.client) return
+    // Typing then switching language inside the debounce: write the edit first.
+    flushPendingSave()
     const raw = safeGetItem(key())
     // Nothing stored: keep the session's state. A write that storage refused
     // (full) leaves no record, and those files must survive a language round-trip.
@@ -103,6 +113,27 @@ export function useZilProjectFiles() {
     persist()
   }
 
+  /** An edit typed in the file's tab: in memory now, written after ~1 s without typing. */
+  function edit(path: string, text: string) {
+    if (!files.value.some(f => f.path === path)) return
+    files.value = files.value.map(f => (f.path === path ? { path, text } : f))
+    if (saveTimer) clearTimeout(saveTimer)
+    pendingWrite = persist
+    saveTimer = setTimeout(() => {
+      const write = pendingWrite
+      saveTimer = null
+      pendingWrite = null
+      write?.()
+    }, 1000)
+  }
+
+  /** Write a scheduled-but-unfired edit now (before a reload or a language switch). */
+  function flushPendingSave() {
+    const write = pendingWrite
+    cancelPendingSave()
+    write?.()
+  }
+
   function remove(path: string) {
     files.value = files.value.filter(f => f.path !== path)
     persist()
@@ -115,5 +146,11 @@ export function useZilProjectFiles() {
     persist()
   }
 
-  return { files, mainPath, restore, replaceAll, add, update, remove, clear }
+  return { files, mainPath, restore, replaceAll, add, update, edit, flushPendingSave, remove, clear }
+}
+
+function cancelPendingSave() {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = null
+  pendingWrite = null
 }

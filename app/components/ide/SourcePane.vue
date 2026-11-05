@@ -131,10 +131,12 @@ watch(applyingUpdate, () => view?.dispatch({ effects: lockComp.reconfigure(lock(
   flush: 'sync',
 })
 
-// A clicked diagnostic targets the source — make sure it's the active file first.
+// A clicked diagnostic names its file (the source or an extra ZIL file):
+// make that the active file first, then go to the line.
 watch(jumpSignal, sig => {
   if (!sig) return
-  if (activeId.value !== 'source') openFile('source')
+  if (activeId.value !== sig.fileId) openFile(sig.fileId)
+  if (activeId.value !== sig.fileId) return // the file is gone: don't move the wrong one
   nextTick(() => {
     if (!view) return
     const lineNo = Math.min(Math.max(sig.line, 1), view.state.doc.lines)

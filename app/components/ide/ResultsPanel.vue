@@ -2,8 +2,17 @@
 import { useHtmlExport } from '~/composables/useHtmlExport'
 
 import { compileShortcutLabel } from '~/utils/shortcut'
+import { displayPath } from '~/project-package/errors'
 
 const { result, status, storyBase, jumpTo, playStory } = useIde()
+const { diagnosticTarget } = useProjectFiles()
+
+/** The file a diagnostic is in, shown before its line when that isn't the
+ *  main source (an extra ZIL file, or a zillib file that has no tab). */
+function fileLabel(file: string | undefined): string {
+  if (!file || diagnosticTarget(file) === 'source') return ''
+  return displayPath(file)
+}
 const shortcut = compileShortcutLabel()
 const { exportHtml, exporting } = useHtmlExport()
 function onExportHtml() {
@@ -142,20 +151,23 @@ function downloadStory() {
       <ul v-if="result?.diagnostics.length" class="space-y-1.5">
         <li v-for="(d, i) in result.diagnostics" :key="i">
           <button
-            v-if="d.line"
+            v-if="d.line && diagnosticTarget(d.file) !== null"
             type="button"
             class="group flex w-full items-start gap-3 rounded-lg border border-default p-3 text-left transition hover:border-primary/50 hover:bg-elevated"
-            @click="jumpTo(d.line)"
+            @click="jumpTo(d.line, d.file)"
           >
             <UIcon :name="severityIcon(d.severity)" :class="['mt-0.5 size-4 shrink-0', severityClass(d.severity)]" />
             <span class="font-mono text-xs font-semibold text-muted group-hover:text-primary">
-              {{ d.line }}
+              <template v-if="fileLabel(d.file)">{{ fileLabel(d.file) }}:</template>{{ d.line }}
             </span>
             <span class="min-w-0 flex-1 text-sm">{{ d.message }}</span>
           </button>
           <div v-else class="flex items-start gap-3 rounded-lg border border-default p-3">
             <UIcon :name="severityIcon(d.severity)" :class="['mt-0.5 size-4 shrink-0', severityClass(d.severity)]" />
-            <span class="text-sm">{{ d.message }}</span>
+            <span v-if="d.line" class="font-mono text-xs font-semibold text-muted">
+              <template v-if="fileLabel(d.file)">{{ fileLabel(d.file) }}:</template>{{ d.line }}
+            </span>
+            <span class="min-w-0 flex-1 text-sm">{{ d.message }}</span>
           </div>
         </li>
       </ul>

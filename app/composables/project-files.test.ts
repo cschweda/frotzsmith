@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { canonicalLibraryFiles, buildProjectFileList, reconcileOpen, closeTabState } from './project-files'
+import { canonicalLibraryFiles, buildProjectFileList, reconcileOpen, closeTabState, diagnosticFileId } from './project-files'
 
 describe('canonicalLibraryFiles', () => {
   it('collapses case aliases to one canonical name, preferring the capitalized form', () => {
@@ -38,6 +38,41 @@ describe('buildProjectFileList', () => {
       { id: 'lib:Parser.h', name: 'Parser.h', group: 'library', editable: false },
       { id: 'lib:VerbLib.h', name: 'VerbLib.h', group: 'library', editable: false },
     ])
+  })
+
+  it('lists the main file, then the extra project files sorted by name (ZIL)', () => {
+    const list = buildProjectFileList({
+      sourceName: 'story.zil',
+      enabledExtensions: [],
+      libraryNames: [],
+      projectFiles: [
+        { id: 'zil:rooms.zil', name: 'rooms.zil' },
+        { id: 'zil:Actions.zil', name: 'Actions.zil' },
+        { id: 'zil:lib/items.zil', name: 'lib/items.zil' },
+      ],
+    })
+    expect(list).toEqual([
+      { id: 'source', name: 'story.zil', group: 'project', editable: true },
+      { id: 'zil:Actions.zil', name: 'Actions.zil', group: 'project', editable: true },
+      { id: 'zil:lib/items.zil', name: 'lib/items.zil', group: 'project', editable: true },
+      { id: 'zil:rooms.zil', name: 'rooms.zil', group: 'project', editable: true },
+    ])
+  })
+})
+
+describe('diagnosticFileId', () => {
+  const extras = ['rooms.zil', 'lib/items.zil']
+  it('no file, or the main file (by pathKey), targets the source tab', () => {
+    expect(diagnosticFileId(undefined, 'story.zil', extras)).toBe('source')
+    expect(diagnosticFileId('story.zil', 'story.zil', extras)).toBe('source')
+    expect(diagnosticFileId('STORY.ZIL', 'story.zil', extras)).toBe('source')
+  })
+  it('an extra file targets its zil: tab, keeping the stored spelling', () => {
+    expect(diagnosticFileId('rooms.zil', 'story.zil', extras)).toBe('zil:rooms.zil')
+    expect(diagnosticFileId('LIB/Items.zil', 'story.zil', extras)).toBe('zil:lib/items.zil')
+  })
+  it('anything else (a zillib file) targets no tab', () => {
+    expect(diagnosticFileId('/zillib/parser.zil', 'story.zil', extras)).toBeNull()
   })
 })
 

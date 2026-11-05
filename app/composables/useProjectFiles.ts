@@ -2,6 +2,7 @@ import {
   buildProjectFileList,
   canonicalLibraryFiles,
   closeTabState,
+  diagnosticFileId,
   reconcileOpen,
   type ProjectFileMeta,
   type TabState,
@@ -12,6 +13,10 @@ import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 import { safeSetItem } from '~/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
 import { registerSessionOnce } from '~/composables/session-once'
+import { displayPath, quotedPath } from '~/project-package/errors'
+import { useZilProjectFiles } from '~/composables/useZilProjectFiles'
+
+const ZIL_ID = 'zil:'
 
 /**
  * Reactive model behind the file explorer + editor tabs. The file list mirrors
@@ -22,7 +27,11 @@ export function useProjectFiles() {
   const { source } = useSourceDocument()
   const { all, isEnabled, updateUploaded } = useExtensions()
   const { profile } = useLanguage()
-  const sourceName = computed(() => `story.${profile.value.fileExt}`)
+  const zil = useZilProjectFiles()
+  const isZil = computed(() => profile.value.id === 'zil')
+  const sourceName = computed(() =>
+    isZil.value ? displayPath(zil.mainPath.value) : `story.${profile.value.fileExt}`,
+  )
 
   /** Namespaced localStorage key for the active language (e.g. frotzsmith:i6:explorer). */
   function getKey(): string {
@@ -72,6 +81,11 @@ export function useProjectFiles() {
       // ZIL uses zillib embedded in the WASM bundle — no I6 library files belong
       // in the ZIL project view.
       libraryNames: profile.value.id === 'i6' ? activeProfile.value.libraryFileNames : [],
+      // A ZIL project's extra files (I6 has none). Names come from packages
+      // too, so they are shown display-safe.
+      projectFiles: isZil.value
+        ? zil.files.value.map(f => ({ id: `${ZIL_ID}${f.path}`, name: displayPath(f.path) }))
+        : [],
     }),
   )
   const validIds = computed(() => new Set(files.value.map(f => f.id)))
@@ -120,6 +134,10 @@ export function useProjectFiles() {
 
   function readFile(id: string): string {
     if (id === 'source') return source.value
+    if (id.startsWith(ZIL_ID)) {
+      const path = id.slice(ZIL_ID.length)
+      return zil.files.value.find(f => f.path === path)?.text ?? ''
+    }
     if (id.startsWith('lib:')) {
       const name = id.slice(4)
       const pid = activeProfile.value.id
@@ -135,7 +153,35 @@ export function useProjectFiles() {
     const file = activeFile.value
     if (!file.editable) return
     if (file.id === 'source') source.value = text
+    // In memory at once (the next compile sees it); stored after a pause in typing.
+    else if (file.id.startsWith(ZIL_ID)) zil.edit(file.id.slice(ZIL_ID.length), text)
     else updateUploaded(file.id, text)
+  }
+
+  /** Whether the ZIL project already has an extra file at exactly this path. */
+  function hasZilFile(path: string): boolean {
+    return zil.files.value.some(f => f.path === path)
+  }
+
+  /** Add (or, for an existing path, replace) an extra ZIL file. Text with a NUL
+   *  in it isn't source; everything else is checked by `planZilFiles`. */
+  function addZilFile(path: string, text: string): { ok: true } | { ok: false; message: string } {
+    if (text.includes('\u0000')) {
+      return { ok: false, message: `${quotedPath(path)} isn’t a text file, so it can’t be added.` }
+    }
+    return zil.add({ path, text })
+  }
+
+  /** Remove an extra ZIL file; its tab closes with it (the validIds watcher). */
+  function removeZilFile(path: string) {
+    zil.remove(path)
+  }
+
+  /** The tab a diagnostic's `file` opens, or null for a file outside the
+   *  project (zillib). I6 diagnostics always target the source. */
+  function diagnosticTarget(file: string | undefined): string | null {
+    if (!isZil.value) return 'source'
+    return diagnosticFileId(file, zil.mainPath.value, zil.files.value.map(f => f.path))
   }
 
   function restore() {
@@ -190,5 +236,9 @@ export function useProjectFiles() {
     readFile,
     writeActive,
     restore,
+    hasZilFile,
+    addZilFile,
+    removeZilFile,
+    diagnosticTarget,
   }
 }
