@@ -1,6 +1,7 @@
 import { encodeShareFragment, decodeShareFragment } from '~/utils/share-link'
 import { isPristine } from '~/utils/pristine'
 import { useOutsideSource } from '~/composables/outside-source'
+import { useZilProjectFiles } from '~/composables/useZilProjectFiles'
 
 /**
  * Share the editor's source as a URL — zero backend: the source rides
@@ -15,6 +16,7 @@ export function useShareLink() {
   const { source, loadSource } = useIde()
   const { profile } = useLanguage()
   const { markOutside } = useOutsideSource()
+  const zilFiles = useZilProjectFiles()
 
   /** Handle an incoming #src= fragment (call once after restore() on mount).
    *  Returns true when a valid fragment for THIS language was recognized. */
@@ -31,6 +33,7 @@ export function useShareLink() {
 
     if (isPristine(source.value)) {
       loadSource(decoded.source)
+      if (profile.value.id === 'zil') zilFiles.clear() // a shared link carries one source only
       markOutside() // no Skein auto-run until Play/Run (audit F2)
       useToast().add({
         title: 'Loaded shared source',
@@ -53,6 +56,7 @@ export function useShareLink() {
             onClick: () => {
               if (profile.value.id === decoded.lang) {
                 loadSource(decoded.source)
+                if (profile.value.id === 'zil') zilFiles.clear()
                 markOutside()
               }
             },

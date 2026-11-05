@@ -24,6 +24,7 @@ import { useSourceDocument } from './useSourceDocument'
 import { useExtensions } from './useExtensions'
 import { useProjectFiles } from './useProjectFiles'
 import { useTestScripts } from './useTestScripts'
+import { useZilProjectFiles } from './useZilProjectFiles'
 import { useLanguage } from './useLanguage'
 import { useSkein } from './useSkein'
 import { useOutsideSource } from './outside-source'
@@ -39,6 +40,7 @@ vi.stubGlobal('useSourceDocument', useSourceDocument)
 vi.stubGlobal('useExtensions', useExtensions)
 vi.stubGlobal('useProjectFiles', useProjectFiles)
 vi.stubGlobal('useTestScripts', useTestScripts)
+vi.stubGlobal('useZilProjectFiles', useZilProjectFiles)
 vi.stubGlobal('useLanguage', useLanguage)
 vi.stubGlobal('useSkein', useSkein)
 

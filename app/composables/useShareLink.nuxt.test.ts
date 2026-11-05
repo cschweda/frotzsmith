@@ -25,6 +25,7 @@ vi.stubGlobal('useLanguage', () => ({ profile: _profile }))
 
 const { useShareLink } = await import('./useShareLink')
 const { useOutsideSource } = await import('./outside-source')
+const { useZilProjectFiles } = await import('./useZilProjectFiles')
 
 function setHash(frag: string | null) {
   history.replaceState(null, '', frag ? `/#${frag}` : '/')
@@ -126,5 +127,17 @@ describe('copyShareLink', () => {
     expect(await useShareLink().copyShareLink()).toBe(false)
     expect(_toastAdd).toHaveBeenCalledTimes(1)
     expect((_toastAdd.mock.calls[0]![0] as { color: string }).color).toBe('error')
+  })
+})
+
+describe('consumeShareFragment — extra ZIL files', () => {
+  it('a share-link load clears the open project\'s extra files', () => {
+    localStorage.clear()
+    _profile.value = { id: 'zil', route: '/zil', stateKey: 'zil' }
+    _source.value = ''
+    useZilProjectFiles().replaceAll([{ path: 'rooms.zil', text: 'R' }], 'story.zil')
+    setHash(encodeShareFragment('<ROUTINE GO () <CRLF>>', 'zil')!)
+    expect(useShareLink().consumeShareFragment()).toBe(true)
+    expect(useZilProjectFiles().files.value).toEqual([])
   })
 })

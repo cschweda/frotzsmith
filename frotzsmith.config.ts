@@ -69,6 +69,8 @@ export const frotzsmith = {
     /** '1' while this profile's source came from a package/share link and
      *  hasn't been played or run by hand — Skein auto-run waits (audit F2). */
     outsideSource: 'frotzsmith:outside-source',
+    /** A ZIL project's extra source files ({ v, mainPath, files }), ZIL only. */
+    zilFiles: 'frotzsmith:project-files',
   },
 
   // ── Inline play (Parchment) ───────────────────────────────────────────────
