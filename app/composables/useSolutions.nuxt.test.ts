@@ -19,6 +19,10 @@ function stateBuckets() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return ((globalThis as any).useState as (k: string, i?: () => unknown) => { value: unknown })('frotz:solution-buckets', () => Object.create(null))
 }
+function reveal() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;((globalThis as any).useState as (k: string, i?: () => unknown) => { value: unknown })('frotz:solution-revealed', () => null).value = 'game1'
+}
 function setLang(id: 'i6' | 'zil') {
   useLanguage().setLanguage(id) // state is reset per test, so resolve it fresh
 }
@@ -30,6 +34,8 @@ describe('useSolutions', () => {
     localStorage.clear()
     resetStorageNoticeForTests()
     storyKey().value = 'game1'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;((globalThis as any).useState as (k: string, i?: () => unknown) => { value: unknown })('frotz:solution-revealed', () => null).value = null
     setLang('i6')
     useSolutions().flushPendingSave()
     stateBuckets().value = Object.create(null)
@@ -92,6 +98,7 @@ describe('useSolutions', () => {
     vi.useFakeTimers()
     const s = useSolutions()
     s.set('v1')
+    reveal() // only a shown solution can be edited
     s.edit('v2')
     expect(s.text.value).toBe('v2')
     expect(JSON.parse(localStorage.getItem(KEY)!).buckets.game1.text).toBe('v1')
@@ -124,6 +131,7 @@ describe('useSolutions', () => {
     vi.useFakeTimers()
     const s = useSolutions()
     s.set('i6 text')
+    reveal() // only a shown solution can be edited
     s.edit('i6 edited')
     setLang('zil')
     s.restore() // flushes the pending edit to its own (i6) key
@@ -173,6 +181,21 @@ describe('useSolutions', () => {
       expect(s.view.value).toBe('')
       s.setLive('> new\n')
       expect(s.view.value).toBe('> new\n')
+    })
+
+    it('an edit while the solution is hidden is refused and changes nothing', () => {
+      vi.useFakeTimers()
+      const s = useSolutions()
+      s.set('> secret\n')
+      expect(s.visible.value).toBe(false)
+      expect(s.edit('').ok).toBe(false)
+      vi.advanceTimersByTime(2000)
+      expect(s.text.value).toBe('> secret\n')
+      expect(JSON.parse(localStorage.getItem(KEY)!).buckets.game1.text).toBe('> secret\n')
+      revealedKey().value = 'game1'
+      expect(s.edit('> mine\n').ok).toBe(true)
+      expect(s.text.value).toBe('> mine\n')
+      vi.useRealTimers()
     })
 
     it('a rejected edit in a paused from-scratch session keeps the session from scratch (residual leak a)', () => {

@@ -2,6 +2,7 @@ import type { CompileResult, StoryExt } from '~/modules/inform6/types'
 import { formatI6 } from '~/utils/format-i6'
 import { storyTitleOf } from '~/utils/story-title'
 import { getExtrasStore } from '~/composables/project-extras-store'
+import { SOLUTION_ID } from '~/composables/project-files'
 import { formatZil } from '~/utils/format-zil'
 import { safeGetItem, safeRemoveItem, safeSetItem } from '~/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
@@ -307,7 +308,10 @@ export function useIde() {
     for (let round = 0; round < 4; round++) {
       await whenNotCompiling()
       if (buildIsCurrent.value) return true
-      if (failedInputKey.value !== null && failedInputKey.value === buildInputKey()) return false
+      if (failedInputKey.value !== null && failedInputKey.value === buildInputKey()) {
+        activeTab.value = 'results' // the errors are shown, as for a real failure
+        return false
+      }
       if (status.value === 'compiling') continue
       const ran = await compileBuild(false)
       if (!ran) continue
@@ -398,9 +402,11 @@ export function useIde() {
     jumpSignal.value = { line, fileId, nonce: (jumpSignal.value?.nonce ?? 0) + 1 }
   }
 
-  /** Re-indent and tidy the active editable file (source or an uploaded ext). */
+  /** Re-indent and tidy the active editable file (source, an uploaded ext or
+   *  an extra ZIL file). Never solution.txt: it is text, not code, and the
+   *  code formatters would strip its blank lines and indent its `>` commands. */
   function format() {
-    if (!activeFile.value.editable) return
+    if (!activeFile.value.editable || activeFile.value.id === SOLUTION_ID) return
     const src = readFile(activeFile.value.id)
     writeActive(profile.value.id === 'zil' ? formatZil(src) : formatI6(src))
   }

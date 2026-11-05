@@ -79,6 +79,7 @@ export function useSolutions() {
   function setLive(next: string | null) {
     live.value = next === null ? null : { key: activeStoryKey.value, text: next }
   }
+  const HIDDEN: Plan = { ok: false, message: 'The solution is hidden, so press Show solution before editing it.' }
   const READ_ONLY: Plan = { ok: false, message: 'The solution can’t be edited while recording, so press Pause first.' }
 
   function otherTotal(key: string): number {
@@ -174,6 +175,9 @@ export function useSolutions() {
   /** An edit typed in the solution's tab: memory now, written after ~1 s idle. */
   function edit(next: string): Plan {
     if (readOnly.value) return READ_ONLY
+    // Nothing may write a solution the author hasn't revealed: they never saw
+    // the text it would replace (defence in depth; the editor isn't shown).
+    if (!visible.value) return HIDDEN
     syncLanguage()
     const key = activeStoryKey.value
     const plan = planSolution(next, otherTotal(key))

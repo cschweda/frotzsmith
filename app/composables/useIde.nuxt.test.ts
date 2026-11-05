@@ -807,8 +807,11 @@ describe('useIde — buildIsCurrent / ensureBuild (compile only when stale)', ()
       rawStderr: '', ms: 1, byteLength: 0,
     })
     expect(await ide.ensureBuild()).toBe(false)
+    ide.activeTab.value = 'play'
     expect(await ide.ensureBuild()).toBe(false)
     expect(_compileMock).toHaveBeenCalledTimes(1)
+    // The cached failure shows its errors, as a real failed compile does.
+    expect(ide.activeTab.value).toBe('results')
     ide.source.value += '\n! a fix attempt'
     expect(await ide.ensureBuild()).toBe(false)
     expect(_compileMock).toHaveBeenCalledTimes(2)
@@ -863,4 +866,40 @@ describe('useIde — buildIsCurrent / ensureBuild (compile only when stale)', ()
     expect(await ensured).toBe(true)
     expect(_compileMock).toHaveBeenCalledTimes(1)
   })
+})
+
+describe('useIde — Prettify leaves solution.txt alone', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const st = <T,>(k: string, i: () => T) => ((globalThis as any).useState as (k: string, i: () => T) => { value: T })(k, i)
+  const revealedKey = () => st<string | null>('frotz:solution-revealed', () => null)
+  const storyKey = () => st<string>('frotz:story-key', () => 'untitled')
+  const SOLUTION = '> north\n\nYou walk north.\n\n> south\n'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    useLanguage().setLanguage('i6')
+    revealedKey().value = null
+  })
+
+  for (const shown of [false, true]) {
+    it(`format() with solution.txt active (${shown ? 'visible' : 'hidden'}) changes nothing`, async () => {
+      vi.useFakeTimers()
+      const { useSolutions } = await import('./useSolutions')
+      const ide = useIde()
+      const s = useSolutions()
+      expect(s.set(SOLUTION).ok).toBe(true)
+      if (shown) revealedKey().value = storyKey().value
+      const pf = useProjectFiles()
+      pf.openFile('solution')
+      expect(pf.activeId.value).toBe('solution')
+      const src = ide.source.value
+      ide.format()
+      vi.advanceTimersByTime(2000)
+      expect(s.text.value).toBe(SOLUTION)
+      expect(ide.source.value).toBe(src)
+      vi.useRealTimers()
+      pf.openFile('source')
+    })
+  }
 })

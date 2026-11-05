@@ -228,6 +228,19 @@ describe('useProjectFiles — solution.txt', () => {
     expect(JSON.parse(localStorage.getItem(SKEY('i6'))!).buckets.game1.text).toBe('> north\n> south\n')
   })
 
+  it('a write to the hidden (unrevealed) solution changes nothing', () => {
+    vi.useFakeTimers()
+    useLanguage().setLanguage('i6')
+    const s = useSolutions()
+    s.set('> north\n')
+    const pf = useProjectFiles()
+    pf.openFile('solution')
+    pf.writeActive('')
+    vi.advanceTimersByTime(2000)
+    expect(s.text.value).toBe('> north\n')
+    expect(JSON.parse(localStorage.getItem(SKEY('i6'))!).buckets.game1.text).toBe('> north\n')
+  })
+
   it('a write while recording changes nothing (read-only)', () => {
     useLanguage().setLanguage('i6')
     const s = useSolutions()

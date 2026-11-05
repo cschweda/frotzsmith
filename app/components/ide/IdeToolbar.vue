@@ -5,6 +5,7 @@ import { SAMPLES, type Sample } from '~/modules/inform6/samples'
 import { ZIL_SAMPLES } from '~/modules/languages/zil/samples'
 import type { ProfileId } from '~/modules/inform6/profiles'
 import { frotzsmith } from '~~/frotzsmith.config'
+import { SOLUTION_ID } from '~/composables/project-files'
 
 const { format, loadSample, profileMode, activeProfile, setProfileMode, targetMode, effectiveExt, setTargetMode } =
   useIde()
@@ -53,7 +54,11 @@ const sampleItems = computed(() => {
   ]
 })
 
+// solution.txt is text, not code: Prettify leaves it alone (no toast).
+const prettifyOff = computed(() => activeFile.value.id === SOLUTION_ID)
+
 function onPrettify() {
+  if (prettifyOff.value) return
   if (!activeFile.value.editable) {
     toast.add({
       title: 'Read-only file',
@@ -181,7 +186,12 @@ function toggleTheme() {
       color="neutral"
       variant="subtle"
       icon="i-lucide-wand-sparkles"
-      title="Prettify: re-indent & tidy the source. Linting is automatic; this does not compile."
+      :disabled="prettifyOff"
+      :title="
+        prettifyOff
+          ? 'Prettify formats code only, so it leaves solution.txt alone.'
+          : 'Prettify: re-indent & tidy the source. Linting is automatic; this does not compile.'
+      "
       @click="onPrettify"
     >
       <span class="hidden sm:inline">Prettify</span>

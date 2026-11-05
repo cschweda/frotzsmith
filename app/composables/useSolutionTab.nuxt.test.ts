@@ -101,6 +101,7 @@ describe('useSolutionTab', () => {
     const s = useSolutions()
     s.set(own())
     const t = useSolutionTab()
+    t.reveal() // only a shown solution can be edited
     s.edit(own().split('\n').filter(l => l !== '> oops').join('\n'))
     expect(await t.regenerate()).toMatchObject({ ok: false, needsConfirm: true })
     expect((await t.regenerate({ confirmed: true })).ok).toBe(true)
