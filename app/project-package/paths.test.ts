@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { pathProblem, pathKey } from './paths'
+import { pathProblem, pathKey, safeStem } from './paths'
 
 describe('pathProblem', () => {
   test.each([
@@ -87,6 +87,7 @@ describe('pathProblem', () => {
     ['right-to-left override', '\u202eexe.txt'],
     ['zero-width space', 'file\u200b.inf'],
     ['zero-width joiner', 'a\u200db'],
+    ['zero-width joiner in an emoji (display keeps it; paths refuse it)', '\u{1f469}\u200d\u{1f4bb}.h'],
     ['BOM', '\ufeffx'],
     ['soft hyphen', 'a\u00adb'],
     ['word joiner', 'a\u2060b'],
@@ -146,6 +147,10 @@ describe('pathKey', () => {
     ['ohm sign', '\u03a9.h', '\u2126.h'],
     ['fullwidth letters', '\uff21.h', 'a.h'],
     ['decomposed accent', 'e\u0301.h', '\u00e9.h'],
+    // A single upper-then-lower fold sends ẞ to ß but ß to ss (review m-1).
+    ['capital sharp s and sharp s', '\u1e9e.h', '\u00df.h'],
+    ['capital sharp s and SS', '\u1e9e.h', 'SS.h'],
+    ['capital sharp s and ss', '\u1e9e.h', 'ss.h'],
   ])('%s collides', (_label, a, b) => {
     expect(pathKey(a)).toBe(pathKey(b))
   })
@@ -153,5 +158,18 @@ describe('pathKey', () => {
   test('different names still differ', () => {
     expect(pathKey('s.h')).not.toBe(pathKey('t.h'))
     expect(pathKey('story.inf')).not.toBe(pathKey('story.h'))
+  })
+})
+
+describe('safeStem (review I-1)', () => {
+  test.each(['con', 'Con', 'AUX', 'nul', 'prn', 'COM1', 'lpt9', 'com\u00b9', 'CONIN$', 'conout$'])(
+    'a Windows device name %s gets a "_"', (stem) => {
+      expect(safeStem(stem)).toBe(`${stem}_`)
+      expect(pathProblem(`${safeStem(stem)}.txt`)).toBeNull()
+      expect(pathProblem(`tests/${safeStem(stem)}.txt`)).toBeNull()
+    })
+
+  test.each(['console', 'story', 'com', 'com10', 'lpt', 'auxiliary', 'nul_', ''])('%s is left alone', (stem) => {
+    expect(safeStem(stem)).toBe(stem)
   })
 })

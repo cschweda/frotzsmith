@@ -25,6 +25,10 @@ export class PackageError extends Error {
  * survive.
  */
 const UNSAFE_DISPLAY = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Co}\p{Cn}\u115f\u1160\u3164\uffa0\u{d800}-\u{dfff}]/gu
+/** A zero-width joiner that is part of an emoji: between two pictographs (the
+ *  first may carry VS16 or a skin tone), as in 👩‍💻. Sticky, tested at the
+ *  joiner's own offset. */
+const EMOJI_ZWJ = /(?<=\p{Extended_Pictographic}[\ufe0f\p{Emoji_Modifier}]?)\u200d(?=\p{Extended_Pictographic})/uy
 /** A run of combining marks after the first `MAX_MARKS`. */
 const MAX_MARKS = 2
 const EXCESS_MARKS = new RegExp(`(?<=\\p{M}{${MAX_MARKS}})\\p{M}+`, 'gu')
@@ -33,12 +37,19 @@ export const DISPLAY_MAX = 60
 
 /**
  * A package path made safe to quote inside a user-facing sentence: invisible,
- * bidi, separator and lone-surrogate characters become U+FFFD, combining marks
+ * bidi, separator and lone-surrogate characters become U+FFFD (except a
+ * zero-width joiner inside an emoji, so 👩‍💻 shows intact), combining marks
  * are capped at two per character, and long names are shortened to `max`
  * code points plus "…". Never use the result as a path.
  */
 export function displayPath(path: string, max = DISPLAY_MAX): string {
-  const clean = path.replace(UNSAFE_DISPLAY, '\ufffd').replace(EXCESS_MARKS, '')
+  const clean = path
+    .replace(UNSAFE_DISPLAY, (ch: string, at: number) => {
+      if (ch !== '\u200d') return '\ufffd'
+      EMOJI_ZWJ.lastIndex = at
+      return EMOJI_ZWJ.test(path) ? ch : '\ufffd'
+    })
+    .replace(EXCESS_MARKS, '')
   const chars = Array.from(clean)
   return chars.length > max ? `${chars.slice(0, max).join('')}…` : clean
 }

@@ -814,11 +814,11 @@ function extraField(id: number, data: Uint8Array): Uint8Array {
 }
 
 /** An Info-ZIP Unicode Path (0x7075) or Unicode Comment (0x6375) field. */
-function unicodeField(id: number, forName: string, text: string): Uint8Array {
+function unicodeField(id: number, forName: string, text: string, o: { version?: number; crc?: number } = {}): Uint8Array {
   const t = enc.encode(text)
   const data = new Uint8Array(5 + t.length)
-  data[0] = 1
-  new DataView(data.buffer).setUint32(1, crc32(enc.encode(forName)) >>> 0, true)
+  data[0] = o.version ?? 1
+  new DataView(data.buffer).setUint32(1, (o.crc ?? crc32(enc.encode(forName))) >>> 0, true)
   data.set(t, 5)
   return extraField(id, data)
 }
@@ -843,6 +843,34 @@ describe('readContainer — second names in extra fields (F6b)', () => {
   test('a Unicode Path field after another, harmless field', () => {
     const extra = new Uint8Array([...extraField(0x5455, Uint8Array.of(1, 0, 0, 0, 0)), ...unicodeField(0x7075, 'story.inf', 'x.inf')])
     expectRefused(buildZip([mimetypeEntry(), stored('story.inf', 'x', { extra, local: { extra: new Uint8Array(0) } })]), 'unicode-extra')
+  })
+
+  // Review m-3: Info-ZIP zip built with UNICODE_SUPPORT (usual on Linux) adds
+  // a 0x7075 field for every non-ASCII name — one that repeats the name adds
+  // no second name, so it is accepted.
+  test('a Unicode Path field that repeats the entry name (Info-ZIP on Linux) is accepted', () => {
+    const extra = unicodeField(0x7075, 'café.inf', 'café.inf')
+    const map = readContainer(buildZip([mimetypeEntry(), stored('café.inf', 'x', { extra })]))
+    expect([...map.keys()]).toEqual(['café.inf'])
+    const local = readContainer(buildZip([mimetypeEntry(), stored('café.inf', 'x', { local: { extra } })]))
+    expect([...local.keys()]).toEqual(['café.inf'])
+  })
+
+  test('a Unicode Path field with the same name but another version is refused', () => {
+    const extra = unicodeField(0x7075, 'café.inf', 'café.inf', { version: 2 })
+    expectRefused(buildZip([mimetypeEntry(), stored('café.inf', 'x', { extra })]), 'unicode-extra')
+  })
+
+  test('a Unicode Path field with the same name but a CRC of another name is refused', () => {
+    const extra = unicodeField(0x7075, 'café.inf', 'café.inf', { crc: crc32(enc.encode('other.inf')) })
+    expectRefused(buildZip([mimetypeEntry(), stored('café.inf', 'x', { extra })]), 'unicode-extra')
+  })
+
+  test('a Unicode Path field that differs only in normalization or case is refused', () => {
+    for (const other of ['cafe\u0301.inf', 'CAFÉ.inf']) {
+      const extra = unicodeField(0x7075, 'café.inf', other)
+      expectRefused(buildZip([mimetypeEntry(), stored('café.inf', 'x', { extra })]), 'unicode-extra')
+    }
   })
 
   test('ordinary extra fields (timestamps, Unix ids) are accepted', () => {

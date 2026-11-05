@@ -35,6 +35,21 @@ const DEVICE_NAME = /^(con|prn|aux|nul|com[0-9\u00b9\u00b2\u00b3]|lpt[0-9\u00b9\
 
 const utf8 = new TextEncoder()
 
+/** Whether `stem` (a name's part before its first dot) is a Windows device name. */
+export function isDeviceName(stem: string): boolean {
+  return DEVICE_NAME.test(stem.replace(/ +$/, ''))
+}
+
+/**
+ * A stem Frotzsmith generates a file name from, made safe from the device-name
+ * rule: a Windows device name gets a `_` (`con` → `con_`, so `tests/con_.txt`),
+ * anything else is returned as is. Every writer-side name builder uses it, so
+ * the writer never makes a name `pathProblem` refuses (review I-1).
+ */
+export function safeStem(stem: string): string {
+  return isDeviceName(stem) ? `${stem}_` : stem
+}
+
 export function pathProblem(path: string): string | null {
   if (path.length === 0) return 'the path is empty'
   if (CONTROL.test(path)) return 'the path contains a control character'
@@ -51,7 +66,7 @@ export function pathProblem(path: string): string | null {
     if (utf8.encode(segment).length > MAX_SEGMENT_BYTES) return `a path segment is longer than ${MAX_SEGMENT_BYTES} bytes`
     if (segment.endsWith('.') || segment.endsWith(' ')) return 'a name in the path ends with a dot or a space'
     if (segment.startsWith(' ')) return 'a name in the path starts with a space'
-    if (DEVICE_NAME.test(segment.split('.')[0]!.replace(/ +$/, ''))) return 'the path uses a name Windows reserves for a device'
+    if (isDeviceName(segment.split('.')[0]!)) return 'the path uses a name Windows reserves for a device'
   }
   return null
 }
@@ -59,10 +74,12 @@ export function pathProblem(path: string): string | null {
 /**
  * The key two paths are compared by: equal keys collide (spec §2). NFKC folds
  * compatibility forms (`ﬀ` → `ff`, fullwidth `Ａ` → `A`, `ſ` → `s`), and
- * upper-casing before lower-casing is a full case fold (`ß` → `ss`,
- * `ı` → `i`, `ς` → `σ`), so names a case-insensitive file system or another
- * unzipper would treat as one collide here too.
+ * upper-casing before lower-casing, done twice, is a full case fold (`ß` →
+ * `ss`, `ı` → `i`, `ς` → `σ`; the second round catches what the first only
+ * moves along, `ẞ` → `ß` → `ss`), so names a case-insensitive file system or
+ * another unzipper would treat as one collide here too.
  */
 export function pathKey(path: string): string {
-  return path.normalize('NFKC').toUpperCase().toLowerCase().normalize('NFKC')
+  const once = (s: string) => s.toUpperCase().toLowerCase()
+  return once(once(path.normalize('NFKC'))).normalize('NFKC')
 }

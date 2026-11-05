@@ -142,11 +142,24 @@ const fail = {
 }
 
 /**
- * Walk an extra field's records (id, length, data). Returns 'damaged' when the
- * records don't fill it exactly, 'unicode' when one is an Info-ZIP Unicode Path
- * or Unicode Comment field (a second name other unzippers would show), else null.
+ * Whether an Info-ZIP Unicode Path field's data only repeats the entry's own
+ * name: version 1, the CRC-32 of the header's name bytes, and a UTF-8 name
+ * byte-for-byte equal to them. Info-ZIP `zip` built with UNICODE_SUPPORT (the
+ * usual Linux build) writes one for every non-ASCII name (review m-3).
  */
-function extraProblem(extra: Uint8Array): 'damaged' | 'unicode' | null {
+function repeatsName(data: Uint8Array, nameBytes: Uint8Array): boolean {
+  if (data.length < 5 || data[0] !== 1) return false
+  const crc = new DataView(data.buffer, data.byteOffset, data.byteLength).getUint32(1, true)
+  return crc === crc32(nameBytes) && sameBytes(data.subarray(5), nameBytes)
+}
+
+/**
+ * Walk an extra field's records (id, length, data). Returns 'damaged' when the
+ * records don't fill it exactly, 'unicode' when one is an Info-ZIP Unicode
+ * Comment field or a Unicode Path field naming anything but `nameBytes` (a
+ * second name other unzippers would show), else null.
+ */
+function extraProblem(extra: Uint8Array, nameBytes: Uint8Array): 'damaged' | 'unicode' | null {
   const dv = new DataView(extra.buffer, extra.byteOffset, extra.byteLength)
   let p = 0
   while (p < extra.length) {
@@ -154,7 +167,8 @@ function extraProblem(extra: Uint8Array): 'damaged' | 'unicode' | null {
     const id = dv.getUint16(p, true)
     const len = dv.getUint16(p + 2, true)
     if (p + 4 + len > extra.length) return 'damaged'
-    if (id === EXTRA_UNICODE_PATH || id === EXTRA_UNICODE_COMMENT) return 'unicode'
+    if (id === EXTRA_UNICODE_COMMENT) return 'unicode'
+    if (id === EXTRA_UNICODE_PATH && !repeatsName(extra.subarray(p + 4, p + 4 + len), nameBytes)) return 'unicode'
     p += 4 + len
   }
   return null
@@ -327,7 +341,7 @@ export function readContainer(bytes: Uint8Array): Map<string, Uint8Array> {
 
     const isDir = name.endsWith('/')
     if (pathProblem(isDir ? name.slice(0, -1) : name) !== null) throw fail.unsafePath(name)
-    const extra = extraProblem(r.extra)
+    const extra = extraProblem(r.extra, r.nameBytes)
     if (extra === 'damaged') throw fail.damagedEntry(name)
     if (extra === 'unicode') throw fail.unicodeExtra(name)
 
@@ -402,7 +416,7 @@ export function readContainer(bytes: Uint8Array): Map<string, Uint8Array> {
       throw fail.headerMismatch(e.name)
     }
     if (i === 0 && lextraLen !== 0) throw fail.badMimetype()
-    const lextra = extraProblem(bytes.subarray(off + LOCAL_LEN + lnameLen, dataStart))
+    const lextra = extraProblem(bytes.subarray(off + LOCAL_LEN + lnameLen, dataStart), e.nameBytes)
     if (lextra === 'damaged') throw fail.damagedEntry(e.name)
     if (lextra === 'unicode') throw fail.unicodeExtra(e.name)
 

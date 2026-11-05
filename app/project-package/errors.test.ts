@@ -63,6 +63,29 @@ describe('displayPath — deceptive text (F10)', () => {
   })
 })
 
+// Review m-2: a ZWJ joining two pictographs is part of one emoji, not a
+// hidden character. Anywhere else it is still replaced (and paths refuse it).
+describe('displayPath — emoji ZWJ sequences', () => {
+  it.each([
+    ['technologist', '\u{1f469}\u200d\u{1f4bb} Quest'],
+    ['family', '\u{1f468}\u200d\u{1f469}\u200d\u{1f467}.h'],
+    ['heart on fire (VS16 before the joiner)', '\u2764\ufe0f\u200d\u{1f525}.txt'],
+    ['skin tone before the joiner', '\u{1f469}\u{1f3fd}\u200d\u{1f4bb}'],
+  ])('keeps the joiner in a %s emoji', (_label, s) => {
+    expect(displayPath(s)).toBe(s)
+  })
+
+  it.each([
+    ['between letters', 'a\u200db', 'a\ufffdb'],
+    ['after a pictograph only', '\u{1f469}\u200dx', '\u{1f469}\ufffdx'],
+    ['before a pictograph only', 'x\u200d\u{1f4bb}', 'x\ufffd\u{1f4bb}'],
+    ['doubled', '\u{1f469}\u200d\u200d\u{1f4bb}', '\u{1f469}\ufffd\ufffd\u{1f4bb}'],
+    ['at the start', '\u200d\u{1f4bb}', '\ufffd\u{1f4bb}'],
+  ])('still replaces a joiner %s', (_label, s, want) => {
+    expect(displayPath(s)).toBe(want)
+  })
+})
+
 describe('quotedPath', () => {
   it('quotes the display-safe name', () => {
     expect(quotedPath('a‮b.h')).toBe('“a�b.h”')
