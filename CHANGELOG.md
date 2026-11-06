@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added — 2026-11-06 Frotz, Inc.
 - **Frotz, Inc. links.** A "Frotz, Inc." link in the status bar and a line in
   **About** point to [frotzinc.com](https://frotzinc.com), the landing page for
-  the Frotz family (Frotzsmith, [Frotzlens](https://frotzlens.com), and what comes
+  the Frotz family (Frotzsmith, [Frotzlens](https://frotzlens.frotzinc.com), and what comes
   next). The URL is one value, `familyUrl`, in `frotzsmith.config.ts`.
 
 ### Added — 2026-11-05 Mingus II
