@@ -63,6 +63,16 @@ function take() {
             class="text-primary underline"
           >GitHub</a>.
         </p>
+        <p class="text-muted">
+          From
+          <a
+            :href="frotzsmith.familyUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-primary underline"
+          >Frotz, Inc.</a>
+          Frotz, Inc. is a fiction. The Frotz interpreter is the work of its own authors and is not affiliated.
+        </p>
       </div>
     </template>
 
