@@ -1,5 +1,5 @@
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
-import { safeGetItem, safeRemoveItem, safeSetItem } from '~/utils/safe-storage'
+import { safeGetItem, safeRemoveItem, safeSetItem } from '@frotzinc/nuxt-base/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
 import { planZilFiles, ZIL_DEFAULT_MAIN_PATH, type ZilProjectFile } from '~/modules/zil/zil-project'
 import { pathKey } from '~/project-package/paths'

@@ -1,6 +1,6 @@
 import { toRaw } from 'vue'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
-import { safeGetItem, safeRemoveItem, safeSetItem } from '~/utils/safe-storage'
+import { safeGetItem, safeRemoveItem, safeSetItem } from '@frotzinc/nuxt-base/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
 import { planSolution, SOLUTION_MAX, SOLUTION_STORE_MAX } from '~/composables/solution-text'
 

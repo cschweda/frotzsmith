@@ -18,20 +18,20 @@
  * ENVIRONMENT: node (default per vitest.config.ts)
  */
 import { describe, it, expect, vi } from 'vitest'
-import { fileURLToPath } from 'node:url'
 import { SAMPLES, loadSampleSource } from './samples'
 import { PROFILES } from './profiles'
 import { formatI6 } from '~/utils/format-i6'
 import { sampleWalkthrough } from '~/modules/samples-shared/walkthroughs'
 import { runReplay } from './engine/replayCore'
+import { inform6Path } from '~~/test/inform6-paths'
 
-const WASM_PATH = fileURLToPath(new URL('./wasm/inform6.wasm', import.meta.url))
+const WASM_PATH = inform6Path('wasm/inform6.wasm')
 
 // The app's compile path, with the WASM read from disk instead of a Vite URL.
 vi.mock('~/composables/useCompilerWasm', () => ({
   useCompilerWasm: () => ({
     createInstance: async (hooks: { print: (l: string) => void; printErr: (l: string) => void }) => {
-      const mod = await import('./wasm/inform6.mjs')
+      const mod = await import('@frotzinc/inform6-wasm/inform6.mjs')
       return mod.default({
         print: hooks.print,
         printErr: hooks.printErr,

@@ -6,26 +6,19 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { externalRules, readRedirects, scriptProxies } from '@frotzinc/nuxt-base/netlify/redirects'
 
 const root = resolve(__dirname, '..')
-const rules = readFileSync(resolve(root, 'public', '_redirects'), 'utf8')
-  .split('\n')
-  .map(l => l.trim())
-  .filter(l => l && !l.startsWith('#'))
-  .map(l => l.split(/\s+/))
+const rules = readRedirects(resolve(root, 'public', '_redirects'))
 
 describe('public/_redirects', () => {
   it('does not proxy any script (the tracker is vendored)', () => {
-    for (const [from, to] of rules) {
-      expect(from).not.toMatch(/\.m?js$/)
-      expect(to).not.toMatch(/\.m?js(\?|$)/)
-    }
+    expect(scriptProxies(rules)).toEqual([])
     expect(rules.some(([from]) => from === '/pa/script.js')).toBe(false)
   })
 
   it('proxies only the event beacon to plausible.io', () => {
-    const external = rules.filter(([, to]) => /^https?:/.test(to ?? ''))
-    expect(external).toEqual([['/pa/event', 'https://plausible.io/api/event', '200']])
+    expect(externalRules(rules)).toEqual([['/pa/event', 'https://plausible.io/api/event', '200']])
   })
 
   it('serves the vendored tracker that init.js loads', () => {

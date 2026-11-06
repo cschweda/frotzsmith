@@ -17,7 +17,7 @@
  */
 import { ref, toRef, computed, watch, watchEffect, readonly, nextTick, effectScope } from 'vue'
 import { vi, beforeEach } from 'vitest'
-import { slugify, storyBaseName } from '../app/utils/slug'
+import { slugify, storyBaseName } from '@frotzinc/nuxt-base/utils/slug'
 
 // Only install in the happy-dom env (node env has no window).
 if (typeof window !== 'undefined') {

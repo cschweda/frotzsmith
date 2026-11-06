@@ -11,7 +11,7 @@
  * Environment: node (no DOM needed).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { makeWorkerSpy } from '~~/test/mock-worker'
+import { makeWorkerSpy } from '@frotzinc/worker-rpc/testing'
 
 vi.mock('~/composables/useCompilerWasm', () => ({
   useCompilerWasm: () => ({

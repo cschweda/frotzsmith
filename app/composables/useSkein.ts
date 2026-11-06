@@ -20,7 +20,7 @@ import { getSkeinStore } from './skein-store'
 import { replayBudgetMs } from './useTranscript'
 import { notifyStorageFull } from './useStorageNotice'
 import { parseScript } from '~/modules/inform6/engine/parseScript'
-import { safeGetItem, safeSetItem } from '~/utils/safe-storage'
+import { safeGetItem, safeSetItem } from '@frotzinc/nuxt-base/utils/safe-storage'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
 
 /**

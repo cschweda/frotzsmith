@@ -29,9 +29,10 @@ import { HeadlessGlkOte } from './headless-glkote'
 import { HeadlessDialog } from './headless-dialog'
 import { patchIfvmsText, TEXT_RE } from '../../../../tools/ifvms-text-fix.mjs'
 import { unpatchVendoredZvm } from '../../../../tools/vendored-zvm-patch.mjs'
+import { inform6Path } from '~~/test/inform6-paths'
 
 const require = createRequire(import.meta.url)
-const WASM_PATH = fileURLToPath(new URL('../wasm/inform6.wasm', import.meta.url))
+const WASM_PATH = inform6Path('wasm/inform6.wasm')
 const VENDORED_ZVM = fileURLToPath(new URL('../../../../public/play/web/zvm.js', import.meta.url))
 
 type G = typeof globalThis & { __frotzPwned?: number }
@@ -43,7 +44,7 @@ async function compile(source: string): Promise<Uint8Array> {
     FS: { mkdir(p: string): void; chdir(p: string): void; writeFile(p: string, d: string): void; readFile(p: string): Uint8Array }
     callMain(args: string[]): number
   }
-  const mod = (await import('../wasm/inform6.mjs')) as unknown as { default: (o: Record<string, unknown>) => Promise<Inform> }
+  const mod = (await import('@frotzinc/inform6-wasm/inform6.mjs')) as unknown as { default: (o: Record<string, unknown>) => Promise<Inform> }
   const out: string[] = []
   const m = await mod.default({
     print: (l: string) => out.push(l),
