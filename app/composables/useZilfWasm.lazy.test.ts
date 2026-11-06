@@ -15,7 +15,7 @@
  * Environment: node (no DOM/localStorage needed).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { makeWorkerSpy } from '~~/test/mock-worker'
+import { makeWorkerSpy } from '@frotzinc/worker-rpc/testing'
 
 /** A Worker mock that immediately reports a boot error for any compile request. */
 function makeFailingWorkerSpy() {

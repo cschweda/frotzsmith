@@ -4,7 +4,7 @@
  * ever loads text; nothing is compiled, played, or run.
  */
 import { parseSkeinFile, type SkeinTree } from '../composables/skein-tree'
-import { slugify } from '../utils/slug'
+import { slugify } from '@frotzinc/nuxt-base/utils/slug'
 import { LIMITS, MIMETYPE, readContainer, writeContainer } from './container'
 import { PackageError, quotedPath } from './errors'
 import {

@@ -1,4 +1,4 @@
-import wasmUrl from '~/modules/inform6/wasm/inform6.wasm?url'
+import wasmUrl from '@frotzinc/inform6-wasm/inform6.wasm?url'
 import { cachedAsync } from '~/utils/cached-async'
 
 interface CaptureHooks {
@@ -10,9 +10,7 @@ interface CaptureHooks {
 // compile. A failed load clears the cache so the next compile retries instead
 // of re-throwing a stale rejection for the rest of the session.
 const getFactory = cachedAsync(() =>
-  import('~/modules/inform6/wasm/inform6.mjs').then(
-    m => m.default as (opts?: Record<string, unknown>) => Promise<Inform6Instance>,
-  ),
+  import('@frotzinc/inform6-wasm/inform6.mjs').then(m => m.default as (opts?: Record<string, unknown>) => Promise<Inform6Instance>),
 )
 
 /** The subset of the Emscripten module Frotzsmith uses. */

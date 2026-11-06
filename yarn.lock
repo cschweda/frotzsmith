@@ -1544,6 +1544,21 @@
     "@floating-ui/dom" "^1.8.0"
     "@floating-ui/utils" "^0.2.12"
 
+"@frotzinc/inform6-wasm@0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@frotzinc/inform6-wasm/-/inform6-wasm-0.1.0.tgz#495cc6169d1b5c6947bfaac2a699005ae986d690"
+  integrity sha512-OpEyW5UdV9OnJXAbALzk7RnI48XkJ8xiB+TKRlnrFYk6xkhxOVrVSvfWnZb4XF8FwIEa7ohfQ1eCdZHoSQIMJQ==
+
+"@frotzinc/nuxt-base@0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@frotzinc/nuxt-base/-/nuxt-base-0.1.0.tgz#9e9c104a66a999637f80e2ac48cd9126f018e9bb"
+  integrity sha512-By/+n953G7AR3driqgfG57FxPjLhnCPkByaMIyXVGFMcxWNSSNUdJp2Gc02OEO5laJRN4eiEcuFSx44VcB5ssA==
+
+"@frotzinc/worker-rpc@0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@frotzinc/worker-rpc/-/worker-rpc-0.1.0.tgz#f428429c759a7b91934b91a12fde8178be478b84"
+  integrity sha512-/+S/c4e6zQBB+fTvkUw9Sg+RAzPm3GgTeSfN5bsAa8BxfzIiH+ai69SPGUif8Ut4KCniVrVof0y4AWNWUSmi2g==
+
 "@iconify-json/lucide@^1.2.148":
   version "1.2.151"
   resolved "https://registry.yarnpkg.com/@iconify-json/lucide/-/lucide-1.2.151.tgz#51e24d58657a836b2f6ee21f57bbd2c37d0678ee"

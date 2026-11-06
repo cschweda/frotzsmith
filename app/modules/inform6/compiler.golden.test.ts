@@ -11,14 +11,14 @@
  */
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
+import { inform6Path } from '~~/test/inform6-paths'
 
 // ---------------------------------------------------------------------------
 // Paths resolved at module scope so they resolve relative to this file.
 // ---------------------------------------------------------------------------
-const STD_LIB_DIR = fileURLToPath(new URL('./lib/std', import.meta.url))
-const WASM_PATH = fileURLToPath(new URL('./wasm/inform6.wasm', import.meta.url))
+const STD_LIB_DIR = inform6Path('lib/std')
+const WASM_PATH = inform6Path('wasm/inform6.wasm')
 
 // Capitalized aliases required by the Standard Library's own #include
 // directives (MEMFS is case-sensitive, files ship as lowercase).
@@ -61,10 +61,8 @@ const GOLDEN_SHA256: string = '2d8ffb2cd54a2545763d27644da5deff9fae712a794cfcade
 async function bootWithStdLib() {
   // Dynamic import so Vitest resolves it through Vite's transform
   // (same pattern used by useCompilerWasm.ts in the browser).
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore — no hand-written types for this pre-built Emscripten module
-  const mod = await import('./wasm/inform6.mjs')
-  const factory: (opts: Record<string, unknown>) => Promise<Record<string, unknown>> = mod.default
+  const mod = await import('@frotzinc/inform6-wasm/inform6.mjs')
+  const factory = mod.default as unknown as (opts: Record<string, unknown>) => Promise<Record<string, unknown>>
 
   const output: string[] = []
 

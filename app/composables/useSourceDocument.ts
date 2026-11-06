@@ -1,7 +1,7 @@
 import demoSource from '~/modules/inform6/samples/demo.inf?raw'
 import zilSkeletonSource from '~/modules/languages/zil/samples/skeleton.zil?raw'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
-import { safeSetItem } from '~/utils/safe-storage'
+import { safeSetItem } from '@frotzinc/nuxt-base/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
 
 import { registerSessionOnce } from '~/composables/session-once'

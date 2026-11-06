@@ -22,9 +22,10 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { runReplay } from './engine/replayCore'
+import { inform6Path } from '~~/test/inform6-paths'
 
-const STD_LIB_DIR = fileURLToPath(new URL('./lib/std', import.meta.url))
-const WASM_PATH = fileURLToPath(new URL('./wasm/inform6.wasm', import.meta.url))
+const STD_LIB_DIR = inform6Path('lib/std')
+const WASM_PATH = inform6Path('wasm/inform6.wasm')
 const SAMPLE = fileURLToPath(new URL('./samples/mingus-2.inf', import.meta.url))
 const WALKTHROUGH = fileURLToPath(
   new URL('../samples-shared/mingus-2.walkthrough.txt', import.meta.url),
@@ -42,7 +43,7 @@ let compilerOutput = ''
 
 /** Compile an Inform 6 source against the bundled Standard Library (z5). */
 async function compileStd(source: string): Promise<Uint8Array> {
-  const mod = await import('./wasm/inform6.mjs')
+  const mod = await import('@frotzinc/inform6-wasm/inform6.mjs')
   const factory: (opts: Record<string, unknown>) => Promise<unknown> = mod.default
   const output: string[] = []
   const m = (await factory({

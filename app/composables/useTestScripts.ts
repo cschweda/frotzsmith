@@ -1,6 +1,6 @@
 import { toRaw } from 'vue'
 import { frotzsmith, buildStorageKey } from '~~/frotzsmith.config'
-import { safeSetItem } from '~/utils/safe-storage'
+import { safeSetItem } from '@frotzinc/nuxt-base/utils/safe-storage'
 import { notifyStorageFull } from '~/composables/useStorageNotice'
 import { registerSessionOnce } from '~/composables/session-once'
 import {

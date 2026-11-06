@@ -1,5 +1,4 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-import { mkdirSync, writeFileSync } from 'node:fs'
 import { frotzsmith } from './frotzsmith.config'
 import { ifvmsThisFix } from './tools/ifvms-this-fix.mjs'
 import { ifvmsTextFix } from './tools/ifvms-text-fix.mjs'
@@ -20,8 +19,11 @@ const SW_KILL = process.env.FROTZSMITH_SW_KILL === '1'
 export default defineNuxtConfig({
   compatibilityDate: '2025-06-01',
 
-  // Frotzsmith is a pure client-side tool — static, no SSR (ADR-011).
-  ssr: false,
+  // The shared Frotz, Inc. layer: ssr:false (Frotzsmith is a pure client-side
+  // tool — static, no SSR, ADR-011), dark-default color mode, the Nuxt UI color
+  // roles, the safe-storage/slug/shortcut utils, and the build:manifest hook
+  // that tools/inject-preloads.mjs reads.
+  extends: ['@frotzinc/nuxt-base'],
 
   // No service worker in the desktop build (its updates come from its own
   // updater): no PWA module, no web manifest, no registration plugin.
@@ -150,30 +152,9 @@ export default defineNuxtConfig({
     },
   },
 
-  // Dump the client build manifest for tools/inject-preloads.mjs, which runs
-  // after `nuxt generate` (postgenerate) and injects <link rel="modulepreload">
-  // hints for each route's page + IDE chunk chain into the generated HTML.
-  // ssr:false ships an empty shell, so without hints the browser discovers
-  // those chunks serially — entry → route resolve → page chunk → IDE chunk —
-  // which is the LCP waterfall Lighthouse flags as the network-dependency tree.
+  // build:manifest (worker chunks never preloaded; the client manifest dumped
+  // for tools/inject-preloads.mjs) comes from @frotzinc/nuxt-base.
   hooks: {
-    'build:manifest': (manifest) => {
-      // Never preload Web Worker chunks into the page. Nuxt 4.6 began emitting
-      // <link rel=modulepreload> for them (~234 KB gz of compiler/replay
-      // workers on every first visit) — but a Worker fetches its own script,
-      // so the page-level preload can't help it. The worker URLs come from
-      // `new Worker(new URL(...))` in code, not from this manifest, so turning
-      // their hints off changes nothing else. tools/inject-preloads.mjs fails
-      // the build if one comes back.
-      for (const chunk of Object.values(manifest)) {
-        if (/\.worker-[^/]*\.js$/.test(chunk.file ?? '')) {
-          chunk.preload = false
-          chunk.prefetch = false
-        }
-      }
-      mkdirSync('.nuxt', { recursive: true })
-      writeFileSync('.nuxt/client-manifest.json', JSON.stringify(manifest, null, 2))
-    },
     // The desktop build has no PWA module, so the plugin that registers its
     // worker (and imports the module's `virtual:pwa-register`) is left out.
     'app:resolve'(app) {
@@ -221,10 +202,7 @@ export default defineNuxtConfig({
 
   devtools: { enabled: true },
 
-  // Dark mode by default, with an accessible toggle that persists (D15).
-  colorMode: {
-    preference: 'dark',
-  },
+  // Dark mode by default (D15) comes from @frotzinc/nuxt-base.
 
   // Bundle used icons into the client (scan the source) so none are fetched from
   // api.iconify.design at runtime — works offline and under a strict CSP.

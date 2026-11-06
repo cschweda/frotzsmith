@@ -48,6 +48,9 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // @frotzinc/nuxt-base is a Nuxt layer shipped as TypeScript source; Node
+    // won't strip types under node_modules, so Vite transforms it instead.
+    server: { deps: { inline: [/@frotzinc\/nuxt-base/] } },
     include: ['app/**/*.{test,spec}.ts', 'tools/*.{test,spec}.ts'],
     setupFiles: ['./test/nuxt-setup.ts'],
     environmentMatchGlobs: [

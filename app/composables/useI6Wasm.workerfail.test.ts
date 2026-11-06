@@ -7,7 +7,7 @@
  * Environment: node.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { makeWorkerSpy } from '~~/test/mock-worker'
+import { makeWorkerSpy } from '@frotzinc/worker-rpc/testing'
 
 const FALLBACK_RESULT = {
   ok: false,

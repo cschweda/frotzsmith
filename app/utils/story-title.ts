@@ -1,4 +1,4 @@
-import { slugify } from '~/utils/slug'
+import { slugify } from '@frotzinc/nuxt-base/utils/slug'
 
 /**
  * The story title in a source — language-aware.
