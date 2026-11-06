@@ -159,4 +159,4 @@ Bundled third-party components keep their own licenses:
 
 The **Haunted House** sample is reverse-engineered from Radio Shack's 1979 TRS-80 (Tandy Model I/III) text adventure and reimplemented in Inform 6.
 
-A personal, weekend project — unaffiliated with any employer or organization.
+A personal, weekend project — unaffiliated with any employer or organization. Frotzsmith is part of [Frotz, Inc.](https://frotzinc.com), the home of the Frotz family of interactive-fiction tools, with its companion [Frotzlens](https://frotzlens.com). Frotz, Inc. is a fiction. The Frotz interpreter is the work of its own authors and is not affiliated.

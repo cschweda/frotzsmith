@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Added — 2026-11-06 Frotz, Inc.
+- **Frotz, Inc. links.** A "Frotz, Inc." link in the status bar and a line in
+  **About** point to [frotzinc.com](https://frotzinc.com), the landing page for
+  the Frotz family (Frotzsmith, [Frotzlens](https://frotzlens.com), and what comes
+  next). The URL is one value, `familyUrl`, in `frotzsmith.config.ts`.
+
 ### Added — 2026-11-05 Mingus II
 - **New longer sample: Mingus II: Everything Rolls Downhill** (Inform 6
   and ZIL, both z5), the sequel to Mingus I. A funeral ship floats down the Verdance

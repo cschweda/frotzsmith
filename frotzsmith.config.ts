@@ -19,6 +19,8 @@ export const frotzsmith = {
   siteUrl: 'https://frotzsmith.com',
   repoUrl: 'https://github.com/cschweda/frotzsmith',
   author: 'cschweda',
+  /** The Frotz, Inc. family's landing page (Frotzsmith, Frotzlens, and what comes next). */
+  familyUrl: 'https://frotzinc.com',
 
   // ── Toolchain versions (for display / banners) ────────────────────────────
   versions: {
