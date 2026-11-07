@@ -4,7 +4,7 @@
 
 ## 1. Intent — why this exists
 
-Frotzsmith (https://frotzsmith.com) is a browser IDE for Inform 6 and ZIL. Today it needs the
+Frotzsmith (https://frotzsmith.frotzinc.com) is a browser IDE for Inform 6 and ZIL. Today it needs the
 network to load, and a project lives only in browser storage (localStorage + IndexedDB) as a
 single source buffer plus uploaded `.h` files.
 
@@ -85,7 +85,7 @@ pnpm — not worth switching for).
     `e.origin === window.location.origin` message check passes on `app://frotzsmith`.
 - **Desktop build flag** (Drafter: `DRAFTER_DESKTOP=1`), e.g. `FROTZSMITH_DESKTOP=1`, removes:
   Plausible (`/pa/init.js`; the `/pa/*` proxy only exists on Netlify), the service worker, and
-  web-only storage notices. Share links must build `https://frotzsmith.com/…` URLs, not
+  web-only storage notices. Share links must build `https://frotzsmith.frotzinc.com/…` URLs, not
   `app://` (today `useShareLink` uses `window.location.origin`).
 - Hardening as Drafter: `contextIsolation`, renderer `sandbox`, no `nodeIntegration`; a narrow
   preload IPC surface; file access only inside folders the user chose (Drafter `grants.ts`);

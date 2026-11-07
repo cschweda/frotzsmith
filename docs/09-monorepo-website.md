@@ -96,7 +96,7 @@ Like the markdown editor's `app/modules/tour/`, the entire I6 toolchain lives in
 - **Netlify static** via `yarn generate` (`nuxt generate` with `ssr: false`) → **`.output/public`** (the Nuxt 4 output path — `dist` was Nuxt 2).
 - **SSR not required** — the app is a client-side tool; static generation is correct, and it keeps the offline/deploy-anywhere promise.
 - `netlify.toml`: build command `yarn generate`, **publish `.output/public`**, plus CSP headers (Doc 06 §9). **No COOP/COEP** needed (single-threaded WASM) — preserving "deploy anywhere static."
-- **Domain & repo:** `frotzsmith.com` is registered; source lives at `github.com/cschweda/frotzsmith`. POC topology: serve the proof-of-concept directly at the apex `frotzsmith.com`. Intended production topology: apex `frotzsmith.com` as a landing/about page, with the IDE itself at **`app.frotzsmith.com`** once it's past POC. The split (marketing apex / `app.` subdomain for the tool) is noted now so the eventual move doesn't require rearchitecting; for the POC, everything lives at the apex.
+- **Domain & repo:** the IDE lives at `frotzsmith.frotzinc.com` (part of the Frotz, Inc. family at `frotzinc.com`); the original `frotzsmith.com` domain 301s there (`public/_redirects`). Source lives at `github.com/cschweda/frotzsmith`.
 
 ## 5. WASM asset handling
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { acceptPlayMessage } from './play-message'
 
-const ORIGIN = 'https://frotzsmith.com'
+const ORIGIN = 'https://frotzsmith.frotzinc.com'
 const frame = {} as Window
 const other = {} as Window
 const data = { source: 'frotzsmith-play', type: 'command', value: 'look' }
