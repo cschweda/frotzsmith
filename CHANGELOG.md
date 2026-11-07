@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`public/_redirects`, ahead of Nitro's catch-all; pinned by
   `tools/redirects.test.ts`). `siteUrl` in `frotzsmith.config.ts` moves with
   it, so canonical and og:url links name the new domain.
+- **Plausible tracker re-vendored** for the new `frotzsmith.frotzinc.com` site
+  (`pa--Fyc-nN5t3vIahe6DaC7v.js`); diffed against the reviewed copy, only the
+  baked-in domain changed. Checksums updated in `tools/vendored-files.json`.
 
 ### Added — 2026-11-06 Frotz, Inc.
 - **Frotz, Inc. links.** A "Frotz, Inc." link in the status bar and a line in
