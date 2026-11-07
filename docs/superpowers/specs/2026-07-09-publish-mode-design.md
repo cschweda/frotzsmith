@@ -62,7 +62,7 @@ opt-in public gallery is a phase-2 flag, not a v1 feature.
 ## Architecture
 
 ```
-frotzsmith.com (static, Netlify — unchanged IDE)
+frotzsmith.frotzinc.com (static, Netlify — unchanged IDE)
  ├─ /p/[slug]        SPA card page
  │    └─ Netlify Edge Function on /p/* injects og: tags (crawlers don't run JS)
  ├─ /pub-api/*  ──►  Netlify rewrite → Supabase REST/auth (CSP stays same-origin)
@@ -121,7 +121,7 @@ Entry: a **Publish** button enabled by a successful compile. Dialog:
    uploads are phase 2.
 2. Not signed in → GitHub OAuth (Supabase Auth, PKCE) inline, return to dialog.
 3. Confirm → client-side validation (z-header magic bytes, size), upload story
-   + rendered cover PNG, insert row → show `https://frotzsmith.com/p/{slug}`
+   + rendered cover PNG, insert row → show `https://frotzsmith.frotzinc.com/p/{slug}`
    with a copy button.
 4. Republish (same work) overwrites the story object and bumps `updated_at` —
    no version history in v1. **Unpublish** deletes row + objects.
@@ -140,7 +140,7 @@ Frotzsmith". Play fetches the story bytes via `/pub-cdn/…` and hands them to
 the sandbox-origin player iframe via `postMessage` (transferred ArrayBuffer;
 the sandbox page makes its own blob URL). The main origin never feeds
 third-party code to its own player, and the sandbox page accepts bytes only
-from a `frotzsmith.com` `event.origin` — mirroring the existing pinned
+from a `frotzsmith.frotzinc.com` `event.origin` — mirroring the existing pinned
 postMessage pattern in reverse. Owner sees
 Republish / Unpublish inline. The Edge Function injects `og:title`,
 `og:description`, `og:image` (the stored cover), and a per-work canonical.

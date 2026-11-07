@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
+### Changed — 2026-11-07 New primary domain
+- **Frotzsmith now lives at [frotzsmith.frotzinc.com](https://frotzsmith.frotzinc.com).**
+  The old `frotzsmith.com` (apex and `www`) 301s there, path kept
+  (`public/_redirects`, ahead of Nitro's catch-all; pinned by
+  `tools/redirects.test.ts`). `siteUrl` in `frotzsmith.config.ts` moves with
+  it, so canonical and og:url links name the new domain.
+- **Plausible tracker re-vendored** for the new `frotzsmith.frotzinc.com` site
+  (`pa--Fyc-nN5t3vIahe6DaC7v.js`); diffed against the reviewed copy, only the
+  baked-in domain changed. Checksums updated in `tools/vendored-files.json`.
+
 ### Added — 2026-11-06 Frotz, Inc.
 - **Frotz, Inc. links.** A "Frotz, Inc." link in the status bar and a line in
   **About** point to [frotzinc.com](https://frotzinc.com), the landing page for

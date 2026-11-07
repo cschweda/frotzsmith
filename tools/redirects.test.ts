@@ -18,7 +18,18 @@ describe('public/_redirects', () => {
   })
 
   it('proxies only the event beacon to plausible.io', () => {
-    expect(externalRules(rules)).toEqual([['/pa/event', 'https://plausible.io/api/event', '200']])
+    const proxies = externalRules(rules).filter(([, , status]) => status === '200')
+    expect(proxies).toEqual([['/pa/event', 'https://plausible.io/api/event', '200']])
+  })
+
+  it('301s the old frotzsmith.com domain (apex and www) to the primary, first', () => {
+    const domain = [
+      ['https://frotzsmith.com/*', 'https://frotzsmith.frotzinc.com/:splat', '301!'],
+      ['https://www.frotzsmith.com/*', 'https://frotzsmith.frotzinc.com/:splat', '301!'],
+    ]
+    expect(rules.slice(0, 2)).toEqual(domain)
+    // Every external rule is either the beacon proxy or one of these redirects.
+    expect(externalRules(rules)).toHaveLength(3)
   })
 
   it('serves the vendored tracker that init.js loads', () => {

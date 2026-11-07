@@ -17,7 +17,7 @@ function gate(): (story: unknown, origin: string) => string {
   return new Function(`${m![1]}; return __frotzStoryUrl`)() as (story: unknown, origin: string) => string
 }
 
-const O = 'https://frotzsmith.com'
+const O = 'https://frotzsmith.frotzinc.com'
 const DEMO = '/play/demo.z5'
 
 describe('play/index.html story gate', () => {

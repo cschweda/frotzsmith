@@ -1,7 +1,7 @@
 /**
  * Zero-backend source sharing via the URL FRAGMENT.
  *
- * `frotzsmith.com/#src=<deflate+base64url>&lang=i6` — the fragment is never
+ * `frotzsmith.frotzinc.com/#src=<deflate+base64url>&lang=i6` — the fragment is never
  * sent to any server (there is none to send it to): the receiving page
  * decodes it client-side and offers the source to the editor. Deflate via
  * fflate (already a dependency for zip extensions).

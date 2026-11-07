@@ -37,10 +37,10 @@
     },
     {
       "path": "public/pa/script.js",
-      "sha256": "1e19c9bf3c33a193c76689fe674404860c9ee94592a17eaca872ec5633d37a06",
-      "source": "Plausible tracker https://plausible.io/js/pa-2FCOIzY7AvsOrnssGbGde.js (MIT), fetched with curl 2026-11-04.",
-      "upstreamSha256": "5db9dd138315d67c65623a7c685d0a8981351667d4864d81c5acae3d306963b2",
-      "patched": "Provenance header comment only (12 lines); the upstream bytes follow it unchanged."
+      "sha256": "1b03308f8dd57fb5b9abffe37520c0c3bc96a2eeed2070e593aacecf04c59913",
+      "source": "Plausible tracker https://plausible.io/js/pa--Fyc-nN5t3vIahe6DaC7v.js (MIT), fetched with curl 2026-11-07 (frotzsmith.frotzinc.com site).",
+      "upstreamSha256": "dd6bb57a1577f3b04575fae5452ddc209e765a59b342d73d3f29c87ce098260f",
+      "patched": "Provenance header comment only (13 lines); the upstream bytes follow it unchanged."
     }
   ]
 }
