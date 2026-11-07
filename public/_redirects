@@ -2,6 +2,12 @@
 # aliases as-is unless told otherwise; these must come first so they win
 # over every other rule, including Nitro's appended catch-all. `!` forces
 # the redirect even when a file exists at the path.
+# Except sw.js: browsers that visited the old domain still run its service
+# worker, which serves pages from cache and never reaches the 301. Their
+# update check fetches sw.js; a cross-origin redirect fails it, so the old
+# domain serves a worker that unregisters itself instead (public/sw-retire.js).
+https://frotzsmith.com/sw.js      /sw-retire.js  200!
+https://www.frotzsmith.com/sw.js  /sw-retire.js  200!
 https://frotzsmith.com/*      https://frotzsmith.frotzinc.com/:splat  301!
 https://www.frotzsmith.com/*  https://frotzsmith.frotzinc.com/:splat  301!
 

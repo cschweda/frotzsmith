@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Plausible tracker re-vendored** for the new `frotzsmith.frotzinc.com` site
   (`pa--Fyc-nN5t3vIahe6DaC7v.js`); diffed against the reviewed copy, only the
   baked-in domain changed. Checksums updated in `tools/vendored-files.json`.
+- **Returning visitors of frotzsmith.com reach the new domain too.** Their
+  installed service worker served pages from cache, so the 301 never ran, and
+  its update failed on the cross-origin redirect of `sw.js`. The old domain now
+  serves `sw.js` as `public/sw-retire.js`, which clears the caches, unregisters
+  and reloads the tab into the 301.
 
 ### Added — 2026-11-06 Frotz, Inc.
 - **Frotz, Inc. links.** A "Frotz, Inc." link in the status bar and a line in
