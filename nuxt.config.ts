@@ -67,8 +67,9 @@ export default defineNuxtConfig({
       // and icons.
       globPatterns: ['**/*.{js,mjs,css,html,svg,png,ico,wasm,woff2,z5}'],
       // Not precached: ZILF (runtime-cached below), the first-party Plausible
-      // proxy, the social-sharing image, and the hosting fallbacks.
-      globIgnores: ['zilf/**', 'pa/**', 'og-image.*', '200.html', '404.html'],
+      // proxy, the social-sharing image, the hosting fallbacks, and the old
+      // domain's retiring worker (public/sw-retire.js).
+      globIgnores: ['zilf/**', 'pa/**', 'sw-retire.js', 'og-image.*', '200.html', '404.html'],
       // Headroom over Workbox's 2 MiB default, so a compiler wasm that grows
       // is still precached rather than silently dropped (with a warning).
       maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,

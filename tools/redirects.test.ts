@@ -13,7 +13,10 @@ const rules = readRedirects(resolve(root, 'public', '_redirects'))
 
 describe('public/_redirects', () => {
   it('does not proxy any script (the tracker is vendored)', () => {
-    expect(scriptProxies(rules)).toEqual([])
+    // Proxies to another origin only: the old domain's sw.js → /sw-retire.js
+    // rewrite serves a file of our own (pinned below).
+    expect(scriptProxies(externalRules(rules))).toEqual([])
+    expect(scriptProxies(rules).every(([, to]) => to === '/sw-retire.js')).toBe(true)
     expect(rules.some(([from]) => from === '/pa/script.js')).toBe(false)
   })
 
@@ -27,9 +30,24 @@ describe('public/_redirects', () => {
       ['https://frotzsmith.com/*', 'https://frotzsmith.frotzinc.com/:splat', '301!'],
       ['https://www.frotzsmith.com/*', 'https://frotzsmith.frotzinc.com/:splat', '301!'],
     ]
-    expect(rules.slice(0, 2)).toEqual(domain)
+    // Only the old domain's sw.js rewrites may precede them (next test).
+    expect(rules.slice(2, 4)).toEqual(domain)
     // Every external rule is either the beacon proxy or one of these redirects.
     expect(externalRules(rules)).toHaveLength(3)
+  })
+
+  it('serves the old domain a self-retiring sw.js, ahead of its 301', () => {
+    // An installed worker on frotzsmith.com answers navigations from cache and
+    // never sees the 301; its update fetch of sw.js can't follow a cross-origin
+    // redirect. So sw.js there is rewritten (200) to a worker that unregisters.
+    expect(rules.slice(0, 2)).toEqual([
+      ['https://frotzsmith.com/sw.js', '/sw-retire.js', '200!'],
+      ['https://www.frotzsmith.com/sw.js', '/sw-retire.js', '200!'],
+    ])
+    const sw = readFileSync(resolve(root, 'public', 'sw-retire.js'), 'utf8')
+    expect(sw).toContain('self.skipWaiting()')
+    expect(sw).toContain('self.registration.unregister()')
+    expect(sw).toContain('caches.delete')
   })
 
   it('serves the vendored tracker that init.js loads', () => {
