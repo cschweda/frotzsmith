@@ -15,6 +15,7 @@ function fileLabel(file: string | undefined): string {
 }
 const shortcut = compileShortcutLabel()
 const { exportHtml, exporting } = useHtmlExport()
+const { player } = usePlayerChoice()
 function onExportHtml() {
   void exportHtml() // outcome surfaces via toast on failure
 }
@@ -123,7 +124,7 @@ function downloadStory() {
             size="lg"
             icon="i-lucide-file-code-2"
             :loading="exporting"
-            title="A single offline-playable .html — upload it to itch.io or any static host"
+            :title="`A single offline-playable .html, in ${player === 'frotzplay' ? 'frotzplay' : 'Parchment'} — upload it to itch.io or any static host`"
             @click="onExportHtml"
           >
             Export playable HTML

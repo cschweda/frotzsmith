@@ -71,6 +71,7 @@ const resources = [
     items: [
       { label: 'Awesome Z-machine (curated list)', href: 'https://github.com/cschweda/awesome-z-machine' },
       { label: 'Z-Machine Standards 1.1', href: 'https://inform-fiction.org/zmachine/standards/z1point1/index.html' },
+      { label: 'frotzplay', href: 'https://frotzplay.frotzinc.com' },
       { label: 'Parchment', href: 'https://github.com/curiousdannii/parchment' },
       { label: 'ifvms / ZVM', href: 'https://github.com/curiousdannii/ifvms.js' },
       { label: 'The Z-Machine (Wikipedia)', href: 'https://en.wikipedia.org/wiki/Z-machine' },
@@ -166,9 +167,9 @@ Object -> lamp "brass lamp"
         <pre tabindex="0" class="bg-elevated border-default overflow-x-auto rounded-lg border p-4 text-xs leading-relaxed"><code>.inf source
   └─▶ inform6.wasm  (Inform {{ frotzsmith.versions.inform6 }} via Emscripten)
         └─▶ Z-code  (.z3 / .z5 / .z8 bytes, in memory)
-              └─▶ Blob URL  (tagged #game.zN)
-                    └─▶ Parchment &lt;iframe&gt;  (?story=)
-                          └─▶ ZVM  (pure-JS Z-machine)</code></pre>
+              └─▶ frotzplay  (ZPlayer, in the page; @frotzinc/zmachine)
+              └─▶ or, chosen on the Play tab: Blob URL (tagged #game.zN)
+                    └─▶ Parchment &lt;iframe&gt;  (?story=)  └─▶ ZVM</code></pre>
         <p class="text-muted text-sm">Entirely client-side; works offline after first load.</p>
       </section>
 
@@ -207,7 +208,7 @@ Object -> lamp "brass lamp"
         <pre tabindex="0" class="bg-elevated border-default overflow-x-auto rounded-lg border p-4 text-xs leading-relaxed"><code>.zil source
   └─▶ ZILF front end   (ZIL → ZAP assembly)
         └─▶ ZAPF        (ZAP → Z-code, .z3 / .z5 / .z8)
-              └─▶ same Blob URL → Parchment → ZVM  (as Inform 6)</code></pre>
+              └─▶ frotzplay, or Parchment → ZVM  (as Inform 6)</code></pre>
         <ul class="text-muted list-disc space-y-1.5 pl-5 text-sm">
           <li>ZILF + ZAPF are <span class="text-default">C# / .NET 10</span>, built offline to <span class="text-default">.NET WebAssembly</span> (a different runtime from the Emscripten <code class="frotz-code">inform6.wasm</code>) and committed like the I6 compiler. Pinned at ZILF rev <code class="frotz-code">{{ frotzsmith.versions.zilf }}</code>.</li>
           <li>The <code class="frotz-code">zillib</code> standard library is <span class="text-default">embedded in the bundle</span>, so a single <code class="frotz-code">.zil</code> file compiles with no local library files.</li>
@@ -312,9 +313,10 @@ Object -> lamp "brass lamp"
       <section class="space-y-3">
         <h2 class="text-primary text-xl font-bold">The interpreter</h2>
         <ul class="text-muted list-disc space-y-1.5 pl-5 text-sm">
-          <li><span class="text-default">Parchment</span> with the <span class="text-default">ifvms ZVM</span> engine — pure JavaScript, JIT (AST-compiling). MIT.</li>
+          <li><span class="text-default">frotzplay</span> by default: the Frotz, Inc. family's accessible Z-machine player (<code class="frotz-code">@frotzinc/player</code> on <code class="frotz-code">@frotzinc/zmachine</code>), in the page, no iframe. Its interpreter matches ZVM turn for turn on frotzplay's test walkthroughs; it announces each turn to screen readers, and has keyboard shortcuts, high contrast and OpenDyslexic. Send to Play types through its API. MIT.</li>
+          <li><span class="text-default">Parchment</span> with the <span class="text-default">ifvms ZVM</span> engine as the alternative (<em>Switch to Parchment</em> on the Play tab, remembered) — pure JavaScript, JIT (AST-compiling). MIT.</li>
           <li>Z-machine <span class="text-default">v3 / v4 / v5 / v8</span> (no v6 graphical). Quetzal save/restore, undo, status line, full Unicode, sound, output streams, single-key input.</li>
-          <li>The story is handed in as a same-origin <span class="text-default">Blob URL with a <code class="frotz-code">#game.zN</code> fragment</span> so Parchment's extension-based format detection selects the Z-machine; <code class="frotz-code">fetch</code> ignores the fragment.</li>
+          <li>Parchment gets the story as a same-origin <span class="text-default">Blob URL with a <code class="frotz-code">#game.zN</code> fragment</span> so Parchment's extension-based format detection selects the Z-machine; <code class="frotz-code">fetch</code> ignores the fragment.</li>
           <li><span class="text-default">No WASM interpreter.</span> bocfel (Emglken) was built and works, but ZVM is pure-JS, ~30× smaller, and the Z-machine is I/O-bound — no perceptible speed gain. WASM would only matter for Glulx.</li>
         </ul>
       </section>
