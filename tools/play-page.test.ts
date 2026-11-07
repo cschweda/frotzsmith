@@ -1,6 +1,7 @@
 /**
  * The Play page and its iframe (audit 2026-11-04, F17): the story gate in
- * public/play/index.html and the iframe's sandbox attribute in PlayPanel.vue.
+ * public/play/index.html and the iframe's sandbox attribute in ParchmentPlayer.vue (the Play
+ * tab's Parchment player; frotzplay, the default, runs in the page with no iframe).
  */
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -8,7 +9,7 @@ import { describe, expect, it } from 'vitest'
 
 const root = resolve(__dirname, '..')
 const html = readFileSync(resolve(root, 'public/play/index.html'), 'utf8')
-const panel = readFileSync(resolve(root, 'app/components/ide/PlayPanel.vue'), 'utf8')
+const panel = readFileSync(resolve(root, 'app/components/ide/ParchmentPlayer.vue'), 'utf8')
 
 /** The page's own gate function, run as written. */
 function gate(): (story: unknown, origin: string) => string {
@@ -47,7 +48,7 @@ describe('play/index.html story gate', () => {
   })
 })
 
-describe('PlayPanel iframe', () => {
+describe('ParchmentPlayer iframe', () => {
   it('is sandboxed with exactly allow-same-origin allow-scripts', () => {
     const tags = panel.match(/<iframe[\s\S]*?\/>/g) ?? []
     expect(tags).toHaveLength(1)

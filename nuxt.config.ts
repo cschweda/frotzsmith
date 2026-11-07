@@ -1,4 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
 import { frotzsmith } from './frotzsmith.config'
 import { ifvmsThisFix } from './tools/ifvms-this-fix.mjs'
 import { ifvmsTextFix } from './tools/ifvms-text-fix.mjs'
@@ -15,6 +17,9 @@ const DESKTOP = process.env.FROTZSMITH_DESKTOP === '1'
 // The service worker's kill switch: a deploy built with FROTZSMITH_SW_KILL=1 ships a worker that
 // unregisters itself, deletes every cache and reloads its pages (docs/06-security.md §9.1).
 const SW_KILL = process.env.FROTZSMITH_SW_KILL === '1'
+// frotzplay's OpenDyslexic fonts (and their OFL licence), served from the installed
+// @frotzinc/player at /frotzplay-fonts/ for the Play tab's player (its font-base).
+const FROTZPLAY_FONTS = join(dirname(createRequire(import.meta.url).resolve('@frotzinc/player/player.css')), '..', 'fonts')
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-06-01',
@@ -28,6 +33,10 @@ export default defineNuxtConfig({
   // No service worker in the desktop build (its updates come from its own
   // updater): no PWA module, no web manifest, no registration plugin.
   modules: ['@nuxt/ui', ...(DESKTOP ? [] : ['@vite-pwa/nuxt'])],
+
+  nitro: {
+    publicAssets: [{ dir: FROTZPLAY_FONTS, baseURL: '/frotzplay-fonts', maxAge: 60 * 60 * 24 * 7 }],
+  },
 
   // Offline website (Drafter's model). The worker precaches the app's own
   // files; ZILF's .NET runtime (~13 MB) is the one thing cached at runtime,
@@ -67,9 +76,10 @@ export default defineNuxtConfig({
       // and icons.
       globPatterns: ['**/*.{js,mjs,css,html,svg,png,ico,wasm,woff2,z5}'],
       // Not precached: ZILF (runtime-cached below), the first-party Plausible
-      // proxy, the social-sharing image, the hosting fallbacks, and the old
-      // domain's retiring worker (public/sw-retire.js).
-      globIgnores: ['zilf/**', 'pa/**', 'sw-retire.js', 'og-image.*', '200.html', '404.html'],
+      // proxy, the social-sharing image, the hosting fallbacks, the old
+      // domain's retiring worker (public/sw-retire.js), and frotzplay's
+      // OpenDyslexic fonts (430 KB, fetched only when chosen in its Settings).
+      globIgnores: ['zilf/**', 'pa/**', 'frotzplay-fonts/**', 'sw-retire.js', 'og-image.*', '200.html', '404.html'],
       // Headroom over Workbox's 2 MiB default, so a compiler wasm that grows
       // is still precached rather than silently dropped (with a warning).
       maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,

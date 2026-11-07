@@ -36,7 +36,7 @@ Inform 6 is the author's favourite IF language, but browser tooling is fragmente
 ## The loop
 
 ```
-write I6  ──▶  compile (inform6.wasm, client-side)  ──▶  play inline (Parchment)
+write I6  ──▶  compile (inform6.wasm, client-side)  ──▶  play inline (frotzplay)
    ▲                       │                                      │
    └─ clickable errors ────┘                                      ▼
       jump to the bad line                          Transcript — the commands you typed
@@ -55,7 +55,7 @@ write I6  ──▶  compile (inform6.wasm, client-side)  ──▶  play inline
 | UI | Nuxt UI 4 |
 | Editor | CodeMirror 6 (Inform 6 + ZIL syntax modes) |
 | Compilers | Inform 6: `inform6` → WebAssembly (Emscripten) **in a Web Worker** (main-thread fallback). ZIL: **ZILF + ZAPF** (C#/.NET 10) → .NET WebAssembly in a Web Worker (main-thread fallback), pre-warmed on `/zil/` |
-| Interpreter | Parchment / ZVM (Z-machine) |
+| Interpreter | [frotzplay](https://frotzplay.frotzinc.com) (`@frotzinc/player`), the accessible Z-machine player, by default; Parchment / ZVM as a choice on the Play tab |
 | Headless engine | pure-JS ZVM (ifvms) in a Web Worker, behind a `StoryEngine` seam |
 | Language | TypeScript |
 | State | Vue composables (no Pinia) |
@@ -153,6 +153,7 @@ Bundled third-party components keep their own licenses:
 - **Inform 6 compiler** and **Standard Library 6.12.8** — Artistic License 2.0 ([DavidKinder/Inform6](https://github.com/DavidKinder/Inform6))
 - **PunyInform 6.7** — see [johanberntsson/PunyInform](https://github.com/johanberntsson/PunyInform)
 - **ZILF + ZAPF compiler** and the **`zillib`** standard library — **GPLv3** ([zilf/zilf](https://foss.heptapod.net/zilf/zilf/), pinned at rev `5262550`), built offline to WebAssembly on the **.NET runtime** (MIT, [.NET Foundation](https://github.com/dotnet/runtime))
+- **frotzplay** (`@frotzinc/player`, `@frotzinc/zmachine`) — MIT ([cschweda/frotzlens](https://github.com/cschweda/frotzlens/tree/main/apps/play)), the Frotz, Inc. family's accessible player
 - **Parchment** / **ZVM (ifvms)** — MIT ([curiousdannii/parchment](https://github.com/curiousdannii/parchment))
 
 **Inspiration:** [Borogove](https://borogove.app) — the multi-language, browser-based IF IDE that proved this could be done well in the browser. **No Borogove code is used here**; Frotzsmith is an independent take (Inform 6 and ZIL), but Borogove was a definite inspiration (and the model for the extension picker).

@@ -5,7 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-11-07
+
+### Changed — frotzplay is the player
+- **Play runs in [frotzplay](https://frotzplay.frotzinc.com)**, the Frotz, Inc. family's accessible Z-machine player (`@frotzinc/player` 0.2.0), in the page, with no iframe. Its interpreter matches ZVM (the replay engine) turn for turn on frotzplay's own test walkthroughs, and it announces each turn to screen readers, and has keyboard shortcuts, high contrast, OpenDyslexic, undo, saves and transcript downloads. It follows the IDE's light and dark.
+- **Parchment is still there:** *Switch to Parchment* in the bar above the game (or *Play in* before pressing Play) starts the game again in Parchment, and the choice is remembered in this browser. It's kept while frotzplay settles in; the plan to retire it is in frotzlens's [docs/16](https://github.com/cschweda/frotzlens/blob/main/docs/16-frotzsmith-on-frotzplay.md).
+- **The transcript, auto-map, Skein and solution recorder work the same in both players.** Both report through one place (`usePlaySink`). frotzplay reports from its own events (its turns, its status line, its start), not by reading the screen.
+- **Send to Play** types through frotzplay's `send()` and presses through "press a key" prompts; it says where it stopped, as before. Sent commands stay out of the typed transcript, as with Parchment.
+- **Export playable HTML** makes frotzplay's single file when frotzplay is the player: about 150 KB plus the story, under its own strict Content-Security-Policy, branded, and it plays from a double-click. With Parchment chosen, the export is Parchment's as before.
+- frotzplay's OpenDyslexic fonts are served at `/frotzplay-fonts/`, outside the offline precache (fetched only when chosen).
+
+## [0.1.0] - 2026-11-07
 
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
