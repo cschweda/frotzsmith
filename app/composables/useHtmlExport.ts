@@ -2,9 +2,10 @@ import { buildStandaloneHtml, uint8ToBase64, type ExportAssets } from '~/utils/e
 import { cachedAsync } from '~/utils/cached-async'
 
 /**
- * Export the compiled story as a single self-contained, offline-playable
- * HTML file — the no-hosting "publish" (upload it to itch.io / any static
- * host, or double-click it locally), in the player the Play tab uses:
+ * Export the compiled story to play outside frotzsmith (upload it to itch.io /
+ * any static host, or double-click it locally).
+ *
+ * Export playable HTML: one self-contained file, in the player the Play tab uses:
  *
  * - frotzplay (the default): `bundle()` from @frotzinc/player — the
  *   <frotz-play> element and the story in one file under its own hash-based
@@ -13,6 +14,12 @@ import { cachedAsync } from '~/utils/cached-async'
  * - Parchment: our own vendored /play/web/ files (same-origin fetch, ~330 KB,
  *   cached after the first export); assembly is the pure buildStandaloneHtml
  *   (unit-tested).
+ *
+ * Export folder (.zip): always frotzplay's `bundleFolder()` + `zip()` —
+ * index.html, boot.js, frotzplay.js, frotzplay.css, story.js, story.<ext> and README.txt
+ * in a folder named after the story. index.html still plays from a double-click
+ * (story.js carries the story), and the folder is what itch.io's HTML upload
+ * expects. Parchment has no folder build.
  */
 
 const getAssets = cachedAsync(async (): Promise<ExportAssets> => {
@@ -37,14 +44,35 @@ const getAssets = cachedAsync(async (): Promise<ExportAssets> => {
   return { jquery, main, zvm, css, ieJs, waitingGifBase64: uint8ToBase64(gif) }
 })
 
+const loadPlayer = () =>
+  Promise.all([import('@frotzinc/player'), import('@frotzinc/player/frotz-play.js?raw')])
+
 /** frotzplay's single file (frotzlens docs/16 §5). */
 async function frotzplayHtml(story: Uint8Array, title: string, ext: string): Promise<string> {
-  const [{ bundle }, element] = await Promise.all([
-    import('@frotzinc/player'),
-    import('@frotzinc/player/frotz-play.js?raw'),
-  ])
+  const [{ bundle }, element] = await loadPlayer()
   const { html } = await bundle(story, { title, storyName: `story.${ext}`, elementJs: element.default })
   return html
+}
+
+/** frotzplay's folder, zipped inside a folder named `folder` (frotzlens docs/16 §5). */
+export async function frotzplayFolderZip(
+  story: Uint8Array,
+  title: string,
+  ext: string,
+  folder: string,
+): Promise<Uint8Array> {
+  const [{ bundleFolder, zip }, element] = await loadPlayer()
+  return zip(bundleFolder(story, { title, storyName: `story.${ext}`, elementJs: element.default }), folder)
+}
+
+function download(data: BlobPart, name: string, type: string) {
+  const url = URL.createObjectURL(new Blob([data], { type }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  a.click()
+  // Revoking synchronously can cancel the download in some Safari/Firefox builds.
+  setTimeout(() => URL.revokeObjectURL(url), 30_000)
 }
 
 export function useHtmlExport() {
@@ -68,14 +96,7 @@ export function useHtmlExport() {
               storyExt: r.storyExt,
               assets: await getAssets(),
             })
-      const blob = new Blob([html], { type: 'text/html' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${storyBase.value}.html`
-      a.click()
-      // Revoking synchronously can cancel the download in some Safari/Firefox builds.
-      setTimeout(() => URL.revokeObjectURL(url), 30_000)
+      download(html, `${storyBase.value}.html`, 'text/html')
       return true
     } catch (err: unknown) {
       useToast().add({
@@ -90,5 +111,28 @@ export function useHtmlExport() {
     }
   }
 
-  return { exportHtml, exporting }
+  /** Build and download `<storyBase>.zip` (frotzplay's folder). Returns false when it couldn't. */
+  async function exportFolder(): Promise<boolean> {
+    const r = result.value
+    if (!r?.storyFile || exporting.value) return false
+    exporting.value = true
+    try {
+      const title = storyTitle.value || 'Interactive Fiction'
+      const data = await frotzplayFolderZip(new Uint8Array(r.storyFile), title, r.storyExt, storyBase.value)
+      download(data as BlobPart, `${storyBase.value}.zip`, 'application/zip')
+      return true
+    } catch (err: unknown) {
+      useToast().add({
+        title: 'Folder export failed',
+        description: String(err),
+        color: 'error',
+        icon: 'i-lucide-folder-x',
+      })
+      return false
+    } finally {
+      exporting.value = false
+    }
+  }
+
+  return { exportHtml, exportFolder, exporting }
 }
