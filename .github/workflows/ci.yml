@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # staging: changes merge there first (a free Netlify branch deploy); staging → main is a
+    # production deploy, made only on Chris's word.
+    branches: [main, staging]
   pull_request:
 
 permissions:

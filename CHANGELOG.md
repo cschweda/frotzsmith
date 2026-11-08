@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - `AboutModal.vue`: the family About dialog replaces it.
 
+### CI
+- CI also runs on pushes to `staging`, where changes now land first: Netlify deploys `staging` as a free branch deploy, and only staging → main is a production deploy.
+
 ## [0.2.4] - 2026-11-08
 
 ### Changed
