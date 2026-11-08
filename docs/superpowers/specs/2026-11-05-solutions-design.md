@@ -14,7 +14,7 @@ A solution is the whole game told as it plays: the opening text, then every comm
 
 ## The key idea (builder's call)
 
-Frotzsmith already replays a list of commands headlessly in milliseconds (the Transcript tab and Test Scripts use the replay worker). So **a solution's text is always produced by replaying commands from the start of the game.** Nothing captures the Play iframe's screen.
+frotzsmith already replays a list of commands headlessly in milliseconds (the Transcript tab and Test Scripts use the replay worker). So **a solution's text is always produced by replaying commands from the start of the game.** Nothing captures the Play iframe's screen.
 
 - **Samples:** each sample ships a short walkthrough (commands only, one per line). Its solution is generated on demand by compiling the sample and replaying that walkthrough. No large text files ship with the site, and the text is always correct for the compiler and interpreter the site runs.
 - **Recording:** while recording, Play captures the commands typed (it already does: `usePlayTranscript`). When the author presses Stop, those commands are replayed from the start of the game and the full text becomes the solution. Recording therefore always starts the game afresh (see Recording).

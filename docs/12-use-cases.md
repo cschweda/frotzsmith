@@ -1,4 +1,4 @@
-# Frotzsmith — Use Cases
+# frotzsmith — Use Cases
 
 **Document 12 of 13 · Use Cases**
 
@@ -8,7 +8,7 @@ Concrete walkthroughs of real workflows, written from the author's side of the s
 
 ## UC-1 — "Compile this standard-library game and play it" (the spine)
 
-1. Author opens Frotzsmith. A new project defaults to the **Standard Library** profile; the editor holds the std starter template (two rooms, a takeable object).
+1. Author opens frotzsmith. A new project defaults to the **Standard Library** profile; the editor holds the std starter template (two rooms, a takeable object).
 2. Author pastes/writes their `.inf`. Syntax highlights as they type. Autosave shows "saved 2s ago."
 3. Author clicks **Compile** (or ⌘B). The WASM compiler loads (first time), runs, returns clean.
 4. Right pane auto-focuses **Play**; Parchment boots the `.z8` inline. Author types `look`, `n`, `take lamp` — it plays.
@@ -41,7 +41,7 @@ Concrete walkthroughs of real workflows, written from the author's side of the s
 ## UC-5 — "Switch this experiment to PunyInform"
 
 1. Author wants a tiny, fast game for a constrained target. They open the profile selector and choose **PunyInform**.
-2. Frotzsmith warns: PunyInform source isn't compatible with the standard library; it won't rewrite existing source. Author confirms (this is a fresh experiment).
+2. frotzsmith warns: PunyInform source isn't compatible with the standard library; it won't rewrite existing source. Author confirms (this is a fresh experiment).
 3. The editor seeds the **PunyInform starter template** (correct pre-include config constants + `globals.h`/`puny.h`). Default Z-version flips to `.z5`. Highlighting now reflects PunyInform keywords.
 4. Author writes their small game, compiles → a small `.z5`, plays inline.
 
@@ -59,7 +59,7 @@ Concrete walkthroughs of real workflows, written from the author's side of the s
 ## UC-8 — "Archive the story file"
 
 1. Author chooses **Export → Download story file** → `caverns.z8`.
-2. They run it in Lectrote/Frotz to confirm, then submit it to the IF Archive. (Same bytes Frotzsmith played.)
+2. They run it in Lectrote/Frotz to confirm, then submit it to the IF Archive. (Same bytes frotzsmith played.)
 
 ## UC-9 — "Move the project to my other machine"
 
@@ -78,6 +78,6 @@ Concrete walkthroughs of real workflows, written from the author's side of the s
 
 1. The author needs a menu system. They open the **Extensions** panel, which lists the curated I6 extension catalog filtered to the active Standard Library profile.
 2. They find a menu-system extension, read its one-line description, and click through to its source to check usage. They toggle **Add to project**.
-3. Frotzsmith adds the extension's `.h` file(s) to the project's include set. The author writes `Include "AltMenu";` (or whatever the entry's include name is) in their source; the next compile resolves it with no path wrangling.
+3. frotzsmith adds the extension's `.h` file(s) to the project's include set. The author writes `Include "AltMenu";` (or whatever the entry's include name is) in their source; the next compile resolves it with no path wrangling.
 4. For a niche extension not in the catalog, they instead use **Import `.h` file**, pick a local file, and `Include` it the same way — entirely offline.
 5. The pulled-in extensions persist with the project and travel in its `.json` export.

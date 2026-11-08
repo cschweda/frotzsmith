@@ -55,7 +55,7 @@
      READ MESSAGE         1 point, and the game ends: 'You have won'
 
  THE INFORM 6 EQUIVALENT
-   There is no Inform 6 copy among Frotzsmith's samples, but Cloak of
+   There is no Inform 6 copy among frotzsmith's samples, but Cloak of
    Darkness has been written in Inform 6 (and nearly everything else);
    Roger Firth's comparison pages put them side by side. There the bar's
    darkness is a 'light' attribute changed in the cloak's after routine,
@@ -67,7 +67,7 @@
    a comment (single quotes here stand in for double quotes, which would end
    the comment)."
 
-;"NOTE: there is no <VERSION> form here on purpose. Frotzsmith adds it when
+;"NOTE: there is no <VERSION> form here on purpose. frotzsmith adds it when
   it compiles, from the story version picked in the toolbar (z3 for this one)."
 
 ;"RELEASEID is the release number zillib prints in the banner (Release 2).

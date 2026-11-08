@@ -78,13 +78,13 @@ export function parseManifest(bytes: Uint8Array): ParsedManifest {
   if (exceedsDepth(doc, MANIFEST_MAX_DEPTH)) throw bad("This project's manifest (frotzsmith.json) is nested too deeply.")
 
   if (doc.format !== FORMAT) {
-    throw bad(`That file isn't a Frotzsmith project: its manifest's format isn't "${FORMAT}".`)
+    throw bad(`That file isn't a frotzsmith project: its manifest's format isn't "${FORMAT}".`)
   }
   if (typeof doc.version !== 'string') throw bad("This project's manifest has no valid version.")
   const v = /^(\d{1,9})\.(\d{1,9})$/.exec(doc.version)
   if (!v) throw bad("This project's manifest has no valid version.")
   if (Number(v[1]) > 0) {
-    throw bad(`This project was made by a newer Frotzsmith (format ${displayPath(doc.version, 20)}). Update Frotzsmith to open it.`)
+    throw bad(`This project was made by a newer frotzsmith (format ${displayPath(doc.version, 20)}). Update frotzsmith to open it.`)
   }
 
   if (doc.language !== 'i6' && doc.language !== 'zil') {

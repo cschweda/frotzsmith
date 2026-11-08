@@ -11,7 +11,7 @@ describe('readPlayerChoice', () => {
   it('keeps Parchment when chosen', () => {
     expect(readPlayerChoice('parchment')).toBe('parchment')
   })
-  it('is kept under a Frotzsmith key', () => {
+  it('is kept under a frotzsmith key', () => {
     expect(PLAYER_KEY).toBe('frotzsmith:player')
   })
 })

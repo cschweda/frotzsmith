@@ -1,4 +1,4 @@
-// Frotzsmith's version and the build's commit, read at build time (nuxt.config.ts defines them as
+// frotzsmith's version and the build's commit, read at build time (nuxt.config.ts defines them as
 // `__FROTZSMITH_VERSION__`, `__FROTZSMITH_COMMIT__`, and `__FROTZSMITH_COMMIT_DATE__` for About).
 // The version is the desktop app's (desktop/package.json): the one a release tag must equal,
 // so the web build and the desktop app agree. The root package.json carries it too;

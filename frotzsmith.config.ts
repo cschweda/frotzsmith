@@ -1,5 +1,5 @@
 /**
- * Frotzsmith — single source of truth for app-wide constants.
+ * frotzsmith — single source of truth for app-wide constants.
  *
  * Imported by `nuxt.config.ts` (build time) and by app code at runtime via the
  * `~~/frotzsmith.config` alias. Put tunable identity, versions, limits, defaults,
@@ -7,7 +7,7 @@
  */
 export const frotzsmith = {
   // ── Identity ──────────────────────────────────────────────────────────────
-  name: 'Frotzsmith',
+  name: 'frotzsmith',
   tagline: 'A browser-based Inform 6 IDE',
   description:
     'A free, browser-based IDE for Inform 6 interactive fiction — write, compile to Z-machine, and play instantly, all client-side. Standard Library & PunyInform.',
@@ -20,7 +20,7 @@ export const frotzsmith = {
   siteUrl: 'https://frotzsmith.frotzinc.com',
   repoUrl: 'https://github.com/cschweda/frotzsmith',
   author: 'cschweda',
-  /** The Frotz, Inc. family's landing page (Frotzsmith, Frotzlens, and what comes next). */
+  /** The frotz, Inc. family's landing page (frotzsmith, frotzlens, and what comes next). */
   familyUrl: 'https://frotzinc.com',
 
   // ── Toolchain versions (for display / banners) ────────────────────────────

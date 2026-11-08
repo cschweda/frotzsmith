@@ -20,7 +20,7 @@ export interface CompileOpts {
 }
 
 /**
- * A LanguageProfile describes one source language Frotzsmith can compile.
+ * A LanguageProfile describes one source language frotzsmith can compile.
  * Currently two IDs are supported: 'i6' (Inform 6) and 'zil' (ZIL).
  *
  * Task 2 populates the real I6_PROFILE.

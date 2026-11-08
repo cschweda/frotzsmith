@@ -1,4 +1,4 @@
-# Frotzsmith — Revision & Gap Analysis
+# frotzsmith — Revision & Gap Analysis
 
 **Document 10 of 13 · Revision / Gap Analysis**
 

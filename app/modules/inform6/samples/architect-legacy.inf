@@ -1,5 +1,5 @@
 ! ============================================================================
-!  THE ARCHITECT'S LEGACY  --  Frotzsmith sample (Inform 6 Standard Library)
+!  THE ARCHITECT'S LEGACY  --  frotzsmith sample (Inform 6 Standard Library)
 ! ----------------------------------------------------------------------------
 !  A longer game, written to show what a BIG Inform 6 project looks like once
 !  it has outgrown a single room and a single puzzle. The small samples each
@@ -297,7 +297,7 @@
 ! (the title) and Headline (the subtitle) in the opening banner; `^` inside
 ! a string is a newline. The banner appears after Initialise's text.
 Constant Story      "The Architect's Legacy";
-Constant Headline   "^A Frotzsmith sample: a longer game in three chapters.^";
+Constant Headline   "^A frotzsmith sample: a longer game in three chapters.^";
 
 ! --- Scoring ----------------------------------------------------------------
 ! The library's task system: each task is a number, task_scores holds what it
@@ -2183,7 +2183,7 @@ Object master_blueprint "master blueprint" lectern
 ! Grammar comes after VerbLib and after the whole world: the library checks
 ! the order. The game's own verbs follow it. A brand-new Verb could go before
 ! or after Grammar; an `Extend`, which adds to a library verb, must be after.
-! (This game does not include Frotzsmith's Exits.h, so rooms print no
+! (This game does not include frotzsmith's Exits.h, so rooms print no
 ! "Obvious exits:" line: the room text names the exits instead.)
 Include "Grammar";
 

@@ -111,7 +111,7 @@ describe('runReplay (headless ZVM, demo.z5)', () => {
     const { turns } = await runReplay(demo, 'zmachine', [])
     expect(turns).toHaveLength(1)
     expect(turns[0]!.command).toBe('')
-    expect(turns[0]!.output).toContain('Welcome to the Frotzsmith demo!')
+    expect(turns[0]!.output).toContain('Welcome to the frotzsmith demo!')
     expect(turns[0]!.output).toContain('Cottage')
   })
 

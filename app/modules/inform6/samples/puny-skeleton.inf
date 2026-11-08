@@ -2,7 +2,7 @@
 !% $OMIT_UNUSED_ROUTINES=1
 
 ! ============================================================================
-!  PUNYINFORM SKELETON  —  Frotzsmith starter (PunyInform)
+!  PUNYINFORM SKELETON  —  frotzsmith starter (PunyInform)
 ! ----------------------------------------------------------------------------
 !  A bare, compilable PunyInform starting point. The `!%` lines above are
 !  compiler options. Replace the title and author, then add your rooms and
@@ -59,12 +59,12 @@
 !    location = X in           INITIAL_LOCATION_VALUE = X  (constant)
 !      Initialise;
 !    Include "Grammar";  ──►   (bundled inside puny.h — no separate include)
-!    Include "Exits";    ──►   (none: Frotzsmith's Exits.h is Standard-
+!    Include "Exits";    ──►   (none: frotzsmith's Exits.h is Standard-
 !                               Library-only, so rooms here print no
 !                               "Obvious exits:" line)
 !
 !  PunyInform is designed so games fit and run well even in the oldest,
-!  smallest Z-machine format, z3. Frotzsmith compiles the PunyInform samples
+!  smallest Z-machine format, z3. frotzsmith compiles the PunyInform samples
 !  as z5 unless a sample picks another format (the Haunted House port picks
 !  z3). The Standard Library needs z5 or larger.
 !

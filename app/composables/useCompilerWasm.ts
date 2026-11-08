@@ -13,7 +13,7 @@ const getFactory = cachedAsync(() =>
   import('@frotzinc/inform6-wasm/inform6.mjs').then(m => m.default as (opts?: Record<string, unknown>) => Promise<Inform6Instance>),
 )
 
-/** The subset of the Emscripten module Frotzsmith uses. */
+/** The subset of the Emscripten module frotzsmith uses. */
 export interface Inform6Instance {
   FS: {
     mkdir(path: string): void

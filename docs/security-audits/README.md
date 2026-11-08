@@ -1,6 +1,6 @@
 # Security audits
 
-Every red/blue security audit of Frotzsmith, newest first. Each file is a permanent record of one audit: written when the audit closes and never rewritten. A later audit that revisits an earlier finding says so in its own record. The project README shows the newest audit in full and condenses older ones to a line each; this folder keeps everything.
+Every red/blue security audit of frotzsmith, newest first. Each file is a permanent record of one audit: written when the audit closes and never rewritten. A later audit that revisits an earlier finding says so in its own record. The project README shows the newest audit in full and condenses older ones to a line each; this folder keeps everything.
 
 | Date | Audit | Scope | Result |
 |---|---|---|---|

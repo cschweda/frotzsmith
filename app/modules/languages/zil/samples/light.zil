@@ -43,7 +43,7 @@
    OBJECT). ,NAME is a global value, .NAME a local one. ;'string' is a
    comment (single quotes here stand in for double quotes)."
 
-;"NOTE: there is no <VERSION> form here on purpose. Frotzsmith adds it when
+;"NOTE: there is no <VERSION> form here on purpose. frotzsmith adds it when
   it compiles, from the story version picked in the toolbar (z3 for this one)."
 
 ;"RELEASEID is the release number zillib prints in the banner. CONSTANT

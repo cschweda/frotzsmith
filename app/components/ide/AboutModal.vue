@@ -4,7 +4,7 @@ import { checkMessage } from '~/update/check'
 import { runUpdateCheck, takeUpdate, useUpdateCheck } from '~/update/use-check'
 import { currentAbout } from '~/utils/about'
 
-// About Frotzsmith: the build's identity and Check for updates. The footer button is the modal's
+// About frotzsmith: the build's identity and Check for updates. The footer button is the modal's
 // trigger, so closing it returns focus there. A found update is the app's own offer
 // (UpdatePrompt.vue); Reload here does what that offer's Reload does. Nothing reloads by itself.
 const open = ref(false)
@@ -28,11 +28,11 @@ function take() {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="About Frotzsmith" description="Version, license and updates.">
+  <UModal v-model:open="open" title="About frotzsmith" description="Version, license and updates.">
     <button
       type="button"
       class="hover:text-primary flex items-center gap-1.5"
-      title="About Frotzsmith, and check for updates"
+      title="About frotzsmith, and check for updates"
     >
       <UIcon name="i-lucide-badge-info" class="size-3.5" />
       About · v{{ about.version }}
@@ -41,7 +41,7 @@ function take() {
     <template #body>
       <div class="space-y-4 text-sm">
         <div>
-          <p class="font-semibold">Frotzsmith v{{ about.version }}</p>
+          <p class="font-semibold">frotzsmith v{{ about.version }}</p>
           <p v-if="hasCommit" class="text-muted text-xs" data-about-build>{{ build }}</p>
           <p class="mt-1 min-h-5" role="status" aria-live="polite" data-about-message>
             {{ message }}
@@ -70,8 +70,8 @@ function take() {
             target="_blank"
             rel="noopener noreferrer"
             class="text-primary underline"
-          >Frotz, Inc.</a>
-          Frotz, Inc. is a fiction. The Frotz interpreter is the work of its own authors and is not affiliated.
+          >frotz, Inc.</a>
+          frotz, Inc. is a fiction. The Frotz interpreter is the work of its own authors and is not affiliated.
         </p>
       </div>
     </template>

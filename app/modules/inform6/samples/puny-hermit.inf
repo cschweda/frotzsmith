@@ -2,7 +2,7 @@
 !% $OMIT_UNUSED_ROUTINES=1
 
 ! ============================================================================
-!  THE HERMIT  —  Frotzsmith sample (PunyInform)
+!  THE HERMIT  —  frotzsmith sample (PunyInform)
 ! ----------------------------------------------------------------------------
 !  The PunyInform port of the talking-NPC demo. PunyInform supports `life`
 !  routines and ask/tell, just like the Standard Library.
@@ -74,7 +74,7 @@
 !  names PunyInform uses for the banner printed at startup.
 ! ---------------------------------------------------------------------------
 Constant Story "THE HERMIT";
-Constant Headline "^A Frotzsmith sample showing a talking NPC (PunyInform).^";
+Constant Headline "^A frotzsmith sample showing a talking NPC (PunyInform).^";
 
 ! ---------------------------------------------------------------------------
 !  STARTING LOCATION (PunyInform style)

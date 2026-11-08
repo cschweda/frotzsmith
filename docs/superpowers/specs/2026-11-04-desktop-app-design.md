@@ -1,10 +1,10 @@
-# Frotzsmith desktop app, `.frotzsmith` packages, versioning & offline web — design
+# frotzsmith desktop app, `.frotzsmith` packages, versioning & offline web — design
 
 **Date:** 2026-11-04 · **Status:** draft for approval · **Owner:** Chris Schweda (personal project)
 
 ## 1. Intent — why this exists
 
-Frotzsmith (https://frotzsmith.frotzinc.com) is a browser IDE for Inform 6 and ZIL. Today it needs the
+frotzsmith (https://frotzsmith.frotzinc.com) is a browser IDE for Inform 6 and ZIL. Today it needs the
 network to load, and a project lives only in browser storage (localStorage + IndexedDB) as a
 single source buffer plus uploaded `.h` files.
 
@@ -16,9 +16,9 @@ and to **double-click a `.inf` or `.zil`** to open it.
 already ships this machinery: an Electron desktop app (`apps/desktop`), a package format
 (`docs/spec/drafter-package.md`), one version number shared by web and desktop, a website
 service worker with update offers (`apps/web/app/update/*`), and a release workflow
-(`.github/workflows/desktop.yml`). The author's rule: **if Drafter does it, Frotzsmith should
+(`.github/workflows/desktop.yml`). The author's rule: **if Drafter does it, frotzsmith should
 too.** Where this design deviates, it says why. Builders should read Drafter's code for each
-area before writing Frotzsmith's.
+area before writing frotzsmith's.
 
 ## 2. Goals
 
@@ -75,7 +75,7 @@ pnpm — not worth switching for).
   the SPA shell (Nuxt `200.html`/`404.html` as generated).
 - **CSP** = the policy in `netlify.toml` (it already needs `'unsafe-eval'` for the ZVM's runtime
   code generation and `'wasm-unsafe-eval'` for the compilers), sent per response.
-- Frotzsmith-specific checks the shell must pass (these are the real unknowns — spike first,
+- frotzsmith-specific checks the shell must pass (these are the real unknowns — spike first,
   §9):
   - module Web Workers (`new Worker(url, { type: 'module' })`) for the I6 compile, ZIL compile
     and replay workers load from `app://`;
@@ -247,7 +247,7 @@ Builder's draft, adjust to Drafter's `menu.ts` conventions:
 - **Edit:** standard roles + Prettify
 - **Build:** Compile (⌘B / Ctrl+B) · Play · Run test script · Run stale (Skein)
 - **View:** right-pane tabs · file explorer · light/dark
-- **Help:** Technical details · Report a bug · Check for updates · About Frotzsmith
+- **Help:** Technical details · Report a bug · Check for updates · About frotzsmith
 
 macOS: the standard app menu; Windows/Linux: a window menu bar. The website keeps its
 in-page toolbar unchanged.
@@ -260,7 +260,7 @@ As Drafter (`apps/web/scripts/version.mjs`, `apps/web/app/update/*`, `desktop/sr
   (Nuxt define), with the build's commit hash and commit date. A release tag `vX.Y.Z` must equal
   it; a test asserts every copy agrees. Start at `0.1.0` (builder's call; the root
   `package.json` is `0.0.0` today).
-- **About Frotzsmith** (web and desktop): version, commit, date, and **Check for updates**.
+- **About frotzsmith** (web and desktop): version, commit, date, and **Check for updates**.
 - **Desktop updates:** electron-updater against GitHub Releases on Windows/Linux; Help → Check
   for updates and an optional check-on-start setting; a found update offers **Restart**, never
   forced. macOS update checking stays off until the app is signed.
@@ -270,7 +270,7 @@ As Drafter (`apps/web/scripts/version.mjs`, `apps/web/app/update/*`, `desktop/sr
 
 ### 5.8 Website service worker (offline web)
 
-Follow Drafter's service worker and update flow. Frotzsmith specifics (builder's calls — verify
+Follow Drafter's service worker and update flow. frotzsmith specifics (builder's calls — verify
 against Drafter's strategy):
 
 - Precache the app shell, the I6 compiler worker + `inform6.wasm`, and `/play/*` up front.

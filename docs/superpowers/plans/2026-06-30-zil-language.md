@@ -18,7 +18,7 @@
 - **ZILF .NET-WASM is built OFFLINE** (`tools/zilf-wasm/`, ZILF pinned), output committed to `public/zilf/` like `inform6.wasm`. The .NET 10 SDK is a *build-only* dependency — Netlify never builds it. Publish with **`WasmFingerprintAssets=false`** (stable `dotnet.js`, inlined boot config).
 - **The heavy ZIL bundle loads only on `/zil/`** (lazy), in a **Web Worker** (the ~5 s compile must not block the UI). I6 users download nothing extra.
 - **Per-language state:** namespace `frotzsmith:*` keys as `frotzsmith:<lang>:*` (`i6` | `zil`) so projects coexist.
-- **No `Co-Authored-By` / AI-attribution trailer.** Frotzsmith is **GPLv3**; add ZILF + ZAPF + zillib (GPLv3) and the .NET runtime (MIT) to the README attribution in Phase 2.
+- **No `Co-Authored-By` / AI-attribution trailer.** frotzsmith is **GPLv3**; add ZILF + ZAPF + zillib (GPLv3) and the .NET runtime (MIT) to the README attribution in Phase 2.
 - **Spike recipe is canonical** for the ZILF API (`FrontEnd.Compile` → `ZapfAssembler.Assemble`, in-memory FS, embedded zillib, `[JSExport] ZilfExports.Compile`) and the Vite caveats (the `_framework/*`-returns-`text/html` SPA-fallback gotcha).
 
 ---

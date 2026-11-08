@@ -5,11 +5,11 @@
 
 ## Why this spike
 
-Running ZILF in the browser is **already proven** — [zilf.io](https://zilf.io) is a live, fully static Blazor-WASM site that compiles ZIL client-side, and ZILF is modern **C# / .NET 10** (no porting). The one genuine unknown is **integrating a .NET 10 WASM module into Frotzsmith's Nuxt / Vite / Web-Worker stack** — a different runtime from the Emscripten C `inform6.wasm`. This spike de-risks exactly that, and nothing more.
+Running ZILF in the browser is **already proven** — [zilf.io](https://zilf.io) is a live, fully static Blazor-WASM site that compiles ZIL client-side, and ZILF is modern **C# / .NET 10** (no porting). The one genuine unknown is **integrating a .NET 10 WASM module into frotzsmith's Nuxt / Vite / Web-Worker stack** — a different runtime from the Emscripten C `inform6.wasm`. This spike de-risks exactly that, and nothing more.
 
 ## Hypothesis to validate
 
-> A .NET 10 WASM module wrapping **ZILF + ZAPF**, built offline and served as a static artifact, can be loaded in Frotzsmith's stack and compile a minimal `.zil` source to a valid **`.z5`** story (a `byte[]` + diagnostics) via a JS-callable `Compile` — and the `.z5` plays in the existing Parchment / ZVM player.
+> A .NET 10 WASM module wrapping **ZILF + ZAPF**, built offline and served as a static artifact, can be loaded in frotzsmith's stack and compile a minimal `.zil` source to a valid **`.z5`** story (a `byte[]` + diagnostics) via a JS-callable `Compile` — and the `.z5` plays in the existing Parchment / ZVM player.
 
 Green → the full feature is "just" wiring + the `/zil/` page. Red → we learn the blocker cheaply.
 
@@ -64,7 +64,7 @@ The `dotnet.js` runtime runs under Node — validate the compile *logic* without
 
 **✅ Checkpoint 2 (go/no-go):** Valid z5 **and** z3 bytes out; errors surfaced. *(Strongest single signal — the compiler works under the .NET WASM runtime.)*
 
-## Phase 3 — Load + compile inside Frotzsmith (the real integration unknown)
+## Phase 3 — Load + compile inside frotzsmith (the real integration unknown)
 
 1. Copy `_framework/` into `public/zilf/` (static — Netlify serves it, exactly like `inform6.wasm`).
 2. Throwaway test surface — a temporary `app/pages/zil-spike.vue` (or a scratch script) — that loads `public/zilf/dotnet.js`, bootstraps the runtime, calls `Compile(oneRoomZil, 5)`, gets the `byte[]`. *Confirm Vite serves the `_framework/` assets and the dotnet loader resolves the runtime/DLLs by path (may need a `base` tweak).*
@@ -106,7 +106,7 @@ var storyBytes = fs.GetBytes(fs.Paths.First(p => Regex.IsMatch(p, @"\.z\d$")));
 
 **Size:** 24.7 MB raw / **9.3 MB gzipped** (untrimmed, 182 wasm files; ZILF+ZAPF ≈2.3 MB, the rest is the .NET BCL → **trimming is the headline Phase-3 optimization**). **Compile:** ~6 s first / ~5 s subsequent → **a Web Worker hides it**.
 
-**Phase 3 (browser load + compile + play in Frotzsmith): PASS — confirmed live.** At `/zil-spike`: `dotnet.create()` runtime up in **196 ms**; `ZilfExports.Compile` returned a valid **z5 (26,164 B, header[0]=5)** in **4.6 s**; the compiled ZIL story **booted + played in Parchment** ("West of House…"). Nuxt serves `public/zilf-spike/_framework/*` statically with correct MIME (`text/javascript`, `application/wasm`) — no config change.
+**Phase 3 (browser load + compile + play in frotzsmith): PASS — confirmed live.** At `/zil-spike`: `dotnet.create()` runtime up in **196 ms**; `ZilfExports.Compile` returned a valid **z5 (26,164 B, header[0]=5)** in **4.6 s**; the compiled ZIL story **booted + played in Parchment** ("West of House…"). Nuxt serves `public/zilf-spike/_framework/*` statically with correct MIME (`text/javascript`, `application/wasm`) — no config change.
 
 **Browser-integration recipe (for the build):**
 - Load: `import(/* @vite-ignore */ '/<base>/_framework/dotnet.js')` → `await dotnet.create()` → `getAssemblyExports(getConfig().mainAssemblyName)` → call the `[JSExport]` (here `ZilfExports.Compile(src, version)`, returns a JSON `{success, storyBase64, diagnostics}`).

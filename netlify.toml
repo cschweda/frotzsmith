@@ -1,4 +1,4 @@
-# Netlify configuration for Frotzsmith
+# Netlify configuration for frotzsmith
 # Static Nuxt 4 build (ssr: false). On Netlify, Nitro's Netlify preset writes the
 # static site to `dist` (locally `dist` is a symlink to `.output/public`), so we
 # publish `dist`. Headers/CSP: see the [[headers]] notes below and docs/06-security.md §9.

@@ -1,9 +1,9 @@
 import { ref } from 'vue'
 
-// The choices behind "A new version of Frotzsmith is ready". Nothing here reloads by itself:
+// The choices behind "A new version of frotzsmith is ready". Nothing here reloads by itself:
 // every path to `apply` starts with the author pressing a button.
 
-export const UPDATE_READY = 'A new version of Frotzsmith is ready'
+export const UPDATE_READY = 'A new version of frotzsmith is ready'
 
 export const APPLYING_MESSAGE = 'Getting the newest version…'
 

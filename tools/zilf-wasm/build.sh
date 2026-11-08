@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build.sh — offline ZILF→WASM build for Frotzsmith
+# build.sh — offline ZILF→WASM build for frotzsmith
 #
 # Requires: .NET 10 SDK at ~/.dotnet/dotnet (wasm-tools workload must be installed)
 # Usage: bash tools/zilf-wasm/build.sh  (from repo root, or cd tools/zilf-wasm && ./build.sh)
@@ -23,7 +23,7 @@ if [[ ! "${ZILF_BUNDLE}" =~ ^r[A-Za-z0-9._-]+$ ]]; then
 fi
 OUTPUT_DIR="${REPO_ROOT}/public/zilf/${ZILF_BUNDLE}"
 
-echo "=== Frotzsmith ZILF→WASM build ==="
+echo "=== frotzsmith ZILF→WASM build ==="
 echo "Repo root : ${REPO_ROOT}"
 echo "Bundle    : public/zilf/${ZILF_BUNDLE}"
 echo "Tools dir : ${SCRIPT_DIR}"
@@ -80,7 +80,7 @@ cp -r "${FRAMEWORK_SRC}" "${OUTPUT_DIR}/_framework"
 
 # Also copy dotnet.js from wwwroot root if present (some .NET versions put it there)
 # NOTE: main.js and index.html are wasmbrowser template samples — not used by the
-# Frotzsmith worker (which imports _framework/dotnet.js directly). Do NOT copy them.
+# frotzsmith worker (which imports _framework/dotnet.js directly). Do NOT copy them.
 for f in dotnet.js; do
   SRC="${SCRIPT_DIR}/publish/wwwroot/${f}"
   if [[ -f "${SRC}" ]]; then

@@ -237,7 +237,7 @@ export function useSolutionTab() {
       await navigator.clipboard.writeText(text)
       return { ok: true }
     } catch {
-      return { ok: false, message: 'The browser would not let Frotzsmith use the clipboard, so use Download instead.' }
+      return { ok: false, message: 'The browser would not let frotzsmith use the clipboard, so use Download instead.' }
     }
   }
 
@@ -257,7 +257,7 @@ export function useSolutionTab() {
   async function readFile(file: File): Promise<{ ok: true; text: string } | { ok: false; message: string }> {
     // Bytes first (cheap, before reading); UTF-16 length after (the cap's unit).
     if (file.size > SOLUTION_MAX * 3)
-      return { ok: false, message: 'That file is over 1 MiB, which is more than Frotzsmith keeps for one solution.' }
+      return { ok: false, message: 'That file is over 1 MiB, which is more than frotzsmith keeps for one solution.' }
     let text: string
     try {
       text = await file.text()
@@ -265,7 +265,7 @@ export function useSolutionTab() {
       return { ok: false, message: 'That file could not be read.' }
     }
     if (text.length > SOLUTION_MAX)
-      return { ok: false, message: 'That file is over 1 MiB, which is more than Frotzsmith keeps for one solution.' }
+      return { ok: false, message: 'That file is over 1 MiB, which is more than frotzsmith keeps for one solution.' }
     return { ok: true, text }
   }
 

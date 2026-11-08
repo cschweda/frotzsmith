@@ -112,7 +112,7 @@ subfolder finding its siblings before root files. Expected output:
 | Build model | offline; artifact committed; Netlify serves static files only |
 
 **GPLv3 note:** Distributing the compiled WASM bundle constitutes distribution
-of a GPLv3-covered work. The Frotzsmith project must comply with GPLv3 § 6
+of a GPLv3-covered work. The frotzsmith project must comply with GPLv3 § 6
 (provide Corresponding Source or a written offer). See repo `LICENSE` and the
 project's licensing decision document for the chosen compliance path.
 

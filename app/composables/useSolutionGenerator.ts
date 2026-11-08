@@ -38,7 +38,7 @@ export function useSolutionGenerator() {
     // Defence in depth (audit F2): a source from a package, link or opened
     // file is not run headlessly until the author has played or run it once.
     if (useOutsideSource().untrusted.value)
-      return { ok: false, message: 'This game came from outside Frotzsmith, so press Play or Run once before making its solution.' }
+      return { ok: false, message: 'This game came from outside frotzsmith, so press Play or Run once before making its solution.' }
     const gen = ide.sourceGen.value
     const moved = (): GenerateResult | null => {
       if (call !== latestCall) return SUPERSEDED

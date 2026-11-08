@@ -4,7 +4,7 @@ import { frotzsmith } from '~~/frotzsmith.config'
 const { setLanguage, profile } = useLanguage()
 setLanguage('zil')
 useHead({
-  title: 'Frotzsmith — ZIL IDE',
+  title: 'frotzsmith — ZIL IDE',
   link: [{ rel: 'canonical', href: `${frotzsmith.siteUrl}/zil/` }],
   meta: [{ property: 'og:url', content: `${frotzsmith.siteUrl}/zil/` }],
 })

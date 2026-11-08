@@ -1,4 +1,4 @@
-# Frotzsmith — Phase 3: Play via Parchment & the StoryEngine Seam
+# frotzsmith — Phase 3: Play via Parchment & the StoryEngine Seam
 
 **Document 03 of 13 · Phase 3**
 **Deliverable:** A clean compile auto-focuses the **Play** tab, where the freshly compiled story file runs inline via Parchment. The Z-machine plays behind a single `StoryEngine` interface, with the engine chosen by the compiled file's target; Glulx is stubbed behind the same factory for a future drop-in.
@@ -30,7 +30,7 @@ The interpreter is selected by the compiled story's target via one factory (`cre
 
 ## 2. Two display modes, same engine
 
-There are **two ways** Frotzsmith drives an engine, and this distinction is the spine of Phases 3–4:
+There are **two ways** frotzsmith drives an engine, and this distinction is the spine of Phases 3–4:
 
 1. **Interactive play (this phase).** The engine is wired to a visible Parchment/GlkOte display in the Play tab. The human types; output renders to screen.
 2. **Headless replay (Phase 4 + Skein).** The engine is driven *programmatically* — `boot()` then a loop of `send(command)` capturing returned text — bypassing the visible window. No human, no rendering required; output is collected per command.
@@ -39,7 +39,7 @@ Both modes use the *same* `StoryEngine`. Interactive play is "a human calling `s
 
 ## 3. Parchment for interactive play
 
-Parchment is the display+interpreter wrapper (GlkOte display layer over ZVM/Quixe). For the **Play tab**, Frotzsmith embeds Parchment configured to load the in-memory story file (a `Uint8Array`, not a URL fetch). On each successful compile:
+Parchment is the display+interpreter wrapper (GlkOte display layer over ZVM/Quixe). For the **Play tab**, frotzsmith embeds Parchment configured to load the in-memory story file (a `Uint8Array`, not a URL fetch). On each successful compile:
 
 1. Tear down any prior Parchment instance in the Play tab.
 2. Instantiate Parchment with the new story bytes.
@@ -83,7 +83,7 @@ app/
 
 ## 7. Accessibility
 
-Parchment/GlkOte has its own a11y surface; Frotzsmith ensures the Play tab is keyboard-reachable, focus moves into the game input on tab activation, and the tab control announces state ("Play — game running"). axe-core covers the surrounding chrome (Parchment internals are third-party but the embedding must not introduce violations).
+Parchment/GlkOte has its own a11y surface; frotzsmith ensures the Play tab is keyboard-reachable, focus moves into the game input on tab activation, and the tab control announces state ("Play — game running"). axe-core covers the surrounding chrome (Parchment internals are third-party but the embedding must not introduce violations).
 
 ## 8. Phase 3 done =
 

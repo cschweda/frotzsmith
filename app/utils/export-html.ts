@@ -75,7 +75,7 @@ export function buildStandaloneHtml(opts: ExportOptions): string {
 <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
 <style>
 ${assets.css}
-/* Frotzsmith export: parchment tint, edge-to-edge. */
+/* frotzsmith export: parchment tint, edge-to-edge. */
 :root {
   --glkote-buffer-bg: #f5f1e8; --glkote-buffer-fg: #2a2622;
   --glkote-grid-bg: #efe9da;   --glkote-grid-fg: #2a2622;

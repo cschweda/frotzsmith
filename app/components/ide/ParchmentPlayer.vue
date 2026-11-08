@@ -4,7 +4,7 @@ import { feedFailed, feedStopped } from '~/composables/play-feed-toasts'
 import { acceptPlayMessage } from '~/utils/play-message'
 
 /**
- * The compiled story in a Parchment iframe (pure-JS ZVM), the player Frotzsmith
+ * The compiled story in a Parchment iframe (pure-JS ZVM), the player frotzsmith
  * shipped with; now the alternative to frotzplay (frotzlens docs/16 §4). PlayPanel
  * mounts it fresh for each Play. We hand the in-memory story bytes to it as a
  * same-origin blob URL via ?story=.

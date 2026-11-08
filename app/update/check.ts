@@ -199,7 +199,7 @@ export function checkMessage(state: CheckState, version: string): string {
     case 'fetching':
       return 'Getting the newest version…'
     case 'latest':
-      return `Frotzsmith ${version} is the newest version.`
+      return `frotzsmith ${version} is the newest version.`
     case 'ready':
       return UPDATE_READY
     case 'unavailable':

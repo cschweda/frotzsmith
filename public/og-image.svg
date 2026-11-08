@@ -37,7 +37,7 @@
   </g>
 
   <!-- Wordmark + tagline -->
-  <text x="286" y="300" font-family="Georgia, 'Times New Roman', serif" font-size="98" font-weight="700" fill="#f5f3ee">Frotzsmith</text>
+  <text x="286" y="300" font-family="Georgia, 'Times New Roman', serif" font-size="98" font-weight="700" fill="#f5f3ee">frotzsmith</text>
   <text x="290" y="352" font-size="33" fill="#a8a29e">A browser-based Interactive Fiction IDE</text>
   <text x="290" y="406" font-family="'Courier New', Courier, monospace" font-size="26" fill="#fbbf24">&gt; compile &#183; play &#183; entirely client-side</text>
 

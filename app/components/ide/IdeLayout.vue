@@ -267,10 +267,10 @@ const drawerOpen = computed({
         target="_blank"
         rel="noopener noreferrer"
         class="hover:text-primary flex items-center gap-1.5"
-        title="Frotz, Inc.: Frotzsmith, Frotzlens and the rest of the family"
+        title="frotz, Inc.: frotzsmith, frotzlens and the rest of the family"
       >
         <UIcon name="i-lucide-lamp" class="size-3.5" />
-        Frotz, Inc.
+        frotz, Inc.
       </a>
 
       <AboutModal />

@@ -1,4 +1,4 @@
-# Frotzsmith — Architecture Decisions
+# frotzsmith — Architecture Decisions
 
 **Document 11 of 13 · Architecture Decisions (ADR log)**
 
@@ -75,7 +75,7 @@ Each ADR: context → decision → consequences. These are the load-bearing choi
 **Decision.** `nuxt generate` (`yarn generate`) with `ssr: false` → static output at **`.output/public`** on Netlify (the Nuxt 4 path — *not* `dist`, which was Nuxt 2). No SSR. All WASM/interpreter code **and CodeMirror 6** are client-only (CM6 touches `document` and will break prerendering otherwise).
 **Consequences.** (+) Offline-capable, cheap, deploy-anywhere. (+) No server runtime to secure. (−) Must guard every WASM/interpreter/CM6 path against SSR (dynamic import / `.client` / `<ClientOnly>`). (−) `netlify.toml` publishes `.output/public`.
 
-> Note: the author's *default* new-project preference is SSR-mode Nuxt; Frotzsmith is a deliberate exception because it's a pure client-side tool with no server-rendered content — flagged per the "flag when Nuxt/SSR doesn't fit" standing instruction.
+> Note: the author's *default* new-project preference is SSR-mode Nuxt; frotzsmith is a deliberate exception because it's a pure client-side tool with no server-rendered content — flagged per the "flag when Nuxt/SSR doesn't fit" standing instruction.
 
 ## ADR-012 — Inform 6 extension catalog: bundled + local import (remote registry deferred)
 

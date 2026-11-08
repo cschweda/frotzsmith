@@ -1,8 +1,8 @@
-# Frotzsmith — Security
+# frotzsmith — Security
 
 **Document 06 of 13 · Security**
 
-Frotzsmith is a static, client-only app: no backend, no accounts, no user data leaving the browser except via explicit downloads the author initiates. That eliminates whole categories of risk (no server to breach, no DB, no auth surface) but introduces a few specific to running a compiler and untrusted story files in-browser.
+frotzsmith is a static, client-only app: no backend, no accounts, no user data leaving the browser except via explicit downloads the author initiates. That eliminates whole categories of risk (no server to breach, no DB, no auth surface) but introduces a few specific to running a compiler and untrusted story files in-browser.
 
 ---
 
@@ -41,10 +41,10 @@ There is no remote attacker surface (no server). The realistic risks are **self-
 
 All three text streams are **untrusted** and must never be injected as HTML:
 1. **Compiler stderr** (error/warning messages) — rendered as text content, not HTML.
-2. **Game output** in the Play tab — Parchment/GlkOte handles rendering; Frotzsmith doesn't post-process it into the DOM as raw HTML.
+2. **Game output** in the Play tab — Parchment/GlkOte handles rendering; frotzsmith doesn't post-process it into the DOM as raw HTML.
 3. **Game output** in the Transcript tab — rendered as text content; if any styling is applied, it's via safe DOM construction, never `innerHTML` of game text.
 
-Where Frotzsmith itself renders any of this (Transcript, Results), it uses text nodes / framework text binding (Vue's default escaping), never `v-html` on untrusted content. (The markdown editor already established DOMPurify discipline for *its* HTML rendering; Frotzsmith's surfaces are plain text, so the rule is simply "no raw HTML from untrusted sources.")
+Where frotzsmith itself renders any of this (Transcript, Results), it uses text nodes / framework text binding (Vue's default escaping), never `v-html` on untrusted content. (The markdown editor already established DOMPurify discipline for *its* HTML rendering; frotzsmith's surfaces are plain text, so the rule is simply "no raw HTML from untrusted sources.")
 
 ## 5. Export hygiene
 
@@ -79,7 +79,7 @@ A `.frotzsmith` file is untrusted input, read entirely in the browser.
 
 ## 7. localStorage hygiene
 
-- Frotzsmith's own keys are namespaced (`frotzsmith:*`, per language as `frotzsmith:<lang>:*`) to avoid collisions. **Exception:** the vendored Parchment player writes its own `autosave:<story-hash>` keys (same origin); the IDE removes them when a new source loads, on every compile and before Send to Play (`clearPlayAutosave`), so a game restarts from the beginning.
+- frotzsmith's own keys are namespaced (`frotzsmith:*`, per language as `frotzsmith:<lang>:*`) to avoid collisions. **Exception:** the vendored Parchment player writes its own `autosave:<story-hash>` keys (same origin); the IDE removes them when a new source loads, on every compile and before Send to Play (`clearPlayAutosave`), so a game restarts from the beginning.
 - Quota-exceeded handled gracefully (warn, continue in memory) — the markdown editor's pattern.
 - No secrets are ever stored (there are none — no auth).
 
@@ -122,10 +122,10 @@ The website registers a Workbox service worker (`@vite-pwa/nuxt`, configured und
 - **Precache: the app's own files only** — the pages, the `_nuxt/` chunks and workers (the Inform 6 compiler's wasm among them), the Parchment player under `play/`, the demo story, fonts and icons. Explicitly excluded: `zilf/**`, `pa/**`, `og-image.*`, `200.html`, `404.html`. Precached entries are revisioned by Workbox; outdated caches are cleaned up on activation.
 - **One runtime cache: `frotzsmith-zilf`.** Requests whose **pathname** is `/zilf/r<rev>/_framework/*` (the route matches the path only, whatever the origin — harmless, because the app makes no cross-origin requests and an opaque cross-origin response has status 0, never the 200 the route requires) (the ZILF .NET runtime, ~13 MB) are served **CacheFirst** and stored only on a **200** response — never a 404, an error or an opaque response, so a bad fetch can't poison the compiler for good. The path carries the ZILF revision, so CacheFirst can't serve a stale runtime after an upgrade. Nothing is downloaded until ZIL is used.
 - **Never cached:** `/pa/` (the vendored Plausible tracker and the event proxy — pageviews stay live and offline visits simply aren't counted) and **any third-party response** — the app makes no cross-origin requests (CSP `connect-src 'self' blob:`, §9), and the one runtime route keeps only status 200, which an opaque cross-origin response never has.
-- **Updates never apply without the author.** `registerType: 'prompt'`, `skipWaiting: false`: a new worker installs and waits. The page offers *"A new version of Frotzsmith is ready"* (**Reload** / **Later**); only the author's **Reload** tells the waiting worker to take over, and only that tab reloads, after its pending saves are written. Other tabs keep their offer. `sw.js` and `manifest.webmanifest` are served `no-cache` (`netlify.toml`), so a deploy is noticed, not stuck behind an HTTP cache.
+- **Updates never apply without the author.** `registerType: 'prompt'`, `skipWaiting: false`: a new worker installs and waits. The page offers *"A new version of frotzsmith is ready"* (**Reload** / **Later**); only the author's **Reload** tells the waiting worker to take over, and only that tab reloads, after its pending saves are written. Other tabs keep their offer. `sw.js` and `manifest.webmanifest` are served `no-cache` (`netlify.toml`), so a deploy is noticed, not stuck behind an HTTP cache.
 - **Nuxt's own reloads are off.** Nuxt 4 by default polls `builds/latest.json` hourly and reloads the page on the next in-app navigation once a new build exists, and reloads on a chunk that fails to load — both without writing the pending saves. `nuxt.config.ts` sets `experimental.checkOutdatedBuildInterval: false` and `experimental.emitRouteChunkError: 'manual'`; a chunk error shows the update offer instead (`plugins/service-worker.client.ts`, `app:chunkError`). A long-lived tab still learns of a deploy: the plugin calls `registration.update()` hourly, which can only raise the offer.
 - `tools/check-sw.mjs` (run by `postgenerate`) reads the built `sw.js` and fails the build if any excluded path is precached, the `/` app shell is missing, or the ZILF runtime route is missing or not a pathname-matched, 200-only `CacheFirst`.
-- **Kill switch (removing the worker).** To remove the service worker from every visitor, deploy a build made with **`FROTZSMITH_SW_KILL=1`** (e.g. as a Netlify build environment variable, then trigger a deploy). That sets `pwa.selfDestroying: true`: the deployed `sw.js` installs at once, unregisters itself, deletes every cache Frotzsmith made, and reloads its open pages from the network. `check-sw` checks that shape in that mode. **A rollback alone does not remove the worker:** rolling back to a deploy from before the service worker makes `/sw.js` a 404, and an installed worker that gets a 404 on update simply stays, serving its precache indefinitely. So: deploy the kill build first, leave it up long enough for visitors to come back (open tabs pick it up within the hourly check), then roll back or redeploy normally. This is the **one path that reloads pages without the author pressing Reload**, by design; it does not wait for an open tab's pending (debounced) saves, so the last second of typing can be lost; work already saved in the browser's storage is untouched (only Cache Storage is cleared).
+- **Kill switch (removing the worker).** To remove the service worker from every visitor, deploy a build made with **`FROTZSMITH_SW_KILL=1`** (e.g. as a Netlify build environment variable, then trigger a deploy). That sets `pwa.selfDestroying: true`: the deployed `sw.js` installs at once, unregisters itself, deletes every cache frotzsmith made, and reloads its open pages from the network. `check-sw` checks that shape in that mode. **A rollback alone does not remove the worker:** rolling back to a deploy from before the service worker makes `/sw.js` a 404, and an installed worker that gets a 404 on update simply stays, serving its precache indefinitely. So: deploy the kill build first, leave it up long enough for visitors to come back (open tabs pick it up within the hourly check), then roll back or redeploy normally. This is the **one path that reloads pages without the author pressing Reload**, by design; it does not wait for an open tab's pending (debounced) saves, so the last second of typing can be lost; work already saved in the browser's storage is untouched (only Cache Storage is cleared).
 - The desktop build (`FROTZSMITH_DESKTOP=1`) ships no service worker, no manifest and no registration code.
 
 ## 10. Summary

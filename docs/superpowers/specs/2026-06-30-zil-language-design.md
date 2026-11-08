@@ -1,4 +1,4 @@
-# Frotzsmith — ZIL as a second language (the `/zil/` IDE)
+# frotzsmith — ZIL as a second language (the `/zil/` IDE)
 
 **Date:** 2026-06-30
 **Status:** Design — pending review, then plan
@@ -6,7 +6,7 @@
 
 ## 1. Context & problem
 
-Frotzsmith is now an **Interactive Fiction IDE**, not an Inform-6-only one. Inform 6 and PunyInform share one compiler and are syntactically near-identical (a library toggle). **ZIL is a different language** (MDL/Lisp-like) with a different compiler (ZILF, C#/.NET 10). The spike proved ZILF compiles `.zil` → z5/z3 **client-side in the browser** via .NET-WASM, and the compiled story **plays in the existing Parchment/ZVM player** unchanged (Z-code is Z-code). Licensing is cleared (Frotzsmith is GPLv3; ZILF is GPLv3).
+frotzsmith is now an **Interactive Fiction IDE**, not an Inform-6-only one. Inform 6 and PunyInform share one compiler and are syntactically near-identical (a library toggle). **ZIL is a different language** (MDL/Lisp-like) with a different compiler (ZILF, C#/.NET 10). The spike proved ZILF compiles `.zil` → z5/z3 **client-side in the browser** via .NET-WASM, and the compiled story **plays in the existing Parchment/ZVM player** unchanged (Z-code is Z-code). Licensing is cleared (frotzsmith is GPLv3; ZILF is GPLv3).
 
 Goal: a **`/zil/` route** — the same IDE experience, ZIL-specific — alongside `/` (Inform 6), with a title-strip toggle. `/` stays I6; a landing picker is deferred.
 
@@ -96,7 +96,7 @@ A ZIL debugger / stepper; a full ZIL grammar/lint beyond compiler diagnostics; t
 
 ## 8. Licensing
 
-Frotzsmith is **GPLv3** (relicensed for this). Bundled: **ZILF + ZAPF + zillib — GPLv3** (add to the README attribution); the **.NET runtime — MIT/.NET Foundation**. The build/attribution note lands with Phase 2.
+frotzsmith is **GPLv3** (relicensed for this). Bundled: **ZILF + ZAPF + zillib — GPLv3** (add to the README attribution); the **.NET runtime — MIT/.NET Foundation**. The build/attribution note lands with Phase 2.
 
 ## 9. Done =
 

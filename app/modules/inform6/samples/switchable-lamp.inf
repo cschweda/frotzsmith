@@ -213,8 +213,8 @@ Object Cellar "Cellar"
 ! GRAMMAR — must be included last
 ! Builds the full verb/grammar table: 'switch', 'turn' and friends, all
 ! mapped to the SwitchOn/SwitchOff actions handled above. It must follow
-! VerbLib. "Exits" is a small Frotzsmith helper that prints the room's
+! VerbLib. "Exits" is a small frotzsmith helper that prints the room's
 ! "Obvious exits:" line (nothing in the dark).
 ! ---------------------------------------------------------------------------
-Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
+Include "Exits";    ! frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

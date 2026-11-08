@@ -3,7 +3,7 @@
  * @frotzinc/nuxt-base (netlify/inject-preloads): it reads the client manifest
  * the layer's `build:manifest` hook dumps and injects <link rel="modulepreload">
  * hints for each route's page + IDE chunk chain, so all of it downloads in
- * parallel from the first byte. This file is Frotzsmith's route table.
+ * parallel from the first byte. This file is frotzsmith's route table.
  */
 import { runInjectPreloads } from '@frotzinc/nuxt-base/netlify/inject-preloads'
 

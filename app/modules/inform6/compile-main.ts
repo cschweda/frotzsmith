@@ -8,7 +8,7 @@ import { useCompilerWasm } from '~/composables/useCompilerWasm'
  * The real Inform 6 compile, through @frotzinc/inform6-wasm: it mounts the
  * library + extensions in MEMFS (extensions first, the library over them, an
  * explicit override last — audit F1), runs inform6.wasm with `-s -Cu`, and
- * parses diagnostics and stats. This adapter maps Frotzsmith's CompileOpts in
+ * parses diagnostics and stats. This adapter maps frotzsmith's CompileOpts in
  * and its CompileResult out; the Emscripten instance comes from
  * useCompilerWasm (the bundler seam the tests mock).
  *

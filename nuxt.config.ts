@@ -24,7 +24,7 @@ const FROTZPLAY_FONTS = join(dirname(createRequire(import.meta.url).resolve('@fr
 export default defineNuxtConfig({
   compatibilityDate: '2025-06-01',
 
-  // The shared Frotz, Inc. layer: ssr:false (Frotzsmith is a pure client-side
+  // The shared frotz, Inc. layer: ssr:false (frotzsmith is a pure client-side
   // tool — static, no SSR, ADR-011), dark-default color mode, the Nuxt UI color
   // roles, the safe-storage/slug/shortcut utils, and the build:manifest hook
   // that tools/inject-preloads.mjs reads.
@@ -53,8 +53,8 @@ export default defineNuxtConfig({
     client: { registerPlugin: false, installPrompt: false, periodicSyncForUpdates: 0 },
     devOptions: { enabled: false },
     manifest: {
-      name: 'Frotzsmith',
-      short_name: 'Frotzsmith',
+      name: 'frotzsmith',
+      short_name: 'frotzsmith',
       description: frotzsmith.description,
       lang: 'en',
       id: '/',
@@ -227,7 +227,7 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      title: 'Frotzsmith — Interactive Fiction IDE',
+      title: 'frotzsmith — Interactive Fiction IDE',
       htmlAttrs: { lang: 'en' },
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
@@ -236,8 +236,8 @@ export default defineNuxtConfig({
         { name: 'robots', content: 'index, follow' },
         // Open Graph
         { property: 'og:type', content: 'website' },
-        { property: 'og:site_name', content: 'Frotzsmith' },
-        { property: 'og:title', content: 'Frotzsmith — a browser-based Interactive Fiction IDE' },
+        { property: 'og:site_name', content: 'frotzsmith' },
+        { property: 'og:title', content: 'frotzsmith — a browser-based Interactive Fiction IDE' },
         {
           property: 'og:description',
           content: 'Write, compile, and play interactive fiction entirely in your browser — Inform 6 and ZIL.',
@@ -246,10 +246,10 @@ export default defineNuxtConfig({
         { property: 'og:image', content: `${SITE_URL}/og-image.png` },
         { property: 'og:image:width', content: '1200' },
         { property: 'og:image:height', content: '630' },
-        { property: 'og:image:alt', content: 'Frotzsmith — a browser-based Interactive Fiction IDE' },
+        { property: 'og:image:alt', content: 'frotzsmith — a browser-based Interactive Fiction IDE' },
         // Twitter
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:title', content: 'Frotzsmith — a browser-based Interactive Fiction IDE' },
+        { name: 'twitter:title', content: 'frotzsmith — a browser-based Interactive Fiction IDE' },
         {
           name: 'twitter:description',
           content: 'Write, compile, and play interactive fiction entirely in your browser — Inform 6 and ZIL.',

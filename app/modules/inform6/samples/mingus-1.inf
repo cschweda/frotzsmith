@@ -1,5 +1,5 @@
 ! ============================================================================
-!  MINGUS I: ELEVATED RETURNS  --  Frotzsmith sample (Inform 6 Standard Library)
+!  MINGUS I: ELEVATED RETURNS  --  frotzsmith sample (Inform 6 Standard Library)
 ! ----------------------------------------------------------------------------
 !  The second longer sample. The Architect's Legacy showed how a big game is
 !  ORGANISED; this one keeps the same layout and adds a second lesson: how to
@@ -334,7 +334,7 @@
 ! ============================================================================
 
 Constant Story      "Mingus I: Elevated Returns";
-Constant Headline   "^A Frotzsmith sample: a fall from great heights, in three acts.^";
+Constant Headline   "^A frotzsmith sample: a fall from great heights, in three acts.^";
 
 ! --- Scoring ----------------------------------------------------------------
 ! The library's task system: task_scores holds what each task is worth, and

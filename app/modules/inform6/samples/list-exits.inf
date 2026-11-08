@@ -30,7 +30,7 @@
 !    • A one-line Object     — a whole object declaration on a single line
 !
 !  A NOTE ON "Obvious exits:" APPEARING TWICE
-!    Every Frotzsmith Standard Library sample includes Exits.h, which prints
+!    Every frotzsmith Standard Library sample includes Exits.h, which prints
 !    an "Obvious exits:" line after each room description automatically. It
 !    uses the same Compass technique as ExitsSub below. So in this sample you
 !    see the list once on arrival (from Exits.h) and again whenever you type
@@ -199,8 +199,8 @@ Verb 'exits' 'dirs' 'directions'
 ! ---------------------------------------------------------------------------
 ! GRAMMAR — the last library include
 ! It must follow VerbLib (the library checks). "Exits" (Exits.h) is the
-! Frotzsmith helper that prints the automatic "Obvious exits:" line on
+! frotzsmith helper that prints the automatic "Obvious exits:" line on
 ! arrival — see the note in the header.
 ! ---------------------------------------------------------------------------
-Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
+Include "Exits";    ! frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

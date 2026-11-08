@@ -1,5 +1,5 @@
 ! ============================================================================
-!  CUSTOM GRAMMAR  —  Frotzsmith sample (Inform 6 Standard Library)
+!  CUSTOM GRAMMAR  —  frotzsmith sample (Inform 6 Standard Library)
 ! ----------------------------------------------------------------------------
 !  How to add your own verbs. For each new verb you write an action routine
 !  named <Action>Sub, then a `Verb` directive mapping words + a syntax line to
@@ -107,7 +107,7 @@
 !  Headline (the subtitle) in the opening banner. `^` is a newline.
 ! ---------------------------------------------------------------------------
 Constant Story "CUSTOM GRAMMAR";
-Constant Headline "^A Frotzsmith sample: adding your own verbs.^";
+Constant Headline "^A frotzsmith sample: adding your own verbs.^";
 
 ! ---------------------------------------------------------------------------
 !  STANDARD LIBRARY INCLUDES
@@ -220,9 +220,9 @@ Verb 'incant' 'invoke'
 
 ! ---------------------------------------------------------------------------
 !  GRAMMAR — the last library include; defines all the library's verbs
-!  It must follow VerbLib (the library checks). "Exits" is a small Frotzsmith
+!  It must follow VerbLib (the library checks). "Exits" is a small frotzsmith
 !  helper that prints "Obvious exits:" after a room description (the
 !  Chamber has none).
 ! ---------------------------------------------------------------------------
-Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
+Include "Exits";    ! frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

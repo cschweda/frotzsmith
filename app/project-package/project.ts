@@ -43,7 +43,7 @@ const MiB = 1024 * 1024
 /** The solution file's preferred name (spec: at the package root). */
 const SOLUTION_NAME = 'solution.txt'
 const solutionTooBig = () =>
-  new PackageError('solution-too-large', 'This project’s solution is over 1 MiB, which is more than Frotzsmith keeps for one game.')
+  new PackageError('solution-too-large', 'This project’s solution is over 1 MiB, which is more than frotzsmith keeps for one game.')
 const encoder = new TextEncoder()
 const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
 
@@ -57,7 +57,7 @@ function stemOf(path: string): string {
 
 function checkText(path: string, text: string): void {
   if (text.includes('\u0000')) {
-    throw new PackageError('nul-in-text', `Frotzsmith can’t save ${quotedPath(path)}: it contains a NUL character.`)
+    throw new PackageError('nul-in-text', `frotzsmith can’t save ${quotedPath(path)}: it contains a NUL character.`)
   }
 }
 
@@ -67,7 +67,7 @@ function checkText(path: string, text: string): void {
 
 /**
  * Split files about to be written into the ones a package can hold and the
- * ones the reader would refuse — kept by an older version of Frotzsmith whose
+ * ones the reader would refuse — kept by an older version of frotzsmith whose
  * rules were looser (review I-2/m-6). A file is left out when its path is
  * unsafe (`pathProblem`), when it collides ignoring case with one already
  * taken or kept, or when it is a file where another path needs a folder (or
@@ -178,10 +178,10 @@ export async function writeProjectPackage(
 
   // Never write more scripts than the reader opens (TEST_LIMITS).
   if (p.tests.length > TEST_LIMITS.scripts) {
-    throw new PackageError('too-many-tests', `Frotzsmith can’t save more than ${TEST_LIMITS.scripts} test scripts in one project.`)
+    throw new PackageError('too-many-tests', `frotzsmith can’t save more than ${TEST_LIMITS.scripts} test scripts in one project.`)
   }
   if (p.tests.reduce((n, t) => n + encoder.encode(t.text).length, 0) > TEST_LIMITS.totalBytes) {
-    throw new PackageError('tests-too-large', 'Frotzsmith can’t save more than 1 MB of test scripts in one project.')
+    throw new PackageError('tests-too-large', 'frotzsmith can’t save more than 1 MB of test scripts in one project.')
   }
 
   // Tests last, so a generated name steps around any file already present.
@@ -265,7 +265,7 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
   const container = readContainer(bytes)
   const manifestBytes = container.get(MANIFEST_NAME)
   if (!manifestBytes) {
-    throw new PackageError('no-manifest', `That file isn't a Frotzsmith project: it has no ${MANIFEST_NAME}.`)
+    throw new PackageError('no-manifest', `That file isn't a frotzsmith project: it has no ${MANIFEST_NAME}.`)
   }
   const m = parseManifest(manifestBytes)
 
@@ -355,10 +355,10 @@ export async function readProjectPackage(bytes: Uint8Array): Promise<{
   }
 
   if (tests.length > TEST_LIMITS.scripts) {
-    throw new PackageError('too-many-tests', `This project has more test scripts than Frotzsmith can open (${TEST_LIMITS.scripts}).`)
+    throw new PackageError('too-many-tests', `This project has more test scripts than frotzsmith can open (${TEST_LIMITS.scripts}).`)
   }
   if (tests.reduce((n, t) => n + encoder.encode(t.text).length, 0) > TEST_LIMITS.totalBytes) {
-    throw new PackageError('tests-too-large', 'This project’s test scripts are larger than Frotzsmith can keep (1 MB in all).')
+    throw new PackageError('tests-too-large', 'This project’s test scripts are larger than frotzsmith can keep (1 MB in all).')
   }
 
   // Integrity: reported, never refused.

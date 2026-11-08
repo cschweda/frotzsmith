@@ -38,7 +38,7 @@
 !  `^` inside a string literal is a newline character.
 
 Constant Story "FROTZSMITH DEMO";
-Constant Headline "^A tiny demo world for testing the Frotzsmith IDE.^";
+Constant Headline "^A tiny demo world for testing the frotzsmith IDE.^";
 
 ! --- Standard Library includes (Parser must come first) ---------------------
 !  `Include "file";` reads another source file at this exact point, as if its
@@ -74,7 +74,7 @@ Include "VerbLib";
 
 [ Initialise;
     location = Cottage;
-    print "^Welcome to the Frotzsmith demo!^^";
+    print "^Welcome to the frotzsmith demo!^^";
     print "Try: look, take lamp, examine lamp, north, south, inventory.^";
 ];
 
@@ -172,9 +172,9 @@ Object Meadow "Meadow"
 !  own (`Verb`) can be declared before or after it; `Extend`, which adds to
 !  one of the library's verbs, has to come after it (see Custom Grammar).
 !
-!  Include "Exits" is a small Frotzsmith helper (not the official library):
+!  Include "Exits" is a small frotzsmith helper (not the official library):
 !  after every room description it prints "Obvious exits: north." by
 !  checking which direction properties the room has.
 
-Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
+Include "Exits";    ! frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

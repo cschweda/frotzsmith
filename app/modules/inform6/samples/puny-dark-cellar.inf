@@ -2,7 +2,7 @@
 !% $OMIT_UNUSED_ROUTINES=1
 
 ! ============================================================================
-!  THE DARK CELLAR  —  Frotzsmith sample (PunyInform)
+!  THE DARK CELLAR  —  frotzsmith sample (PunyInform)
 ! ----------------------------------------------------------------------------
 !  The PunyInform port: darkness and light sources work the same way. A room
 !  without `light` is dark; carry something that `has light` to see. The hall is
@@ -42,7 +42,7 @@
 !                                               all bundled into one file.
 !    There is no separate Grammar.h to include at the end. The include order
 !    globals.h → puny.h is still mandatory.
-!    (Nor is there an Include "Exits": Frotzsmith's exits helper needs the
+!    (Nor is there an Include "Exits": frotzsmith's exits helper needs the
 !    Standard Library's Compass, so rooms here print no "Obvious exits:".)
 !
 !  OBJECT / ATTRIBUTE / PROPERTY SYNTAX
@@ -85,7 +85,7 @@
 ! by PunyInform's opening banner (title, then subtitle).
 ! `^` inside a string literal is Inform's newline escape.
 Constant Story "THE DARK CELLAR";
-Constant Headline "^A Frotzsmith sample: darkness & light (PunyInform).^";
+Constant Headline "^A frotzsmith sample: darkness & light (PunyInform).^";
 
 ! --- PunyInform: initial player location ------------------------------------
 ! This constant MUST be declared before the includes: globals.h uses it as

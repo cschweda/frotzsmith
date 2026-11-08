@@ -152,7 +152,7 @@ function toggleTheme() {
       </span>
       <div class="leading-none">
         <!-- h1: the IDE pages' only level-one heading (axe page-has-heading-one). -->
-        <h1 class="text-lg font-extrabold tracking-tight">Frotzsmith</h1>
+        <h1 class="text-lg font-extrabold tracking-tight">frotzsmith</h1>
         <p class="text-muted text-[10px] font-semibold uppercase tracking-widest">Interactive Fiction IDE</p>
       </div>
     </div>

@@ -6,7 +6,7 @@
 
 ## Problem
 
-Frotzsmith today edits a single `.inf` source buffer. Extensions (`.h` files) exist but are only reachable through the Extensions modal, and the standard-library / PunyInform files that every compile depends on are invisible. As authors add extensions, "the project" becomes several files, but there is no place to see or open them.
+frotzsmith today edits a single `.inf` source buffer. Extensions (`.h` files) exist but are only reachable through the Extensions modal, and the standard-library / PunyInform files that every compile depends on are invisible. As authors add extensions, "the project" becomes several files, but there is no place to see or open them.
 
 We want an expandable, closable file explorer (à la Borogove's File Manager) that lists every file in the **compilation bundle** and lets the author open and edit each one in a tabbed editor.
 

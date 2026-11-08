@@ -1,4 +1,4 @@
-  # Frotzsmith — Auto-Map (live, Trizbort-style grid)
+  # frotzsmith — Auto-Map (live, Trizbort-style grid)
 
 **Date:** 2026-06-30
 **Status:** Design approved; implementation pending plan

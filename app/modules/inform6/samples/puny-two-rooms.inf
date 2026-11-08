@@ -2,7 +2,7 @@
 !% $OMIT_UNUSED_ROUTINES=1
 
 ! ============================================================================
-!  TWO ROOMS  —  Frotzsmith sample (PunyInform)
+!  TWO ROOMS  —  frotzsmith sample (PunyInform)
 ! ----------------------------------------------------------------------------
 !  The PunyInform port of the "Two Rooms" demo: two rooms, a takeable lamp,
 !  and movement. PunyInform is a compact replacement library aimed at small,
@@ -50,7 +50,7 @@
 !  Story formats            z5 / z8 (and Glulx)     z3 / z5 / z8
 !  Strict mode              usually left on         usually switched off (-~S)
 !  Target audience          full-featured games     compact / retro games
-!  Exits line               Frotzsmith's Exits.h    none (no Exits.h)
+!  Exits line               frotzsmith's Exits.h    none (no Exits.h)
 !  Room text on a revisit   repeated (VERBOSE is     name only (BRIEF is the
 !                           the 6.12 default)        default; VERBOSE changes it)
 !  Stock replies (wording)  "You can't see any      "Sorry, I don't understand
@@ -77,7 +77,7 @@
 !  `^` inside a string literal is the Inform 6 newline escape character.
 
 Constant Story "TWO ROOMS";
-Constant Headline "^A Frotzsmith sample (PunyInform edition).^";
+Constant Headline "^A frotzsmith sample (PunyInform edition).^";
 
 ! --- Starting location (PunyInform-specific) --------------------------------
 !  INITIAL_LOCATION_VALUE is read by globals.h: it becomes the starting
@@ -205,6 +205,6 @@ Object Meadow "Meadow"
 !  anything: it hides the banner. This routine returns 0.)
 
 [ Initialise;
-    print "^Welcome to the Frotzsmith demo (PunyInform edition)!^^";
+    print "^Welcome to the frotzsmith demo (PunyInform edition)!^^";
     print "Try: look, take lamp, examine lamp, north, south, inventory.^";
 ];

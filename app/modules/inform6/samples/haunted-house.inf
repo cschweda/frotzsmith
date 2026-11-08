@@ -1,7 +1,7 @@
 
 
 ! ============================================================================
-!  HAUNTED HOUSE  —  Frotzsmith sample (Inform 6 Standard Library)
+!  HAUNTED HOUSE  —  frotzsmith sample (Inform 6 Standard Library)
 ! ----------------------------------------------------------------------------
 !  Based on Radio Shack's 1979 text adventure "Haunted House" for the TRS-80
 !  (Tandy Model I / III) — reverse-engineered from the original and reimplemented
@@ -871,10 +871,10 @@ name "fire" "raging"
 ! it. If you leave an entry point out, the library uses its own default.
 [ DeathMessage; print "You have died."; ];
 
-! Exits (a Frotzsmith extension) lists the obvious exits after each room
+! Exits (a frotzsmith extension) lists the obvious exits after each room
 ! description. Grammar is the last library file; the Extend lines below
 ! must come after it, because they add to verbs it defines.
-Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
+Include "Exits";    ! frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";
 
 

@@ -1,5 +1,5 @@
 ;"============================================================================
-  MINGUS I: ELEVATED RETURNS  --  Frotzsmith sample (ZIL, zillib, target z5)
+  MINGUS I: ELEVATED RETURNS  --  frotzsmith sample (ZIL, zillib, target z5)
  ----------------------------------------------------------------------------
   The second longer sample. The Architect's Legacy showed how a big game is
   ORGANISED; this one keeps the same layout and adds a second lesson: how to
@@ -353,7 +353,7 @@
 
 <CONSTANT GAME-BANNER
 "Mingus I: Elevated Returns|
-A Frotzsmith sample: a fall from great heights, in three acts.">
+A frotzsmith sample: a fall from great heights, in three acts.">
 
 ;"--- Scoring ----------------------------------------------------------------
   USE-SCORING? switches on zillib's scoring module (SCORE, FULL SCORE, the
