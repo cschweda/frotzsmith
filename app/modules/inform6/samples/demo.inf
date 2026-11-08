@@ -1,5 +1,5 @@
 ! ============================================================================
-!  FROTZSMITH DEMO  —  Standard Library two-room world
+!  frotzsmith demo  —  Standard Library two-room world
 ! ----------------------------------------------------------------------------
 !  A minimal but complete Inform 6 game using the Standard Library. It shows:
 !    • Two connected rooms with a directional link (n_to / s_to)
@@ -37,7 +37,7 @@
 !  `Constant Headline` sets the subtitle printed under it in the banner.
 !  `^` inside a string literal is a newline character.
 
-Constant Story "FROTZSMITH DEMO";
+Constant Story "frotzsmith demo";
 Constant Headline "^A tiny demo world for testing the frotzsmith IDE.^";
 
 ! --- Standard Library includes (Parser must come first) ---------------------

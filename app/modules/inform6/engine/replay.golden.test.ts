@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { runReplay } from './replayCore'
 
 // The bundled demo, compiled from samples/demo.inf:
-//   Constant Story "FROTZSMITH DEMO"; Initialise prints a welcome; start room
+//   Constant Story "frotzsmith demo"; Initialise prints a welcome; start room
 //   Cottage, north → Meadow. Stable golden text for an end-to-end engine check.
 const demo = new Uint8Array(
   readFileSync(fileURLToPath(new URL('../../../../public/play/demo.z5', import.meta.url))),
