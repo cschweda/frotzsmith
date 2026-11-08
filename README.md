@@ -1,6 +1,6 @@
 # frotzsmith
 
-![frotzsmith — a browser-based Interactive Fiction IDE](./public/og-image.png)
+[![frotzsmith — a browser-based Interactive Fiction IDE](./public/og-image.png)](https://frotzsmith.frotzinc.com)
 
 > A personal, browser-based **Interactive Fiction** IDE — write source, compile to a Z-machine story file entirely client-side, play it inline, and run long test scripts. **Two source languages: Inform 6 (+ PunyInform), and ZIL (via ZILF).** No backend, no accounts — your source and story files never leave the browser (the only network traffic after load is cookieless, first-party Plausible pageview analytics).
 
