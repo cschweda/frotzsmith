@@ -137,10 +137,11 @@ const profileItems = computed(() => [
   <!-- The family header (@frotzinc/nuxt-base), as frotzlens, frotzplay and frotztrace have it: the logo
        and name, then the IDE's own controls, then the About menu and the colour-mode switch. Wide:
        full width, wrapping onto a second row when the controls don't fit. -->
-  <!-- h1: the IDE pages' only level-one heading (axe page-has-heading-one); the header shows the name. -->
-  <h1 class="sr-only">frotzsmith — an Inform 6 and ZIL IDE</h1>
   <AppHeader wide class="shrink-0">
     <template #context>
+      <!-- h1: the IDE pages' only level-one heading (axe page-has-heading-one), inside the banner
+           landmark (axe region); the header shows the name itself. -->
+      <h1 class="sr-only">frotzsmith — an Inform 6 and ZIL IDE</h1>
       <!-- Language toggle: Inform 6 ↔ ZIL -->
       <div class="flex items-center gap-0.5 rounded-lg border border-default bg-elevated/60 p-0.5">
         <NuxtLink
