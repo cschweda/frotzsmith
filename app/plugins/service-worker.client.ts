@@ -52,7 +52,7 @@ export default defineNuxtPlugin((nuxtApp) => {
   let reloading = false
   /**
    * The reload the author chose, after the pending saves are written. `updated`: the new version
-   * has taken over, so the next load says Frotzsmith is up to date; a reload because it didn't
+   * has taken over, so the next load says frotzsmith is up to date; a reload because it didn't
    * (the fallback) says nothing of the kind.
    */
   const reload = async (updated: boolean) => {

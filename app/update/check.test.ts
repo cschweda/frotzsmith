@@ -132,7 +132,7 @@ describe('checkMessage', () => {
     expect(checkMessage({ status: 'idle' }, '0.1.0')).toBe('')
     expect(checkMessage({ status: 'checking' }, '0.1.0')).toBe('Checking for updates…')
     expect(checkMessage({ status: 'fetching' }, '0.1.0')).toBe('Getting the newest version…')
-    expect(checkMessage({ status: 'latest' }, '0.1.0')).toBe('Frotzsmith 0.1.0 is the newest version.')
+    expect(checkMessage({ status: 'latest' }, '0.1.0')).toBe('frotzsmith 0.1.0 is the newest version.')
     expect(checkMessage({ status: 'error' }, '0.1.0')).toBe('Couldn’t check for updates — are you offline?')
     expect(checkMessage({ status: 'unavailable' }, '0.1.0')).toBe('This copy can’t check for updates.')
     expect(checkMessage({ status: 'ready' }, '0.1.0')).toBe(UPDATE_READY)

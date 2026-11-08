@@ -1,10 +1,10 @@
-# The Frotzsmith Package Format (`.frotzsmith`)
+# The frotzsmith Package Format (`.frotzsmith`)
 
-**Version:** 0.1 (draft) · **Date:** 2026-11-04 · **Editor:** the Frotzsmith project (https://github.com/cschweda/frotzsmith)
+**Version:** 0.1 (draft) · **Date:** 2026-11-04 · **Editor:** the frotzsmith project (https://github.com/cschweda/frotzsmith)
 
-**Status:** a draft for comment. It may change until Frotzsmith ships the format; from version 1.0 it changes only as §11 allows.
+**Status:** a draft for comment. It may change until frotzsmith ships the format; from version 1.0 it changes only as §11 allows.
 
-**Licence:** this specification is dedicated to the public domain under [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/). Anyone may read, copy, implement, extend, or publish it, in any application, open or closed, free or paid, without asking and without attribution (attribution is welcome, not required). The Frotzsmith project claims no patent on anything here and will not assert one.
+**Licence:** this specification is dedicated to the public domain under [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/). Anyone may read, copy, implement, extend, or publish it, in any application, open or closed, free or paid, without asking and without attribution (attribution is welcome, not required). The frotzsmith project claims no patent on anything here and will not assert one.
 
 ---
 
@@ -12,7 +12,7 @@
 
 A `.frotzsmith` file is **one file that holds a whole interactive-fiction project**: the source of a game in Inform 6 or ZIL, together with the things an author keeps beside it — include files, test scripts, and a Skein of recorded playthroughs. It exists for **moving and keeping** a project: emailing it, archiving it, handing it to another application.
 
-It is **not** a working format. The working format is a folder of plain files that any text editor can open (Frotzsmith's desktop app, coming later, works on such a folder). The Frotzsmith website keeps a project in the browser's own storage and uses a package to export it and to open one. Everything in a package is an ordinary file a person can read without special software.
+It is **not** a working format. The working format is a folder of plain files that any text editor can open (frotzsmith's desktop app, coming later, works on such a folder). The frotzsmith website keeps a project in the browser's own storage and uses a package to export it and to open one. Everything in a package is an ordinary file a person can read without special software.
 
 ### 1.1 Design principles
 
@@ -72,7 +72,7 @@ A UTF-8 JSON object (RFC 8259), with no byte-order mark, at most 1 MiB.
 {
   "format": "frotzsmith-package",
   "version": "0.1",
-  "generator": "Frotzsmith 0.2.0",
+  "generator": "frotzsmith 0.2.0",
   "created": "2026-11-04T14:05:00Z",
   "modified": "2026-11-09T09:41:12Z",
   "title": "Haunted House",
@@ -121,8 +121,8 @@ Readers **MUST** ignore unknown fields; writers **MUST** keep unknown fields the
 
 - The main file **MUST** be UTF-8 text with no NUL byte. For `language: "i6"` its extension **MUST** be `.inf`; for `"zil"`, `.zil`.
 - An Inform 6 project's include files are UTF-8 text files ending `.h`, which **MAY** sit at any path in the package. A reader keeps each as an include file of the project. In a project whose `language` is `"zil"`, a `.h` file is an unrecognised file (§3), kept and not an include.
-- A ZIL project's include files are every other file ending `.zil` (ignoring case), UTF-8 text with no NUL byte, at any path. `main` names the root file the compile starts from; the main file pulls the others in with `<INSERT-FILE "rooms">` (resolved as ZILF does on a case-insensitive disk: the main file's own folder first, then the project root, then the ZIL library), and **nothing else records the links**: the `INSERT-FILE` lines are the single source of truth. A `.zil` nothing inserts is kept but not compiled. A reader **MAY** limit what it keeps; Frotzsmith refuses the whole package when a ZIL project has more than 100 such files, one over 1 MiB, or more than 4 MiB in all (measured in UTF-16 code units), or two whose paths collide with each other or with `main` (§2), and its writer never writes such a set. (Packages written before multi-file ZIL kept these files as unrecognised files; a reader now opens them as includes.) In an Inform 6 project a `.zil` file is an unrecognised file.
-- An include file **MUST NOT** be named like a file of an Inform 6 library the application supplies: a reader that mounts includes next to the library **MUST** refuse a package with an include whose name (its file name, or that name without `.h`), compared ignoring case, is a library file of **any** library it offers — for Frotzsmith, the Standard Library's `English`, `Exits`, `Grammar`, `infglk`, `infix`, `linklpa`, `Parser`, `VerbLib` and `version`, and PunyInform's `ext_cheap_scenery`, `ext_flags`, `ext_menu`, `ext_quote_box`, `ext_talk_menu`, `ext_waittime`, `globals`, `grammar`, `messages`, `parser`, `puny` and `scope`. Such a file could otherwise replace the library for every game. (Deliberately replacing a library file is reserved for a later version, see `libraryOverrides` in §4.)
+- A ZIL project's include files are every other file ending `.zil` (ignoring case), UTF-8 text with no NUL byte, at any path. `main` names the root file the compile starts from; the main file pulls the others in with `<INSERT-FILE "rooms">` (resolved as ZILF does on a case-insensitive disk: the main file's own folder first, then the project root, then the ZIL library), and **nothing else records the links**: the `INSERT-FILE` lines are the single source of truth. A `.zil` nothing inserts is kept but not compiled. A reader **MAY** limit what it keeps; frotzsmith refuses the whole package when a ZIL project has more than 100 such files, one over 1 MiB, or more than 4 MiB in all (measured in UTF-16 code units), or two whose paths collide with each other or with `main` (§2), and its writer never writes such a set. (Packages written before multi-file ZIL kept these files as unrecognised files; a reader now opens them as includes.) In an Inform 6 project a `.zil` file is an unrecognised file.
+- An include file **MUST NOT** be named like a file of an Inform 6 library the application supplies: a reader that mounts includes next to the library **MUST** refuse a package with an include whose name (its file name, or that name without `.h`), compared ignoring case, is a library file of **any** library it offers — for frotzsmith, the Standard Library's `English`, `Exits`, `Grammar`, `infglk`, `infix`, `linklpa`, `Parser`, `VerbLib` and `version`, and PunyInform's `ext_cheap_scenery`, `ext_flags`, `ext_menu`, `ext_quote_box`, `ext_talk_menu`, `ext_waittime`, `globals`, `grammar`, `messages`, `parser`, `puny` and `scope`. Such a file could otherwise replace the library for every game. (Deliberately replacing a library file is reserved for a later version, see `libraryOverrides` in §4.)
 - Line endings **SHOULD** be LF; readers **MUST** accept CRLF.
 - A reader that understands only the main file **MAY** open a package by reading `frotzsmith.json`'s `main` and that file alone; that is a conforming **minimal reader** (§10).
 
@@ -149,7 +149,7 @@ The Skein is the tree of commands and the game's replies recorded from play, kep
 - The tree **MUST** be a single tree: every node reachable from `root` exactly once, every link resolvable, at most 10,000 nodes and 10,000 levels.
 - The document **MUST NOT** nest arrays and objects more than 64 levels deep (the document itself is level 1).
 - A reader rebuilds the tree from the fields above only: any other field of a node is dropped.
-- Inside a package the Skein belongs to the package's game and language, so Frotzsmith's reader takes only `tree` and doesn't check `v`, `lang` or `storyKey` (the writer always sets them). A standalone `.skein` import, outside a package, is refused when its `lang` is another language's.
+- Inside a package the Skein belongs to the package's game and language, so frotzsmith's reader takes only `tree` and doesn't check `v`, `lang` or `storyKey` (the writer always sets them). A standalone `.skein` import, outside a package, is refused when its `lang` is another language's.
 
 A Skein that breaks any of these rules is one the reader cannot make sense of (below).
 
@@ -159,12 +159,12 @@ A reader that cannot make sense of the file (it does not parse, or its shape is 
 
 ### 7.1 The solution: `solution.txt`
 
-A game's solution: the game told as it plays — a header, the opening text, then each command on its own line as `> <command>` followed by the game's reply. It is plain UTF-8 text, at most 1 MiB (Frotzsmith measures this in UTF-16 code units, the unit its browser store caps). Frotzsmith makes it by replaying the commands headlessly; nothing in the file is run.
+A game's solution: the game told as it plays — a header, the opening text, then each command on its own line as `> <command>` followed by the game's reply. It is plain UTF-8 text, at most 1 MiB (frotzsmith measures this in UTF-16 code units, the unit its browser store caps). frotzsmith makes it by replaying the commands headlessly; nothing in the file is run.
 
 - A writer that includes a solution writes it at the package root as `solution.txt` (stepping to `solution-2.txt`, `solution-3.txt` … when that name is already a file or folder in the package) and **MUST** set `solution`.
 - The manifest's `solution` field is the only way a reader finds the solution. A `solution.txt` the manifest doesn't name is an unrecognised file (§3), kept as such.
 - A reader refuses the **whole** package when the named file is not UTF-8 text (or contains NUL), or is over 1 MiB.
-- Opening a package replaces the game's solution with the package's (none clears it). That is existing work being replaced, so a reader **MUST** ask first when the game already has a different one (§12). Frotzsmith keeps the opened solution hidden until the author asks to see it — a solution is a complete spoiler.
+- Opening a package replaces the game's solution with the package's (none clears it). That is existing work being replaced, so a reader **MUST** ask first when the game already has a different one (§12). frotzsmith keeps the opened solution hidden until the author asks to see it — a solution is a complete spoiler.
 - A reader **MUST NOT** play, replay, or otherwise run a solution's commands when it opens a package (§12).
 
 ## 8. Reserved
@@ -192,25 +192,25 @@ Packages come from other people; readers **MUST** treat every byte as untrusted.
 - **Nothing runs.** Opening a package only loads text. A reader **MUST NOT** compile, play, replay, or run a Skein, test script, or solution as a result of opening one; the user does those, afterwards, on purpose.
 - **Archive bombs and size:** readers **MUST** check the following against the central directory's declared sizes before inflating anything, and refuse a package beyond them (each local header **MUST** agree with its central-directory entry): archive at most 32 MiB; at most 2,000 entries; each entry at most 8 MiB uncompressed; at most 32 MiB uncompressed in total; compression ratio per entry at most 200:1. A reader **MUST** also refuse an entry whose real inflated size differs from its declared size. Ignored compiled stories (§3) count toward all of these limits.
 - **Container strictness:** readers **MUST** refuse, rather than try to recover, anything §2 rules out — more than one end-of-central-directory record, an archive comment, ZIP64 or multi-disk archives, encryption (bits 0, 6 or 13), prefix data, gaps or overlaps between entries, data after a DEFLATE stream's end, local headers that disagree with the central directory, malformed extra fields and Unicode Comment extra fields or Unicode Path extra fields naming anything but the entry itself, links, FIFOs and device files (from any host), a file that is also another entry's folder, and directory entries with data. A lenient reader that accepts these can be shown a different set of files than a strict one — or than another tool a reviewer uses to check the package.
-- **Paths:** readers **MUST** refuse (not repair) any path breaking §2's rules (including DEL, lone surrogates, Windows-reserved names and characters, invisible and look-alike characters, and NFKC + case-fold collisions), and **MUST NOT** follow links when unpacking. Writers **MUST NOT** write those paths, so a package a writer produces always opens: names a writer makes up are made safe (§6), and a file it holds under a name the rules now refuse (kept by an older, looser version) is left out of the package — kept where it is, and named to the user — rather than written or allowed to fail the whole save. Frotzsmith does the same with an uploaded extension named like a library file (§5), and with the second of two uploads that would mount under one Include name.
+- **Paths:** readers **MUST** refuse (not repair) any path breaking §2's rules (including DEL, lone surrogates, Windows-reserved names and characters, invisible and look-alike characters, and NFKC + case-fold collisions), and **MUST NOT** follow links when unpacking. Writers **MUST NOT** write those paths, so a package a writer produces always opens: names a writer makes up are made safe (§6), and a file it holds under a name the rules now refuse (kept by an older, looser version) is left out of the package — kept where it is, and named to the user — rather than written or allowed to fail the whole save. frotzsmith does the same with an uploaded extension named like a library file (§5), and with the second of two uploads that would mount under one Include name.
 - **Library files:** an include named like a library file (§5) is refused, so a package can't replace the library for every later game.
 - **Display:** when a reader quotes a path or title to the user it **SHOULD** neutralise characters that change how text displays (controls, format, separator, private-use and unassigned characters, blank-looking fillers), cap combining marks, shorten long names, and quote them, so a name can't pose as part of the sentence around it.
 - **All or nothing:** on any violation a reader refuses the **whole** package with one sentence saying why. It **MUST NOT** apply part of a package, and **MUST NOT** change the user's existing work when it refuses. A reader **MUST** ask before replacing existing work with a package.
-- **Text:** include files, scripts, the Skein, the solution, and the manifest are text. Parse JSON with bounded, linear-time code; cap nesting depth (Frotzsmith refuses a manifest nested more than 64 levels deep; a Skein document nested more than 64 levels deep, with a bad node id, or over 10,000 nodes or 10,000 levels is not opened — it is kept, §7); rebuild parsed structures from known fields only rather than keeping the parsed objects; cap what lands in small browser storage (test scripts, §6; the solution, §7.1); never execute or render anything in a package as markup.
+- **Text:** include files, scripts, the Skein, the solution, and the manifest are text. Parse JSON with bounded, linear-time code; cap nesting depth (frotzsmith refuses a manifest nested more than 64 levels deep; a Skein document nested more than 64 levels deep, with a bad node id, or over 10,000 nodes or 10,000 levels is not opened — it is kept, §7); rebuild parsed structures from known fields only rather than keeping the parsed objects; cap what lands in small browser storage (test scripts, §6; the solution, §7.1); never execute or render anything in a package as markup.
 - **Integrity:** the `files` hashes detect accidental damage; they are not a signature and prove nothing about who wrote the package. A mismatch is reported, not a reason to refuse.
 - **Privacy:** packages may hold unpublished work. Applications **SHOULD NOT** send a package or its contents to a server without the user's explicit action.
 
 ## 13. IANA considerations
 
-The media type `application/vnd.frotzsmith.package+zip` is not yet registered. The Frotzsmith project may register it in the vendor tree before version 1.0; until then implementers **MAY** use it as written.
+The media type `application/vnd.frotzsmith.package+zip` is not yet registered. The frotzsmith project may register it in the vendor tree before version 1.0; until then implementers **MAY** use it as written.
 
 ## 14. Change log
 
-- **0.1 (2026-11-04):** first draft, written alongside Frotzsmith's first implementation of the format.
+- **0.1 (2026-11-04):** first draft, written alongside frotzsmith's first implementation of the format.
   - Same day, after a security review: no archive comment; no Unicode Path / Comment extra fields; Unix file types checked from any host; no file that is also a folder; no data after a DEFLATE stream; Windows-reserved, invisible and look-alike characters and names refused; collisions compared by NFKC + full case fold; includes named like library files refused (§5); at most 200 test scripts / 1 MiB (§6); Skein node ids, nesting and known-fields-only rebuild (§7).
   - Same day, after review of those changes: the case fold is applied twice (`ẞ`/`ß`/`ss` collide); a Unicode Path field that only repeats the entry's own name is allowed (Info-ZIP on Linux); names a writer makes up get `_` after a Windows device name (§6); a writer leaves out, and names, files it can't write instead of failing (§12).
 
-- **0.1, later (2026-11-04):** ZIL projects carry their other `.zil` files as includes (§3, §5): `main` names the root, `INSERT-FILE` is the only link record, and a reader may cap them (Frotzsmith: 100 files, 1 MiB each, 4 MiB in all).
+- **0.1, later (2026-11-04):** ZIL projects carry their other `.zil` files as includes (§3, §5): `main` names the root, `INSERT-FILE` is the only link record, and a reader may cap them (frotzsmith: 100 files, 1 MiB each, 4 MiB in all).
 
 - **0.1, later (2026-11-05):** an optional solution file (§7.1, manifest `solution`): UTF-8 text, at most 1 MiB, never run; opening replaces the game's solution and asks first.
 

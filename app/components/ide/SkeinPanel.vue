@@ -132,7 +132,7 @@ async function onImportFile(event: Event) {
   if (!file) return
   // Capped like a package entry, before reading it into memory.
   if (file.size > SKEIN_FILE_MAX_BYTES) {
-    note.value = 'That .skein file is larger than Frotzsmith can import (8 MB).'
+    note.value = 'That .skein file is larger than frotzsmith can import (8 MB).'
     return
   }
   const tree = skein.readSkeinImport(await file.text())

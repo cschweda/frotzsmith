@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 
-// "Frotzsmith is up to date." (UpdatePrompt.vue): said once, on the load that an update the
+// "frotzsmith is up to date." (UpdatePrompt.vue): said once, on the load that an update the
 // author chose reloaded into, so the reload shows that it happened. The service-worker plugin
 // marks the tab's session storage just before that reload and takes the mark on the next load;
 // an ordinary load finds none. Storage that refuses (a private window, blocked site data) only
@@ -32,7 +32,7 @@ export function takeUpdated(storage: Pick<Storage, 'getItem' | 'removeItem'> | u
 }
 
 /** No version in it: a web deploy doesn't change the version number. */
-export const UP_TO_DATE = 'Frotzsmith is up to date.'
+export const UP_TO_DATE = 'frotzsmith is up to date.'
 
 /** The tab's session storage, or nothing where reading it throws. */
 export function sessionStore(): Storage | undefined {

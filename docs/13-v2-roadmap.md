@@ -8,7 +8,7 @@ Nothing here is committed; these are candidates for a later version.
 
 **Why.** ZIL (Zork Implementation Language) is the Lisp-like language Infocom
 wrote its games in — the historic root of the whole z-code lineage. Supporting it
-would let Frotzsmith span **ZIL → Inform 6 → PunyInform**, all compiling to the
+would let frotzsmith span **ZIL → Inform 6 → PunyInform**, all compiling to the
 same Z-machine and playing in the same interpreter. Thematically ideal for a tool
 named after Frotz.
 
@@ -29,13 +29,13 @@ unchanged. The `StoryEngine` seam and the profile system already abstract
 
 - **Borogove** ([borogove.app/zil](https://borogove.app/zil)) proves browser ZIL is
   wanted — but it runs **ZILF on a backend** (`POST /prepare` → poll for a job),
-  because ZILF is .NET. That breaks Frotzsmith's no-server / offline principle.
+  because ZILF is .NET. That breaks frotzsmith's no-server / offline principle.
 - **Zorkie** is pure Python with no external dependencies (`requires-python >=3.8`),
   so it can run **client-side via Pyodide** (Python compiled to WebAssembly) —
-  `micropip` can install it from PyPI, or it can be vendored. This keeps Frotzsmith
+  `micropip` can install it from PyPI, or it can be vendored. This keeps frotzsmith
   fully static/offline, exactly like v1.
 
-**Recommendation.** Zorkie + Pyodide is the Frotzsmith-aligned path (client-side,
+**Recommendation.** Zorkie + Pyodide is the frotzsmith-aligned path (client-side,
 no server). Trade-offs to weigh at the time:
 
 - Zorkie is young/beta — it handles classic Infocom-style ZIL well but only part of

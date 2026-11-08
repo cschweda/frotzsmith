@@ -1,7 +1,7 @@
-# Frotzsmith — Master Design Document
+# frotzsmith — Master Design Document
 
 **Document 00 of 13 · Master Design**
-**Project:** Frotzsmith — a browser-based Inform 6 IDE
+**Project:** frotzsmith — a browser-based Inform 6 IDE
 **Owner:** Chris Schweda (personal project)
 **Status:** Draft v1
 **Stack:** Nuxt 4 (4.4.8) · Nuxt UI 4 (4.9.0) · CodeMirror 6 · TypeScript · Yarn 1.22 · Netlify (static)
@@ -10,11 +10,11 @@
 
 ## 1. One-paragraph thesis
 
-Frotzsmith is a personal-first, browser-based IDE for **Inform 6** — not Inform 7 — that mirrors the working rhythm of the classic Inform 7 IDE: write source in a left pane, compile, and watch results appear in a right pane that becomes a live, playable game on success. It compiles entirely client-side (the `inform6` compiler built to WebAssembly), auto-imports the correct standard library so a plain `.inf` file "just works," plays the compiled story inline via **Parchment**, persists source to `localStorage` as you type, and exports both the raw `.z*` story file and a self-contained, offline-playable Parchment HTML bundle. A power-user testing layer runs arbitrarily long command scripts (`n. examine rock. lift rock.`) through a headless replay engine and shows the transcript — the linear spine from which a full branching Skein with blessed-output regression diffing later grows.
+frotzsmith is a personal-first, browser-based IDE for **Inform 6** — not Inform 7 — that mirrors the working rhythm of the classic Inform 7 IDE: write source in a left pane, compile, and watch results appear in a right pane that becomes a live, playable game on success. It compiles entirely client-side (the `inform6` compiler built to WebAssembly), auto-imports the correct standard library so a plain `.inf` file "just works," plays the compiled story inline via **Parchment**, persists source to `localStorage` as you type, and exports both the raw `.z*` story file and a self-contained, offline-playable Parchment HTML bundle. A power-user testing layer runs arbitrarily long command scripts (`n. examine rock. lift rock.`) through a headless replay engine and shows the transcript — the linear spine from which a full branching Skein with blessed-output regression diffing later grows.
 
 ## 2. Why this exists
 
-Inform 6 is the author's favorite IF language. The existing browser tooling is fragmented: interpreters (Parchment, Quixe, ZVM) run *finished* story files, and the I7 IDE is a desktop Electron app tied to Inform 7's natural-language layer. There is no clean, modern, browser-native place to **write I6, compile it, and immediately play it** with library auto-import and saved test scripts. Frotzsmith fills that gap, primarily for the author's own use, secondarily as a shareable open-source tool.
+Inform 6 is the author's favorite IF language. The existing browser tooling is fragmented: interpreters (Parchment, Quixe, ZVM) run *finished* story files, and the I7 IDE is a desktop Electron app tied to Inform 7's natural-language layer. There is no clean, modern, browser-native place to **write I6, compile it, and immediately play it** with library auto-import and saved test scripts. frotzsmith fills that gap, primarily for the author's own use, secondarily as a shareable open-source tool.
 
 ## 3. Primary user & use case (be honest about scope)
 
@@ -99,7 +99,7 @@ The primary user is the author: an experienced IF developer who writes Z-machine
 | 05 | Phase 5 — Export & playable bundles | Raw `.z*` + single-file Parchment HTML. |
 | 06 | Security | Sandboxing untrusted story files, XSS, WASM, export hygiene. |
 | 07 | LLM Build Prompt | Self-contained per-phase build prompts fed to Claude. |
-| 08 | Differentiation | Why Frotzsmith vs. existing tools. |
+| 08 | Differentiation | Why frotzsmith vs. existing tools. |
 | 09 | Monorepo / Website | Repo layout, deployment, docs site. |
 | 10 | Revision / Gap Analysis | Known gaps, stretch goals, open questions. |
 | 11 | Architecture Decisions | ADR log incl. the `StoryEngine` seam and profile model. |
@@ -107,6 +107,6 @@ The primary user is the author: an experienced IF developer who writes Z-machine
 
 ## 9. Naming
 
-The project is named **Frotzsmith** — "a smith of Frotz-things," fitting a tool that forges and plays Z-machine games. Name availability was checked: no existing project, npm package, GitHub/GitLab repo, or IF-archive tool uses "Frotzsmith" (searches as of June 2026 returned only the unrelated **Frotz** interpreter family and unrelated "Fritz Smith" results).
+The project is named **frotzsmith** — "a smith of Frotz-things," fitting a tool that forges and plays Z-machine games. Name availability was checked: no existing project, npm package, GitHub/GitLab repo, or IF-archive tool uses "frotzsmith" (searches as of June 2026 returned only the unrelated **Frotz** interpreter family and unrelated "Fritz Smith" results).
 
 One deliberate note: the name leans on **Frotz**, the well-established GPL Z-machine interpreter (and on "frotz," older Infocom/MIT hacker slang that no one owns). This is intentional homage and reads as clearly distinct, with no namespace or trademark collision for a personal open-source tool. If full independence from the Frotz lineage were ever wanted, that's the only consideration — otherwise the name stands.

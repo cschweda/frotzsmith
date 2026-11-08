@@ -1,6 +1,6 @@
-# Frotzsmith Roadmap
+# frotzsmith Roadmap
 
-Frotzsmith is a browser-based **Interactive Fiction** IDE with two source languages —
+frotzsmith is a browser-based **Interactive Fiction** IDE with two source languages —
 **Inform 6** and **ZIL** (via ZILF): write, compile to a Z-machine story file entirely
 client-side, and play it inline. See
 [CHANGELOG.md](./CHANGELOG.md) for what's shipped, and
@@ -76,4 +76,4 @@ See [`docs/13-v2-roadmap.md`](./docs/13-v2-roadmap.md) for the full assessments.
   [`docs/superpowers/specs/2026-07-09-publish-mode-design.md`](./docs/superpowers/specs/2026-07-09-publish-mode-design.md).
   The no-hosting alternative ships first: the self-contained **HTML bundle
   export**, which lets authors distribute via itch.io or any static host with
-  zero Frotzsmith infrastructure.
+  zero frotzsmith infrastructure.

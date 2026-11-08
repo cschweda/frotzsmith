@@ -1,4 +1,4 @@
-# Frotzsmith — Phase 1: Compiler Core & Editor Shell
+# frotzsmith — Phase 1: Compiler Core & Editor Shell
 
 **Document 01 of 13 · Phase 1**
 **Deliverable:** A two-pane shell that compiles a hard-coded standard-library `.inf` to a `.z8` entirely in the browser, shows parsed errors in the right pane, and autosaves source to localStorage. I6 syntax highlighting in the left pane.

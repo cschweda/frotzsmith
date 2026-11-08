@@ -1,4 +1,4 @@
-# Frotzsmith — Play Transcript (capture the player's commands) + Test Script rename
+# frotzsmith — Play Transcript (capture the player's commands) + Test Script rename
 
 **Date:** 2026-06-30
 **Status:** Design approved; implementation pending plan

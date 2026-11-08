@@ -1,5 +1,5 @@
 ! ============================================================================
-!  THE LOCKED CHEST  —  Frotzsmith sample (Inform 6 Standard Library)
+!  THE LOCKED CHEST  —  frotzsmith sample (Inform 6 Standard Library)
 ! ----------------------------------------------------------------------------
 !  A small lock-and-key puzzle with a container. Shows the `lockable`, `locked`,
 !  `container` and `with_key` machinery the Standard Library provides for free.
@@ -80,7 +80,7 @@
 !  Standard Library magic names used to print the game banner at startup.
 ! ---------------------------------------------------------------------------
 Constant Story "THE LOCKED CHEST";
-Constant Headline "^A Frotzsmith sample: a lock-and-key puzzle.^";
+Constant Headline "^A frotzsmith sample: a lock-and-key puzzle.^";
 
 ! ---------------------------------------------------------------------------
 !  STANDARD LIBRARY INCLUDES (must appear in this order)
@@ -182,8 +182,8 @@ Object -> -> coin "gold coin"
 ! ---------------------------------------------------------------------------
 !  GRAMMAR — must be the LAST include in every Standard Library game
 !  Sets up parser tables for all built-in verbs including LOCK and UNLOCK.
-!  Include "Exits" (a Frotzsmith helper) prints "Obvious exits:" after each
+!  Include "Exits" (a frotzsmith helper) prints "Obvious exits:" after each
 !  room description; the Study has none, so it prints nothing here.
 ! ---------------------------------------------------------------------------
-Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
+Include "Exits";    ! frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

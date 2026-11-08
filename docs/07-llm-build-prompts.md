@@ -1,4 +1,4 @@
-# Frotzsmith — LLM Build Prompts
+# frotzsmith — LLM Build Prompts
 
 **Document 07 of 13 · LLM Build Prompt**
 **Purpose:** Self-contained prompts fed to Claude (or another capable coding model) to build each phase. Each prompt assumes **no prior context** beyond what it states, so it can be pasted fresh. Order matters: build phases in sequence; each assumes the prior phase merged.
@@ -9,7 +9,7 @@
 
 ## Prompt — Phase 1: Compiler Core & Editor Shell
 
-> You are building Phase 1 of **Frotzsmith**, a browser-based Inform 6 IDE, in an existing Nuxt 4 app that follows the author's Nuxt house style (`app/`-rooted, Yarn, Nuxt UI 4, TypeScript, composables not Pinia, JSDoc everywhere, axe-core zero-violation gate, dark/light WCAG AA).
+> You are building Phase 1 of **frotzsmith**, a browser-based Inform 6 IDE, in an existing Nuxt 4 app that follows the author's Nuxt house style (`app/`-rooted, Yarn, Nuxt UI 4, TypeScript, composables not Pinia, JSDoc everywhere, axe-core zero-violation gate, dark/light WCAG AA).
 >
 > **Goal:** A two-pane shell that compiles a standard-library Inform 6 `.inf` to a `.z8` entirely client-side via a WASM build of `inform6`, shows parsed errors as clickable rows that jump the editor cursor, autosaves source to localStorage, and highlights Inform 6 syntax in a CodeMirror 6 editor.
 >
@@ -27,7 +27,7 @@
 
 ## Prompt — Phase 2: Library Profiles & Auto-Import
 
-> Building Phase 2 of **Frotzsmith** (Phase 1 merged: client-side compile of standard-library `.inf` → `.z8`, two-pane shell, I6 highlighting, autosave). Same house rules.
+> Building Phase 2 of **frotzsmith** (Phase 1 merged: client-side compile of standard-library `.inf` → `.z8`, two-pane shell, I6 highlighting, autosave). Same house rules.
 >
 > **Goal:** Projects carry a `LibraryProfile` (Doc 02 §1). Ship two: **Standard Library** (`std`, default, `.z8`) and **PunyInform** (`puny`, `.z5` default, different includes/keywords/template). Auto-import the profile's `.h` files into MEMFS at compile time. Add a compiler-options panel with profile defaults + free-text switch override. Profile-aware highlighting. Add an **Inform 6 extension catalog** (Doc 02 §3.1): a curated, pinned set the author can browse, link out to, and pull into a project's include set, with a local `.h` import escape hatch — no remote fetch.
 >
@@ -46,7 +46,7 @@
 
 ## Prompt — Phase 3: Play via Parchment & StoryEngine
 
-> Building Phase 3 of **Frotzsmith** (Phases 1–2 merged). Same house rules.
+> Building Phase 3 of **frotzsmith** (Phases 1–2 merged). Same house rules.
 >
 > **Goal:** Clean compile auto-focuses a **Play** tab running the story inline via Parchment. Implement the `StoryEngine` interface + `createEngine(target)` factory and the **`ZmachineEngine` only** (Doc 03 §1, ADR-002); `GlulxEngine` is a stub that throws "Glulx not yet supported." Specify a shared `normalizeTurnOutput` now (used by `send()`), even though headless replay is Phase 4.
 >
@@ -63,7 +63,7 @@
 
 ## Prompt — Phase 4: Test Scripts & Headless Replay
 
-> Building Phase 4 of **Frotzsmith** (Phases 1–3 merged; `StoryEngine` + `normalizeTurnOutput` exist). Same house rules.
+> Building Phase 4 of **frotzsmith** (Phases 1–3 merged; `StoryEngine` + `normalizeTurnOutput` exist). Same house rules.
 >
 > **Goal:** Save arbitrarily long command scripts, run them through a headless `replay()` primitive, show the transcript in a **Transcript** tab. This is the linear spine of a future Skein — keep `replay()` thin and VM-agnostic.
 >
@@ -80,7 +80,7 @@
 
 ## Prompt — Phase 5: Export & Playable Bundles
 
-> Building Phase 5 of **Frotzsmith** (Phases 1–4 merged). Same house rules.
+> Building Phase 5 of **frotzsmith** (Phases 1–4 merged). Same house rules.
 >
 > **Goal:** Export (1) the raw `.z5`/`.z8`/`.ulx` story file, (2) a single self-contained offline-playable Parchment HTML bundle (same runtime as the Play tab), and (3) project export/import (source + options + scripts).
 >

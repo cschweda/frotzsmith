@@ -1,4 +1,4 @@
-# Frotzsmith — Phase 4: Test Scripts & Headless Replay
+# frotzsmith — Phase 4: Test Scripts & Headless Replay
 
 **Document 04 of 13 · Phase 4**
 **Deliverable:** A power-user testing surface. Save arbitrarily long command scripts (`n. examine rock. lift rock. s. open door.`), run them through the headless replay primitive, and read the resulting transcript in the **Transcript** tab. This is the author's real daily need *and* the linear spine of the future Skein.

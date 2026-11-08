@@ -2,7 +2,7 @@
 
 These files are the **Parchment** web interpreter, used to play compiled
 Z-machine story files in the browser. They are vendored here, not authored by
-Frotzsmith. Frotzsmith hands Parchment a compiled story (as a blob URL) via the
+frotzsmith. frotzsmith hands Parchment a compiled story (as a blob URL) via the
 `?story=` parameter on `../index.html`, and the pure-JS ZVM engine runs it.
 
 | Component | Source | License |

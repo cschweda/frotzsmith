@@ -1,6 +1,6 @@
 # Beta testing notes
 
-Thanks for kicking the tires. Frotzsmith is a browser-based IDE for **Inform 6**
+Thanks for kicking the tires. frotzsmith is a browser-based IDE for **Inform 6**
 (beta) and **ZIL** (alpha) — write, compile to a Z-machine story file entirely
 client-side, play it inline, and replay test scripts. Nothing you write leaves
 your browser.

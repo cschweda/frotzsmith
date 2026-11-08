@@ -1,5 +1,5 @@
 ! ============================================================================
-!  TIMED CANDLE  —  Frotzsmith sample (Inform 6 Standard Library)
+!  TIMED CANDLE  —  frotzsmith sample (Inform 6 Standard Library)
 ! ----------------------------------------------------------------------------
 !  A daemon counts down each turn: the lit candle burns lower and finally goes
 !  out. Daemons are how you run something "every turn" — fuses, NPCs, weather.
@@ -101,7 +101,7 @@
 ! `Constant` declares a compile-time symbol. Story and Headline are printed
 ! in the Standard Library's opening banner. `^` = newline in strings.
 Constant Story "TIMED CANDLE";
-Constant Headline "^A Frotzsmith sample: daemons & timed events.^";
+Constant Headline "^A frotzsmith sample: daemons & timed events.^";
 
 ! --- Standard Library includes -----------------------------------------------
 ! Mandatory order: Parser → VerbLib → [your code] → Grammar.
@@ -221,7 +221,7 @@ Object -> candle "lit candle"
 
 ! --- Grammar (must be the final Include) -------------------------------------
 ! Grammar.h defines all built-in verb/grammar tables ('wait', 'z', 'examine'
-! ...). Always the last library Include. "Exits" is a small Frotzsmith
+! ...). Always the last library Include. "Exits" is a small frotzsmith
 ! helper that lists the room's obvious exits (the Study has none).
-Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
+Include "Exits";    ! frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

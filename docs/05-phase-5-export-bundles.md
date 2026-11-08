@@ -1,4 +1,4 @@
-# Frotzsmith — Phase 5: Export & Playable Bundles
+# frotzsmith — Phase 5: Export & Playable Bundles
 
 **Document 05 of 13 · Phase 5**
 **Deliverable:** Two export artifacts from a successful compile: (1) the **raw `.z5`/`.z8`** (or `.ulx`) story file, and (2) a **single-file, self-contained Parchment HTML bundle** that opens and plays offline with no server. Plus project export (source + options + scripts) for backup/sharing.
@@ -17,7 +17,7 @@ A **single self-contained `.html`** with the story file embedded, using the same
 
 ### 2.1 Construction
 
-Parchment supports a "single-file release" shape. Frotzsmith builds it by:
+Parchment supports a "single-file release" shape. frotzsmith builds it by:
 1. Taking the Parchment runtime assets (interpreter + GlkOte display + minimal CSS) — bundled in-repo, pinned.
 2. Embedding the story file as base64 (or a typed-array literal) inside the HTML so there's **no fetch** at runtime.
 3. Inlining JS/CSS so the result is **one file** with zero external requests.

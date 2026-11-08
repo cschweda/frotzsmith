@@ -1,5 +1,5 @@
 ;"Two Rooms -- directional exits and a takeable object.
- Hand-written for the Frotzsmith sample set.
+ Hand-written for the frotzsmith sample set.
 
  WHAT THIS SAMPLE TEACHES
    - Rooms live IN ROOMS, the library's container for every location.
@@ -30,7 +30,7 @@
    turns the string into a comment. Inside these comments single quotes
    stand in for double quotes, which would end the comment."
 
-;"NOTE: there is no <VERSION> form here on purpose. Frotzsmith adds it when
+;"NOTE: there is no <VERSION> form here on purpose. frotzsmith adds it when
   it compiles, from the story version picked in the toolbar (z3 for this one).
   A stand-alone ZILF project would start with a VERSION form naming ZIP."
 

@@ -41,7 +41,7 @@ export function isDeviceName(stem: string): boolean {
 }
 
 /**
- * A stem Frotzsmith generates a file name from, made safe from the device-name
+ * A stem frotzsmith generates a file name from, made safe from the device-name
  * rule: a Windows device name gets a `_` (`con` → `con_`, so `tests/con_.txt`),
  * anything else is returned as is. Every writer-side name builder uses it, so
  * the writer never makes a name `pathProblem` refuses (review I-1).

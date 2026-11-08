@@ -7,7 +7,7 @@ indefinitely, which isn't a commitment this project can carry right now.
 Revisit if that changes. The no-hosting alternative ships first: the
 self-contained offline-playable **HTML bundle export** (already planned in the
 README), which gives authors distribution via itch.io / their own site with
-zero Frotzsmith custodianship.
+zero frotzsmith custodianship.
 **Decisions locked with author:** unlisted links only in v1 · GitHub OAuth only · Netlify + Supabase (no droplet) · no app-wide accounts
 
 ## Goal
@@ -15,7 +15,7 @@ zero Frotzsmith custodianship.
 Let an author publish a compiled work — in progress or finished — as a shareable
 card page: cover image, title, author, summary, **Play online**, and a download
 link for the story file. Modeled on Borogove's publish affordance, scoped to
-Frotzsmith's ethos: the IDE itself stays account-free and fully static.
+frotzsmith's ethos: the IDE itself stays account-free and fully static.
 
 ## Decisions and why
 
@@ -136,7 +136,7 @@ namespaced-localStorage pattern so "Republish" targets the right row.
 
 `/p/[slug]` (SPA route): cover, title, author, summary, updated date,
 **Play online**, **Download story file** (`title-slug.z5`), "Made with
-Frotzsmith". Play fetches the story bytes via `/pub-cdn/…` and hands them to
+frotzsmith". Play fetches the story bytes via `/pub-cdn/…` and hands them to
 the sandbox-origin player iframe via `postMessage` (transferred ArrayBuffer;
 the sandbox page makes its own blob URL). The main origin never feeds
 third-party code to its own player, and the sandbox page accepts bytes only

@@ -1,5 +1,5 @@
 ! ============================================================================
-!  INFORM 6 SKELETON  —  Frotzsmith starter (Standard Library)
+!  INFORM 6 SKELETON  —  frotzsmith starter (Standard Library)
 ! ----------------------------------------------------------------------------
 !  A bare, compilable starting point. Replace the title and author, then build
 !  your world by adding rooms and objects between VerbLib and Grammar.
@@ -51,7 +51,7 @@
 !    1. "Your story begins here..."   (printed by Initialise, below)
 !    2. The banner: Story, Headline, release/serial/library line
 !    3. The first room description (the library does an automatic LOOK)
-!    4. "Obvious exits: ..."          (added by Frotzsmith's Exits.h; this
+!    4. "Obvious exits: ..."          (added by frotzsmith's Exits.h; this
 !                                       room has no exits, so it prints nothing)
 ! ============================================================================
 
@@ -188,10 +188,10 @@ Object StartRoom "Starting Room"
 !  already has, such as 'push') must go AFTER it, because the verb it extends
 !  does not exist until Grammar has defined it. See the Custom Grammar sample.
 !
-!  Include "Exits" is Frotzsmith's own small helper (not part of the official
+!  Include "Exits" is frotzsmith's own small helper (not part of the official
 !  library). It defines the LookRoutine entry point, which the library calls
 !  after every room description, and prints "Obvious exits: north, south."
 !  Remove the line and the game still works; rooms just stop listing exits.
 
-Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
+Include "Exits";    ! frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

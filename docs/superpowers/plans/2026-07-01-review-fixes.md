@@ -1634,13 +1634,13 @@ import { frotzsmith } from '~~/frotzsmith.config'
 const { setLanguage, profile } = useLanguage()
 setLanguage('i6')
 useHead({
-  title: 'Frotzsmith — Inform 6 IDE',
+  title: 'frotzsmith — Inform 6 IDE',
   link: [{ rel: 'canonical', href: `${frotzsmith.siteUrl}/` }],
   meta: [{ property: 'og:url', content: `${frotzsmith.siteUrl}/` }],
 })
 ```
 
-`app/pages/zil.vue` — same shape with `'Frotzsmith — ZIL IDE'` and `` `${frotzsmith.siteUrl}/zil/` ``.
+`app/pages/zil.vue` — same shape with `'frotzsmith — ZIL IDE'` and `` `${frotzsmith.siteUrl}/zil/` ``.
 
 `app/pages/technical.vue` — add to its existing script setup (create `useHead` call if absent, preserving any existing title):
 

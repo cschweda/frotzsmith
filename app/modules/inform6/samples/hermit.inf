@@ -1,5 +1,5 @@
 ! ============================================================================
-!  THE HERMIT  —  Frotzsmith sample (Inform 6 Standard Library)
+!  THE HERMIT  —  frotzsmith sample (Inform 6 Standard Library)
 ! ----------------------------------------------------------------------------
 !  Demonstrates a talking NPC. An "animate" object can carry a `life` routine
 !  that responds to conversation actions (ask / tell / answer / give / ...).
@@ -51,7 +51,7 @@
 !  (title, then subtitle). The `^` inside strings is a newline.
 ! ---------------------------------------------------------------------------
 Constant Story "THE HERMIT";
-Constant Headline "^A Frotzsmith sample showing a talking NPC.^";
+Constant Headline "^A frotzsmith sample showing a talking NPC.^";
 
 ! ---------------------------------------------------------------------------
 !  STANDARD LIBRARY INCLUDES
@@ -218,8 +218,8 @@ Object hermit "old hermit" Hut
 !  TALK TO verb in the Standard Library: try it and the parser says "That's
 !  not a verb I recognise." A Verb directive could add one.)
 !
-!  Include "Exits" is a small Frotzsmith helper that prints "Obvious exits:"
+!  Include "Exits" is a small frotzsmith helper that prints "Obvious exits:"
 !  after each room description.
 ! ---------------------------------------------------------------------------
-Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
+Include "Exits";    ! frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

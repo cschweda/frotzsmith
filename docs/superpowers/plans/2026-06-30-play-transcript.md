@@ -481,7 +481,7 @@ In `public/play/index.html`, add this block immediately before `</body>` (after 
 
 ```html
 <script>
-  // Frotzsmith: report the player's typed commands up to the IDE shell so the
+  // frotzsmith: report the player's typed commands up to the IDE shell so the
   // Transcript tab can show them. GlkOte line input is <input class="… LineInput">;
   // char-input key prompts ("press a key", [MORE]) are class "CharInput" and are
   // intentionally ignored. Same-origin parent, so postMessage targets our origin.
@@ -766,25 +766,25 @@ git commit -m "refactor(ide): move Compile/Play to the title bar; drop Ready ind
 - Consumes: nothing (self-contained static HTML/CSS).
 - Produces: a branded, full-viewport loading splash shown from first paint until the Vue app hydrates. Nuxt auto-detects `~/spa-loading-template.html` (srcDir `app/`) when `ssr: false` — **no `nuxt.config.ts` change needed** (presence of the file enables it).
 
-**Background:** The app is `ssr: false`, so the served HTML is an empty shell and the user sees ~1–2 s of blank/white before the SPA mounts (user report, 2026-06-30). Nuxt 4's `spaLoadingTemplate` mechanism injects this file's contents alongside `<div id="__nuxt"></div>`, kept in the DOM until the Vue app's suspense resolves — exactly the gap to fill (confirmed against the Nuxt 4 docs). The splash is raw HTML + inline `<style>`: it renders before the app CSS, Tailwind, and icon fonts load, so it inlines everything and hard-codes the dark theme (`colorMode.preference: 'dark'`; live body bg `#0f172a` = slate-900) and brand amber (`--frotz-amber: #f0a830`) so there is no flash and it reads as Frotzsmith.
+**Background:** The app is `ssr: false`, so the served HTML is an empty shell and the user sees ~1–2 s of blank/white before the SPA mounts (user report, 2026-06-30). Nuxt 4's `spaLoadingTemplate` mechanism injects this file's contents alongside `<div id="__nuxt"></div>`, kept in the DOM until the Vue app's suspense resolves — exactly the gap to fill (confirmed against the Nuxt 4 docs). The splash is raw HTML + inline `<style>`: it renders before the app CSS, Tailwind, and icon fonts load, so it inlines everything and hard-codes the dark theme (`colorMode.preference: 'dark'`; live body bg `#0f172a` = slate-900) and brand amber (`--frotz-amber: #f0a830`) so there is no flash and it reads as frotzsmith.
 
 - [ ] **Step 1: Create `app/spa-loading-template.html`**
 
 ```html
 <!--
-  Frotzsmith SPA loading splash (ssr: false). Shown from first paint until the
+  frotzsmith SPA loading splash (ssr: false). Shown from first paint until the
   Vue app hydrates. Self-contained: it renders BEFORE the app CSS / Tailwind /
   icon fonts load, so it inlines all styles and hard-codes the dark theme
   (body #0f172a = slate-900) + brand amber (#f0a830) to avoid any flash.
 -->
-<div class="frotz-spa" role="status" aria-label="Loading Frotzsmith">
+<div class="frotz-spa" role="status" aria-label="Loading frotzsmith">
   <div class="frotz-spa__brand">
     <svg class="frotz-spa__hammer" xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#f0a830" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="m15 12-8.373 8.373a1 1 0 1 1-3-3L12 9"/>
       <path d="m18 15 4-4"/>
       <path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5"/>
     </svg>
-    <span class="frotz-spa__word">Frotzsmith</span>
+    <span class="frotz-spa__word">frotzsmith</span>
   </div>
   <span class="frotz-spa__sub">INFORM 6 IDE</span>
   <div class="frotz-spa__spinner" aria-hidden="true"></div>

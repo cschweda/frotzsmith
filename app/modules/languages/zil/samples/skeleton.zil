@@ -50,7 +50,7 @@
      single space (or dropped, right after a |), so long text can be
      wrapped freely."
 
-;"NOTE: there is no <VERSION> form here on purpose. Frotzsmith adds it when
+;"NOTE: there is no <VERSION> form here on purpose. frotzsmith adds it when
   it compiles, from the story version picked in the toolbar (z3 for this one).
   In a stand-alone ZILF project the first form of the file would be a
   VERSION form naming the format: ZIP for z3, XZIP for z5. z3 is the

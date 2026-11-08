@@ -1,5 +1,5 @@
 ;"============================================================================
-  MINGUS II: EVERYTHING ROLLS DOWNHILL  --  Frotzsmith sample (ZIL, zillib, z5)
+  MINGUS II: EVERYTHING ROLLS DOWNHILL  --  frotzsmith sample (ZIL, zillib, z5)
  ----------------------------------------------------------------------------
   The third longer sample, and the sequel to Mingus I. The Architect's
   Legacy showed how a big game is ORGANISED; Mingus I showed how to make a
@@ -489,7 +489,7 @@
 
 <CONSTANT GAME-BANNER
 "Mingus II: Everything Rolls Downhill|
-A Frotzsmith sample: a river voyage in five landings.">
+A frotzsmith sample: a river voyage in five landings.">
 
 ;"--- Scoring ----------------------------------------------------------------
   USE-SCORING? switches on zillib's scoring module (SCORE, FULL SCORE, the

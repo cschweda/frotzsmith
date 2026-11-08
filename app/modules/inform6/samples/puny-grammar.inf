@@ -2,7 +2,7 @@
 !% $OMIT_UNUSED_ROUTINES=1   ! compiler option: strip routines that are never called
 
 ! ============================================================================
-!  CUSTOM GRAMMAR  —  Frotzsmith sample (PunyInform)
+!  CUSTOM GRAMMAR  —  frotzsmith sample (PunyInform)
 ! ----------------------------------------------------------------------------
 !  How to add your own verbs: write an action routine named <Action>Sub, then a
 !  `Verb` directive that maps one or more command words + a syntax line to it.
@@ -62,7 +62,7 @@
 ! --- Story metadata: title + subtitle shown in the opening banner ------------
 ! `Constant` gives a name to a value fixed at compile time.
 Constant Story "CUSTOM GRAMMAR";
-Constant Headline "^A Frotzsmith sample: adding your own verbs (PunyInform).^";
+Constant Headline "^A frotzsmith sample: adding your own verbs (PunyInform).^";
 
 ! PunyInform reads this constant to place the player at startup (no `location =`
 ! needed). It may name an object defined further down — resolved at link time.

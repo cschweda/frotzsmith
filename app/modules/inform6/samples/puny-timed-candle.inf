@@ -2,7 +2,7 @@
 !% $OMIT_UNUSED_ROUTINES=1
 
 ! ============================================================================
-!  TIMED CANDLE  —  Frotzsmith sample (PunyInform)
+!  TIMED CANDLE  —  frotzsmith sample (PunyInform)
 ! ----------------------------------------------------------------------------
 !  The PunyInform port: a daemon runs every turn, burning the candle down until
 !  it goes out. PunyInform supports the same StartDaemon / StopDaemon model and
@@ -87,7 +87,7 @@
 ! Story = the title, Headline = the subtitle; both printed in the opening
 ! banner. `^` inside a string literal is Inform's newline escape.
 Constant Story "TIMED CANDLE";
-Constant Headline "^A Frotzsmith sample: daemons & timed events (PunyInform).^";
+Constant Headline "^A frotzsmith sample: daemons & timed events (PunyInform).^";
 
 ! --- PunyInform: initial player location ------------------------------------
 ! Declare this constant BEFORE the includes: globals.h reads it to set the

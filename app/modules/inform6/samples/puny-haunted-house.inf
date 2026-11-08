@@ -2,7 +2,7 @@
 !% $OMIT_UNUSED_ROUTINES=1   ! compiler setting: strip routines that are never called
 
 ! ============================================================================
-!  HAUNTED HOUSE  —  Frotzsmith sample (PunyInform)
+!  HAUNTED HOUSE  —  frotzsmith sample (PunyInform)
 ! ----------------------------------------------------------------------------
 !  Based on Radio Shack's 1979 text adventure "Haunted House" for the TRS-80
 !  (Tandy Model I / III) — reverse-engineered from the original and reimplemented
@@ -127,7 +127,7 @@
 !        verbs themselves are only in PunyInform's optional extended verb
 !        set (Constant OPTIONAL_EXTENDED_VERBSET;), so here they are "not a
 !        verb I recognize".
-!      • The DIRS / EXITS verb and Frotzsmith's Exits.h: both walk the
+!      • The DIRS / EXITS verb and frotzsmith's Exits.h: both walk the
 !        Standard Library's Compass objects, which PunyInform doesn't have.
 !      • ClearScreen(WIN_MAIN) before the PLUGH teleport.
 !      • DeathMessage (it was only a placeholder).

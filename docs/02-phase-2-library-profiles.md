@@ -1,4 +1,4 @@
-# Frotzsmith — Phase 2: Library Profiles & Auto-Import
+# frotzsmith — Phase 2: Library Profiles & Auto-Import
 
 **Document 02 of 13 · Phase 2**
 **Deliverable:** A project carries a **library profile** (Standard Library or PunyInform) that auto-imports the right `.h` files, sets sensible default Z-version and compiler switches, supplies the highlight keyword set, and provides a starter template. A compiler-options panel exposes those defaults with a free-text override. Projects can also pull optional **Inform 6 extensions** from a curated catalog into their include set.

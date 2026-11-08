@@ -1,5 +1,5 @@
 ! ============================================================================
-!  THE DARK CELLAR  —  Frotzsmith sample (Inform 6 Standard Library)
+!  THE DARK CELLAR  —  frotzsmith sample (Inform 6 Standard Library)
 ! ----------------------------------------------------------------------------
 !  Darkness and light sources. A room without the `light` attribute is dark; the
 !  player can only see (and find objects) if they carry something that `has
@@ -81,7 +81,7 @@
 ! and then `Headline` in the opening banner at game start.
 ! `^` inside a string literal is Inform's newline escape character.
 Constant Story "THE DARK CELLAR";
-Constant Headline "^A Frotzsmith sample: darkness & light.^";
+Constant Headline "^A frotzsmith sample: darkness & light.^";
 
 ! --- Standard Library includes -----------------------------------------------
 ! `Include "file";` reads another file at this point, as though it had been
@@ -188,7 +188,7 @@ Object -> rusty_key "rusty key"
 ! VerbLib.h (it maps words such as 'take' to the actions VerbLib defines,
 ! and the library checks the order). New verbs of your own may go before
 ! or after it; `Extend` lines that add to a library verb go after it.
-! "Exits" is a small Frotzsmith helper that lists "Obvious exits:" after a
+! "Exits" is a small frotzsmith helper that lists "Obvious exits:" after a
 ! lit room's description (it stays silent in the dark).
-Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
+Include "Exits";    ! frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

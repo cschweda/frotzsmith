@@ -349,7 +349,7 @@ describe('readContainer — accepts', () => {
 })
 
 describe('readContainer — not a package', () => {
-  const NOT = "That file isn't a Frotzsmith project (.frotzsmith)."
+  const NOT = "That file isn't a frotzsmith project (.frotzsmith)."
 
   test('a plain zip with no mimetype', () => {
     const e = expectRefused(buildZip([deflated('story.inf', 'x'), stored('readme.txt', 'y')]), 'not-a-package')
@@ -560,7 +560,7 @@ describe('readContainer — limits (checked from the central directory before in
     const big = new Uint8Array(LIMITS.archiveBytes + 1)
     big.set(z, big.length - z.length) // a valid zip at the end; still refused for size
     const e = expectRefused(big, 'too-large')
-    expect(e.message).toBe('This project is larger than Frotzsmith can open (32 MB).')
+    expect(e.message).toBe('This project is larger than frotzsmith can open (32 MB).')
   })
 
   test('> 2,000 entries', () => {

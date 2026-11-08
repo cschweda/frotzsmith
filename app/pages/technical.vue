@@ -3,7 +3,7 @@ import { frotzsmith } from '~~/frotzsmith.config'
 import { currentAbout } from '~/utils/about'
 
 useHead({
-  title: 'Technical Details — Frotzsmith',
+  title: 'Technical Details — frotzsmith',
   link: [{ rel: 'canonical', href: `${frotzsmith.siteUrl}/technical/` }],
   meta: [{ property: 'og:url', content: `${frotzsmith.siteUrl}/technical/` }],
 })
@@ -115,10 +115,10 @@ const resources = [
       <section class="space-y-3">
         <h1 class="text-3xl font-bold tracking-tight">Technical Details</h1>
         <p class="text-muted text-sm" data-version>
-          Frotzsmith v{{ about.version }}<template v-if="showBuild"> · {{ build }}</template>
+          frotzsmith v{{ about.version }}<template v-if="showBuild"> · {{ build }}</template>
         </p>
         <p class="text-muted max-w-2xl">
-          Frotzsmith compiles and runs <strong class="text-default">Inform 6</strong> and
+          frotzsmith compiles and runs <strong class="text-default">Inform 6</strong> and
           <strong class="text-default">ZIL</strong> entirely in the browser — no server touches your source
           or story file. Both emit Z-machine story files, so the play, auto-map, and test-script layers are
           shared. This page documents the toolchain and, more importantly, the hard limits, with numbers
@@ -133,7 +133,7 @@ const resources = [
           Inform 7's natural-language syntax is a real strength for writers — but if you think in code, it
           can feel indirect and verbose: an English-shaped layer between you and the machine. Inform 6 is a
           proper programming language — objects, properties, routines, C-style control flow. You say exactly
-          what you mean and the compiler does exactly that. Frotzsmith exists for that way of working: a
+          what you mean and the compiler does exactly that. frotzsmith exists for that way of working: a
           coder-first I6 IDE, which the browser was missing.
         </p>
         <div class="grid gap-4 sm:grid-cols-2">
@@ -201,7 +201,7 @@ Object -> lamp "brass lamp"
           <span class="text-default">ZIL</span> (Zork Implementation Language) is Infocom's original MDL/Lisp-like
           authoring language — angle-bracket forms like <code class="frotz-code">&lt;ROUTINE&gt;</code> and
           <code class="frotz-code">&lt;OBJECT&gt;</code>. The modern <a href="https://foss.heptapod.net/zilf/zilf/" target="_blank" rel="noopener noreferrer" class="text-primary underline">ZILF</a>
-          toolchain (ZILF + ZAPF, C# / .NET 10) reimplements it, and Frotzsmith runs that compiler in the browser at
+          toolchain (ZILF + ZAPF, C# / .NET 10) reimplements it, and frotzsmith runs that compiler in the browser at
           <NuxtLink to="/zil/" class="text-primary underline">/zil/</NuxtLink>. Because ZIL emits ordinary Z-code,
           play, the auto-map, test scripts, and the transcript all work for it unchanged.
         </p>
@@ -222,7 +222,7 @@ Object -> lamp "brass lamp"
       <section class="space-y-4">
         <h2 class="text-primary text-xl font-bold">Z-machine limits — the hard ones</h2>
         <p class="text-muted text-sm">
-          These are the <span class="text-default">Z-machine format's</span> limits, not Frotzsmith's — they
+          These are the <span class="text-default">Z-machine format's</span> limits, not frotzsmith's — they
           bind any z-code interpreter.
         </p>
         <div tabindex="0" class="border-default overflow-x-auto rounded-lg border">
@@ -313,7 +313,7 @@ Object -> lamp "brass lamp"
       <section class="space-y-3">
         <h2 class="text-primary text-xl font-bold">The interpreter</h2>
         <ul class="text-muted list-disc space-y-1.5 pl-5 text-sm">
-          <li><span class="text-default">frotzplay</span> by default: the Frotz, Inc. family's accessible Z-machine player (<code class="frotz-code">@frotzinc/player</code> on <code class="frotz-code">@frotzinc/zmachine</code>), in the page, no iframe. Its interpreter matches ZVM turn for turn on frotzplay's test walkthroughs; it announces each turn to screen readers, and has keyboard shortcuts, high contrast and OpenDyslexic. Send to Play types through its API. MIT.</li>
+          <li><span class="text-default">frotzplay</span> by default: the frotz, Inc. family's accessible Z-machine player (<code class="frotz-code">@frotzinc/player</code> on <code class="frotz-code">@frotzinc/zmachine</code>), in the page, no iframe. Its interpreter matches ZVM turn for turn on frotzplay's test walkthroughs; it announces each turn to screen readers, and has keyboard shortcuts, high contrast and OpenDyslexic. Send to Play types through its API. MIT.</li>
           <li><span class="text-default">Parchment</span> with the <span class="text-default">ifvms ZVM</span> engine as the alternative (<em>Switch to Parchment</em> on the Play tab, remembered) — pure JavaScript, JIT (AST-compiling). MIT.</li>
           <li>Z-machine <span class="text-default">v3 / v4 / v5 / v8</span> (no v6 graphical). Quetzal save/restore, undo, status line, full Unicode, sound, output streams, single-key input.</li>
           <li>Parchment gets the story as a same-origin <span class="text-default">Blob URL with a <code class="frotz-code">#game.zN</code> fragment</span> so Parchment's extension-based format detection selects the Z-machine; <code class="frotz-code">fetch</code> ignores the fragment.</li>
@@ -325,7 +325,7 @@ Object -> lamp "brass lamp"
       <section class="space-y-3">
         <h2 class="text-primary text-xl font-bold">Not supported (by design)</h2>
         <ul class="text-muted list-disc space-y-1.5 pl-5 text-sm">
-          <li>Glulx / Inform 7 — Frotzsmith targets the Z-machine only, from Inform 6 or ZIL.</li>
+          <li>Glulx / Inform 7 — frotzsmith targets the Z-machine only, from Inform 6 or ZIL.</li>
           <li>Z-machine v6 (graphics).</li>
           <li>Multi-file projects — one source file per project (Inform 6: one <code class="frotz-code">.inf</code> plus <code class="frotz-code">Include</code>d <code class="frotz-code">.h</code> extensions; ZIL: one <code class="frotz-code">.zil</code> against the embedded <code class="frotz-code">zillib</code>).</li>
         </ul>

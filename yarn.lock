@@ -1544,39 +1544,39 @@
     "@floating-ui/dom" "^1.8.0"
     "@floating-ui/utils" "^0.2.12"
 
-"@frotzinc/inform6-wasm@0.1.0":
-  version "0.1.0"
-  resolved "https://registry.yarnpkg.com/@frotzinc/inform6-wasm/-/inform6-wasm-0.1.0.tgz#495cc6169d1b5c6947bfaac2a699005ae986d690"
-  integrity sha512-OpEyW5UdV9OnJXAbALzk7RnI48XkJ8xiB+TKRlnrFYk6xkhxOVrVSvfWnZb4XF8FwIEa7ohfQ1eCdZHoSQIMJQ==
+"@frotzinc/inform6-wasm@0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@frotzinc/inform6-wasm/-/inform6-wasm-0.1.1.tgz#ced1237eff58b64d5727bc26dd8aa69dbe52f9ce"
+  integrity sha512-BFGANxZxQsXXHgRv20artEwvWVLEAUBrWqJpJ+hwKAb/dRCdp/VS8Qd66dH+CbL1nBXG8RsWgvK2fD6ZiGPtvA==
 
 "@frotzinc/nuxt-base@0.1.0":
   version "0.1.0"
   resolved "https://registry.yarnpkg.com/@frotzinc/nuxt-base/-/nuxt-base-0.1.0.tgz#9e9c104a66a999637f80e2ac48cd9126f018e9bb"
   integrity sha512-By/+n953G7AR3driqgfG57FxPjLhnCPkByaMIyXVGFMcxWNSSNUdJp2Gc02OEO5laJRN4eiEcuFSx44VcB5ssA==
 
-"@frotzinc/player@0.2.0":
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/@frotzinc/player/-/player-0.2.0.tgz#6cef8289d81315e8841bebb5724b6797c3bf325a"
-  integrity sha512-Sxy58JuGO+HHD6nEZd80I/Ub7AcrxQu66ksJLAdWez4pEAf4wXY9PzEhcJ6Z7c4uTZlUM2ls8RoM1ick36j9zg==
+"@frotzinc/player@0.2.1":
+  version "0.2.1"
+  resolved "https://registry.yarnpkg.com/@frotzinc/player/-/player-0.2.1.tgz#ad3ee20fa2ea3c422054db24b2d3c680d5526953"
+  integrity sha512-EFTX3RI7ngoNP6JeaTpdKKRy/GytPkEREK5JUOHMw6g6jgVaYX9oE+1YVs3Hr/jnzL8bzSCN0WUpzImHJQs8vQ==
   dependencies:
-    "@frotzinc/zmachine" "0.1.0"
+    "@frotzinc/zmachine" "0.1.1"
 
 "@frotzinc/worker-rpc@0.1.0":
   version "0.1.0"
   resolved "https://registry.yarnpkg.com/@frotzinc/worker-rpc/-/worker-rpc-0.1.0.tgz#f428429c759a7b91934b91a12fde8178be478b84"
   integrity sha512-/+S/c4e6zQBB+fTvkUw9Sg+RAzPm3GgTeSfN5bsAa8BxfzIiH+ai69SPGUif8Ut4KCniVrVof0y4AWNWUSmi2g==
 
-"@frotzinc/zcode@0.4.0":
-  version "0.4.0"
-  resolved "https://registry.yarnpkg.com/@frotzinc/zcode/-/zcode-0.4.0.tgz#c0d53abbb772c1687062fd0d6475ea21dd9e66b7"
-  integrity sha512-aHQHzflXVIaZpFSc4N5KY0FHHLL4t4p5iQMDZINoYumEDixBbaPJstlqKU9O1yM7n8fbvRPM8gCqrDR6MpxqfQ==
+"@frotzinc/zcode@0.4.1":
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/@frotzinc/zcode/-/zcode-0.4.1.tgz#de94bac1239cd32da34f07026d00ac758d07b608"
+  integrity sha512-NFxefH8rjwVjRJ/xvx8PtJMmK8I/1+GPxghRit5mJU2C+JWdqgUEiMgR8V1cAyjnygz96vo5DIyBZ5MQqYVxbQ==
 
-"@frotzinc/zmachine@0.1.0":
-  version "0.1.0"
-  resolved "https://registry.yarnpkg.com/@frotzinc/zmachine/-/zmachine-0.1.0.tgz#14d07d0ee93d5be5ef731ab48ee8b5dadfcd34ea"
-  integrity sha512-cyNCiWXxCsmAkA2B8Y7TpUQg14W4n2JWx8qqHqMU4nHyGQzEKA6cIWVTVC7s6lpP+NHt3DO1fpvzPqNy5AK9YQ==
+"@frotzinc/zmachine@0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@frotzinc/zmachine/-/zmachine-0.1.1.tgz#d97c13b9215680907968ac257ba8993cd76e2e26"
+  integrity sha512-qdn96WGEsBiuAAx8n/GZ+JQoPI2i8cGJzUNlpsW65MqXp1InyWpjdzDActqZRpYZ6Gb76qWeT0A124KZrcrWqg==
   dependencies:
-    "@frotzinc/zcode" "0.4.0"
+    "@frotzinc/zcode" "0.4.1"
 
 "@iconify-json/lucide@^1.2.148":
   version "1.2.151"

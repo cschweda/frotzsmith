@@ -8,7 +8,7 @@ import { ZipLimitError } from '~/utils/zip-limits'
 import { displayPath } from '~/project-package/errors'
 import { formatNameList } from '~/utils/mismatch-list'
 
-export const OPEN_FAILED = 'That file couldn’t be read as a Frotzsmith project.'
+export const OPEN_FAILED = 'That file couldn’t be read as a frotzsmith project.'
 export const DOWNLOAD_FAILED = 'Something went wrong building the .frotzsmith file.'
 
 /** A refusal's own one-sentence message when it has one; else `fallback`
@@ -41,7 +41,7 @@ export function openDialogNotes(p: {
   if (s > 0) notes.push(`It adds ${s === 1 ? 'a source file' : `${s} source files`}: ${names(p.sourceFiles!)}.`)
   const h = p.hiddenNames.length
   if (h > 0) {
-    notes.push(`It carries ${h === 1 ? 'a file' : `${h} files`} Frotzsmith doesn’t show, kept and included when you download: ${names(p.hiddenNames)}.`)
+    notes.push(`It carries ${h === 1 ? 'a file' : `${h} files`} frotzsmith doesn’t show, kept and included when you download: ${names(p.hiddenNames)}.`)
   }
   return notes
 }
@@ -51,7 +51,7 @@ export function openDialogNotes(p: {
 export function downloadedNote(hidden: readonly string[], leftOut: readonly string[] = []): string | null {
   const notes: string[] = []
   const h = hidden.length
-  if (h > 0) notes.push(`It includes ${h === 1 ? 'a file' : `${h} files`} Frotzsmith doesn’t show: ${names(hidden)}.`)
+  if (h > 0) notes.push(`It includes ${h === 1 ? 'a file' : `${h} files`} frotzsmith doesn’t show: ${names(hidden)}.`)
   const l = leftOut.length
   if (l > 0) {
     notes.push(`It leaves out ${l === 1 ? 'a file whose name' : `${l} files whose names`} a project can’t hold, kept in this browser: ${names(leftOut)}.`)

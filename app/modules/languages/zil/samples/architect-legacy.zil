@@ -1,5 +1,5 @@
 ;"============================================================================
-  THE ARCHITECT'S LEGACY  --  Frotzsmith sample (ZIL, zillib, target z5)
+  THE ARCHITECT'S LEGACY  --  frotzsmith sample (ZIL, zillib, target z5)
  ----------------------------------------------------------------------------
   A longer game, written to show what a BIG ZIL project looks like once it
   has outgrown a single room and a single puzzle. The small samples each
@@ -344,7 +344,7 @@
   prints it under GAME-BANNER as 'Release 1 / Serial number ...'. In
   GAME-BANNER, the | is a line break.
 
-  There is no <VERSION XZIP> form at the top of this file: Frotzsmith adds
+  There is no <VERSION XZIP> form at the top of this file: frotzsmith adds
   the version when it compiles, from the format picked in the toolbar (z5
   for this game). It uses bold text (HLIGHT, in BEGIN-CHAPTER), which z3
   does not have."
@@ -352,7 +352,7 @@
 
 <CONSTANT GAME-BANNER
 "The Architect's Legacy|
-A Frotzsmith sample: a longer game in three chapters.">
+A frotzsmith sample: a longer game in three chapters.">
 
 ;"--- Scoring ----------------------------------------------------------------
   USE-SCORING? switches on zillib's scoring module (SCORE, FULL SCORE, the

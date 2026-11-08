@@ -5,7 +5,7 @@ import { applyingUpdate, needRefresh } from '~/update/state'
 import { justUpdated, UP_TO_DATE } from '~/update/updated'
 import { takeUpdate } from '~/update/use-check'
 
-// "A new version of Frotzsmith is ready": a persistent, non-modal offer with Reload and Later. It
+// "A new version of frotzsmith is ready": a persistent, non-modal offer with Reload and Later. It
 // never reloads by itself. The region stays in the page and only its contents change, so a
 // screen reader hears the offer when it appears.
 const shown = computed(() => needRefresh.value && !later.value)

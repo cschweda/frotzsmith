@@ -118,8 +118,8 @@ onBeforeUnmount(() => {
           </UFieldGroup>
         </fieldset>
         <p class="text-muted max-w-sm text-xs">
-          frotzplay is the accessible player from the Frotz, Inc. family (screen readers,
-          keyboard shortcuts, high contrast). Parchment is the player Frotzsmith shipped with.
+          frotzplay is the accessible player from the frotz, Inc. family (screen readers,
+          keyboard shortcuts, high contrast). Parchment is the player frotzsmith shipped with.
         </p>
       </div>
     </div>

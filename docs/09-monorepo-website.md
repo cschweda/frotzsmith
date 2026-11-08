@@ -1,8 +1,8 @@
-# Frotzsmith — Repo Layout, Deployment & Docs Site
+# frotzsmith — Repo Layout, Deployment & Docs Site
 
 **Document 09 of 13 · Monorepo / Website**
 
-Frotzsmith is a single Nuxt 4 app (not a monorepo — there's no separate backend or CLI sibling to warrant one), deployed static on Netlify, following the author's established Nuxt project structure.
+frotzsmith is a single Nuxt 4 app (not a monorepo — there's no separate backend or CLI sibling to warrant one), deployed static on Netlify, following the author's established Nuxt project structure.
 
 ---
 
@@ -10,7 +10,7 @@ Frotzsmith is a single Nuxt 4 app (not a monorepo — there's no separate backen
 
 Single repo: `frotzsmith`. **Not** a pnpm monorepo — this project has no server package, no CLI sibling. Yarn, single `package.json`, mirroring the markdown editor exactly.
 
-> Contrast with the author's monorepo projects (ForgeCrawl, StrapiShift): those have `packages/app` + `packages/web` because they ship a backend/CLI. Frotzsmith is pure client-side, so a single-app repo is correct. Flag for the author: if a future "shared I6 library bundle" package emerges to feed multiple tools, *then* consider extracting `app/modules/inform6/` into a publishable `inform6-web` package (npm, author's own scope) — noted in Doc 10.
+> Contrast with the author's monorepo projects (ForgeCrawl, StrapiShift): those have `packages/app` + `packages/web` because they ship a backend/CLI. frotzsmith is pure client-side, so a single-app repo is correct. Flag for the author: if a future "shared I6 library bundle" package emerges to feed multiple tools, *then* consider extracting `app/modules/inform6/` into a publishable `inform6-web` package (npm, author's own scope) — noted in Doc 10.
 
 ## 2. Project structure
 
@@ -96,7 +96,7 @@ Like the markdown editor's `app/modules/tour/`, the entire I6 toolchain lives in
 - **Netlify static** via `yarn generate` (`nuxt generate` with `ssr: false`) → **`.output/public`** (the Nuxt 4 output path — `dist` was Nuxt 2).
 - **SSR not required** — the app is a client-side tool; static generation is correct, and it keeps the offline/deploy-anywhere promise.
 - `netlify.toml`: build command `yarn generate`, **publish `.output/public`**, plus CSP headers (Doc 06 §9). **No COOP/COEP** needed (single-threaded WASM) — preserving "deploy anywhere static."
-- **Domain & repo:** the IDE lives at `frotzsmith.frotzinc.com` (part of the Frotz, Inc. family at `frotzinc.com`); the original `frotzsmith.com` domain 301s there (`public/_redirects`). Source lives at `github.com/cschweda/frotzsmith`.
+- **Domain & repo:** the IDE lives at `frotzsmith.frotzinc.com` (part of the frotz, Inc. family at `frotzinc.com`); the original `frotzsmith.com` domain 301s there (`public/_redirects`). Source lives at `github.com/cschweda/frotzsmith`.
 
 ## 5. WASM asset handling
 

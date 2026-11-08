@@ -82,13 +82,13 @@ describe('openDialogNotes', () => {
   })
   it('names the hidden files', () => {
     expect(openDialogNotes({ extensions: [], hiddenNames: ['notes/a.md'] })).toEqual([
-      'It carries a file Frotzsmith doesn’t show, kept and included when you download: “notes/a.md”.',
+      'It carries a file frotzsmith doesn’t show, kept and included when you download: “notes/a.md”.',
     ])
   })
   it('says when the package includes a solution (Solutions)', () => {
     expect(openDialogNotes({ extensions: [], hiddenNames: ['notes/a.md'], solution: true })).toEqual([
       'It includes a solution.',
-      'It carries a file Frotzsmith doesn’t show, kept and included when you download: “notes/a.md”.',
+      'It carries a file frotzsmith doesn’t show, kept and included when you download: “notes/a.md”.',
     ])
     expect(openDialogNotes({ extensions: [], hiddenNames: [], solution: false })).toEqual([])
   })
@@ -122,8 +122,8 @@ describe('openedNotes with names', () => {
 describe('downloadedNote', () => {
   it('names the hidden files a download carries, or says nothing', () => {
     expect(downloadedNote([])).toBeNull()
-    expect(downloadedNote(['notes/a.md'])).toBe('It includes a file Frotzsmith doesn’t show: “notes/a.md”.')
-    expect(downloadedNote(['a', 'b', 'c', 'd', 'e', 'f'])).toBe('It includes 6 files Frotzsmith doesn’t show: “a”, “b”, “c”, “d”, “e” and 1 more.')
+    expect(downloadedNote(['notes/a.md'])).toBe('It includes a file frotzsmith doesn’t show: “notes/a.md”.')
+    expect(downloadedNote(['a', 'b', 'c', 'd', 'e', 'f'])).toBe('It includes 6 files frotzsmith doesn’t show: “a”, “b”, “c”, “d”, “e” and 1 more.')
   })
 
   // Review I-2/m-6: what the package can't hold is named, display-safe and capped.
@@ -133,7 +133,7 @@ describe('downloadedNote', () => {
       'It leaves out a file whose name a project can’t hold, kept in this browser: “VerbLib.h”.',
     )
     expect(downloadedNote(['n.md'], ['a:b.txt', 'x\u202etxt.exe'])).toBe(
-      'It includes a file Frotzsmith doesn’t show: “n.md”. It leaves out 2 files whose names a project can’t hold, kept in this browser: “a:b.txt”, “x\ufffdtxt.exe”.',
+      'It includes a file frotzsmith doesn’t show: “n.md”. It leaves out 2 files whose names a project can’t hold, kept in this browser: “a:b.txt”, “x\ufffdtxt.exe”.',
     )
     expect(downloadedNote([], ['1', '2', '3', '4', '5', '6', '7'])).toMatch(/“5” and 2 more\.$/)
   })

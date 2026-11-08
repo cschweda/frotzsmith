@@ -198,8 +198,8 @@ Verb 'shake' 'roll'
 
 ! ---------------------------------------------------------------------------
 ! GRAMMAR — the last library include
-! "Exits" is a small Frotzsmith helper that prints "Obvious exits:" after a
+! "Exits" is a small frotzsmith helper that prints "Obvious exits:" after a
 ! room description (the Booth has none).
 ! ---------------------------------------------------------------------------
-Include "Exits";    ! Frotzsmith: auto-list obvious exits (see Exits.h)
+Include "Exits";    ! frotzsmith: auto-list obvious exits (see Exits.h)
 Include "Grammar";

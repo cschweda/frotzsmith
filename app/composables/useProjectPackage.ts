@@ -146,7 +146,7 @@ export function useProjectPackage() {
   async function inspect(file: File): Promise<PendingOpen> {
     // Refuse before reading a huge file into memory (the reader checks again).
     if (file.size > LIMITS.archiveBytes) {
-      throw new PackageError('too-large', 'This project is larger than Frotzsmith can open (32 MB).')
+      throw new PackageError('too-large', 'This project is larger than frotzsmith can open (32 MB).')
     }
     const read = await readProjectPackage(new Uint8Array(await file.arrayBuffer()))
     const plan = check(read.project)
@@ -239,7 +239,7 @@ export function useProjectPackage() {
    * `hidden`: the files written back that the IDE doesn't show (F15).
    * `leftOut`: files kept in this browser that the package can't hold because
    * the reader would refuse them — uploads named like a library file and
-   * hidden files whose names an older Frotzsmith accepted (review I-2/m-6).
+   * hidden files whose names an older frotzsmith accepted (review I-2/m-6).
    * They are never deleted; the download just goes without them, so it
    * always reopens.
    * `renamed`: uploads written under another name than their own (a Windows
@@ -369,7 +369,7 @@ export function useProjectPackage() {
     if (skeinPath !== undefined) snapshot.skeinPath = skeinPath
 
     const bytes = await writeProjectPackage(snapshot, {
-      generator: `Frotzsmith ${currentAbout().version}`,
+      generator: `frotzsmith ${currentAbout().version}`,
       now: new Date(),
     })
     // The writer drops compiled stories; everything else opaque goes back in.

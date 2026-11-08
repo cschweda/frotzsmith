@@ -5,10 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-11-08
+
+### Changed
+- **The family's names are lower case everywhere:** frotzsmith, frotzlens, frotzplay, and frotz, Inc. That covers the pages, titles, meta tags, the og:image (re-rendered; otherwise the same), the About dialog, the samples' banners, the README, the docs and this changelog. Frotz the interpreter keeps its own name. Code identifiers and the vendored player files are unchanged.
+- `public/play/demo.z5` is rebuilt from today's `demo.inf`, so the demo welcomes you to the frotzsmith demo. The old build was from June, from an earlier source.
+- `@frotzinc/player` 0.2.1 and `@frotzinc/inform6-wasm` 0.1.1: the same code as before, with their npm READMEs in lower case.
+
 ## [0.2.0] - 2026-11-07
 
 ### Changed — frotzplay is the player
-- **Play runs in [frotzplay](https://frotzplay.frotzinc.com)**, the Frotz, Inc. family's accessible Z-machine player (`@frotzinc/player` 0.2.0), in the page, with no iframe. Its interpreter matches ZVM (the replay engine) turn for turn on frotzplay's own test walkthroughs, and it announces each turn to screen readers, and has keyboard shortcuts, high contrast, OpenDyslexic, undo, saves and transcript downloads. It follows the IDE's light and dark.
+- **Play runs in [frotzplay](https://frotzplay.frotzinc.com)**, the frotz, Inc. family's accessible Z-machine player (`@frotzinc/player` 0.2.0), in the page, with no iframe. Its interpreter matches ZVM (the replay engine) turn for turn on frotzplay's own test walkthroughs, and it announces each turn to screen readers, and has keyboard shortcuts, high contrast, OpenDyslexic, undo, saves and transcript downloads. It follows the IDE's light and dark.
 - **Parchment is still there:** *Switch to Parchment* in the bar above the game (or *Play in* before pressing Play) starts the game again in Parchment, and the choice is remembered in this browser. It's kept while frotzplay settles in; the plan to retire it is in frotzlens's [docs/16](https://github.com/cschweda/frotzlens/blob/main/docs/16-frotzsmith-on-frotzplay.md).
 - **The transcript, auto-map, Skein and solution recorder work the same in both players.** Both report through one place (`usePlaySink`). frotzplay reports from its own events (its turns, its status line, its start), not by reading the screen.
 - **Send to Play** types through frotzplay's `send()` and presses through "press a key" prompts; it says where it stopped, as before. Sent commands stay out of the typed transcript, as with Parchment.
@@ -20,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > Working alpha — the core IDE compiles and plays **Inform 6** and **ZIL** entirely in the browser.
 
 ### Changed — 2026-11-07 New primary domain
-- **Frotzsmith now lives at [frotzsmith.frotzinc.com](https://frotzsmith.frotzinc.com).**
+- **frotzsmith now lives at [frotzsmith.frotzinc.com](https://frotzsmith.frotzinc.com).**
   The old `frotzsmith.com` (apex and `www`) 301s there, path kept
   (`public/_redirects`, ahead of Nitro's catch-all; pinned by
   `tools/redirects.test.ts`). `siteUrl` in `frotzsmith.config.ts` moves with
@@ -34,10 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   serves `sw.js` as `public/sw-retire.js`, which clears the caches, unregisters
   and reloads the tab into the 301.
 
-### Added — 2026-11-06 Frotz, Inc.
-- **Frotz, Inc. links.** A "Frotz, Inc." link in the status bar and a line in
+### Added — 2026-11-06 frotz, Inc.
+- **frotz, Inc. links.** A "frotz, Inc." link in the status bar and a line in
   **About** point to [frotzinc.com](https://frotzinc.com), the landing page for
-  the Frotz family (Frotzsmith, [Frotzlens](https://frotzlens.frotzinc.com), and what comes
+  the frotz family (frotzsmith, [frotzlens](https://frotzlens.frotzinc.com), and what comes
   next). The URL is one value, `familyUrl`, in `frotzsmith.config.ts`.
 
 ### Added — 2026-11-05 Mingus II
@@ -166,7 +173,7 @@ both).
   told so once. Opening a project that adds or turns on any extension always
   asks first and names each one.
 - **Skeins are rebuilt on every load** (project, `.skein` import, browser
-  storage), keeping only the fields Frotzsmith knows; node ids are checked.
+  storage), keeping only the fields frotzsmith knows; node ids are checked.
   A booby-trapped Skein can no longer crash the panel, replay a different
   command from the one shown, or stop you downloading your project.
 - **Stricter project files.** Archive comments, Unicode Comment fields and
@@ -176,7 +183,7 @@ both).
   `nul.txt`, …), names Windows or macOS can't hold, and invisible or
   look-alike characters are all refused; names that differ only by case or
   compatibility form (`ẞ`/`ß`/`ss`, `ﬀ`/`ff`) count as the same. A download
-  always reopens: names Frotzsmith makes up avoid device names (a test called
+  always reopens: names frotzsmith makes up avoid device names (a test called
   "Con" is saved as `tests/con_.txt`), and files kept from before these rules
   whose names a project can no longer hold are left out of the download —
   kept in your browser, never deleted — and the download message names them,
@@ -193,7 +200,7 @@ both).
 - **A game can no longer run JavaScript through the Z-machine interpreter.**
   A story whose custom character table used one particular private character
   could break out of the interpreter's generated code and run script with the
-  IDE's own access (shown with a story compiled by Frotzsmith's own compiler).
+  IDE's own access (shown with a story compiled by frotzsmith's own compiler).
   Both interpreters — Play and the headless test runner — are fixed, and the
   build now checks the fix every time — and fails if the fix was never
   applied; the development server's test runner is fixed too.
@@ -202,7 +209,7 @@ both).
   note in the Skein panel; pressing Play or Run once (or loading a sample or a
   new project) lets it auto-run as usual. This lasts until you do, even across
   a reload, and is kept per language (so is the note).
-- **Analytics script is a reviewed copy** served from Frotzsmith itself instead
+- **Analytics script is a reviewed copy** served from frotzsmith itself instead
   of a live pass-through of the analytics provider's script; the desktop
   build has no analytics at all.
 - **Tighter Content Security Policy:** `blob:` can no longer be used as a
@@ -239,7 +246,7 @@ both).
   precaches the app's own files — both IDEs, `/technical`, the `_nuxt/`
   chunks and workers (the Inform 6 compiler's wasm among them), the
   Parchment player under `play/`, the demo story, fonts and icons. After one
-  visit Frotzsmith opens, compiles Inform 6, plays, and runs test scripts with
+  visit frotzsmith opens, compiles Inform 6, plays, and runs test scripts with
   no connection; any reload offline falls back to the app shell. With a web
   manifest and icons it can be **installed as an app**.
 - **ZIL offline after one online use.** The ~13 MB ZILF runtime
@@ -248,11 +255,11 @@ both).
   `frotzsmith-zilf`, only 200 responses). Once it's there, ZIL compiles
   offline too; offline with an empty cache, a ZIL compile ends promptly with
   a compile error rather than hanging.
-- **Updates wait for you.** A new deploy shows *"A new version of Frotzsmith
+- **Updates wait for you.** A new deploy shows *"A new version of frotzsmith
   is ready"* with **Reload** / **Later**; nothing reloads by itself, in any
   tab. Reload writes the pending source autosave and Skein saves first, shows
   "Getting the newest version…", and the new version opens with
-  "Frotzsmith is up to date." Other open tabs keep their offer until their
+  "frotzsmith is up to date." Other open tabs keep their offer until their
   own author chooses.
 - **One version number** — `desktop/package.json` (`0.1.0`, mirrored in the
   root `package.json`), with the build commit and date baked in. The footer's

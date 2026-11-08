@@ -1,5 +1,5 @@
 /**
- * ZIL sample set — concept demos for the Frotzsmith ZIL IDE.
+ * ZIL sample set — concept demos for the frotzsmith ZIL IDE.
  *
  * Mirrors the shape of app/modules/inform6/samples.ts (same field names:
  * id, name, description, target, source) so Task 10's ZIL_PROFILE can
@@ -28,7 +28,7 @@ import architectLegacySrc from './samples/architect-legacy.zil?raw'
 import mingus1Src from './samples/mingus-1.zil?raw'
 import mingus2Src from './samples/mingus-2.zil?raw'
 
-/** A single ZIL sample in the Frotzsmith sample library. */
+/** A single ZIL sample in the frotzsmith sample library. */
 export interface ZilSample {
   /** Stable identifier used for URL params and persistence. */
   id: string

@@ -1,6 +1,6 @@
-# Frotzsmith
+# frotzsmith
 
-![Frotzsmith — a browser-based Interactive Fiction IDE](./public/og-image.png)
+![frotzsmith — a browser-based Interactive Fiction IDE](./public/og-image.png)
 
 > A personal, browser-based **Interactive Fiction** IDE — write source, compile to a Z-machine story file entirely client-side, play it inline, and run long test scripts. **Two source languages: Inform 6 (+ PunyInform), and ZIL (via ZILF).** No backend, no accounts — your source and story files never leave the browser (the only network traffic after load is cookieless, first-party Plausible pageview analytics).
 
@@ -17,11 +17,11 @@
 
 ## What it is
 
-Frotzsmith mirrors the working rhythm of the classic Inform 7 IDE — source on the left, compile, watch results appear on the right where a successful build becomes a live, playable game — but for **Inform 6**, not Inform 7. It compiles entirely in the browser (the `inform6` compiler built to WebAssembly), auto-imports the correct standard library so a plain `.inf` "just works," plays the compiled story inline with [Parchment](https://github.com/curiousdannii/parchment), and exports the raw story file (`.z3`–`.z8`) — or a **self-contained, offline-playable HTML file** (interpreter + story in one document; upload it to itch.io or any static host).
+frotzsmith mirrors the working rhythm of the classic Inform 7 IDE — source on the left, compile, watch results appear on the right where a successful build becomes a live, playable game — but for **Inform 6**, not Inform 7. It compiles entirely in the browser (the `inform6` compiler built to WebAssembly), auto-imports the correct standard library so a plain `.inf` "just works," plays the compiled story inline with [Parchment](https://github.com/curiousdannii/parchment), and exports the raw story file (`.z3`–`.z8`) — or a **self-contained, offline-playable HTML file** (interpreter + story in one document; upload it to itch.io or any static host).
 
 A second source language, **ZIL** — Infocom's original MDL/Lisp-like language — lives at `/zil/`. It compiles with the modern [**ZILF**](https://foss.heptapod.net/zilf/zilf/) toolchain (ZILF + ZAPF, C#/.NET) built to WebAssembly and run **in a Web Worker**, so the ~5 s compile no longer blocks the UI (with an automatic main-thread fallback if the worker can't boot), with `zillib` embedded and the `<VERSION>` directive targeting z3/z5/z8. Because ZIL emits the same Z-code, everything downstream — inline play, the auto-map, test scripts, the transcript — works for ZIL unchanged. The heavy .NET bundle downloads and **pre-warms in the background when the ZIL page opens** (so the first compile behaves like a warm one, ~5 s) — Inform 6 users never download it.
 
-**It works offline.** After your first visit the whole app — both IDEs, the Inform 6 compiler, the player, the Technical page — is kept by a service worker, so Frotzsmith opens, compiles Inform 6 and plays with no connection at all; your browser can also **install it as an app** (it has a web manifest and icons). ZIL joins in once its compiler has been downloaded online one time — opening `/zil/` or compiling there does it — after which ZIL compiles offline too. A new deploy never takes over on its own: Frotzsmith says *"A new version of Frotzsmith is ready"* and waits for you to press **Reload** (your unsaved edits are written first). **About** in the footer shows the version you're running (`v0.1.0`) and has **Check for updates**.
+**It works offline.** After your first visit the whole app — both IDEs, the Inform 6 compiler, the player, the Technical page — is kept by a service worker, so frotzsmith opens, compiles Inform 6 and plays with no connection at all; your browser can also **install it as an app** (it has a web manifest and icons). ZIL joins in once its compiler has been downloaded online one time — opening `/zil/` or compiling there does it — after which ZIL compiles offline too. A new deploy never takes over on its own: frotzsmith says *"A new version of frotzsmith is ready"* and waits for you to press **Reload** (your unsaved edits are written first). **About** in the footer shows the version you're running (`v0.1.0`) and has **Check for updates**.
 
 A power-user testing layer runs arbitrarily long command scripts (`n. examine rock. lift rock.`) through a headless replay engine and shows the per-turn transcript. Playing by hand also records every command you type into a read-only **Transcript**, and one click turns that captured playthrough into a reusable **Test Script** — the linear spine from which a full branching Skein with blessed-output regression diffing later grows.
 
@@ -29,9 +29,9 @@ Projects travel as `.frotzsmith` packages — an open format: [spec](docs/spec/f
 
 ## Why
 
-Inform 6 is the author's favourite IF language, but browser tooling is fragmented: interpreters play *finished* story files, and the Inform 7 IDE is a desktop app tied to I7's natural-language layer. There is no clean, modern, browser-native place to **write I6, compile it, and immediately play it** with library auto-import and saved test scripts. Frotzsmith fills that gap — primarily for the author's own use, secondarily as a shareable open-source tool.
+Inform 6 is the author's favourite IF language, but browser tooling is fragmented: interpreters play *finished* story files, and the Inform 7 IDE is a desktop app tied to I7's natural-language layer. There is no clean, modern, browser-native place to **write I6, compile it, and immediately play it** with library auto-import and saved test scripts. frotzsmith fills that gap — primarily for the author's own use, secondarily as a shareable open-source tool.
 
-[Borogove](https://borogove.app) is the nearest neighbour and is excellent; Frotzsmith is narrower by design — Inform 6 and ZIL, profile-driven, fully static, account-free, with a closer Inform 7-IDE feel and a script→Skein testing spine.
+[Borogove](https://borogove.app) is the nearest neighbour and is excellent; frotzsmith is narrower by design — Inform 6 and ZIL, profile-driven, fully static, account-free, with a closer Inform 7-IDE feel and a script→Skein testing spine.
 
 ## The loop
 
@@ -93,7 +93,7 @@ The complete design suite lives in [`docs/`](./docs):
 
 ## Beta testing
 
-Trying Frotzsmith out? [`docs/beta-testing.md`](./docs/beta-testing.md) has the
+Trying frotzsmith out? [`docs/beta-testing.md`](./docs/beta-testing.md) has the
 known limitations and what's most useful to report; the toolbar's bug icon
 goes straight to [issues](https://github.com/cschweda/frotzsmith/issues).
 
@@ -114,7 +114,7 @@ yarn preview    # preview the static build
 
 ## Security
 
-Frotzsmith is fully client-side with no backend, no accounts, and no user data leaving the browser. The design-level threat model lives in [`docs/06-security.md`](./docs/06-security.md); periodic red/blue audits are logged under **Security audits** below.
+frotzsmith is fully client-side with no backend, no accounts, and no user data leaving the browser. The design-level threat model lives in [`docs/06-security.md`](./docs/06-security.md); periodic red/blue audits are logged under **Security audits** below.
 
 ## Security audits
 
@@ -146,18 +146,18 @@ Periodic adversarial (red-team) + defensive (blue-team) reviews of the client-si
 
 ## License & attribution
 
-Frotzsmith is licensed under the [GNU General Public License v3.0](./LICENSE) — © 2026 Christopher Schweda. It is GPLv3 because the ZIL backend bundles the GPLv3 [ZILF](https://foss.heptapod.net/zilf/zilf/) compiler and its `zillib` standard library; distributing them as part of this app requires the combined work to be GPLv3.
+frotzsmith is licensed under the [GNU General Public License v3.0](./LICENSE) — © 2026 Christopher Schweda. It is GPLv3 because the ZIL backend bundles the GPLv3 [ZILF](https://foss.heptapod.net/zilf/zilf/) compiler and its `zillib` standard library; distributing them as part of this app requires the combined work to be GPLv3.
 
 Bundled third-party components keep their own licenses:
 
 - **Inform 6 compiler** and **Standard Library 6.12.8** — Artistic License 2.0 ([DavidKinder/Inform6](https://github.com/DavidKinder/Inform6))
 - **PunyInform 6.7** — see [johanberntsson/PunyInform](https://github.com/johanberntsson/PunyInform)
 - **ZILF + ZAPF compiler** and the **`zillib`** standard library — **GPLv3** ([zilf/zilf](https://foss.heptapod.net/zilf/zilf/), pinned at rev `5262550`), built offline to WebAssembly on the **.NET runtime** (MIT, [.NET Foundation](https://github.com/dotnet/runtime))
-- **frotzplay** (`@frotzinc/player`, `@frotzinc/zmachine`) — MIT ([cschweda/frotzlens](https://github.com/cschweda/frotzlens/tree/main/apps/play)), the Frotz, Inc. family's accessible player
+- **frotzplay** (`@frotzinc/player`, `@frotzinc/zmachine`) — MIT ([cschweda/frotzlens](https://github.com/cschweda/frotzlens/tree/main/apps/play)), the frotz, Inc. family's accessible player
 - **Parchment** / **ZVM (ifvms)** — MIT ([curiousdannii/parchment](https://github.com/curiousdannii/parchment))
 
-**Inspiration:** [Borogove](https://borogove.app) — the multi-language, browser-based IF IDE that proved this could be done well in the browser. **No Borogove code is used here**; Frotzsmith is an independent take (Inform 6 and ZIL), but Borogove was a definite inspiration (and the model for the extension picker).
+**Inspiration:** [Borogove](https://borogove.app) — the multi-language, browser-based IF IDE that proved this could be done well in the browser. **No Borogove code is used here**; frotzsmith is an independent take (Inform 6 and ZIL), but Borogove was a definite inspiration (and the model for the extension picker).
 
 The **Haunted House** sample is reverse-engineered from Radio Shack's 1979 TRS-80 (Tandy Model I/III) text adventure and reimplemented in Inform 6.
 
-A personal, weekend project — unaffiliated with any employer or organization. Frotzsmith is part of [Frotz, Inc.](https://frotzinc.com), the home of the Frotz family of interactive-fiction tools, with its companion [Frotzlens](https://frotzlens.frotzinc.com). Frotz, Inc. is a fiction. The Frotz interpreter is the work of its own authors and is not affiliated.
+A personal, weekend project — unaffiliated with any employer or organization. frotzsmith is part of [frotz, Inc.](https://frotzinc.com), the home of the frotz family of interactive-fiction tools, with its companion [frotzlens](https://frotzlens.frotzinc.com). frotz, Inc. is a fiction. The Frotz interpreter is the work of its own authors and is not affiliated.

@@ -1,4 +1,4 @@
-# Frotzsmith — Test Scripts & Transcript (Phase 4), atop the headless StoryEngine seam (Phase 3 completion)
+# frotzsmith — Test Scripts & Transcript (Phase 4), atop the headless StoryEngine seam (Phase 3 completion)
 
 **Date:** 2026-06-29
 **Status:** Design approved; implementation pending plan
