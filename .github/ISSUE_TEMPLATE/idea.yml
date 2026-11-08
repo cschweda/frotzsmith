@@ -1,0 +1,22 @@
+# Suggest a feature. frotzsmith's About menu → Suggest a feature… fills these fields from the link it
+# opens (?template=idea.yml&title=…&idea=…&version=…): the ids here and in @frotzinc/nuxt-base's
+# app/utils/report.ts must match.
+name: Suggest a feature
+description: Something you'd like frotzsmith to do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you'd like
+      description: What you want to see or do, and why it would help.
+    validations:
+      required: true
+  - type: textarea
+    id: version
+    attributes:
+      label: Technical details
+      description: Optional. About → Suggest a feature… adds them for you.
+      render: text
+    validations:
+      required: false

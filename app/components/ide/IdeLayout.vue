@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { frotzsmith } from '~~/frotzsmith.config'
 import { isCompileShortcut } from '~/utils/shortcut'
+import { currentAbout } from '~/utils/about'
 
 const { restore, savedAt, activeProfile, profileMode, result, effectiveExt, mobileView, runCompile, status } = useIde()
 const { profile: langProfile } = useLanguage()
@@ -22,6 +23,9 @@ function onGlobalKeydown(e: KeyboardEvent) {
 }
 onMounted(() => window.addEventListener('keydown', onGlobalKeydown))
 onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
+
+const { show: showAbout } = useAbout()
+const aboutVersion = currentAbout().version
 
 const { consumeShareFragment } = useShareLink()
 const { restore: restoreSkein } = useSkein()
@@ -273,7 +277,16 @@ const drawerOpen = computed({
         frotz, Inc.
       </a>
 
-      <AboutModal />
+      <!-- About: the family About dialog (@frotzinc/nuxt-base), as the header's About menu opens it. -->
+      <button
+        type="button"
+        class="hover:text-primary flex items-center gap-1.5"
+        title="About frotzsmith: versions, licences and what's new"
+        @click="showAbout('about')"
+      >
+        <UIcon name="i-lucide-badge-info" class="size-3.5" />
+        About · v{{ aboutVersion }}
+      </button>
 
       <NuxtLink
         to="/technical"

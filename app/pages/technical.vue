@@ -12,10 +12,6 @@ const about = currentAbout()
 const build = [about.commit, about.date].filter(Boolean).join(' · ')
 const showBuild = !!about.commit && about.commit !== 'unknown'
 
-const colorMode = useColorMode()
-function toggleTheme() {
-  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
-}
 
 const kb = (bytes: number) => `${Math.round(bytes / 1024)} KB`
 
@@ -91,25 +87,17 @@ const resources = [
 
 <template>
   <div class="bg-default text-default min-h-screen">
-    <!-- Top bar -->
-    <header
-      class="border-default bg-default/80 sticky top-0 z-10 flex items-center gap-3 border-b px-5 py-3 backdrop-blur"
-    >
-      <NuxtLink to="/" class="text-muted hover:text-default flex items-center gap-2 text-sm font-semibold">
-        <UIcon name="i-lucide-arrow-left" class="size-4" />
-        Back to the IDE
-      </NuxtLink>
-      <span class="text-muted/40">/</span>
-      <span class="font-bold">Technical Details</span>
-      <UButton
-        class="ml-auto"
-        color="neutral"
-        variant="ghost"
-        :icon="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'"
-        :aria-label="`Switch to ${colorMode.value === 'dark' ? 'light' : 'dark'} mode`"
-        @click="toggleTheme"
-      />
-    </header>
+    <!-- The family header (@frotzinc/nuxt-base): the logo and name go home to the IDE. -->
+    <AppHeader wide>
+      <template #context>
+        <span class="text-muted/40" aria-hidden="true">/</span>
+        <span class="font-bold">Technical Details</span>
+        <NuxtLink to="/" class="text-muted hover:text-default ml-2 hidden items-center gap-1.5 text-sm font-semibold sm:flex">
+          <UIcon name="i-lucide-arrow-left" class="size-4" />
+          Back to the IDE
+        </NuxtLink>
+      </template>
+    </AppHeader>
 
     <main class="mx-auto max-w-4xl space-y-12 px-6 py-10">
       <section class="space-y-3">
