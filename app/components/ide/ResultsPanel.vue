@@ -14,10 +14,13 @@ function fileLabel(file: string | undefined): string {
   return displayPath(file)
 }
 const shortcut = compileShortcutLabel()
-const { exportHtml, exporting } = useHtmlExport()
+const { exportHtml, exportFolder, exporting } = useHtmlExport()
 const { player } = usePlayerChoice()
 function onExportHtml() {
   void exportHtml() // outcome surfaces via toast on failure
+}
+function onExportFolder() {
+  void exportFolder()
 }
 
 const errorCount = computed(
@@ -128,6 +131,17 @@ function downloadStory() {
             @click="onExportHtml"
           >
             Export playable HTML
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="subtle"
+            size="lg"
+            icon="i-lucide-folder-archive"
+            :loading="exporting"
+            title="A folder (.zip) in frotzplay: index.html, the player and the story — for itch.io's HTML upload or any static host"
+            @click="onExportFolder"
+          >
+            Export folder (.zip)
           </UButton>
         </div>
       </div>
