@@ -94,8 +94,9 @@ The complete design suite lives in [`docs/`](./docs):
 ## Beta testing
 
 Trying frotzsmith out? [`docs/beta-testing.md`](./docs/beta-testing.md) has the
-known limitations and what's most useful to report; the toolbar's bug icon
-goes straight to [issues](https://github.com/cschweda/frotzsmith/issues).
+known limitations and what's most useful to report. **About → Report a problem…**
+sends a report by email, or opens it as a GitHub [issue](https://github.com/cschweda/frotzsmith/issues)
+with what you wrote filled in.
 
 ## Development
 

@@ -1,0 +1,41 @@
+# Report a problem. frotzsmith's About menu → Report a problem… fills these fields from the link it
+# opens (?template=bug.yml&title=…&what-happened=…&expected=…&story=…&version=…), by each field's
+# id: the ids here and in @frotzinc/nuxt-base's app/utils/report.ts must match.
+name: Report a problem
+description: Something in frotzsmith didn't work the way you expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. frotzsmith never uploads your source or story file, and this form doesn't either: describe it instead, or paste the smallest source that shows the problem.
+        For a security problem, don't open a public issue: see [SECURITY.md](https://github.com/cschweda/frotzsmith/blob/main/SECURITY.md).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, and what frotzsmith did.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: false
+  - type: textarea
+    id: story
+    attributes:
+      label: The story file
+      description: Inform 6 or ZIL, the library (Standard or PunyInform), the target (.z3/.z5/.z8), and a short source that shows it, if you can.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: version
+    attributes:
+      label: Technical details
+      description: About → Report a problem… adds them for you (frotzsmith's version and build, the browser).
+      render: text
+    validations:
+      required: false

@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2026-11-08
+
+### Changed
+- **The family top bar.** frotzsmith's header is now the one frotzlens, frotzplay and frotztrace share (`@frotzinc/nuxt-base` 0.3.0's `AppHeader`): the amber hammer tile and the name on the left, the IDE's controls (Inform 6 / ZIL, Prettify, Source Samples, the library and the target) in the middle, and the **About** menu and the colour-mode switch on the right. It runs full width and wraps onto a second row when the controls don't fit; below 1280px the library button shows its icon only. The Technical Details page has the same header.
+- **The family About menu.** About frotzsmith (every version and the licences), What's new (this changelog), Report a problem, Suggest a feature, Check for updates and Source on GitHub, as in the other apps. Check for updates still goes through frotzsmith's own service-worker check, and now says what it found. The status bar's **About · v…** opens the same About dialog. The toolbar's bug button is gone: Report a problem replaces it.
+- **Reports by email.** Report a problem and Suggest a feature can **Send** what you wrote (with an optional reply address) through a small Netlify Function (`netlify/functions/report.mjs`, Resend), as well as open it as a GitHub issue. The desktop app offers GitHub only.
+
+### Added
+- `public/logo.svg`, the 512px family tile with the social card's hammer.
+- `.github/ISSUE_TEMPLATE/` (`bug.yml`, `idea.yml`), which the report form fills in, and `SECURITY.md`, which it links.
+
+### Removed
+- `AboutModal.vue`: the family About dialog replaces it.
+
 ## [0.2.4] - 2026-11-08
 
 ### Changed

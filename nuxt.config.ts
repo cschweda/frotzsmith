@@ -1,4 +1,5 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { frotzsmith } from './frotzsmith.config'
@@ -17,6 +18,19 @@ const DESKTOP = process.env.FROTZSMITH_DESKTOP === '1'
 // The service worker's kill switch: a deploy built with FROTZSMITH_SW_KILL=1 ships a worker that
 // unregisters itself, deletes every cache and reloads its pages (docs/06-security.md §9.1).
 const SW_KILL = process.env.FROTZSMITH_SW_KILL === '1'
+// What the family About dialog (@frotzinc/nuxt-base) shows: this build's version and commit, and the
+// version of each frotz, Inc. package it's made of, read from the installed packages.
+// Read from node_modules directly: not every package exports its package.json.
+const pkgVersion = (name: string) =>
+  (JSON.parse(readFileSync(new URL(`./node_modules/${name}/package.json`, import.meta.url), 'utf8')) as { version: string }).version
+const ABOUT = {
+  version: VERSION,
+  commit: COMMIT?.commit ?? '',
+  date: COMMIT?.date ?? '',
+  packages: Object.fromEntries(
+    ['@frotzinc/nuxt-base', '@frotzinc/player', '@frotzinc/inform6-wasm', '@frotzinc/worker-rpc'].map(n => [n, pkgVersion(n)]),
+  ),
+}
 // frotzplay's OpenDyslexic fonts (and their OFL licence), served from the installed
 // @frotzinc/player at /frotzplay-fonts/ for the Play tab's player (its font-base).
 const FROTZPLAY_FONTS = join(dirname(createRequire(import.meta.url).resolve('@frotzinc/player/player.css')), '..', 'fonts')
@@ -33,6 +47,8 @@ export default defineNuxtConfig({
   // No service worker in the desktop build (its updates come from its own
   // updater): no PWA module, no web manifest, no registration plugin.
   modules: ['@nuxt/ui', ...(DESKTOP ? [] : ['@vite-pwa/nuxt'])],
+
+  runtimeConfig: { public: { about: ABOUT } },
 
   nitro: {
     publicAssets: [{ dir: FROTZPLAY_FONTS, baseURL: '/frotzplay-fonts', maxAge: 60 * 60 * 24 * 7 }],
