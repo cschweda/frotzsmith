@@ -5,6 +5,11 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - 2026-11-08
+
+### Changed
+- `@frotzinc/nuxt-base` 0.3.2: a report that is sent says so plainly ("Report sent"), with a toast and in the dialog, so you know it went through.
+
 ## [0.2.5] - 2026-11-08
 
 ### Changed
