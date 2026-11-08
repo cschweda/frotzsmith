@@ -3,7 +3,7 @@
  *
  * Verifies that a fresh project (no localStorage recovery snapshot) seeds the
  * language-appropriate default source:
- *   i6  → the I6 two-room demo   (Constant Story "FROTZSMITH DEMO" …)
+ *   i6  → the I6 two-room demo   (Constant Story "frotzsmith demo" …)
  *   zil → the ZIL skeleton        (WEST-OF-HOUSE room)
  *
  * Both the useState() factory (first-visit) and restore() (navigation within
