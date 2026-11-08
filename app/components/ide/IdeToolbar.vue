@@ -4,14 +4,12 @@ import type { StoryExt } from '~/modules/inform6/types'
 import { SAMPLES, type Sample } from '~/modules/inform6/samples'
 import { ZIL_SAMPLES } from '~/modules/languages/zil/samples'
 import type { ProfileId } from '~/modules/inform6/profiles'
-import { frotzsmith } from '~~/frotzsmith.config'
 import { SOLUTION_ID } from '~/composables/project-files'
 
 const { format, loadSample, profileMode, activeProfile, setProfileMode, targetMode, effectiveExt, setTargetMode } =
   useIde()
 const { profile, profiles } = useLanguage()
 const { activeFile } = useProjectFiles()
-const colorMode = useColorMode()
 const toast = useToast()
 
 // Samples menu: language-aware — ZIL shows a flat list; I6 shows the grouped
@@ -133,85 +131,71 @@ const profileItems = computed(() => [
     modeItem('puny', 'PunyInform', 'i-lucide-feather'),
   ],
 ])
-
-function toggleTheme() {
-  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
-}
 </script>
 
 <template>
-  <header
-    class="flex shrink-0 flex-wrap items-center gap-3 border-b border-default bg-default/80 px-4 py-3 backdrop-blur"
-  >
-    <!-- Brand -->
-    <div class="flex items-center gap-2.5 pr-2">
-      <span
-        class="grid size-9 place-items-center rounded-lg bg-primary/15 text-primary ring-1 ring-primary/30"
-      >
-        <UIcon name="i-lucide-hammer" class="size-5" />
-      </span>
-      <div class="leading-none">
-        <!-- h1: the IDE pages' only level-one heading (axe page-has-heading-one). -->
-        <h1 class="text-lg font-extrabold tracking-tight">frotzsmith</h1>
-        <p class="text-muted text-[10px] font-semibold uppercase tracking-widest">Interactive Fiction IDE</p>
-      </div>
-    </div>
-
-    <!-- Language toggle: Inform 6 ↔ ZIL -->
-    <div class="flex items-center gap-0.5 rounded-lg border border-default bg-elevated/60 p-0.5">
-      <NuxtLink
-        v-for="p in profiles"
-        :key="p.id"
-        :to="p.route"
-        class="flex items-center gap-1.5 rounded px-2.5 py-1 text-sm font-semibold transition-colors"
-        :class="profile.id === p.id
-          ? 'bg-primary/15 text-primary'
-          : 'text-muted hover:text-default'"
-      >
-        {{ p.label }}
-        <UBadge
-          :color="p.badge === 'beta' ? 'primary' : 'warning'"
-          size="xs"
-          variant="subtle"
+  <!-- The family header (@frotzinc/nuxt-base), as frotzlens, frotzplay and frotztrace have it: the logo
+       and name, then the IDE's own controls, then the About menu and the colour-mode switch. Wide:
+       full width, wrapping onto a second row when the controls don't fit. -->
+  <AppHeader wide class="shrink-0">
+    <template #context>
+      <!-- h1: the IDE pages' only level-one heading (axe page-has-heading-one), inside the banner
+           landmark (axe region); the header shows the name itself. -->
+      <h1 class="sr-only">frotzsmith — an Inform 6 and ZIL IDE</h1>
+      <!-- Language toggle: Inform 6 ↔ ZIL -->
+      <div class="flex items-center gap-0.5 rounded-lg border border-default bg-elevated/60 p-0.5">
+        <NuxtLink
+          v-for="p in profiles"
+          :key="p.id"
+          :to="p.route"
+          class="flex items-center gap-1.5 rounded px-2.5 py-1 text-sm font-semibold transition-colors"
+          :class="profile.id === p.id
+            ? 'bg-primary/15 text-primary'
+            : 'text-muted hover:text-default'"
         >
-          {{ p.badge }}
-        </UBadge>
-      </NuxtLink>
-    </div>
+          {{ p.label }}
+          <UBadge
+            :color="p.badge === 'beta' ? 'primary' : 'warning'"
+            size="xs"
+            variant="subtle"
+          >
+            {{ p.badge }}
+          </UBadge>
+        </NuxtLink>
+      </div>
 
-    <!-- Prettify: I6 (formatI6) and ZIL (formatZil) — each uses its own formatter -->
-    <UButton
-      v-if="profile.id === 'i6' || profile.id === 'zil'"
-      size="lg"
-      color="neutral"
-      variant="subtle"
-      icon="i-lucide-wand-sparkles"
-      :disabled="prettifyOff"
-      :title="
-        prettifyOff
-          ? 'Prettify formats code only, so it leaves solution.txt alone.'
-          : 'Prettify: re-indent & tidy the source. Linting is automatic; this does not compile.'
-      "
-      @click="onPrettify"
-    >
-      <span class="hidden sm:inline">Prettify</span>
-    </UButton>
-
-    <UDropdownMenu :items="sampleItems">
+      <!-- Prettify: I6 (formatI6) and ZIL (formatZil) — each uses its own formatter -->
       <UButton
-        size="lg"
+        v-if="profile.id === 'i6' || profile.id === 'zil'"
         color="neutral"
         variant="subtle"
-        icon="i-lucide-book-open-text"
-        trailing-icon="i-lucide-chevron-down"
-        title="Load a sample into the source editor"
+        icon="i-lucide-wand-sparkles"
+        :disabled="prettifyOff"
+        :title="
+          prettifyOff
+            ? 'Prettify formats code only, so it leaves solution.txt alone.'
+            : 'Prettify: re-indent & tidy the source. Linting is automatic; this does not compile.'
+        "
+        @click="onPrettify"
       >
-        <span class="hidden sm:inline">Source Samples</span>
+        <span class="hidden sm:inline">Prettify</span>
       </UButton>
-    </UDropdownMenu>
 
-    <!-- Library (auto-detected by default) + theme -->
-    <div class="ml-auto flex items-center gap-2">
+      <UDropdownMenu :items="sampleItems">
+        <UButton
+          color="neutral"
+          variant="subtle"
+          icon="i-lucide-book-open-text"
+          trailing-icon="i-lucide-chevron-down"
+          title="Load a sample into the source editor"
+        >
+          <span class="hidden sm:inline">Source Samples</span>
+        </UButton>
+      </UDropdownMenu>
+    </template>
+
+    <template #actions>
+      <!-- Library (auto-detected by default) and the compile target -->
       <UDropdownMenu v-if="profile.id === 'i6'" :items="profileItems">
         <UButton
           color="neutral"
@@ -220,8 +204,10 @@ function toggleTheme() {
           trailing-icon="i-lucide-chevron-down"
           class="font-semibold"
           title="Library: auto-detected from your source, or force one"
+          :aria-label="`Library: ${profileLabel}`"
         >
-          <span class="hidden md:inline">{{ profileLabel }}</span>
+          <!-- The label from xl up, so the header stays one row at laptop widths; the title and icon say it below. -->
+          <span class="hidden xl:inline">{{ profileLabel }}</span>
         </UButton>
       </UDropdownMenu>
 
@@ -237,27 +223,6 @@ function toggleTheme() {
           <span class="hidden md:inline">{{ effectiveExt.toUpperCase() }}</span>
         </UButton>
       </UDropdownMenu>
-
-      <!-- Beta feedback: lowest-friction path to a bug report. -->
-      <UButton
-        size="lg"
-        color="neutral"
-        variant="ghost"
-        icon="i-lucide-bug"
-        :to="`${frotzsmith.repoUrl}/issues`"
-        target="_blank"
-        rel="noopener noreferrer"
-        title="Report a bug or request a feature (GitHub)"
-        aria-label="Report a bug or request a feature on GitHub"
-      />
-      <UButton
-        size="lg"
-        color="neutral"
-        variant="ghost"
-        :icon="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'"
-        :aria-label="colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-        @click="toggleTheme"
-      />
-    </div>
-  </header>
+    </template>
+  </AppHeader>
 </template>
