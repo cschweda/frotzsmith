@@ -5,6 +5,11 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] - 2026-11-08
+
+### Changed
+- `@frotzinc/nuxt-base` 0.1.0 → 0.2.1 and Nuxt 4.6.3 → 4.6.4, the versions frotzlens and frotzplay use, so frotzsmith shares the family's current palette (including the quieter `--frotz-ink-muted` and the `.high-contrast` theme) with the other frotz, Inc. apps. The IDE keeps its own header and About dialog; nuxt-base 0.2's shared header and footer are available but not used here.
+
 ## [0.2.3] - 2026-11-08
 
 ### Changed
