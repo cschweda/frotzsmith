@@ -14,9 +14,6 @@ export default guardReports(createReportHandler({ app: 'frotzsmith' }), {
   store: () => getStore({ name: 'report-count', consistency: 'strong' }),
 })
 
-// `path`: Netlify applies a function's rate limit to the path it names, so the function is served
-// at /api/report (app/app.config.ts `reportEndpoint`), not at its default /.netlify/functions/ URL.
 export const config = {
-  path: '/api/report',
   rateLimit: { windowLimit: 5, windowSize: 60, aggregateBy: ['ip', 'domain'] },
 }

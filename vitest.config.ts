@@ -11,13 +11,17 @@ import type { Plugin } from 'vite'
 // NOTE: The intended approach was `defineVitestConfig` from @nuxt/test-utils with
 // `// @vitest-environment nuxt` per file, but that path is blocked: nuxt@4.4.8
 // ships @nuxt/vite-builder which uses the Vite 6 Environment API
-// (server.environments.client) while vitest@2.1.9 bundled Vite 5. (vitest is 3.2.x since
-// 2026-11-09. vitest 4 was tried: it needs `projects` in place of environmentMatchGlobs, and
-// on CI's runners the ZILF goldens ran at half speed under it and timed out, for no reason
-// found locally. Try it again with a later 4.x.) The startup
+// (server.environments.client) while vitest@2.1.9 bundles Vite 5. The startup
 // error is "Cannot read properties of undefined (reading 'client')" in
 // @nuxt/vite-builder/dist/index.mjs:851. Using happy-dom + window stubs achieves
 // identical test fidelity for state-logic tests.
+//
+// vitest stays on 2.1.9 for now (2026-11-09). 3.2.6 and 4.1.12 were both tried, for their security
+// fixes: each passed locally at the same speed, but on CI's Linux runners the CPU-heavy tests (the
+// ZILF goldens, the container's deflate test) took about twice as long and timed out, three runs
+// out of three, while the same commit's tests on 2.1.9 passed. The advisories against 2.1.9 and
+// its tinypool need the Vitest UI/API server or a polluted prototype inside the test process;
+// neither is used here. See docs/security-audits/2026-11-09-review.md.
 
 /**
  * Vite plugin that replaces `import.meta.client` with `true` in all app source
