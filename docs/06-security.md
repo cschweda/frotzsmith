@@ -143,7 +143,7 @@ The website registers a Workbox service worker (`@vite-pwa/nuxt`, configured und
 - **Against a flood** (review 2026-11-09 — what the handler alone relies on is either sent by the client, `elapsed` and the hidden field, or kept in one instance's memory):
   - *Same site only.* The `Origin` header must name the host the request came to, and the body must be `application/json`. A page on another site cannot post from a visitor's browser.
   - *Per address.* Netlify's rate limiting (`config.rateLimit` in the function file): 5 posts a minute per IP address, refused with 429 at the edge before the function runs.
-  - *Per day.* At most 100 reports are sent a day, counted in Netlify Blobs (`report-count`, one small number per day). Past that the function answers 429 and the dialog offers GitHub. A script that forges its headers and rotates addresses stops here. If the counter cannot be read, the report still goes.
+  - *Per day.* At most 100 reports are sent a day, counted in Netlify Blobs (`report-count`: one empty key per sent report, under its day; nothing about the report or its sender). Each report takes its place before it is sent and then counts the places taken, so posts arriving together cannot all read the same count and all go through; a report that isn't sent gives its place back. Past the cap the function answers 429 and the dialog offers GitHub. A script that forges its headers and rotates addresses stops here. If the store cannot be reached, the report still goes.
 - **The desktop build** has no report endpoint; it offers GitHub only.
 
 ## 11. Summary

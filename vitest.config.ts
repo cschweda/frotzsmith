@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config'
+import { availableParallelism } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import type { Plugin } from 'vite'
 
@@ -48,6 +49,10 @@ export default defineConfig({
     __FROTZSMITH_DESKTOP__: 'false',
   },
   test: {
+    // One core left free, as vitest 2 and 3 did by default. vitest 4 uses every core, and on
+    // CI's 4 the ZILF goldens (a 13 MB .NET runtime compiled in each worker) then ran at half
+    // speed and timed out.
+    maxWorkers: Math.max(1, availableParallelism() - 1),
     // Two projects (vitest 4 has no environmentMatchGlobs): pure logic in node, and the
     // composable tests that need DOM/localStorage (`*.nuxt.test.ts`) in happy-dom. Both take
     // the plugins, defines and aliases of this file (`extends: true`).

@@ -21,11 +21,15 @@ function setup(options: { dailyCap?: number; status?: number } = {}) {
     return new Response('{"ok":true}', { status: options.status ?? 200 })
   })
   const counts = new Map<string, string>()
+  // Each call yields to the event loop first, as a real store does, so posts sent together interleave.
+  const tick = () => new Promise<void>(r => setTimeout(r, 0))
   const store = () => ({
-    get: async (k: string) => counts.get(k) ?? null,
-    set: async (k: string, v: string) => void counts.set(k, v),
+    set: async (k: string, v: string) => { await tick(); counts.set(k, v) },
+    list: async ({ prefix }: { prefix: string }) => { await tick(); return { blobs: [...counts.keys()].filter(k => k.startsWith(prefix)) } },
+    delete: async (k: string) => { await tick(); counts.delete(k) },
   })
-  const guarded = guardReports(handler, { store, now: () => Date.UTC(2026, 10, 9, 12), dailyCap: options.dailyCap }) as Guarded
+  let n = 0
+  const guarded = guardReports(handler, { store, now: () => Date.UTC(2026, 10, 9, 12), dailyCap: options.dailyCap, id: () => `r${++n}` }) as Guarded
   return { guarded, handler, seen, counts }
 }
 
@@ -35,7 +39,7 @@ describe('the report function’s guard', () => {
     const res = await guarded(post({ kind: 'problem', happened: 'x' }))
     expect(res.status).toBe(200)
     expect(seen).toEqual([{ kind: 'problem', happened: 'x' }])
-    expect(counts.get('2026-11-09')).toBe('1')
+    expect([...counts.keys()]).toEqual(['2026-11-09/r1'])
   })
 
   it('refuses a post from another site, or with no Origin', async () => {
@@ -81,6 +85,19 @@ describe('the report function’s guard', () => {
     expect(DAILY_CAP).toBeGreaterThan(0)
   })
 
+  it('posts sent together can’t all slip under the cap (each takes its place before it is sent)', async () => {
+    const { guarded, handler, counts } = setup({ dailyCap: 3 })
+    const answers = await Promise.all(Array.from({ length: 20 }, (_, i) => guarded(post({ kind: 'idea', idea: `n${i}` }))))
+    const sent = answers.filter(r => r.status === 200).length
+    expect(sent).toBeLessThanOrEqual(3)
+    expect(answers.filter(r => r.status === 429).length).toBe(20 - sent)
+    expect(handler).toHaveBeenCalledTimes(sent)
+    expect(counts.size).toBe(sent) // a refused post gave its place back
+    // …and once they have settled, the cap is exact.
+    while ((await guarded(post({ kind: 'idea', idea: 'more' }))).status === 200) { /* fill what is left */ }
+    expect(counts.size).toBe(3)
+  })
+
   it('counts only reports that were sent: not a refusal, not a bot', async () => {
     const refused = setup({ status: 400 })
     await refused.guarded(post({ kind: 'problem' }))
@@ -94,7 +111,7 @@ describe('the report function’s guard', () => {
     const handler = vi.fn(async () => new Response('{"ok":true}', { status: 200 }))
     const broken = guardReports(handler, { store: () => { throw new Error('no blobs') } }) as Guarded
     expect((await broken(post({ kind: 'idea', idea: 'a' }))).status).toBe(200)
-    const unreadable = guardReports(handler, { store: () => ({ get: async () => { throw new Error('x') }, set: async () => {} }) }) as Guarded
+    const unreadable = guardReports(handler, { store: () => ({ set: async () => { throw new Error('x') }, list: async () => ({ blobs: [] }), delete: async () => {} }) }) as Guarded
     expect((await unreadable(post({ kind: 'idea', idea: 'a' }))).status).toBe(200)
   })
 

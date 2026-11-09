@@ -9,7 +9,10 @@
 //  - JSON only: a cross-site form or a "simple" fetch can't send application/json.
 //  - The title is one line (it becomes the email's subject).
 //  - At most DAILY_CAP reports are sent a day, counted in Netlify Blobs, so a flood can't use up
-//    the email quota or the inbox. If the count can't be read or written, the report still goes.
+//    the email quota or the inbox. Each report takes a place of its own (one key under the day)
+//    BEFORE it is sent, then counts the places taken: posts arriving together each see the
+//    others' places, so they can't all read the same count and all go through. A report that
+//    isn't sent gives its place back. If the store can't be reached, the report still goes.
 //
 // The per-address limit is Netlify's own (the function's `config.rateLimit`), enforced at the edge.
 
@@ -28,10 +31,10 @@ const hostOf = (url) => {
 
 /**
  * @param {(req: Request, context?: unknown) => Promise<Response>} handler
- * @param {{ store?: () => { get(key: string): Promise<unknown>, set(key: string, value: string): Promise<unknown> }, now?: () => number, dailyCap?: number }} [options]
- *   `store` opens the day counter (Netlify Blobs on the site; a map in the tests).
+ * @param {{ store?: () => { set(key: string, value: string): Promise<unknown>, list(o: { prefix: string }): Promise<{ blobs: unknown[] }>, delete(key: string): Promise<unknown> }, now?: () => number, dailyCap?: number, id?: () => string }} [options]
+ *   `store` opens the places taken (Netlify Blobs, strongly consistent, on the site; a map in the tests).
  */
-export function guardReports(handler, { store, now = () => Date.now(), dailyCap = DAILY_CAP } = {}) {
+export function guardReports(handler, { store, now = () => Date.now(), dailyCap = DAILY_CAP, id = () => crypto.randomUUID() } = {}) {
   return async function guarded(req, context) {
     if (req.method !== 'POST') return handler(req, context)
 
@@ -52,28 +55,41 @@ export function guardReports(handler, { store, now = () => Date.now(), dailyCap 
     if (!body || typeof body !== 'object' || Array.isArray(body)) return json(400, { error: 'That wasn’t a report.' })
     if (typeof body.title === 'string') body.title = body.title.replace(/\s+/g, ' ').trim()
 
+    // Take a place for today, then count the places taken (this one included).
     const day = new Date(now()).toISOString().slice(0, 10)
-    let counter = null
-    let count = 0
+    const place = `${day}/${id()}`
+    let places = null
+    let taken = 0
     try {
-      counter = store ? store() : null
-      count = Number(await counter?.get(day)) || 0
+      places = store ? store() : null
+      if (places) {
+        await places.set(place, '1')
+        taken = (await places.list({ prefix: `${day}/` })).blobs.length
+      }
     } catch {
-      counter = null
+      places = null // the store can't be reached: not counted, and the report goes
     }
-    if (count >= dailyCap)
+    const giveBack = async () => {
+      try {
+        await places?.delete(place)
+      } catch { /* a place kept by mistake only makes the cap a little stricter */ }
+    }
+    if (taken > dailyCap) {
+      await giveBack()
       return json(429, { error: 'Too many reports have been sent today. Please open it on GitHub instead.' })
+    }
 
     const headers = new Headers(req.headers)
     headers.delete('content-length')
-    const res = await handler(new Request(req.url, { method: 'POST', headers, body: JSON.stringify(body) }), context)
-
-    // Only a report that was really sent counts (the handler answers a bot 200 and sends nothing).
-    if (res.status === 200 && !body.website && counter) {
-      try {
-        await counter.set(day, String(count + 1))
-      } catch { /* not counted: the report still went */ }
+    let res
+    try {
+      res = await handler(new Request(req.url, { method: 'POST', headers, body: JSON.stringify(body) }), context)
+    } catch (err) {
+      await giveBack()
+      throw err
     }
+    // Only a report that was really sent keeps its place (the handler answers a bot 200 and sends nothing).
+    if (res.status !== 200 || body.website) await giveBack()
     return res
   }
 }
