@@ -40,6 +40,7 @@ describe('the report function’s guard', () => {
     expect(res.status).toBe(200)
     expect(seen).toEqual([{ kind: 'problem', happened: 'x' }])
     expect([...counts.keys()]).toEqual(['2026-11-09/r1'])
+    expect(res.headers.get('X-Report-Counted')).toBe('yes')
   })
 
   it('refuses a post from another site, or with no Origin', async () => {
@@ -110,7 +111,9 @@ describe('the report function’s guard', () => {
   it('still sends when the counter can’t be opened or read', async () => {
     const handler = vi.fn(async () => new Response('{"ok":true}', { status: 200 }))
     const broken = guardReports(handler, { store: () => { throw new Error('no blobs') } }) as Guarded
-    expect((await broken(post({ kind: 'idea', idea: 'a' }))).status).toBe(200)
+    const uncounted = await broken(post({ kind: 'idea', idea: 'a' }))
+    expect(uncounted.status).toBe(200)
+    expect(uncounted.headers.get('X-Report-Counted')).toBe('no')
     const unreadable = guardReports(handler, { store: () => ({ set: async () => { throw new Error('x') }, list: async () => ({ blobs: [] }), delete: async () => {} }) }) as Guarded
     expect((await unreadable(post({ kind: 'idea', idea: 'a' }))).status).toBe(200)
   })

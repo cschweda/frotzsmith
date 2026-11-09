@@ -14,7 +14,9 @@
 //    others' places, so they can't all read the same count and all go through. A report that
 //    isn't sent gives its place back. If the store can't be reached, the report still goes.
 //
-// The per-address limit is Netlify's own (the function's `config.rateLimit`), enforced at the edge.
+// The function also asks Netlify for a per-address limit (`config.rateLimit`). On a Deploy Preview
+// it was not seen to refuse anything (2026-11-09), so nothing here depends on it: the handler
+// keeps its own per-address count for each instance, and the daily cap is the backstop.
 
 export const MAX_BODY = 32 * 1024
 export const DAILY_CAP = 100
@@ -90,6 +92,10 @@ export function guardReports(handler, { store, now = () => Date.now(), dailyCap 
     }
     // Only a report that was really sent keeps its place (the handler answers a bot 200 and sends nothing).
     if (res.status !== 200 || body.website) await giveBack()
+    // Says whether the day's count could be kept (the store was reachable), so a deploy can be
+    // checked without sending a report. Nothing about the count itself.
+    res = new Response(res.body, { status: res.status, headers: new Headers(res.headers) })
+    res.headers.set('X-Report-Counted', places ? 'yes' : 'no')
     return res
   }
 }
