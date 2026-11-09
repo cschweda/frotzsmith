@@ -78,5 +78,10 @@ describe('netlify.toml security headers (site-wide)', () => {
     expect(block).toMatch(/X-Content-Type-Options = "nosniff"/)
     expect(block).toMatch(/Referrer-Policy = "strict-origin-when-cross-origin"/)
     expect(block).toMatch(/Permissions-Policy = "camera=\(\), microphone=\(\), geolocation=\(\), payment=\(\)"/)
+    // Review 2026-11-09: HSTS with includeSubDomains on the custom domain too (never `preload`
+    // from one site of the family), and no cross-site window handle on the IDE.
+    expect(block).toMatch(/Strict-Transport-Security = "max-age=31536000; includeSubDomains"/)
+    expect(block).not.toMatch(/Strict-Transport-Security = "[^"]*preload/)
+    expect(block).toMatch(/Cross-Origin-Opener-Policy = "same-origin"/)
   })
 })

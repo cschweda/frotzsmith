@@ -68,7 +68,7 @@ let compile: (source: string, version: number) => string
 
 describe.skipIf(!process.env['ZIL_SAMPLE_GOLDEN'])(
   'every bundled ZIL sample compiles cleanly and plays its walkthrough (ZIL_SAMPLE_GOLDEN=1 to enable)',
-  { timeout: 120_000 },
+  { timeout: 240_000 }, // the largest sample takes about 50 s on CI alone, more beside others
   () => {
     beforeAll(async () => {
       const files = await readdir(frameworkDir)

@@ -11,6 +11,16 @@
   # Netlify's own install; the explicit one stays as a second check (cached).
   command = "yarn install --frozen-lockfile && yarn generate"
   publish = "dist"
+  # A production deploy costs Netlify credits; a Deploy Preview does not. Skip the
+  # build when a push changes only files the site is not built from, so a README or
+  # docs commit to main doesn't spend a production deploy. Netlify skips when this
+  # exits 0 and builds otherwise. The first test always builds when there is no
+  # previous deploy to compare with (Netlify sets CACHED_COMMIT_REF to COMMIT_REF
+  # then, the diff would be empty, and the deploy would be skipped).
+  # Not built from: README.md, ROADMAP.md (the app only links to them), docs/ and
+  # .github/. CHANGELOG.md is NOT excluded: a release always changes it alongside
+  # package.json, and it is cheap to be wrong in the direction of building.
+  ignore = "test \"$CACHED_COMMIT_REF\" = \"$COMMIT_REF\" && exit 1; git diff --quiet \"$CACHED_COMMIT_REF\" \"$COMMIT_REF\" -- . \":(exclude)README.md\" \":(exclude)ROADMAP.md\" \":(exclude)docs\" \":(exclude).github\""
 
 [build.environment]
   NODE_VERSION = "22"
@@ -43,6 +53,12 @@
   [headers.values]
     X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
+    # Review 2026-11-09. HSTS stated here, so the custom domain sends includeSubDomains too
+    # (Netlify's own header there is max-age only). No `preload`: that is a decision for the
+    # whole of frotzinc.com, not this site. COOP: no other site's window keeps a handle on
+    # the IDE (it opens no popups that need one; outbound links are rel=noopener).
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    Cross-Origin-Opener-Policy = "same-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' blob:; worker-src 'self'; frame-src 'self'; child-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"

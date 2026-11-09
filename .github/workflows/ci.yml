@@ -47,8 +47,13 @@ jobs:
           test -f .output/public/technical/index.html
           test -f .output/public/play/index.html
           test -f .output/public/play/demo.z5
-          test -f .output/public/zilf/r5262550/_framework/dotnet.js
-          test -f .output/public/zilf/r5262550/_framework/dotnet.native.wasm
+          # The ZILF bundle the app loads (frotzsmith.config.ts versions.zilfBundle), not a
+          # fixed name: a bundle bump can't leave this checking a directory nothing uses.
+          ZILF_BUNDLE=$(sed -n "s/.*zilfBundle: '\([^']*\)'.*/\1/p" frotzsmith.config.ts)
+          test -n "$ZILF_BUNDLE"
+          test -f ".output/public/zilf/$ZILF_BUNDLE/_framework/dotnet.js"
+          test -f ".output/public/zilf/$ZILF_BUNDLE/_framework/dotnet.native.wasm"
+          test "$(ls .output/public/zilf | wc -l)" -eq 1
           test -f .output/public/pa/init.js
           test -f .output/public/pa/script.js
           grep -q 'rel="modulepreload"' .output/public/index.html
