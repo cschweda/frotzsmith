@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The fixes from a security and code review of 0.2.0–0.2.6 ([record](docs/security-audits/2026-11-09-review.md)).
 
 ### Security
-- **The report function can't be used to flood the inbox.** Report a problem / Suggest a feature now reach the email function only as same-site `application/json` posts (the `Origin` must be the site's own); Netlify refuses more than 5 posts a minute from one address before the function runs; and at most 100 reports are sent a day, counted in Netlify Blobs — past that the dialog says so and offers GitHub. Before, the checks were the client's own word (the elapsed time, the hidden field) or one function instance's memory. `netlify/lib/report-guard.mjs`, in front of `@frotzinc/nuxt-base`'s handler.
+- **The report function can't be used to flood the inbox.** Report a problem / Suggest a feature now reach the email function only as same-site `application/json` posts (the `Origin` must be the site's own), and at most 100 reports are sent a day, counted in Netlify Blobs so that posts sent together can't share one count — past that the dialog says so and offers GitHub. Before, the checks were the client's own word (the elapsed time, the hidden field) or one function instance's memory. `netlify/lib/report-guard.mjs`, in front of `@frotzinc/nuxt-base`'s handler.
 - A report's title is made one line before it becomes the email's subject.
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains` and `Cross-Origin-Opener-Policy: same-origin` on every response (`netlify.toml`); the header test pins both.
 - A share link's source is refused past 1,000,000 characters (was 4,000,000, enough to fill the browser's storage for the site).
@@ -23,7 +23,7 @@ The fixes from a security and code review of 0.2.0–0.2.6 ([record](docs/securi
 - `public/zilf/r5262550/`, the ZILF bundle superseded by `r5262550-w2` on 2026-11-04: 11 MB that was still deployed and that nothing loaded.
 
 ### Changed
-- vitest and `@vitest/coverage-v8` 3.2.6 (from 2.1.9, for its security fix). Transitive packages named by `yarn audit` re-resolved in `yarn.lock`: 165 advisories down to 17, all in build and test tooling, none in code that is served. (vitest 4 would clear two more, in the test runner's worker pool; under it CI's ZILF goldens timed out, so it waits.)
+- Transitive packages named by `yarn audit` re-resolved in `yarn.lock`: 165 advisories down to 36, all in build and test tooling, none in code that is served. vitest stays on 2.1.9: 3.2.6 and 4.1.12 were tried, and under each CI's heavy tests ran at half speed and timed out (`vitest.config.ts` and the review record say more).
 - `@netlify/blobs` 11.1.7, for the report function's daily count.
 
 ### CI
