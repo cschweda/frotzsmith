@@ -54,16 +54,32 @@ export default defineConfig({
     __FROTZSMITH_DESKTOP__: 'false',
   },
   test: {
-    environment: 'node',
+    // Two projects (environmentMatchGlobs is gone since vitest 4): pure logic in node, and the
+    // composable tests that need DOM/localStorage (`*.nuxt.test.ts`) in happy-dom. Both take
+    // the plugins, defines and aliases of this file (`extends: true`).
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: ['app/**/*.{test,spec}.ts', 'tools/*.{test,spec}.ts'],
+          exclude: ['**/*.nuxt.test.ts', '**/node_modules/**'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'happy-dom',
+          environment: 'happy-dom',
+          include: ['app/**/*.nuxt.test.ts'],
+        },
+      },
+    ],
     // @frotzinc/nuxt-base is a Nuxt layer shipped as TypeScript source; Node
     // won't strip types under node_modules, so Vite transforms it instead.
     server: { deps: { inline: [/@frotzinc\/nuxt-base/] } },
-    include: ['app/**/*.{test,spec}.ts', 'tools/*.{test,spec}.ts'],
     setupFiles: ['./test/nuxt-setup.ts'],
-    environmentMatchGlobs: [
-      // Composable tests that need DOM/localStorage run in happy-dom
-      ['**/*.nuxt.test.ts', 'happy-dom'],
-    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

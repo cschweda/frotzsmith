@@ -89,10 +89,13 @@ describe.skipIf(!process.env['ZIL_SAMPLE_GOLDEN'])(
           f => f.match(/^dotnet\.[a-z0-9]+\.js$/) && !f.includes('native') && !f.includes('runtime'),
         )
     if (!dotnetJs) throw new Error(`Could not find dotnet.js in ${frameworkDir}`)
+    const T0 = performance.now(); const lap = (w: string) => console.log(`[diag] ${w} ${Math.round(performance.now() - T0)}ms`)
     const { dotnet } = await import(
       /* @vite-ignore */ pathToFileURL(path.join(frameworkDir, dotnetJs)).href as string
     )
+    lap('imported dotnet.js')
     const { getAssemblyExports, getConfig } = await dotnet.withApplicationArguments().create()
+    lap('runtime created')
     const exports = (await getAssemblyExports(getConfig().mainAssemblyName)) as {
       ZilfExports: { Compile: (source: string, version: number) => string }
     }
@@ -103,6 +106,7 @@ describe.skipIf(!process.env['ZIL_SAMPLE_GOLDEN'])(
 
     const result: { success: boolean; storyBase64: string | null; diagnostics: string[] } =
       JSON.parse(exports.ZilfExports.Compile(sample!.source, 5))
+    lap('compiled')
     expect(result.success, `compile failed:\n${result.diagnostics.join('\n')}`).toBe(true)
     diagnostics = result.diagnostics.filter(d => d.trim().length > 0)
     story = new Uint8Array(Buffer.from(result.storyBase64!, 'base64'))
