@@ -23,7 +23,7 @@ The fixes from a security and code review of 0.2.0–0.2.6 ([record](docs/securi
 - `public/zilf/r5262550/`, the ZILF bundle superseded by `r5262550-w2` on 2026-11-04: 11 MB that was still deployed and that nothing loaded.
 
 ### Changed
-- Transitive packages named by `yarn audit` re-resolved in `yarn.lock`: 165 advisories down to 36, all in build and test tooling, none in code that is served. vitest stays on 2.1.9: 3.2.6 and 4.1.12 were tried, and under each CI's heavy tests ran at half speed and timed out (`vitest.config.ts` and the review record say more).
+- Transitive packages named by `yarn audit` re-resolved in `yarn.lock`: and the test runner moved from vitest 2.1.9 to 5.1.0: 165 advisories down to 9 (none critical), all in build and test tooling, none in code that is served. Newer vitest had timed out on CI; the cause was the ZILF goldens' own limits, not the runner. A golden's compile takes about 50 s on CI under either version, against a 60 s limit, so any extra load tipped it over. Those limits are now 240 s (they are for a hang, not for speed), and the tests leave one core free.
 - `@netlify/blobs` 11.1.7, for the report function's daily count.
 
 ### CI

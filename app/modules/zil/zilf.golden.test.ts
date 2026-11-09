@@ -62,7 +62,7 @@ let zilfExports: {
   ZilfExports: { Compile: (source: string, version: number) => string }
 }
 
-describe('ZILF WASM golden compile (node-env)', { timeout: 60_000 }, () => {
+describe('ZILF WASM golden compile (node-env)', { timeout: 180_000 }, () => {
   beforeAll(async () => {
     // Locate dotnet.js (fingerprinting disabled → plain dotnet.js expected).
     const files = await readdir(frameworkDir)

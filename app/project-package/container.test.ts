@@ -278,7 +278,8 @@ describe('writeContainer', () => {
     const spaces = new Uint8Array(2 * MiB).fill(0x20)
     const map = readContainer(writeContainer([{ path: 'big.inf', bytes: spaces }]))
     expect(map.get('big.inf')).toEqual(spaces)
-  })
+    // Comparing 2 MiB byte by byte took 4.5 to 5 s on CI under vitest 2, at the default 5 s limit.
+  }, 30_000)
 
   test.each(['../x.h', '/abs.h', 'a\\b.h', 'a//b', 'a\u0000b', ''])('refuses the unsafe path %j', (p) => {
     expect(() => writeContainer([{ path: p, bytes: new Uint8Array(1) }])).toThrow(PackageError)

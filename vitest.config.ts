@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config'
+import { availableParallelism } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import type { Plugin } from 'vite'
 
@@ -16,12 +17,11 @@ import type { Plugin } from 'vite'
 // @nuxt/vite-builder/dist/index.mjs:851. Using happy-dom + window stubs achieves
 // identical test fidelity for state-logic tests.
 //
-// vitest stays on 2.1.9 for now (2026-11-09). 3.2.6 and 4.1.12 were both tried, for their security
-// fixes: each passed locally at the same speed, but on CI's Linux runners the CPU-heavy tests (the
-// ZILF goldens, the container's deflate test) took about twice as long and timed out, three runs
-// out of three, while the same commit's tests on 2.1.9 passed. The advisories against 2.1.9 and
-// its tinypool need the Vitest UI/API server or a polluted prototype inside the test process;
-// neither is used here. See docs/security-audits/2026-11-09-review.md.
+// vitest 5 (2026-11-09). 3.2.6 and 4.1.12 had timed out on CI, which looked like the runner being
+// slower. It wasn't: timed on one CI machine, a ZILF golden's compile takes about 50 s alone under
+// vitest 2 and 5 alike, against what was a 60 s hook limit, so any extra load beside it tipped it
+// over. The limits in the ZILF goldens are now for a hang (240 s), and one core is left free.
+// See docs/security-audits/2026-11-09-review.md.
 
 /**
  * Vite plugin that replaces `import.meta.client` with `true` in all app source
@@ -54,16 +54,36 @@ export default defineConfig({
     __FROTZSMITH_DESKTOP__: 'false',
   },
   test: {
-    environment: 'node',
+    // One core left free, as vitest 2 did by default; vitest 4 and later use every core. Each
+    // ZILF golden compiles in a 13 MB .NET runtime that fills a core: three at once on CI's four
+    // took 55 s each with a core free and 81 s without (2026-11-09).
+    maxWorkers: Math.max(1, availableParallelism() - 1),
+    // Two projects (environmentMatchGlobs is gone since vitest 4): pure logic in node, and the
+    // composable tests that need DOM/localStorage (`*.nuxt.test.ts`) in happy-dom. Both take
+    // the plugins, defines and aliases of this file (`extends: true`).
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: ['app/**/*.{test,spec}.ts', 'tools/*.{test,spec}.ts'],
+          exclude: ['**/*.nuxt.test.ts', '**/node_modules/**'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'happy-dom',
+          environment: 'happy-dom',
+          include: ['app/**/*.nuxt.test.ts'],
+        },
+      },
+    ],
     // @frotzinc/nuxt-base is a Nuxt layer shipped as TypeScript source; Node
     // won't strip types under node_modules, so Vite transforms it instead.
     server: { deps: { inline: [/@frotzinc\/nuxt-base/] } },
-    include: ['app/**/*.{test,spec}.ts', 'tools/*.{test,spec}.ts'],
     setupFiles: ['./test/nuxt-setup.ts'],
-    environmentMatchGlobs: [
-      // Composable tests that need DOM/localStorage run in happy-dom
-      ['**/*.nuxt.test.ts', 'happy-dom'],
-    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

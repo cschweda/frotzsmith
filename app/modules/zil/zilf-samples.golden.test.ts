@@ -51,7 +51,7 @@ let zilfExports: {
 // ---------------------------------------------------------------------------
 describe.skipIf(!process.env['ZIL_SAMPLE_GOLDEN'])(
   'ZIL sample set — anti-rot compile check (ZIL_SAMPLE_GOLDEN=1 to enable)',
-  { timeout: 90_000 },
+  { timeout: 240_000 }, // the largest sample takes about 50 s on CI alone, more beside others
   () => {
     beforeAll(async () => {
       const files = await readdir(frameworkDir)
