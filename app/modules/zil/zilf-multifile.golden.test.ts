@@ -68,7 +68,7 @@ const ITEMS = `; lib/items.zil
 `
 const STORY = `${HEAD}\n<INSERT-FILE "rooms">\n<INSERT-FILE "lib/items">\n${GO}\n`
 
-describe('ZILF multi-file compile (node-env)', { timeout: 60_000 }, () => {
+describe('ZILF multi-file compile (node-env)', { timeout: 180_000 }, () => {
   beforeAll(async () => {
     const files = await readdir(frameworkDir)
     const dotnetJs = files.includes('dotnet.js')

@@ -40,8 +40,10 @@ export function guardReports(handler, { store, now = () => Date.now(), dailyCap 
   return async function guarded(req, context) {
     if (req.method !== 'POST') return handler(req, context)
 
-    const origin = req.headers.get('origin')
-    if (!origin || hostOf(origin) === null || hostOf(origin) !== hostOf(req.url))
+    // The host the request came to: its URL's, or its Host header's (a browser sets that itself, so
+    // another site's page can't make it match its own Origin).
+    const from = hostOf(req.headers.get('origin') ?? '')
+    if (from === null || (from !== hostOf(req.url) && from !== req.headers.get('host')))
       return json(403, { error: 'Reports are sent from this site’s own page.' })
     if (!/^application\/json\s*(;|$)/i.test(req.headers.get('content-type') ?? ''))
       return json(415, { error: 'That wasn’t a report.' })

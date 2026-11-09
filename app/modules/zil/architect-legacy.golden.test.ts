@@ -69,6 +69,8 @@ describe.skipIf(!process.env['ZIL_SAMPLE_GOLDEN'])(
   () => {
     let story: Uint8Array
 
+    // CI's runners take about 50 s for this compile alone, and up to 100 s while other ZILF
+    // goldens compile beside it (measured 2026-11-09); the limit is for a hang, not for speed.
     beforeAll(async () => {
       const files = await readdir(frameworkDir)
       const dotnetJs = files.includes('dotnet.js')
@@ -95,7 +97,7 @@ describe.skipIf(!process.env['ZIL_SAMPLE_GOLDEN'])(
       // No warnings either: the sample is teaching material.
       expect(result.diagnostics.filter((d) => d.trim().length > 0)).toEqual([])
       story = new Uint8Array(Buffer.from(result.storyBase64!, 'base64'))
-    }, 60_000)
+    }, 240_000)
 
     // The VM runs in the story's own bytes (it mutates dynamic memory), so
     // every replay gets a fresh copy of the compiled story.
