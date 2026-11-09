@@ -250,7 +250,7 @@ export function useSkein() {
   function toastRunFailure(prefix: string) {
     useToast().add({
       title: `${prefix} run failed`,
-      description: `${lastRunError} — the headless replay engine could not play this game (the inline player may still work). Try Run again after a recompile, or report it via the bug icon.`,
+      description: `${lastRunError} — the headless replay engine could not play this game (the inline player may still work). Try Run again after a recompile, or report it (About → Report a problem).`,
       color: 'error',
       icon: 'i-lucide-octagon-x',
     })

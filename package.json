@@ -1,6 +1,6 @@
 {
   "name": "frotzsmith",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "private": true,
   "license": "GPL-3.0-or-later",
   "type": "module",
@@ -32,6 +32,7 @@
     "@frotzinc/player": "0.2.1",
     "@frotzinc/worker-rpc": "0.1.0",
     "@lezer/highlight": "^1.2.5",
+    "@netlify/blobs": "11.1.7",
     "@nuxt/ui": "4.12.0",
     "@vite-pwa/nuxt": "1.1.1",
     "fflate": "^0.8.3",
@@ -51,7 +52,7 @@
     "happy-dom": "^21.0.4",
     "serve": "^14.2.6",
     "typescript": "^5.7.3",
-    "vitest": "^2.1.8",
+    "vitest": "2.1.9",
     "vue-tsc": "^3.3.13"
   }
 }

@@ -48,7 +48,7 @@ vi.stubGlobal('useCompiler', () => ({ compile: _compile }))
 /** How the fake worker behaves: 'real' replays; 'error-after-1' plays one
  *  command then reports an engine error; 'hang' never answers. */
 let workerMode: 'real' | 'error-after-1' | 'hang' = 'real'
-const _cancels: Array<ReturnType<typeof vi.fn>> = []
+const _cancels: Array<ReturnType<typeof vi.fn<() => void>>> = []
 vi.stubGlobal('useReplay', () => ({
   replay: (story: Uint8Array, target: 'zmachine', commands: string[], opts: { timeoutMs?: number } = {}) => {
     const mode = workerMode

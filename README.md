@@ -2,7 +2,7 @@
 
 [![frotzsmith — a browser-based Interactive Fiction IDE](./public/og-image.png)](https://frotzsmith.frotzinc.com)
 
-> A personal, browser-based **Interactive Fiction** IDE — write source, compile to a Z-machine story file entirely client-side, play it inline, and run long test scripts. **Two source languages: Inform 6 (+ PunyInform), and ZIL (via ZILF).** No backend, no accounts — your source and story files never leave the browser (the only network traffic after load is cookieless, first-party Plausible pageview analytics).
+> A personal, browser-based **Interactive Fiction** IDE — write source, compile to a Z-machine story file entirely client-side, play it inline, and run long test scripts. **Two source languages: Inform 6 (+ PunyInform), and ZIL (via ZILF).** No accounts, no database — your source and story files never leave the browser (the only network traffic after load is cookieless, first-party Plausible pageview analytics, and a report if you choose to send one from the About menu).
 
 [![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
 [![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82.svg)](https://nuxt.com)
@@ -13,7 +13,7 @@
 [![CI](https://github.com/cschweda/frotzsmith/actions/workflows/ci.yml/badge.svg)](https://github.com/cschweda/frotzsmith/actions/workflows/ci.yml)
 [![Netlify Status](https://api.netlify.com/api/v1/badges/f7f3b0b2-d202-491f-8123-e7a1630ef904/deploy-status)](https://app.netlify.com/projects/frotzsmith/deploys)
 
-> **Status — Inform 6 beta · ZIL alpha.** Write **Inform 6** (at `/`) or **ZIL** (at `/zil/`) and compile to a Z-machine story file entirely in the browser — I6 via `inform6.wasm` (Standard Library or PunyInform, auto-detected), ZIL via the **ZILF** compiler built to .NET WebAssembly. Then **play it inline** via Parchment + the pure-JS ZVM, watch a **live auto-map** draw as you explore, **capture your playthrough and replay command scripts headlessly**, load worked samples (21 for Inform 6, 7 for ZIL), and pull in your own extensions. A title-strip toggle flips between the two languages, each with its own namespaced project state. See [ROADMAP.md](./ROADMAP.md) for what's next and [CHANGELOG.md](./CHANGELOG.md) for what's shipped; design docs live in [`docs/`](./docs).
+> **Status — Inform 6 beta · ZIL alpha.** Write **Inform 6** (at `/`) or **ZIL** (at `/zil/`) and compile to a Z-machine story file entirely in the browser — I6 via `inform6.wasm` (Standard Library or PunyInform, auto-detected), ZIL via the **ZILF** compiler built to .NET WebAssembly. Then **play it inline** in frotzplay (or Parchment + the pure-JS ZVM, as a choice), watch a **live auto-map** draw as you explore, **capture your playthrough and replay command scripts headlessly**, load worked samples (21 for Inform 6, 7 for ZIL), and pull in your own extensions. A title-strip toggle flips between the two languages, each with its own namespaced project state. See [ROADMAP.md](./ROADMAP.md) for what's next and [CHANGELOG.md](./CHANGELOG.md) for what's shipped; design docs live in [`docs/`](./docs).
 
 ## What it is
 
@@ -59,14 +59,14 @@ write I6  ──▶  compile (inform6.wasm, client-side)  ──▶  play inline
 | Headless engine | pure-JS ZVM (ifvms) in a Web Worker, behind a `StoryEngine` seam |
 | Language | TypeScript |
 | State | Vue composables (no Pinia) |
-| Testing | Vitest — pure logic in Node, composable/state suites in happy-dom; CI (GitHub Actions) runs test (incl. the ZIL sample goldens) + typecheck + generate + artifact checks + an **axe-core zero-violation gate** on every push to `main` and every PR |
+| Testing | Vitest — pure logic in Node, composable/state suites in happy-dom; CI (GitHub Actions) runs test (incl. the ZIL sample goldens) + typecheck + generate + artifact checks + an **axe-core zero-violation gate** on every push to `staging` and `main` and every PR |
 | Theme | Dark by default, accessible light/dark toggle |
 | Accessibility | WCAG 2.1 AA, axe-core zero-violation gate, fully responsive |
 | Package manager | Yarn 1.22 |
 | Runtime | Node 22 |
 | Offline | Workbox service worker via `@vite-pwa/nuxt` — app precached, ZILF cached on first use, updates only on the author's Reload; installable (web manifest) |
 | Analytics | Plausible (privacy-friendly, cookieless) |
-| Hosting | Netlify (static; publishes `dist`) |
+| Hosting | Netlify (static; publishes `dist`), plus one small function that emails a report you choose to send |
 
 ## Roadmap
 
@@ -111,36 +111,36 @@ yarn generate   # static build (Netlify publishes dist)
 yarn preview    # preview the static build
 ```
 
-**For contributors:** state lives in Vue composables (no Pinia) — each is a pure logic file (`*.ts`, unit-tested as a sibling `*.test.ts`) plus a thin `use*` wrapper. The headless test-script engine is a `StoryEngine` seam (`app/modules/inform6/engine/`) that drives the pure-JS ZVM inside a Web Worker (`replay.worker.ts`), kept entirely separate from interactive Play, which is a same-origin Parchment iframe (`public/play/`). Design decisions are logged as ADRs in [`docs/11-architecture-decisions.md`](./docs/11-architecture-decisions.md).
+**Branches:** work goes on a branch and a pull request into **`staging`**, which Netlify deploys as a free branch deploy (`staging--frotzsmith.netlify.app`). `staging` → `main` is the production deploy, made deliberately and with a merge commit. A push that changes only `README.md`, `ROADMAP.md`, `docs/` or `.github/` doesn't build at all (`ignore` in `netlify.toml`).
+
+**For contributors:** state lives in Vue composables (no Pinia) — each is a pure logic file (`*.ts`, unit-tested as a sibling `*.test.ts`) plus a thin `use*` wrapper. The headless test-script engine is a `StoryEngine` seam (`app/modules/inform6/engine/`) that drives the pure-JS ZVM inside a Web Worker (`replay.worker.ts`), kept entirely separate from interactive Play: frotzplay (`@frotzinc/player`) mounted in the page by default, or a same-origin Parchment iframe (`public/play/`) as a choice. Design decisions are logged as ADRs in [`docs/11-architecture-decisions.md`](./docs/11-architecture-decisions.md).
 
 ## Security
 
-frotzsmith is fully client-side with no backend, no accounts, and no user data leaving the browser. The design-level threat model lives in [`docs/06-security.md`](./docs/06-security.md); periodic red/blue audits are logged under **Security audits** below.
+frotzsmith compiles and plays entirely client-side, with no accounts and no database: your source and story files never leave the browser. The one server-side piece is a small Netlify Function that emails a report **you choose to send** (About → Report a problem / Suggest a feature) to the maintainer; it takes same-site posts only and sends at most 100 a day ([`docs/06-security.md` §10](./docs/06-security.md)). To report a security problem privately, see [`SECURITY.md`](./SECURITY.md). The design-level threat model lives in [`docs/06-security.md`](./docs/06-security.md); periodic red/blue audits are logged under **Security audits** below.
 
 ## Security audits
 
 Periodic adversarial (red-team) + defensive (blue-team) reviews of the client-side attack surface. The newest audit is shown in full; older ones are condensed below. **Every audit is kept in full** in [`docs/security-audits/`](./docs/security-audits/README.md).
 
-### 2026-11-04 — Red/blue audit (`.frotzsmith` package)
+### 2026-11-09 — Security and code review (0.2.0–0.2.6)
 
-**Scope:** the new `.frotzsmith` project package and everything it can feed (Skein trees, test scripts, extensions, the compiler's include mount, Play and headless replay), the vendored Z-machine interpreters, CSP and headers, analytics, and the supply chain.
-**Method:** a blue-team control review (57 controls) and red-team attack files + probes run against the repo's own modules and compiler, cross-checked with `unzip`, `bsdtar` and Python `zipfile`; three fix rounds, each independently reviewed; a browser check of the production build.
-**Overall posture: strong, after fixes.** Every finding is fixed except one Info item (deferred). Full record: [`docs/security-audits/2026-11-04-red-blue-audit.md`](./docs/security-audits/2026-11-04-red-blue-audit.md).
+**Scope:** what shipped after the 2026-11-04 audit — the frotzplay player and its exports, the family header and About menu, the email report function (the app's first server-side code), the domain move — plus deployment headers, CI and the dependency tree.
+**Method:** a read of the code and the installed `@frotzinc` packages, sink searches, `yarn audit`, and probes of the live headers and the report function (invalid bodies only; nothing was sent).
+**Overall posture: strong.** No High finding; no XSS sink in the app's own code; frotzplay's interpreter runs no generated code. Every finding below is fixed in 0.2.7. Full record: [`docs/security-audits/2026-11-09-review.md`](./docs/security-audits/2026-11-09-review.md).
 
 | Severity | Finding | Mitigation |
 |----------|---------|-----------|
-| **High** | **JavaScript injection through the Z-machine JIT** (proven). Both interpreter copies compile abbreviated strings with `Function()`, using U+E000 as a placeholder that becomes `"`. A story mapping a character to U+E000 in its Unicode table could run script on frotzsmith.frotzinc.com. A share link or package plus one Compile was enough, because the Skein auto-replays. This is the June audit's "potential" High: its `blob:`-only gate never covered source you compile yourself. | **Fixed:** both copies patched (U+E000/control characters become U+FFFD; JS line terminators escaped). The build fails if the patch can't apply. Regression tests show exploit before / inert after, and the built worker is smoke-tested on every deploy. Outside source (package, share link, opened file) no longer auto-runs until you press Play or Run. |
-| **High** | **A package could replace a library file** (`VerbLib.h`, `Parser.h`, `puny.h` …) **for every later game**, silently, because package includes became language-wide uploaded extensions mounted over the library. | **Fixed:** library-named packages are refused, the library always wins at compile, and any package that adds an extension asks first and names it. |
-| **Medium** | **Vue-reserved keys / deep junk in a Skein.** These could crash the Skein panel persistently, make a node replay a different command from the one validated, or break download. | **Fixed:** every loaded tree is rebuilt from known fields, with safe node ids and a depth cap. |
-| **Medium** | **Analytics script lacked integrity** (open since June). | **Fixed:** a reviewed copy is vendored with a recorded checksum; only the event beacon is proxied; no analytics on desktop. |
-| **Low** | Zip parser differentials (archive comment, Unicode Path field); symlink check limited to Unix archives; unportable or deceptive file names and case-fold twins; deceptive display names in toasts; prototype-named games breaking Tests and the map; silent `.skein`/Open replacement; uncapped test scripts; trailing compressed bytes; hidden files not named; loose CSP; vendored-file provenance, Actions pins, frozen Netlify install; missing tests. | **All fixed** — stricter reader + writer parity, cleaned names, confirmations and caps, `blob:` dropped from CSP with a header test, checksums, SHA-pinned Actions, `--frozen-lockfile`, and new tests (which found and fixed two more gaps). |
-| **Info** | Extension `.zip` upload isn't atomic; the main-thread compile fallback has no timeout. | Deferred to the next milestone. |
+| **Medium** | **The report function could be scripted.** Its checks were either sent by the client (the elapsed time, the hidden field) or kept in one function instance's memory, and it took a cross-site `text/plain` post. The recipient is fixed, so the harm was a flooded inbox and a spent email quota. | **Fixed:** same-site `application/json` posts only, and at most 100 reports a day, counted so that posts sent together can't share one count (`netlify/lib/report-guard.mjs`). |
+| **Medium** | **The security notes described an app with no server**, and Parchment as the only player. | **Fixed:** `docs/06-security.md` covers the report function (§10), frotzplay and its exports. |
+| **Low** | A report's title could carry line breaks into the email subject; CI checked a ZILF bundle the app no longer loads (and that 11 MB bundle was still deployed); `robots.txt` and the sitemap named the old `netlify.app` address; `yarn audit` listed 165 advisories in build and test tooling (3 critical, in the test runner); the custom domain's HSTS lacked `includeSubDomains`, and there was no `Cross-Origin-Opener-Policy`; a share link could load a source large enough to fill the browser's storage. | **Fixed:** one-line titles; CI reads the bundle name from the config and the old bundle is gone; both files name frotzsmith.frotzinc.com; transitive packages refreshed (36 advisories left, all in build and test tooling, none in shipped code; the three critical ones are in the test runner, vitest 2.1.9, whose newer versions time out on CI — see the record); both headers set and pinned by a test; shared sources are capped at 1,000,000 characters. |
 
-**Residual:** the interpreters still share the IDE's origin. An opaque-origin sandbox for Play and replay is planned.
+**Residual:** the CSP still allows inline script and `eval` (Parchment's and the replay engine's ZVM are JITs; ZILF's loader uses `new Function`), and Parchment and the replay worker still share the IDE's origin. With frotzplay the default, retiring the JIT interpreters is the way to tighten both.
 
 <details>
 <summary><strong>Older audits</strong> (condensed — full records in <code>docs/security-audits/</code>)</summary>
 
+- **2026-11-04 — Red/blue audit (`.frotzsmith` package).** 2 High, 3 Medium, 12 Low, 1 Info; all fixed except the Info item (deferred). The Highs: JavaScript injection through the Z-machine JIT (both ZVM copies patched, and outside sources never auto-run), and a package replacing a library file for every later game (refused; the library always wins). The interpreters still share the IDE's origin. [Full record →](./docs/security-audits/2026-11-04-red-blue-audit.md)
 - **2026-06-30 — Red/blue audit (play-transcript release).** 1 High, 3 Medium, 2 Low. These were fixed at the time: the remote-story delivery High (play page limited to same-origin `blob:`), the zip bomb, compiling on the main thread, the `postMessage` source pin, and part of the header hardening. The JIT-injection High and the analytics integrity item were closed by the 2026-11-04 audit. [Full record →](./docs/security-audits/2026-06-30-red-blue-audit.md)
 
 </details>

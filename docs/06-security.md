@@ -2,7 +2,9 @@
 
 **Document 06 of 13 · Security**
 
-frotzsmith is a static, client-only app: no backend, no accounts, no user data leaving the browser except via explicit downloads the author initiates. That eliminates whole categories of risk (no server to breach, no DB, no auth surface) but introduces a few specific to running a compiler and untrusted story files in-browser.
+frotzsmith is a static, client-only app: no accounts, no database, and the author's source and story files never leave the browser except via explicit downloads the author initiates. That eliminates whole categories of risk (no DB, no auth surface) but introduces a few specific to running a compiler and untrusted story files in-browser.
+
+**One thing runs on a server** (since 0.2.5): the report function (`netlify/functions/report.mjs`), which emails what a person writes in *Report a problem* / *Suggest a feature* to the maintainer. It is the only remote surface and the only place a secret lives; §10 covers it.
 
 ---
 
@@ -15,9 +17,10 @@ frotzsmith is a static, client-only app: no backend, no accounts, no user data l
 | The DOM | XSS via rendered game output or error text | Treat all interpreter output and compiler stderr as untrusted text; no `innerHTML` of unsanitized content. |
 | Exported bundle recipients | A shared `.html` doing something unexpected | Bundle contains only pinned runtime + the author's story; no remote requests; self-contained. |
 | Imported projects | Malicious project JSON | Strict validation, text-only treatment, never `eval`. |
+| The maintainer's inbox and email quota | A script posting to the report function | Same-site JSON posts only, a daily cap, fixed recipient, size limits (§10). |
 | The IDE's origin | A hostile game source (package, share link) compiled and run by the IDE's own interpreters, which share the IDE's origin | ZVM's JIT injection patched (§3); outside sources don't auto-run (§6.1); CSP (§9). |
 
-There is no remote attacker surface (no server). The realistic risks are **self-inflicted** (a runaway game freezing the tab), **XSS via untrusted text** (game output, error messages, pasted source), and **a hostile story reaching the interpreters**: a package or share link delivers *source*, the author compiles it, and the compiled story runs in interpreters that share the IDE's origin (the Play iframe is `allow-same-origin allow-scripts`; the replay worker is same-origin). The play page's blob: gate (§3) stops *other people's* story files, not a story the author compiles.
+The only remote attacker surface is the report function (§10); it holds no user data and cannot reach the IDE. In the browser, the realistic risks are **self-inflicted** (a runaway game freezing the tab), **XSS via untrusted text** (game output, error messages, pasted source), and **a hostile story reaching the interpreters**: a package or share link delivers *source*, the author compiles it, and the compiled story runs in interpreters that share the IDE's origin (the Play iframe is `allow-same-origin allow-scripts`; the replay worker is same-origin). The play page's blob: gate (§3) stops *other people's* story files, not a story the author compiles.
 
 ## 2. WASM compiler sandboxing
 
@@ -30,6 +33,7 @@ There is no remote attacker surface (no server). The realistic risks are **self-
 
 - Story files are untrusted by definition (the author may paste/import someone else's `.inf`, or compile experimental code).
 - Interpreters run in the browser sandbox and cannot escape to the host. Two copies of the pure-JS Z-machine **ZVM** ship: the vendored Parchment build (`public/play/web/zvm.js`, the Play tab) and ifvms 1.1.6 from npm (bundled into the headless replay worker). Glulx is not played in the browser (Quixe is not vendored).
+- **The Play tab's default player is frotzplay** (`@frotzinc/player` on `@frotzinc/zmachine`, since 0.2.0), mounted in the IDE's own page, not a frame. Its interpreter decodes and runs one instruction at a time: no `eval`, no `new Function`, no generated code, so a story cannot make it execute JavaScript the way a JIT can. It runs in slices on the main thread and yields between them, so a looping story does not freeze the tab. Its output is rendered by Vue as text. Its autosave is off in the IDE (`:autosave="false"`). Parchment remains as a choice, and ZVM (ifvms) still runs every headless replay; the points below are about those two.
 - **They are not an origin boundary.** The Play iframe needs `allow-same-origin allow-scripts` (the IDE reads its DOM and feeds Send to Play), so code running in it can reach the IDE's DOM and storage; the replay worker is same-origin too. Anything a story can make the interpreter *execute* is therefore same-origin script. Long term, an opaque-origin sandbox for both (talking over `postMessage`) would close this class; it is not built yet.
 - **ZVM JIT injection, patched (audit 2026-11-04, F2).** ZVM compiles any string that uses an abbreviation into `Function('return"…"')`, using U+E000 as the placeholder around `+this.abbr(N)+`, after escaping only `\`, `"` and `\r`. A story whose Unicode table maps a character to U+E000 (Inform 6: `Zcharacter table + '@{E000}';`) put a bare `"` into that source and ran arbitrary JavaScript — proven with a story compiled by our own inform6.wasm, in both copies. Both copies now map a Unicode-table entry of U+E000 or a C0 control other than 13 to U+FFFD, and also escape `\n`, U+2028 and U+2029. The vendored file is patched in place (header comment; `public/play/web/README.md`); ifvms is patched at build time by `tools/ifvms-text-fix.mjs`, which **fails the build** if either line changes in an upgrade, or if a bundle holds modules under `ifvms/src/zvm/` but `ifvms/src/zvm/text.js` never went through the patch. (If an upgrade moved ifvms's sources elsewhere, e.g. to `dist/`, neither check would match; the built-worker smoke test below is the backstop that fails then.) The same plugins run in the `nuxt dev` pre-bundle (`optimizeDeps.rolldownOptions.plugins`), which otherwise skips them, so the dev replay worker is patched too. `app/modules/inform6/engine/zvm-text-jit.test.ts` runs the PoC against unpatched ifvms and the vendored copy with its two edits undone (must fire), patched ifvms and the vendored copy (must not); `tools/smoke-replay-worker.mjs` replays the PoC fixture in the **built** worker after every `generate`.
 - **The Play page's story gate:** `public/play/index.html` accepts `?story=` only as a blob URL minted by this origin (`blob:<origin>/…`, the IDE's own compiled output) and otherwise plays the bundled demo, so a crafted link can't hand the player someone else's story file (`tools/play-page.test.ts`).
@@ -41,7 +45,7 @@ There is no remote attacker surface (no server). The realistic risks are **self-
 
 All three text streams are **untrusted** and must never be injected as HTML:
 1. **Compiler stderr** (error/warning messages) — rendered as text content, not HTML.
-2. **Game output** in the Play tab — Parchment/GlkOte handles rendering; frotzsmith doesn't post-process it into the DOM as raw HTML.
+2. **Game output** in the Play tab — frotzplay renders it as text through Vue (no `v-html`); with Parchment chosen, Parchment/GlkOte handles rendering in its frame. frotzsmith doesn't post-process it into the DOM as raw HTML.
 3. **Game output** in the Transcript tab — rendered as text content; if any styling is applied, it's via safe DOM construction, never `innerHTML` of game text.
 
 Where frotzsmith itself renders any of this (Transcript, Results), it uses text nodes / framework text binding (Vue's default escaping), never `v-html` on untrusted content. (The markdown editor already established DOMPurify discipline for *its* HTML rendering; frotzsmith's surfaces are plain text, so the rule is simply "no raw HTML from untrusted sources.")
@@ -49,7 +53,8 @@ Where frotzsmith itself renders any of this (Transcript, Results), it uses text 
 ## 5. Export hygiene
 
 - **Filenames** for downloads come from `slugify` (`app/utils/slug.ts`): the story title is reduced to lowercase ASCII letters, digits and hyphens, so a title can't carry a path, a separator or an invalid character.
-- **Playable bundle**: assembled from pinned local runtime + the author's story bytes only. No remote `<script src>`, no fetches → the artifact can't be a vector for pulling in remote code, and works offline.
+- **Playable bundle (frotzplay, the default)**: one HTML file from `@frotzinc/player`'s `bundle()` — the `<frotz-play>` script, the story as base64 in a data block, and its own `Content-Security-Policy` (`default-src 'none'`, the two scripts and the style allowed by hash). The title is HTML-escaped. *Export folder (.zip)* holds the same pieces as files; its folder name is the slug.
+- **Playable bundle (Parchment)**: assembled from pinned local runtime + the author's story bytes only. No remote `<script src>`, no fetches → the artifact can't be a vector for pulling in remote code, and works offline.
 - **Project export JSON**: plain data; no executable content.
 
 ## 6. Import validation
@@ -92,7 +97,7 @@ A `.frotzsmith` file is untrusted input, read entirely in the browser.
 
 ## 9. Content Security Policy (deployment)
 
-`netlify.toml` sends this policy for every path; `tools/netlify-headers.test.ts` pins it exactly, along with `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` that turns off camera, microphone, geolocation and payment.
+`netlify.toml` sends this policy for every path; `tools/netlify-headers.test.ts` pins it exactly, along with `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, a `Permissions-Policy` that turns off camera, microphone, geolocation and payment, `Strict-Transport-Security: max-age=31536000; includeSubDomains` (stated so the custom domain sends `includeSubDomains` too; no `preload`, which is a decision for all of frotzinc.com) and `Cross-Origin-Opener-Policy: same-origin`.
 
 ```
 default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval';
@@ -128,6 +133,19 @@ The website registers a Workbox service worker (`@vite-pwa/nuxt`, configured und
 - **Kill switch (removing the worker).** To remove the service worker from every visitor, deploy a build made with **`FROTZSMITH_SW_KILL=1`** (e.g. as a Netlify build environment variable, then trigger a deploy). That sets `pwa.selfDestroying: true`: the deployed `sw.js` installs at once, unregisters itself, deletes every cache frotzsmith made, and reloads its open pages from the network. `check-sw` checks that shape in that mode. **A rollback alone does not remove the worker:** rolling back to a deploy from before the service worker makes `/sw.js` a 404, and an installed worker that gets a 404 on update simply stays, serving its precache indefinitely. So: deploy the kill build first, leave it up long enough for visitors to come back (open tabs pick it up within the hourly check), then roll back or redeploy normally. This is the **one path that reloads pages without the author pressing Reload**, by design; it does not wait for an open tab's pending (debounced) saves, so the last second of typing can be lost; work already saved in the browser's storage is untouched (only Cache Storage is cleared).
 - The desktop build (`FROTZSMITH_DESKTOP=1`) ships no service worker, no manifest and no registration code.
 
-## 10. Summary
+## 10. The report function (the one server-side piece)
 
-The static, client-only architecture is the biggest security win — there's almost nothing to attack remotely. The real work is (a) sandboxing/timeouts so untrusted source and story files can't hang or exhaust the tab, (b) treating all compiler and game text as untrusted plain text in the DOM, and (c) remembering that the interpreters share the IDE's origin, so their code generation must not be steerable by a story (§3) and outside sources must not run without the author's click (§6.1).
+*Report a problem* and *Suggest a feature* (the About menu) can send what the person wrote by email. The browser posts to `/.netlify/functions/report` on its own site (so `connect-src 'self'` covers it); the function sends it to the maintainer through Resend. The handler is `@frotzinc/nuxt-base`'s; frotzsmith puts a guard in front of it (`netlify/lib/report-guard.mjs`, tested by `tools/report-guard.test.ts`).
+
+- **What leaves the browser, and only on Send:** the text the person typed, the reply address if they gave one, and, if the box is ticked, the technical details shown in the form (the app's version and build, and the browser). Never the source or a story file. Netlify sees the sender's IP address, as for any request; the function uses it only to count requests and does not put it in the email or store it.
+- **The secret:** `RESEND_API_KEY` is a Netlify environment variable, read by the function and never sent to the browser. `REPORT_TO` and `REPORT_FROM` are environment variables too: the recipient is fixed, never taken from the form, so the function cannot be used to mail anyone else. Without them it answers 503 and the dialog offers GitHub.
+- **Text only:** the email is plain text. Every field is cut to a limit, control characters are removed, the body is at most 32 KiB, and the title is made one line before it becomes the subject. The reply address must look like one address (no spaces, commas or angle brackets).
+- **Against a flood** (review 2026-11-09 — what the handler alone relies on is either sent by the client, `elapsed` and the hidden field, or kept in one instance's memory):
+  - *Same site only.* The `Origin` header must name the host the request came to, and the body must be `application/json`. A page on another site cannot post from a visitor's browser.
+  - *Per address.* The handler counts posts per IP address and refuses more than 5 a minute, but only within one function instance, so it slows a single script and no more. The function file also asks Netlify for the same limit at the edge (`config.rateLimit`); on a Deploy Preview that was not seen to refuse anything (2026-11-09), so nothing depends on it.
+  - *Per day.* At most 100 reports are sent a day, counted in Netlify Blobs (`report-count`: one empty key per sent report, under its day; nothing about the report or its sender). Each report takes its place before it is sent and then counts the places taken, so posts arriving together cannot all read the same count and all go through; a report that isn't sent gives its place back. Past the cap the function answers 429 and the dialog offers GitHub. A script that forges its headers and rotates addresses stops here. If the store cannot be reached, the report still goes; the response's `X-Report-Counted: yes`/`no` header says which, so a deploy can be checked without sending a report.
+- **The desktop build** has no report endpoint; it offers GitHub only.
+
+## 11. Summary
+
+The client-only architecture is the biggest security win — the one remote surface is a small function that only sends mail to a fixed address (§10). The real work is (a) sandboxing/timeouts so untrusted source and story files can't hang or exhaust the tab, (b) treating all compiler and game text as untrusted plain text in the DOM, and (c) remembering that the interpreters share the IDE's origin, so their code generation must not be steerable by a story (§3) and outside sources must not run without the author's click (§6.1).

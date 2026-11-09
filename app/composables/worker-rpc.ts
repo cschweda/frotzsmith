@@ -17,7 +17,7 @@ export {
 export function timedOutResult(storyExt: StoryExt, ms: number): CompileResult {
   const msg =
     `Compile timed out after ${Math.round(ms / 1000)} s and was stopped. `
-    + 'Compile again to retry; if it keeps happening, please report it (bug icon).'
+    + 'Compile again to retry; if it keeps happening, please report it (About → Report a problem).'
   return {
     ok: false,
     storyExt,

@@ -5,6 +5,34 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2026-11-09
+
+The fixes from a security and code review of 0.2.0–0.2.6 ([record](docs/security-audits/2026-11-09-review.md)).
+
+### Security
+- **The report function can't be used to flood the inbox.** Report a problem / Suggest a feature now reach the email function only as same-site `application/json` posts (the `Origin` must be the site's own), and at most 100 reports are sent a day, counted in Netlify Blobs so that posts sent together can't share one count — past that the dialog says so and offers GitHub. Before, the checks were the client's own word (the elapsed time, the hidden field) or one function instance's memory. `netlify/lib/report-guard.mjs`, in front of `@frotzinc/nuxt-base`'s handler.
+- A report's title is made one line before it becomes the email's subject.
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains` and `Cross-Origin-Opener-Policy: same-origin` on every response (`netlify.toml`); the header test pins both.
+- A share link's source is refused past 1,000,000 characters (was 4,000,000, enough to fill the browser's storage for the site).
+
+### Fixed
+- `robots.txt` and `sitemap.xml` name frotzsmith.frotzinc.com (they still said `frotzsmith.netlify.app`), and the sitemap lists `/zil/` and `/technical/` too.
+- A compile that times out points to **About → Report a problem**, not the toolbar's bug icon (removed in 0.2.5).
+
+### Removed
+- `public/zilf/r5262550/`, the ZILF bundle superseded by `r5262550-w2` on 2026-11-04: 11 MB that was still deployed and that nothing loaded.
+
+### Changed
+- Transitive packages named by `yarn audit` re-resolved in `yarn.lock`: 165 advisories down to 36, all in build and test tooling, none in code that is served. vitest stays on 2.1.9: 3.2.6 and 4.1.12 were tried, and under each CI's heavy tests ran at half speed and timed out (`vitest.config.ts` and the review record say more).
+- `@netlify/blobs` 11.1.7, for the report function's daily count.
+
+### CI
+- The artifact check reads the ZILF bundle's name from `frotzsmith.config.ts` and requires exactly one bundle in the build; it was checking the superseded one.
+
+### Docs
+- `docs/06-security.md`: the report function is in the threat model, with its own section (§10); frotzplay, the default player since 0.2.0, and its exports are described; the headers list is current.
+- README: Play, the Security paragraph, the hosting and CI rows and the audits list are current; a **Branches** note describes the staging flow. `docs/beta-testing.md` and ROADMAP.md say About → Report a problem and frotzplay.
+
 ## [0.2.6] - 2026-11-08
 
 ### Changed

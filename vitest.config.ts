@@ -15,6 +15,13 @@ import type { Plugin } from 'vite'
 // error is "Cannot read properties of undefined (reading 'client')" in
 // @nuxt/vite-builder/dist/index.mjs:851. Using happy-dom + window stubs achieves
 // identical test fidelity for state-logic tests.
+//
+// vitest stays on 2.1.9 for now (2026-11-09). 3.2.6 and 4.1.12 were both tried, for their security
+// fixes: each passed locally at the same speed, but on CI's Linux runners the CPU-heavy tests (the
+// ZILF goldens, the container's deflate test) took about twice as long and timed out, three runs
+// out of three, while the same commit's tests on 2.1.9 passed. The advisories against 2.1.9 and
+// its tinypool need the Vitest UI/API server or a polluted prototype inside the test process;
+// neither is used here. See docs/security-audits/2026-11-09-review.md.
 
 /**
  * Vite plugin that replaces `import.meta.client` with `true` in all app source

@@ -121,11 +121,12 @@ describe('useSolutions', () => {
 
   it('storage full: text stays in memory and the cue fires once', () => {
     const s = useSolutions()
-    vi.spyOn(localStorage, 'setItem').mockImplementation(() => { throw new DOMException('full', 'QuotaExceededError') })
+    const full = vi.spyOn(localStorage, 'setItem').mockImplementation(() => { throw new DOMException('full', 'QuotaExceededError') })
     expect(s.set('mem')).toEqual({ ok: true })
     s.set('mem2')
     expect(s.text.value).toBe('mem2')
     expect(_toastAdd).toHaveBeenCalledTimes(1)
+    full.mockRestore()
   })
 
   it('a pending edit is not written under the other language after a switch', () => {
