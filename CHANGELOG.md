@@ -23,7 +23,7 @@ The fixes from a security and code review of 0.2.0–0.2.6 ([record](docs/securi
 - `public/zilf/r5262550/`, the ZILF bundle superseded by `r5262550-w2` on 2026-11-04: 11 MB that was still deployed and that nothing loaded.
 
 ### Changed
-- vitest and `@vitest/coverage-v8` 4.1.12 (from 2.1.9, for its security fixes): the node and happy-dom suites are two `projects` in `vitest.config.ts`. Transitive packages named by `yarn audit` re-resolved in `yarn.lock`: 165 advisories down to 9, none in code that is served.
+- vitest and `@vitest/coverage-v8` 3.2.6 (from 2.1.9, for its security fix). Transitive packages named by `yarn audit` re-resolved in `yarn.lock`: 165 advisories down to 17, all in build and test tooling, none in code that is served. (vitest 4 would clear two more, in the test runner's worker pool; under it CI's ZILF goldens timed out, so it waits.)
 - `@netlify/blobs` 11.1.7, for the report function's daily count.
 
 ### CI
