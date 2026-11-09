@@ -27,6 +27,6 @@ export default defineAppConfig({
     ],
     // Report a problem / Suggest a feature can send by email (netlify/functions/report.mjs, Resend).
     // Not in the desktop build: it has no site of its own to post to, so it offers GitHub only.
-    reportEndpoint: __FROTZSMITH_DESKTOP__ ? undefined : '/.netlify/functions/report',
+    reportEndpoint: __FROTZSMITH_DESKTOP__ ? undefined : '/api/report',
   },
 })
