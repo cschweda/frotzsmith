@@ -11,7 +11,8 @@ import type { Plugin } from 'vite'
 // NOTE: The intended approach was `defineVitestConfig` from @nuxt/test-utils with
 // `// @vitest-environment nuxt` per file, but that path is blocked: nuxt@4.4.8
 // ships @nuxt/vite-builder which uses the Vite 6 Environment API
-// (server.environments.client) while vitest@2.1.9 bundles Vite 5. The startup
+// (server.environments.client) while vitest@2.1.9 bundled Vite 5 (vitest is 4.x since
+// 2026-11-09, for its security fixes; this standalone setup was kept as it is). The startup
 // error is "Cannot read properties of undefined (reading 'client')" in
 // @nuxt/vite-builder/dist/index.mjs:851. Using happy-dom + window stubs achieves
 // identical test fidelity for state-logic tests.
@@ -47,16 +48,32 @@ export default defineConfig({
     __FROTZSMITH_DESKTOP__: 'false',
   },
   test: {
-    environment: 'node',
+    // Two projects (vitest 4 has no environmentMatchGlobs): pure logic in node, and the
+    // composable tests that need DOM/localStorage (`*.nuxt.test.ts`) in happy-dom. Both take
+    // the plugins, defines and aliases of this file (`extends: true`).
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: ['app/**/*.{test,spec}.ts', 'tools/*.{test,spec}.ts'],
+          exclude: ['**/*.nuxt.test.ts', '**/node_modules/**'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'happy-dom',
+          environment: 'happy-dom',
+          include: ['app/**/*.nuxt.test.ts'],
+        },
+      },
+    ],
     // @frotzinc/nuxt-base is a Nuxt layer shipped as TypeScript source; Node
     // won't strip types under node_modules, so Vite transforms it instead.
     server: { deps: { inline: [/@frotzinc\/nuxt-base/] } },
-    include: ['app/**/*.{test,spec}.ts', 'tools/*.{test,spec}.ts'],
     setupFiles: ['./test/nuxt-setup.ts'],
-    environmentMatchGlobs: [
-      // Composable tests that need DOM/localStorage run in happy-dom
-      ['**/*.nuxt.test.ts', 'happy-dom'],
-    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

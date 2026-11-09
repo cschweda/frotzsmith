@@ -12,7 +12,7 @@ client-side, and play it inline. See
   fuzzily auto-detected), proven byte-identical to a native build
 - z3 / z4 / z5 / z8 targets (profile-aware; `.z5` default), full verbose output,
   and footer stats (story size, dynamic memory / 64 KB, free)
-- **Inline play** via Parchment + the pure-JS ZVM — light/dark, edge-to-edge,
+- **Inline play** in frotzplay (the default since 0.2.0) or Parchment + the pure-JS ZVM — light/dark, edge-to-edge,
   fullscreen toggle
 - 21 verified samples across both libraries — concept demos (rooms, light,
   daemons, NPCs, puzzles, grammar, devices, randomness…) plus a Haunted House

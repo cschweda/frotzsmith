@@ -19,12 +19,15 @@ export type ShareLang = 'i6' | 'zil'
  *  caller tells the author to Save As / export instead. */
 export const SHARE_FRAGMENT_MAX_CHARS = 32_000
 
-/** Largest source a decoded link may yield. The payload IS inflated first and
+/** Largest source a decoded link may yield: 1,000,000 characters, several times the
+ *  longest bundled game, and small enough that the autosave that follows a load still
+ *  fits in localStorage (a 4,000,000-character source alone could fill it — review
+ *  2026-11-09). The payload IS inflated first and
  *  then refused when longer than this; what bounds that inflate is
  *  SHARE_FRAGMENT_MAX_CHARS: 32,000 base64url chars are 24,000 bytes, and
  *  deflate expands at most ~1,032:1, so a bomb tops out near 25 MB in the
  *  opener's tab, briefly, before it is dropped. */
-export const SHARE_SOURCE_MAX_CHARS = 4_000_000
+export const SHARE_SOURCE_MAX_CHARS = 1_000_000
 
 function toBase64Url(bytes: Uint8Array): string {
   let binary = ''

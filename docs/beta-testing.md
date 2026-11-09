@@ -7,7 +7,8 @@ your browser.
 
 ## How to report
 
-Use the **bug icon** in the toolbar (top right), or go straight to
+Use **About → Report a problem** (top right; it can send your report by email
+or open it as a GitHub issue), or go straight to
 [GitHub issues](https://github.com/cschweda/frotzsmith/issues). Most useful
 report: what you did, what you expected, what happened instead, your
 browser/OS — and the source that triggered it, if you can share it.
